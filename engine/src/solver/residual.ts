@@ -1,28 +1,37 @@
 /**
- * Exact closure residual, and the joint list the LP needs.
+ * Exact closure residual, and the per-joint give the bound needs.
  *
- * Stage 1 of the engine. The residual of a fixed topology is an exact algebraic
- * constant, computed in integer arithmetic. Nothing iterates and nothing can
- * fail numerically here.
+ * This is the whole engine now. The residual of a fixed topology is an exact
+ * algebraic constant computed in integer arithmetic: nothing iterates and
+ * nothing can fail numerically here. Across four review passes this stage has
+ * produced zero defects.
+ *
+ * It used to also carry per-joint SENSITIVITIES (an axial direction and an
+ * angular lever arm) for a minimax LP that allocated slop joint by joint. That
+ * LP owned every measured defect in the project and was deleted at decision
+ * R21: it produced a precise-looking TIGHT/FAIL split out of tolerances the
+ * part data itself labels `estimated`. What replaced it is a necessary
+ * condition, computed in `result.ts`: the gap cannot exceed the give.
+ *
+ * So a joint here carries only what it has: where it is, and how much it gives.
  */
 
 import { type Cyc, isZero, sub, toXY } from '../geom/cyclotomic.js';
-import { headingUnit, normalizeHeading, walk, type Pose } from '../geom/pose.js';
+import { normalizeHeading, walk, type Pose } from '../geom/pose.js';
 import type { Layout, Part } from '../parts/schema.js';
 
-export interface JointSensitivity {
+/**
+ * One joint and its budget. Deliberately NOT called a sensitivity any more:
+ * nothing here says how this joint influences the closure, because nothing
+ * computes that. See R21.
+ */
+export interface Joint {
   readonly index: number;
-  /** Where the joint sits, as floats, for reporting. */
+  /** Where the joint sits, as floats. Reporting only. */
   readonly at: [number, number];
-  /** Unit vector along the track at this joint: how axial slop moves the seam. */
-  readonly axialDir: [number, number];
-  /**
-   * Lever arm effect: how one radian of angular slop at this joint moves the
-   * closure point. Perpendicular to the vector from the joint to the end.
-   * Zero for the closing seam itself, which sits at the gap.
-   */
-  readonly angularLever: [number, number];
+  /** One-sided axial give at this joint, millimetres. */
   readonly axialMaxMm: number;
+  /** One-sided angular give at this joint, degrees. */
   readonly angularMaxDeg: number;
 }
 
@@ -38,10 +47,10 @@ export interface ResidualReport {
   /**
    * Heading mismatch in 22.5-degree steps, modulo 16. Must be 0 for a closed
    * loop; a non-zero value means the track does not come back pointing the
-   * right way and no amount of joint slop fixes it.
+   * right way, and no amount of joint give fixes a rotation.
    */
   readonly headingMismatchSteps: number;
-  readonly joints: readonly JointSensitivity[];
+  readonly joints: readonly Joint[];
   readonly poses: readonly Pose[];
 }
 
@@ -55,23 +64,17 @@ export function computeResidual(layout: Layout, resolve: (id: string) => Part): 
   const xy = toXY(exact);
   const headingMismatchSteps = normalizeHeading(end.heading - start.heading);
 
-  const joints: JointSensitivity[] = [];
+  const joints: Joint[] = [];
   if (layout.closed) {
-    // Interior joints sit between consecutive pieces, at poses[1..n-1].
-    // The closing seam is at poses[n], where the chain meets its own start.
+    // Interior joints sit between consecutive pieces, at poses[1..n-1]; the
+    // closing seam is at poses[n], where the chain meets its own start.
     for (let j = 1; j <= n; j++) {
       const pose = poses[j]!;
       const part = resolve(layout.placements[j - 1]!.partId);
       const [px, py] = toXY(pose.pos);
-      const [ex, ey] = toXY(end.pos);
-      // Rotating everything downstream of this joint by phi moves the end by
-      // phi * i * (P_end - P_joint), i.e. perpendicular to the lever arm.
-      const lever: [number, number] = [-(ey - py), ex - px];
       joints.push({
         index: j - 1,
         at: [px, py],
-        axialDir: headingUnit(pose.heading),
-        angularLever: lever,
         axialMaxMm: part.slop.axialMm,
         angularMaxDeg: part.slop.angularDeg,
       });
@@ -87,4 +90,15 @@ export function computeResidual(layout: Layout, resolve: (id: string) => Part): 
     joints,
     poses,
   };
+}
+
+/**
+ * The bound: total one-sided axial give available across every joint.
+ *
+ * Order-independent by construction, because addition is. The gauge dependence
+ * that made the old solver flip a verdict between FAIL and TIGHT depending on
+ * which piece was listed first cannot occur here.
+ */
+export function totalGiveMm(joints: readonly Joint[]): number {
+  return joints.reduce((sum, j) => sum + j.axialMaxMm, 0);
 }

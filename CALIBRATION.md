@@ -74,6 +74,7 @@ Take the 216mm straight (D, #33341).
 - [ ] Socket throat width ................................ ______ mm
 - [ ] Socket throat depth ................................ ______ mm
 - [ ] Plank width (NOT the 40mm gauge — the wood's width) ______ mm
+- [ ] Plank THICKNESS, floor to railhead ................. ______ mm
 
 **Why it matters:** two different plug/nest pairs appear in the plan (11.5 vs
 15–17mm, and 6.25 vs 6.4mm) and they give answers 23x apart. Which pair bounds
@@ -97,6 +98,49 @@ would silently die for any layout containing a ramp, and that exactness is the
 product's one novel claim. If 216 is the run, everything is fine. The code
 comment at `engine/data/brio.ts:11` asserts "216 run" but nobody has checked.
 One tape measure settles it.
+
+## Q5 — The three numbers that decide whether a bridge works
+
+The layer feature lives or dies on one subtraction. A bridge sits one ramp-rise
+above the floor; the wood of that bridge takes up some of the gap; a train has to
+fit through what is left.
+
+- [ ] Ramp rise: floor to railhead at the top of the ascending
+      track (#33332) ..................................... ______ mm
+- [ ] Plank thickness, from Q3 above ..................... ______ mm
+- [ ] Tallest vehicle you care about, wheels to roof ..... ______ mm
+      (measure the tallest one you actually own, not the catalogue)
+
+Then compute:
+
+```
+  air under the bridge   = ramp rise  -  plank thickness   = ______ mm
+  clearance margin       = air        -  vehicle height    = ______ mm
+```
+
+**Why this is the whole feature:** with the numbers currently guessed in the code
+(64mm rise, 12mm plank, 44mm vehicle) the margin is **8mm**. None of those three
+has been measured. A vehicle 6mm taller, or a plank 4mm thicker, and the margin
+is gone: every single-level bridge becomes illegal, and the only legal bridging
+would be two levels up, which the two-layer model does not have.
+
+---
+
+## Contingency: what each bad answer changes
+
+Write the answer in, then follow the row. These are decided in advance so a
+measurement cannot quietly invalidate work that is already built.
+
+| If the measurement says | Then |
+|---|---|
+| **Clearance margin is comfortably positive** (say 5mm or more) | The layer feature proceeds as planned. Record the three numbers in the engine's constant table. |
+| **Clearance margin is thin** (0 to 5mm) | The layer feature proceeds, but the verdict must say the margin is thin and name it in millimetres. A thin margin is a real build risk: track flexes. |
+| **Clearance margin is zero or negative** | **Single-level bridges are impossible.** The two-layer model cannot express a legal bridge, so layers are deferred entirely and the third-layer TODO becomes the only path. Stop before building the layer work; this is a design change, not a tuning change. |
+| **Q4 says 216mm is the RUN** | Everything proceeds. The ramp stays a straight piece whose length is its run, `fk.ts` needs no changes, and exact closure survives ramps. |
+| **Q4 says 216mm is the PLANK** | The horizontal run is sqrt(216² − 64²) ≈ **206.34mm**, which is irrational and outside the exact lattice. Exact closure does NOT survive any layout containing a ramp. Two sub-options, and this needs a decision before any ramp code: either ramps leave the exact walk and carry a stated per-ramp closure error, or the run is rounded to 206mm with the error recorded per ramp. `fk.ts` also needs changes, because the ramp can no longer be a plain straight. |
+| **Q2 says the joint gives much less than 1mm** | The bound becomes very tight and most near-miss layouts will read as definite failures. Re-examine whether the bound's threshold is useful before building the UI copy around it. |
+| **Q2 says the joint gives much more than 3mm** | The bound becomes very loose and will rarely say no. Still correct, but the product's value shifts almost entirely onto exact closure and the gap report. |
+| **Q1 seats comfortably but the engine says the bound is exceeded** | That is the most important single result on this sheet. It means the per-joint give is larger than anything recorded, and the numbers in the code are not merely imprecise but wrong in direction. |
 
 ---
 

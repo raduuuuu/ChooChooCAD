@@ -18,7 +18,7 @@ import { equals, isZero, scale, toXY } from '../src/geom/cyclotomic.js';
 import { displacement } from '../src/geom/pose.js';
 import { computeResidual } from '../src/solver/residual.js';
 import { solveLayout } from '../src/solver/result.js';
-import { evaluateJoint } from '../src/joints/evaluate.js';
+import { evaluateLayout } from '../src/joints/evaluate.js';
 import type { Layout } from '../src/parts/schema.js';
 
 const loop = (ids: string[]): Layout => ({
@@ -91,53 +91,80 @@ describe('exact closures: residual is the zero element, not a small float', () =
     expect(res.headingMismatchSteps).toBe(0);
   });
 });
-
-describe('the LP distributes slop, and says no when it cannot', () => {
-  it('an exact closure uses zero slop on every joint', () => {
+describe('the bound: a gap cannot exceed the give', () => {
+  it('an exact closure needs no give at all', () => {
     const r = solveLayout(loop(rep('E', 8)));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.closesExactly).toBe(true);
-    expect(r.worstRatio).toBeCloseTo(0, 9);
-    for (const u of r.usage) {
-      expect(Math.abs(u.axialMm)).toBeLessThan(1e-6);
-      expect(Math.abs(u.angularDeg)).toBeLessThan(1e-6);
-    }
+    expect(r.gapMm).toBeCloseTo(0, 9);
+    expect(r.withinBound).toBe(true);
   });
 
-  it('every joint reads PASS on an exact closure', () => {
+  it('reads EXACT and surfaces that the give is estimated, never silently measured', () => {
     const r = solveLayout(loop(rep('E', 8)));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    const evals = r.usage.map((u, i) => evaluateJoint(u, r.joints[i]!, 'estimated'));
-    expect(evals.every((e) => e.verdict === 'PASS')).toBe(true);
-    // Estimated tolerances must be surfaced, never silently treated as measured.
-    expect(evals.every((e) => e.reasons.some((s) => s.includes('estimated')))).toBe(true);
+    const e = evaluateLayout(r, 'estimated');
+    expect(e.verdict).toBe('EXACT');
+    expect(e.reasons.some((s) => s.includes('estimated'))).toBe(true);
   });
 
-  it('a 72mm gap consumes real slop', () => {
+  it('total give is the sum over joints, so it scales with piece count', () => {
+    const eight = solveLayout(loop(rep('E', 8)));
+    const sixteen = solveLayout(loop(rep('E', 16)));
+    expect(eight.ok && sixteen.ok).toBe(true);
+    if (!eight.ok || !sixteen.ok) return;
+    expect(eight.joints).toHaveLength(8);
+    expect(sixteen.joints).toHaveLength(16);
+    // 0.8mm one-sided per joint, from ESTIMATED_SLOP.
+    expect(eight.totalGiveMm).toBeCloseTo(6.4, 9);
+    expect(sixteen.totalGiveMm).toBeCloseTo(12.8, 9);
+  });
+
+  it('a 72mm gap exceeds the give and is a definite no', () => {
     const r = solveLayout(loop([...rep('E', 4), 'D', ...rep('E', 4), 'A']));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.gapMm).toBeCloseTo(72, 9);
-    expect(r.worstRatio).toBeGreaterThan(0);
-    // eslint-disable-next-line no-console
-    console.log(`  [72mm gap] worstRatio = ${r.worstRatio.toFixed(4)}`);
+    expect(r.withinBound).toBe(false);
+    expect(evaluateLayout(r, 'estimated').verdict).toBe('EXCEEDS');
   });
 
-  it('a 504mm gap is far beyond any slop budget', () => {
-    const r = solveLayout(
-      loop([...rep('E', 4), 'D', 'D', 'D', ...rep('E', 4), 'A']),
-    );
+  it('a 504mm gap exceeds it by far', () => {
+    const r = solveLayout(loop([...rep('E', 4), 'D', 'D', 'D', ...rep('E', 4), 'A']));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.gapMm).toBeCloseTo(504, 9); // 648 - 144
-    expect(r.worstRatio).toBeGreaterThan(1);
-    // eslint-disable-next-line no-console
-    console.log(`  [504mm gap] worstRatio = ${r.worstRatio.toFixed(4)}`);
+    expect(r.withinBound).toBe(false);
   });
 
-  it('rejects a heading mismatch outright: slop cannot rotate the track', () => {
+  /**
+   * Honest limitation, asserted so it cannot drift unnoticed.
+   *
+   * With the current guessed give of 0.8mm per joint, a ten-joint layout offers
+   * 8mm in total, while real gaps on this lattice arrive in part-length steps:
+   * 54mm, 72mm, 216mm. So for SMALL layouts the hedged middle band is nearly
+   * empty and almost everything is either exact or a definite no.
+   *
+   * It is the opposite at scale, because give accumulates with joint count
+   * while the gap does not: a 641-piece layout with a 54mm gap has 512mm of
+   * give and sits comfortably inside the bound. Measured, not assumed.
+   *
+   * That asymmetry is the honest shape of a NECESSARY condition. Being inside
+   * the bound says the gap could fit if any joint could absorb any share of
+   * it, which the geometry does not guarantee. The verdict copy says "may well
+   * seat", never "will".
+   */
+  it('documents that the band is narrow for SMALL layouts under the guessed give', () => {
+    const r = solveLayout(loop([...rep('E', 4), 'D', ...rep('E', 4), 'A']));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.totalGiveMm).toBeLessThan(10);
+    expect(r.gapMm / r.totalGiveMm).toBeGreaterThan(5);
+  });
+
+  it('rejects a heading mismatch outright: give cannot rotate the track', () => {
     const r = solveLayout(loop(rep('E', 7))); // 315 degrees
     expect(r.ok).toBe(false);
     if (r.ok) return;
@@ -152,52 +179,45 @@ describe('the LP distributes slop, and says no when it cannot', () => {
   });
 });
 
-describe('solver contract', () => {
+describe('bound contract', () => {
   it('is deterministic: the same layout gives the same verdict', () => {
     const l = loop([...rep('E', 4), 'D', ...rep('E', 4), 'A']);
-    const a = solveLayout(l);
-    const b = solveLayout(l);
-    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    expect(JSON.stringify(solveLayout(l))).toBe(JSON.stringify(solveLayout(l)));
   });
 
   /**
-   * Where you cut a closed loop is an arbitrary choice, so rotating the piece
-   * order must not change what the product tells the user.
+   * Where you cut a closed loop is an arbitrary bookkeeping choice, so rotating
+   * the piece order must not change what the product says.
    *
-   * The VERDICT is gauge-independent and asserted strictly. The exact worst
-   * ratio is not: it plateaus at a ~1.9e-3 spread no matter how many refinement
-   * passes run (see the limitation note in refine.ts). That is 0.003 degrees of
-   * a 1.5-degree budget, on a budget nobody has measured yet, so asserting it
-   * to six decimal places would be false precision rather than correctness.
+   * This is now asserted EXACTLY, at every cut point, with no tolerance. The
+   * old minimax LP could only manage this to about 5e-3, and at 42 pieces the
+   * spread reached 6.4e-2 and flipped the verdict between FAIL and TIGHT
+   * depending on which piece came first. The bound is a sum over joints, and
+   * addition does not care about order, so gauge dependence is impossible here
+   * rather than merely small.
    */
-  const GAUGE_SPREAD_TOLERANCE = 5e-3;
-
-  it('is order-independent in verdict, and within tolerance in ratio', () => {
+  it('is order-independent EXACTLY, at every cut point', () => {
     const base = [...rep('E', 4), 'D', ...rep('E', 4), 'A'];
-    const rotated = [...base.slice(3), ...base.slice(0, 3)];
-    const a = solveLayout(loop(base));
-    const b = solveLayout(loop(rotated));
-    expect(a.ok && b.ok).toBe(true);
-    if (!a.ok || !b.ok) return;
+    const first = solveLayout(loop(base));
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
 
-    // What the user sees must not depend on the cut.
-    expect(b.worstRatio > 1).toBe(a.worstRatio > 1);
-    // And the numbers must agree to a physically meaningful tolerance.
-    expect(Math.abs(b.worstRatio - a.worstRatio)).toBeLessThan(GAUGE_SPREAD_TOLERANCE);
+    for (let off = 1; off < base.length; off++) {
+      const rot = [...base.slice(off), ...base.slice(0, off)];
+      const r = solveLayout(loop(rot));
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(r.gapMm).toBeCloseTo(first.gapMm, 9);
+      expect(r.totalGiveMm).toBe(first.totalGiveMm);
+      expect(r.withinBound).toBe(first.withinBound);
+      expect(evaluateLayout(r, 'estimated').verdict).toBe(
+        evaluateLayout(first, 'estimated').verdict,
+      );
+    }
   });
 
-  it('refinement actually closes the gap it set out to close', () => {
-    const r = solveLayout(loop([...rep('E', 4), 'D', ...rep('E', 4), 'A']));
-    expect(r.ok).toBe(true);
-    if (!r.ok) return;
-    expect(r.gapMm).toBeCloseTo(72, 9);       // nominal gap, exact
-    expect(r.remainingMm).toBeLessThan(1e-6); // after slop, closed
-    expect(r.passes).toBeLessThanOrEqual(8);
-    // eslint-disable-next-line no-console
-    console.log(`  [refine] 72mm gap closed in ${r.passes} passes, ${r.remainingMm.toExponential(2)}mm left, worstRatio ${r.worstRatio.toFixed(4)}`);
-  });
-
-  it('never returns a non-finite number in a solved result', () => {
+  it('never returns a non-finite number, and a failure is never silently skipped', () => {
+    let checked = 0;
     for (const ids of [
       rep('E', 8),
       [...rep('E', 4), 'D', ...rep('E', 4), 'D'],
@@ -205,14 +225,25 @@ describe('solver contract', () => {
       [...rep('E', 8), 'A2'],
     ]) {
       const r = solveLayout(loop(ids));
+      // Every fixture here must be checkable. The old version of this test did
+      // `if (!r.ok) continue`, which silently passed a hard solver failure.
+      expect(r.ok).toBe(true);
       if (!r.ok) continue;
-      expect(Number.isFinite(r.worstRatio)).toBe(true);
       expect(Number.isFinite(r.gapMm)).toBe(true);
-      for (const u of r.usage) {
-        expect(Number.isFinite(u.axialMm)).toBe(true);
-        expect(Number.isFinite(u.angularDeg)).toBe(true);
-        expect(Number.isFinite(u.ratio)).toBe(true);
+      expect(Number.isFinite(r.totalGiveMm)).toBe(true);
+      for (const j of r.joints) {
+        expect(Number.isFinite(j.axialMaxMm)).toBe(true);
+        expect(Number.isFinite(j.angularMaxDeg)).toBe(true);
       }
+      checked++;
     }
+    expect(checked).toBe(4);
+  });
+
+  it('an unknown layout is never mistaken for a passing one', () => {
+    const open = solveLayout({ placements: [{ partId: 'E' }], closed: false });
+    const e = evaluateLayout(open, 'estimated');
+    expect(e.verdict).toBe('UNKNOWN');
+    expect(e.verdict).not.toBe('EXACT');
   });
 });

@@ -33,18 +33,47 @@ both zero, so exact closures exist and the tests find them.
 4E + D + 4E + A                  residual exactly 72mm  (216 - 144)
 ```
 
-**Stage 2, a Chebyshev LP.** BRIO's Vario System is deliberate give in every
-joint. So the remaining question is whether bounded per-joint slop can absorb a
-fixed residual without any single joint going past its limit. Written as a
-minimax linear program, three things fall out instead of being bolted on:
+**Stage 2, a bound, not an allocation.** BRIO's Vario System is deliberate give
+in every joint, so when a loop does not close exactly the remaining question is
+whether the joints can absorb the gap. This reports a **necessary condition**:
 
-- `t*` is the worst joint's normalised slop usage. `t* <= 1` means it works.
-  That IS the fair-spread guarantee, as an optimum rather than a hope.
-- The primal solution is the per-joint usage report the UI needs.
-- `t* > 1` tells the user how much more give would have been required.
+```
+  gap  <=  sum of every joint's give      ->  it MIGHT fit
+  gap  >   sum of every joint's give      ->  it definitely does NOT fit
+```
 
-Solved with `yalps` (MIT, pure TypeScript). Roughly 3 equality rows and a few
-hundred bounded variables: microseconds, exact optimum.
+That is all the available data supports, and the verdict says so. It never
+claims the gap *will* be absorbed, only that it is not ruled out.
+
+There used to be a Chebyshev minimax linear program here that allocated the gap
+joint by joint and reported a per-joint ratio. It was deleted, deliberately,
+and the reasons are worth recording because they were measured rather than felt:
+
+- Every defect ever found in this engine lived in it. It returned a hard failure
+  on buildable 321-piece layouts, blocked for 4.6 seconds at 641 pieces,
+  exhausted its refinement budget from 21 pieces onward, and **flipped a
+  user-visible verdict between "won't fit" and "tight" depending on which piece
+  happened to be listed first** at 42 pieces.
+- Its precision was manufactured. It sliced a ratio at 0.8 using tolerances this
+  very repository labels `estimated`. A threshold on a guess.
+- Deleting it removed about 350 lines, took the failure taxonomy from eight
+  reasons to three, and left the engine with **no runtime dependencies at all**.
+
+What was lost is real: the tool can no longer say *which* joint is the problem.
+That returns when the tolerances are measured rather than guessed, which is what
+`CALIBRATION.md` exists to do.
+
+One property came for free. The bound is a sum over joints, and addition does
+not care about order, so the gauge dependence that made the old solver
+contradict itself is now **impossible rather than merely small**. The test
+asserts it exactly, at every cut point, with no tolerance.
+
+```
+measured, same fixtures, before and after the deletion
+  n=321   hard failure, 2323ms   ->   ok, 0.8ms
+  n=641   4629ms                 ->   1.4ms
+  42-piece gauge sweep: verdict flipped   ->   one verdict, one gap, every cut
+```
 
 ## The UI
 
@@ -57,15 +86,20 @@ navigation will be full-screen modes you enter and leave, because the canvas is
 meant to dominate. A card appears only where the card IS the interaction, which
 on this screen means palette pieces and nothing else.
 
-Joint verdicts render on four channels rather than one, because colour alone
-fails roughly one man in twelve and vanishes in greyscale print:
+**There are no per-joint glyphs.** There used to be, on four channels (colour,
+shape, a ratio on hover, and a dotted ring when the tolerance was unmeasured),
+and it was the best accessibility work in this project. It is gone because the
+solver that produced per-joint ratios is gone: with nothing to say about an
+individual joint, drawing a marker on each one would assert that each was
+checked. The four channels come back with per-joint allocation.
+
+The layout verdict has four states and the middle one is deliberately hedged:
 
 ```
-  O   open circle    PASS      under 80% of the joint's give
-  /\  triangle       TIGHT     80-100%, seat it firmly
-  X   cross          FAIL      over budget
-  ?   dotted + ?     UNKNOWN   could not be checked (never shown as green)
-  dotted outer ring            the tolerance behind this verdict is ESTIMATED
+  O   EXACT        closes exactly, no give needed anywhere
+  /\  NEEDS GIVE   gap is inside the total give; may well seat, not a promise
+  X   EXCEEDS      gap is larger than the total give; definitely will not fit
+  ?   UNKNOWN      could not be checked. NEVER rendered as a pass
 ```
 
 SVG rather than a canvas library, for now. The engine is single-cycle and there
@@ -104,29 +138,24 @@ corpus of built-and-measured layouts, split into a calibration set and a
 never-fitted validation set, before any verdict is shown to a user as confident.
 
 Until then every verdict the engine produces is arithmetic on a guess. The
-schema carries the status field and `evaluateJoint` surfaces it in its reasons
+schema carries the status field and `evaluateLayout` surfaces it in its reasons
 for exactly this reason.
 
 The same applies to `VEHICLE.heightMm` and `maxGradePercent`.
 
-## Known limitation, measured not guessed
+## Known limitations, measured not guessed
 
-Where you cut a closed loop is arbitrary, so rotating the piece order must not
-change the answer. Two bugs were found here, in this order:
+**The bound is weak at scale, by construction.** Give accumulates with joint
+count while the gap does not, so a 641-piece layout with a 54mm gap has 512mm of
+give and sits comfortably inside the bound. That is correct and nearly
+uninformative. Being inside the bound means the gap *could* fit if any joint
+could absorb any share of it, which the geometry does not guarantee.
 
-1. The closure constraint was incomplete. Position was enforced but angular slop
-   was never required to sum to zero, so the solver could land the seam in the
-   right place facing the wrong direction. Adding that third row cut the
-   order-dependence from `1.7e-1` to `1.9e-3`.
-2. The linearisation needs re-solving from the updated pose. Five passes drive
-   the remaining gap to about `1e-8` mm.
+**Every tolerance is still a guess.** See below.
 
-After both fixes the spread **plateaus at about `1.9e-3`** in worst-ratio and
-does not shrink with more passes: the two cut points converge to genuinely
-different optima. That is 0.003 degrees of a 1.5-degree budget, on a budget
-nobody has measured, so the verdict is gauge-independent while the exact ratio
-is not. The property test asserts exactly that and no more. Revisit if real
-measurements ever make the third decimal place meaningful.
+**A layout that crosses itself is still blessed.** Sixteen large curves traverse
+the same circle twice and report `EXACT`, because nothing checks whether two
+pieces occupy the same floor. The overlap check is specified and unbuilt.
 
 ## Layout
 
@@ -136,12 +165,10 @@ engine/
   src/parts/schema.ts       multi-brand parametric schema, continuous heightMm
   src/geom/cyclotomic.ts    exact Z[zeta16] arithmetic
   src/geom/pose.ts          exact forward kinematics
-  src/solver/residual.ts    stage 1: exact residual + joint sensitivities
-  src/solver/lp.ts          stage 2: Chebyshev minimax LP via yalps
-  src/solver/refine.ts      sequential passes; see limitation above
-  src/solver/result.ts      SolveResult union, finiteness assert, strict predicate
+  src/solver/residual.ts    stage 1: exact residual + per-joint give
+  src/solver/result.ts      stage 2: the bound; SolveResult union, finiteness assert
   src/geom/fk.ts            float walker + drawable segments, shared
-  src/joints/evaluate.ts    the ONE shared joint predicate, five future consumers
+  src/joints/evaluate.ts    the ONE shared LAYOUT predicate
   test/analytic.test.ts     known-answer fixtures + solver contract properties
   test/render.test.ts       SVG arc centres, so arcs cannot silently bow wrong
 app/
@@ -151,10 +178,10 @@ app/
   src/tokens.css            PROVISIONAL tokens
 ```
 
-`evaluateJoint` is deliberately the only place a joint verdict is computed. The
-verdict line, the per-joint glyphs, build-mode warnings, the diagnostics panel
-and fix ranking all render it; none recomputes it. Five implementations would
-drift, and the visible symptom of drift is the product contradicting itself.
+`evaluateLayout` is deliberately the only place a verdict is computed. The
+verdict line renders it; build mode and the diagnostics panel will too. None
+recomputes it. Independent implementations drift, and the visible symptom of
+drift is the product contradicting itself.
 
 ## Provenance
 

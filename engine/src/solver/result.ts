@@ -6,38 +6,55 @@
  * finite before it crosses this boundary, so a non-number can never reach a
  * display that would compare it against a threshold and silently render it as
  * healthy. UNKNOWN is a distinct state from GOOD, by construction.
+ *
+ * WHAT THIS REPORTS, AND WHAT IT DELIBERATELY DOES NOT (decision R21)
+ *
+ * Stage 1 answers exactly: does the loop close, in integer arithmetic, with no
+ * epsilon. That answer is trustworthy and always has been.
+ *
+ * When it does not close, the honest remaining question is whether the leftover
+ * gap is small enough for the joints to absorb. This reports a NECESSARY
+ * condition: the gap cannot exceed the sum of the joints' give. If it does, the
+ * layout definitely will not fit. If it does not, the layout MIGHT fit, and that
+ * is as much as the available data supports.
+ *
+ * It is not sufficient, and it does not pretend to be. A minimax LP used to
+ * allocate the gap joint by joint and report a per-joint ratio, which looked
+ * like more. It was deleted at R21, because every measured defect in this
+ * project lived in it and because its precision was manufactured from
+ * tolerances the part data labels `estimated`. A hedged band over a guessed
+ * budget is the truth; a ratio sliced at 0.8 was not.
+ *
+ * So there is no per-joint verdict here. When the budgets are measured, the
+ * allocation becomes worth reinstating and this contract grows a per-joint
+ * field again. Until then it says what it knows.
  */
 
 import { getPart } from '../../data/brio.js';
-import { computeResidual, type JointSensitivity } from './residual.js';
-import type { JointUsage } from './lp.js';
-import { refine } from './refine.js';
+import { computeResidual, totalGiveMm, type Joint } from './residual.js';
 import type { Layout, Part } from '../parts/schema.js';
 
-export type SolveFailure =
-  | 'OPEN_CHAIN'
-  | 'HEADING_MISMATCH'
-  | 'INFEASIBLE'
-  | 'UNBOUNDED'
-  | 'CYCLED'
-  | 'TIMEDOUT'
-  | 'DEGENERATE'
-  | 'NUMERIC';
+/**
+ * Three reasons, down from eight. INFEASIBLE, UNBOUNDED, CYCLED, TIMEDOUT and
+ * DEGENERATE were all statuses of the deleted LP and are unreachable now.
+ */
+export type SolveFailure = 'OPEN_CHAIN' | 'HEADING_MISMATCH' | 'NUMERIC';
 
 export type SolveResult =
   | {
       readonly ok: true;
-      /** Exactly zero when the loop closes with no slop at all. */
-      readonly worstRatio: number;
-      /** Residual before slop, millimetres. Zero for an exact closure. */
-      readonly gapMm: number;
+      /** True when the residual is exactly zero. No give needed at all. */
       readonly closesExactly: boolean;
-      readonly usage: readonly JointUsage[];
-      readonly joints: readonly JointSensitivity[];
-      /** Sequential LP passes taken before the remaining gap converged. */
-      readonly passes: number;
-      /** Gap still unclosed after the final pass, millimetres. */
-      readonly remainingMm: number;
+      /** Residual magnitude in millimetres. Zero for an exact closure. */
+      readonly gapMm: number;
+      /** Sum of one-sided axial give across every joint, millimetres. */
+      readonly totalGiveMm: number;
+      /**
+       * gapMm <= totalGiveMm. NECESSARY, not sufficient: false means the layout
+       * definitely does not fit; true means it might.
+       */
+      readonly withinBound: boolean;
+      readonly joints: readonly Joint[];
     }
   | {
       readonly ok: false;
@@ -45,8 +62,6 @@ export type SolveResult =
       readonly detail: string;
       /** Present when a residual was computed before the failure. */
       readonly gapMm?: number;
-      /** Joints implicated, where the failure identifies any. */
-      readonly suspectJoints?: readonly number[];
     };
 
 function allFinite(...xs: number[]): boolean {
@@ -72,48 +87,30 @@ export function solveLayout(
     return {
       ok: false,
       reason: 'HEADING_MISMATCH',
-      detail: `track returns ${deg} degrees off its starting direction; joint slop cannot fix a heading mismatch`,
+      detail: `track returns ${deg} degrees off its starting direction; joint give cannot fix a heading mismatch`,
       gapMm: res.gapMm,
     };
   }
 
-  const { outcome: out, passes, remainingMm } = refine(layout, resolve, res.joints);
+  const give = totalGiveMm(res.joints);
 
-  switch (out.kind) {
-    case 'infeasible':
-      return { ok: false, reason: 'INFEASIBLE', detail: 'no bounded slop assignment closes this layout', gapMm: res.gapMm };
-    case 'unbounded':
-      return { ok: false, reason: 'UNBOUNDED', detail: 'slop model is under-constrained', gapMm: res.gapMm };
-    case 'cycled':
-      return { ok: false, reason: 'CYCLED', detail: 'solver cycled; treated as a hard failure', gapMm: res.gapMm };
-    case 'timedout':
-      return { ok: false, reason: 'TIMEDOUT', detail: 'solver exceeded its pivot budget', gapMm: res.gapMm };
-    case 'degenerate':
-      return { ok: false, reason: 'DEGENERATE', detail: out.reason, gapMm: res.gapMm };
-    case 'solved':
-      break;
-  }
-
-  // Finiteness assertion at the boundary. yalps returns NaN on infeasible and
-  // +-Infinity on unbounded; neither may escape as a "solved" result.
-  const nums = [out.worstRatio, res.gapMm, remainingMm, ...out.usage.flatMap((u) => [u.axialMm, u.angularDeg, u.ratio])];
-  if (!allFinite(...nums)) {
+  // Finiteness assertion at the boundary. A non-finite number reaching a
+  // threshold comparison silently renders as healthy, so it stops here.
+  if (!allFinite(res.gapMm, give)) {
     return {
       ok: false,
       reason: 'NUMERIC',
-      detail: 'solver produced a non-finite value; refusing to report a verdict',
+      detail: 'residual or give was not a finite number; refusing to report a verdict',
       gapMm: Number.isFinite(res.gapMm) ? res.gapMm : undefined,
     };
   }
 
   return {
     ok: true,
-    worstRatio: out.worstRatio,
-    gapMm: res.gapMm,
     closesExactly: res.closesExactly,
-    usage: out.usage,
+    gapMm: res.gapMm,
+    totalGiveMm: give,
+    withinBound: res.gapMm <= give,
     joints: res.joints,
-    passes,
-    remainingMm,
   };
 }

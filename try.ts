@@ -1,33 +1,43 @@
-// Scratch script: try any layout. Edit PIECES and re-run.
+/**
+ * One layout from the command line. Edit PIECES and run `bun try.ts`.
+ *
+ * Reports what the engine actually knows: whether the loop closes exactly, and
+ * if not, whether the leftover gap could fit inside the joints' total give.
+ * There is no per-joint ratio: decision R21 deleted the solver that produced
+ * one, because it manufactured precision from tolerances the part data labels
+ * `estimated`.
+ */
+
+import { getPart } from './engine/data/brio.js';
 import { solveLayout } from './engine/src/solver/result.js';
-import { evaluateJoint } from './engine/src/joints/evaluate.js';
+import { evaluateLayout } from './engine/src/joints/evaluate.js';
+import { computeResidual } from './engine/src/solver/residual.js';
+import type { Layout, Turn } from './engine/src/parts/schema.js';
 
-// Piece ids: A2(54) A1(108) A(144) D(216) straights; E(r182) E1(r90) curves.
-const PIECES = ['E','E','E','E','D','E','E','E','E','A'];
+// ---- edit me -------------------------------------------------------------
+const PIECES: Array<[string, Turn]> = Array(8).fill(0).map(() => ['E', 'left']);
+const CLOSED = true;
+// --------------------------------------------------------------------------
 
-const r = solveLayout({
-  placements: PIECES.map((partId) => ({ partId, turn: 'left' as const })),
-  closed: true,
-});
+const layout: Layout = {
+  placements: PIECES.map(([partId, turn]) => ({ partId, turn })),
+  closed: CLOSED,
+};
 
-console.log(`\nlayout: ${PIECES.join(' ')}  (${PIECES.length} pieces)\n`);
+const res = computeResidual(layout, getPart);
+console.log(`pieces            ${PIECES.length}  (${CLOSED ? 'closed' : 'open'})`);
+console.log(`exact residual    [${res.exact.join(', ')}]`);
+console.log(`closes exactly    ${res.closesExactly}`);
+console.log(`gap               ${res.gapMm.toFixed(3)} mm`);
+console.log(`heading mismatch  ${res.headingMismatchSteps} steps of 22.5 deg`);
 
+const r = solveLayout(layout, getPart);
 if (!r.ok) {
-  console.log(`  GREY  couldn't check this layout`);
-  console.log(`        ${r.reason}: ${r.detail}`);
-} else if (r.worstRatio <= 1) {
-  const label = r.closesExactly ? 'closes exactly, no give needed' : `worst joint at ${(r.worstRatio*100).toFixed(0)}% of its give`;
-  console.log(`  WORKS  ${label}`);
+  console.log(`\nVERDICT           ${r.reason}: ${r.detail}`);
 } else {
-  console.log(`  WON'T FIT  ${r.gapMm.toFixed(1)}mm short; needs ${(r.worstRatio*100).toFixed(0)}% of the give available at the worst joint`);
+  const e = evaluateLayout(r, 'estimated');
+  console.log(`total joint give  ${r.totalGiveMm.toFixed(2)} mm across ${r.joints.length} joints`);
+  console.log(`within the bound  ${r.withinBound}`);
+  console.log(`\nVERDICT           ${e.verdict}`);
+  for (const why of e.reasons) console.log(`                  - ${why}`);
 }
-
-if (r.ok) {
-  console.log(`\n  nominal gap ${r.gapMm.toFixed(2)}mm -> ${r.remainingMm.toExponential(1)}mm after ${r.passes} passes\n`);
-  for (const u of r.usage) {
-    const e = evaluateJoint(u, r.joints[u.index]!, 'estimated');
-    const glyph = { PASS:'O', TIGHT:'/\\', FAIL:'X', UNKNOWN:'?' }[e.verdict];
-    console.log(`  joint ${String(u.index).padStart(2)}  ${glyph.padEnd(2)} ${e.verdict.padEnd(7)} ${(e.ratio*100).toFixed(0).padStart(4)}%  ${e.usedSlopMm.toFixed(2)}mm / ${e.usedSlopDeg.toFixed(2)}deg`);
-  }
-}
-console.log('');

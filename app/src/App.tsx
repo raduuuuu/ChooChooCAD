@@ -7,18 +7,19 @@
  * the next piece, and persistent navigation furniture fights both.
  *
  * Hierarchy, in order: the canvas, then the verdict line, then the palette.
- * Everything else sits behind a deliberate affordance.
  *
- * MVP constraint worth knowing: the engine models a single chain, optionally
- * closed. So pieces append and remove from the end rather than being dragged
- * anywhere. Free placement needs arbitrary topology and a coupled solve over a
- * full cycle basis, which is not built.
+ * MVP constraints worth knowing, each a recorded decision rather than an
+ * oversight:
+ *   - A layout is ONE connected chain, optionally closed (Y1). Several separate
+ *     tracks need a per-component origin, which the engine has no field for.
+ *   - Pieces append to the end and remove from the end (X1b). Drag-and-drop,
+ *     undo and keyboard parity are one body of deferred work.
+ *   - The verdict reports a necessary condition, not a per-joint allocation
+ *     (R21). There is no per-joint ratio and no per-joint glyph.
  */
 
 import { useMemo, useState } from 'react';
-import { BRIO_PARTS, getPart } from '../../engine/data/brio.js';
-import { evaluateJoint, unknownJoint, type JointEvaluation } from '../../engine/src/joints/evaluate.js';
-import { computeResidual } from '../../engine/src/solver/residual.js';
+import { BRIO_PARTS } from '../../engine/data/brio.js';
 import { solveLayout } from '../../engine/src/solver/result.js';
 import type { Layout, Turn } from '../../engine/src/parts/schema.js';
 import { TrackCanvas } from './TrackCanvas.js';
@@ -48,43 +49,22 @@ const PRESETS: ReadonlyArray<{ label: string; pieces: string[]; note: string }> 
 export function App() {
   const [pieces, setPieces] = useState<Piece[]>([]);
   const [closed, setClosed] = useState(true);
-  const [changedAt, setChangedAt] = useState<number | null>(null);
 
   const layout: Layout = useMemo(
     () => ({ placements: pieces.map((p) => ({ partId: p.partId, turn: p.turn })), closed }),
     [pieces, closed],
   );
 
-  const result = useMemo(
-    () => (pieces.length === 0 ? null : solveLayout(layout)),
-    [layout, pieces.length],
-  );
+  // One solve per layout change. Synchronous and inside render on purpose: it
+  // keeps a React error boundary able to catch a throw from the engine, which
+  // an event-handler trigger would not. See the eng review's finding on the
+  // blank-page rescue.
+  const result = useMemo(() => (pieces.length === 0 ? null : solveLayout(layout)), [layout, pieces.length]);
 
-  // One shared predicate drives every joint on screen. When the solve fails,
-  // joints read UNKNOWN rather than inheriting a stale pass.
-  const evals: JointEvaluation[] = useMemo(() => {
-    if (pieces.length === 0 || !closed) return [];
-    if (result?.ok) {
-      return result.usage.map((u) => evaluateJoint(u, result.joints[u.index]!, 'estimated'));
-    }
-    const res = computeResidual(layout, getPart);
-    return res.joints.map((j) => unknownJoint(j, 'estimated', 'layout could not be checked'));
-  }, [result, layout, closed, pieces.length]);
-
-  const add = (partId: string, turn: Turn) => {
-    setChangedAt(pieces.length);
-    setPieces((p) => [...p, { partId, turn }]);
-  };
-  const undo = () => {
-    setChangedAt(Math.max(0, pieces.length - 2));
-    setPieces((p) => p.slice(0, -1));
-  };
-  const clear = () => {
-    setChangedAt(null);
-    setPieces([]);
-  };
+  const add = (partId: string, turn: Turn) => setPieces((p) => [...p, { partId, turn }]);
+  const undo = () => setPieces((p) => p.slice(0, -1));
+  const clear = () => setPieces([]);
   const preset = (ids: string[]) => {
-    setChangedAt(null);
     setPieces(ids.map((partId) => ({ partId, turn: 'left' as Turn })));
     setClosed(true);
   };
@@ -97,7 +77,7 @@ export function App() {
   return (
     <div className="shell">
       <main className="stage">
-        <TrackCanvas layout={layout} evals={evals} changedAt={changedAt} />
+        <TrackCanvas layout={layout} />
       </main>
 
       <VerdictLine result={result} />
@@ -122,9 +102,7 @@ export function App() {
                   ↻
                 </button>
               )}
-              {counts[part.id] ? (
-                <span className="piece-count num">{counts[part.id]}</span>
-              ) : null}
+              {counts[part.id] ? <span className="piece-count num">{counts[part.id]}</span> : null}
             </div>
           ))}
         </div>
@@ -149,8 +127,9 @@ export function App() {
         </div>
 
         <p className="provisional">
-          Every tolerance here is <strong>estimated</strong>, not measured. Dotted rings mark
-          verdicts that rest on a guessed number. Nobody has put calipers on real track yet.
+          Joint give is <strong>estimated</strong>, not measured. Nobody has put calipers on
+          real track yet, so the verdict reports whether the gap could fit inside the total
+          give, not that it will.
         </p>
       </section>
     </div>
