@@ -1,0 +1,91 @@
+/*
+ * PROVISIONAL TOKENS.
+ *
+ * There is no design system for this product yet; a real one (researched
+ * aesthetic, typography, colour, spacing, motion, with previews) is a separate
+ * piece of work. These values exist so the first screen is not assembled from
+ * browser defaults, which is the "nobody chose this" signal. Replace wholesale
+ * when the real system lands; nothing outside this file hardcodes a colour.
+ *
+ * Direction being served: warm toy crossed with precision instrument. The paper
+ * ground and the beech track supply the warmth; everything else reads as a
+ * drafting tool. Colour is spent ONLY on joint verdicts, where it changes a
+ * decision. Thumbnails, chrome and labels get none.
+ *
+ * Typeface roles are assigned explicitly: a sans for UI, a mono for every
+ * number. Not loaded as webfonts yet, so these are stacks with real first
+ * choices rather than a system default.
+ */
+
+:root {
+  /* Ground and ink */
+  --paper: #f7f3ec;
+  --paper-sunk: #efe9df;
+  --ink: #2a2724;
+  --ink-soft: #6b655d;
+  --rule: #d8cfc0;
+
+  /* Beech track. Data, not decoration: this is the only warmth on screen. */
+  --track-fill: #d9be93;
+  --track-edge: #b39a6b;
+
+  /* Verdict colours. The ONLY place colour carries meaning. */
+  --pass: #3f7244;
+  --tight: #a8740c;
+  --fail: #a3362a;
+  --unknown: #8c8880;
+
+  /* Type. Roles assigned deliberately, per the universal font rule. */
+  --font-ui: 'IBM Plex Sans', 'Inter', system-ui, sans-serif;
+  --font-data: 'IBM Plex Mono', 'SF Mono', ui-monospace, monospace;
+
+  /* Spacing scale */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 20px;
+  --s5: 32px;
+
+  /* Motion. One authored moment: the settle. */
+  --settle-ms: 260ms;
+  --settle-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/*
+ * Browser surfaces carry the design too. Selection, caret, focus ring and
+ * scrollbars ship with defaults that belong to no design system; theming them
+ * is the cheapest signal that a page was designed rather than assembled.
+ */
+* {
+  box-sizing: border-box;
+}
+::selection {
+  background: #e4d6ba;
+  color: var(--ink);
+}
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  caret-color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Every number in this product is a measurement. Figures must not jitter. */
+.num {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
