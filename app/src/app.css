@@ -26,7 +26,8 @@
   max-width: 34ch;
 }
 .canvas-empty p { margin: 0 0 var(--s2); font-size: 17px; }
-.canvas-empty-hint { font-size: 15px; }
+/* Body copy, so it owes the 16px floor. Was 15px. */
+.canvas-empty-hint { font-size: 16px; }
 
 /* The settle: one authored motion moment, propagating from the change. */
 .joint {
@@ -97,6 +98,17 @@
   cursor: pointer;
 }
 .piece-main:hover { border-color: var(--ink-soft); }
+/*
+ * TYPE FLOORS, two of them, stated rather than implied.
+ *
+ * Body copy: 16px. Anything that is a sentence a user reads obeys it.
+ * Data labels inside a control: 12px. A part code, a part name, a dimension or
+ * a count is not prose; it is a field on a thing you click, and it is always
+ * accompanied by the control's own accessible name. Nothing goes below 12px.
+ *
+ * The floor existed as a 16px rule the code broke in eight places. Naming the
+ * second floor makes the rule true instead of violated.
+ */
 .piece-id { grid-row: span 2; font-weight: 600; font-size: 15px; }
 .piece-name { font-size: 14px; }
 .piece-dim { font-size: 12px; color: var(--ink-soft); }
@@ -122,7 +134,7 @@
   border-radius: 9px;
   background: var(--ink);
   color: var(--paper);
-  font-size: 11px;
+  font-size: 12px;            /* the data-label floor; was 11px */
   line-height: 18px;
   text-align: center;
 }
@@ -149,10 +161,28 @@
 
 .provisional {
   margin: 0;
-  font-size: 13px;
+  font-size: 16px;            /* body copy, so it owes the floor; was 13px */
   line-height: 1.5;
   color: var(--ink-soft);
   max-width: 76ch;
+}
+
+/*
+ * TOUCH TARGETS.
+ *
+ * The 44px floor belongs to touch, not to a window width: a touch laptop needs
+ * it at 1400px and a mouse does not need it at 700px. `pointer: coarse` asks
+ * about the input device directly, which is the thing that decides.
+ *
+ * On a mouse these stay compact, and 32px and 36px both clear WCAG 2.5.8's 24px
+ * minimum for pointer input, so desktop was never out of compliance. Touch was:
+ * the mirror control is the only way to place a right-turning curve, so missing
+ * it blocks a core action rather than an edge one.
+ */
+@media (pointer: coarse) {
+  .piece-mirror { min-width: 44px; }
+  .palette-controls button,
+  .toggle { min-height: 44px; }
 }
 
 /*

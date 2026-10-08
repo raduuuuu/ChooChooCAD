@@ -13,9 +13,60 @@
  * decision. Thumbnails, chrome and labels get none.
  *
  * Typeface roles are assigned explicitly: a sans for UI, a mono for every
- * number. Not loaded as webfonts yet, so these are stacks with real first
- * choices rather than a system default.
+ * number. Both are now self-hosted and actually load; the @font-face block
+ * below is the declaration. Before that they were named here and fetched
+ * nowhere, so the effective faces were system-ui and ui-monospace, which is the
+ * "nobody chose this" signal in the one place the design brief cared most.
  */
+
+/*
+ * The two faces, self-hosted.
+ *
+ * These are declared here rather than imported from @fontsource's own CSS for
+ * one reason: that CSS hardcodes `font-display: swap`, and swap is the one value
+ * this product cannot use. Every number on screen is a measurement, the design
+ * brief calls tabular figures mandatory, and a swap repaints those columns in a
+ * different face mid-load, which is exactly the jitter tabular figures exist to
+ * prevent. `optional` either has the font by first paint or does not use it at
+ * all this load, so the columns never move.
+ *
+ * Latin only: the entire corpus is millimetre figures, BRIO part codes and
+ * English UI copy. Shipping glyphs the product cannot render is dead weight.
+ *
+ * Provenance: @fontsource/ibm-plex-sans and @fontsource/ibm-plex-mono, both
+ * devDependencies so the files are reproducible from the lockfile rather than
+ * being opaque binaries committed to the repo. IBM Plex is SIL Open Font License
+ * 1.1; each package carries its LICENSE, and the OFL requires that licence to
+ * travel with the files wherever this is published.
+ */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: optional;
+  src: url('@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: optional;
+  src: url('@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: optional;
+  src: url('@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: optional;
+  src: url('@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-600-normal.woff2') format('woff2');
+}
 
 :root {
   /* Ground and ink */
@@ -25,15 +76,45 @@
   --ink-soft: #6b655d;
   --rule: #d8cfc0;
 
-  /* Beech track. Data, not decoration: this is the only warmth on screen. */
+  /*
+   * Beech track. Data, not decoration: this is the only warmth on screen.
+   *
+   * The edge is deliberately deeper than raw beech. It was #b39a6b, which
+   * measures 2.45:1 against --paper and so sat below WCAG 1.4.11's 3:1 floor
+   * for a graphical object you need to see in order to understand the content.
+   * The canvas is the dominant element on the screen; it cannot be the faintest
+   * thing on it. #8a7349 measures 4.10:1 against --paper and 2.54:1 against the
+   * lighter fill, so the two-pass edge/fill reading survives.
+   */
   --track-fill: #d9be93;
-  --track-edge: #b39a6b;
+  --track-edge: #8a7349;
 
-  /* Verdict colours. The ONLY place colour carries meaning. */
+  /*
+   * Verdict colours. The ONLY place colour carries meaning.
+   *
+   * All four are rendered as 16px semibold text, so all four owe 4.5:1. Measured
+   * against --paper-sunk, which is the band they actually sit on:
+   *
+   *   --pass    4.70:1   unchanged
+   *   --fail    5.58:1   unchanged
+   *   --tight   4.78:1   was #a8740c at 3.36:1, which failed
+   *   --unknown 4.66:1   was #8c8880 at 2.92:1, which failed even the 3:1
+   *                      non-text floor
+   *
+   * --unknown mattered most: it is the glyph the grey-is-not-green invariant
+   * rests on, and at 2.92:1 it read as absent rather than as caution. It now
+   * lands on the same tone as --ink-soft, which is correct: UNKNOWN is the
+   * absence of a verdict colour, not a colour of its own.
+   *
+   * In greyscale all four sit in a luminance band of 0.106 to 0.137, so they are
+   * near indistinguishable in print. That was already true before this change.
+   * It is why no verdict may ever be colour-only: the O / \ X ? glyph shapes
+   * carry the entire signal on paper.
+   */
   --pass: #3f7244;
-  --tight: #a8740c;
+  --tight: #875e08;
   --fail: #a3362a;
-  --unknown: #8c8880;
+  --unknown: #6b675f;
 
   /* Type. Roles assigned deliberately, per the universal font rule. */
   --font-ui: 'IBM Plex Sans', 'Inter', system-ui, sans-serif;
