@@ -18,7 +18,7 @@
  *     (R21). There is no per-joint ratio and no per-joint glyph.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BRIO_PARTS } from '../../engine/data/brio.js';
 import { solveLayout } from '../../engine/src/solver/result.js';
 import type { Layout, Turn } from '../../engine/src/parts/schema.js';
@@ -30,6 +30,59 @@ import './app.css';
 interface Piece {
   partId: string;
   turn: Turn;
+}
+
+/*
+ * Keeping the chain across a refresh.
+ *
+ * This is deliberately NOT save/load. There is no file format here, no version
+ * field and no semantics hash, because freezing a format while the schema is
+ * still moving buys a migration you then owe forever. The shareable document
+ * with its hash is a separate, deferred piece of work.
+ *
+ * What this does cover is losing twenty minutes of placing track to a refresh,
+ * a closed tab, or a hang. The error boundary cannot help with any of those: it
+ * catches throws, and none of them is a throw.
+ *
+ * A blob that no longer parses, or that names a part the catalogue no longer
+ * has, is DISCARDED rather than repaired or reinterpreted. With no hash there is
+ * nothing that could detect a stale blob from an older build, so the only honest
+ * response to anything unexpected is to drop it and start empty.
+ */
+const STORAGE_KEY = 'brio.chain.v0';
+const KNOWN_PART_IDS: ReadonlySet<string> = new Set(BRIO_PARTS.map((p) => p.id));
+
+function loadPieces(): Piece[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const pieces: Piece[] = [];
+    for (const item of parsed) {
+      if (typeof item !== 'object' || item === null) return [];
+      const { partId, turn } = item as Record<string, unknown>;
+      // An unknown part id means the catalogue moved under the blob. Discard the
+      // whole chain rather than silently dropping pieces out of the middle of it,
+      // which would change the layout's geometry without saying so.
+      if (typeof partId !== 'string' || !KNOWN_PART_IDS.has(partId)) return [];
+      if (turn !== 'left' && turn !== 'right') return [];
+      pieces.push({ partId, turn });
+    }
+    return pieces;
+  } catch {
+    // Unavailable storage, a quota error, or malformed JSON. Start empty.
+    return [];
+  }
+}
+
+function savePieces(pieces: readonly Piece[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(pieces));
+  } catch {
+    // Private browsing and full quotas both throw here. Losing persistence is
+    // not worth losing the session over, so this is deliberately silent.
+  }
 }
 
 const PRESETS: ReadonlyArray<{ label: string; pieces: string[]; note: string }> = [
@@ -47,8 +100,14 @@ const PRESETS: ReadonlyArray<{ label: string; pieces: string[]; note: string }> 
 ];
 
 export function App() {
-  const [pieces, setPieces] = useState<Piece[]>([]);
+  // Lazy initialiser, so the read happens once on mount rather than every render.
+  const [pieces, setPieces] = useState<Piece[]>(loadPieces);
   const [closed, setClosed] = useState(true);
+
+  // Only the chain is persisted. `closed` is a one-bit view toggle, not work.
+  useEffect(() => {
+    savePieces(pieces);
+  }, [pieces]);
 
   const layout: Layout = useMemo(
     () => ({ placements: pieces.map((p) => ({ partId: p.partId, turn: p.turn })), closed }),
