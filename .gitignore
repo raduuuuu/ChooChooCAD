@@ -1,3 +1,9 @@
 node_modules/
 dist/
 .DS_Store
+
+# Scratch repro files. crash-repro.ts is the name the crash screen tells users
+# to save to; .repro-check.ts is written and deleted by repro.test.ts.
+# NOT try.ts, which is a committed tool.
+crash-repro.ts
+.repro-check.ts

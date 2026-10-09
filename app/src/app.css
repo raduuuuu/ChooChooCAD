@@ -621,3 +621,73 @@
     line-height: 1.5;
   }
 }
+
+/*
+ * THE CRASH SCREEN (task K5).
+ *
+ * Styled at all, rather than left as browser defaults, because this is the
+ * screen most likely to be the last thing a user sees. It should look like
+ * part of the product that knew this could happen, not like a stack trace
+ * that escaped.
+ *
+ * It reuses the empty state's filled-button treatment for Reload, which is
+ * the same role: the one obvious thing to do. The destructive action next to
+ * it stays an outline button and asks again before it fires.
+ */
+.crash {
+  max-width: 76ch;
+  margin: 0 auto;
+  padding: var(--s5) var(--s4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+.crash-title { margin: 0; font-size: 22px; font-weight: 600; color: var(--ink); }
+.crash-lead { margin: 0; font-size: 16px; line-height: 1.5; color: var(--ink-soft); }
+.crash-lead code {
+  font-family: var(--font-data);
+  font-size: 14px;
+  color: var(--ink);
+}
+.crash-actions { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.crash-actions button {
+  min-height: 40px;
+  padding: 0 var(--s4);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+.crash-actions button:hover { border-color: var(--ink-soft); }
+.crash-actions button.primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+.crash-actions button.primary:hover { background: var(--ink-soft); border-color: var(--ink-soft); }
+
+/*
+ * 12px is below the body floor and that is correct: this is a code dump, not
+ * copy. It is read by whoever fixes the bug, in an editor, after pasting.
+ * Nothing in it is a sentence the user has to read on screen.
+ */
+.crash-repro {
+  width: 100%;
+  min-height: 22em;
+  padding: var(--s3);
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre;
+  resize: vertical;
+}
+
+@media (pointer: coarse) {
+  .crash-actions button { min-height: 44px; }
+}
