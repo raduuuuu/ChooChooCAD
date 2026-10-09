@@ -1,0 +1,701 @@
+# TODOS — BRIO Track Designer
+
+Created 2026-10-06 by /plan-ceo-review. No repo exists yet; move this file to
+the project root as TODOS.md when the repo is created.
+
+## P2 — Community custom-part registry
+
+**What:** Let the part database accept community-defined parametric parts, so
+users can register 3D-printed track pieces and design with them.
+
+**Why:** A large ecosystem of printable BRIO-compatible parts already exists and
+is in active use — 45-degree short curves, 60-degree IKEA-compatible curves,
+flexible sections, ramps, and a parametric generator. No design tool can touch
+any of them. This is the clearest platform play available: each registered part
+makes the tool more useful to every other user.
+
+**Pros:** Becomes the hub for the printed-track ecosystem. Compounding value per
+part. Targets exactly the large-layout builders this product is aimed at, who
+are the people printing custom pieces.
+
+**Cons:** User-submitted part geometry is a new trust and moderation surface. A
+wrong dimension makes the solver confidently wrong, which is the one failure
+this product cannot afford.
+
+**Context:** The enabling work is already in scope and already decided —
+E5 put brand, gauge width and explicit connector geometry in the part schema;
+12A made height continuous so arbitrary risers are representable; E6 provides
+the backend and a moderation queue. A community part is therefore just another
+row with the same fields. No new concepts are required.
+
+What is missing: a submission flow, a review process, and a trust level per
+community part. Likely shape: `trustLevel: submitted | community-confirmed |
+measured`, surfaced through 13A's dotted-outline channel, which already exists
+for exactly this purpose (E5's calibrationStatus).
+
+**Sequencing note (why this is P2 and not now):** the registry's hard problem is
+trusting submitted dimensions, and that cannot be solved before trust in your
+OWN dimensions is solved. 8A commits to a physical calibration corpus across
+five brands. Until that process exists and is proven, there is no yardstick to
+judge a community part against. Build the registry after the calibration
+pipeline works and community parts can be given a meaningful trust level.
+
+**Effort:** human M → S with AI assistance
+**Priority:** P2
+**Depends on:** E5 part schema (in scope), E6 backend (in scope), 8A calibration
+pipeline (in scope, must be working first)
+
+---
+
+## Recorded in the CEO plan, not yet decided
+
+These were surfaced as delight opportunities during the expansion ceremony but
+not presented as individual decisions. Full context lives in
+`ceo-plans/2026-10-06-brio-track-designer.md` under "NOT in scope".
+
+- **E7 Kid mode** (S) — big targets, no menus, drive-the-train only, layout locked
+- **E8 Table / room bounds** (S) — declare your table or rug, warn on overhang
+- **E9 Photo-based inventory** (L, speculative) — CV counts scattered track by type
+- **E10 Symmetry / mirror + auto-complete-the-loop** (M) — pick two open ends,
+  fill the gap from inventory
+
+---
+
+## P1 (pre-launch) — IP: data provenance and product naming
+
+Added 2026-10-06 by /plan-eng-review (D20). Blocks public launch only; blocks
+nothing in development.
+
+**What:** two questions needing counsel, not engineering.
+1. The part database is a wholesale transcription of woodenrailway.info's curated
+   measurement tables. Raw measurements of physical objects are facts, but a
+   curated compilation of them may be protected. Determine whether permission is
+   needed, or whether the data should be independently re-derived from physical
+   measurement (which T16's corpus work partly does anyway).
+2. BRIO is a live trademark. No product name has actually been chosen yet — the
+   plan document's title is the reviewer's working label, not a decision — so
+   settle whether the eventual name may reference BRIO, or whether it must be
+   descriptive with a compatibility statement instead.
+
+**Why:** the plan carries a full COPPA and GDPR-K posture and had zero lines on
+either of these. The licence question that originally accompanied them is gone:
+`@salusoft89/planegcs` was LGPL-2.0-or-later and D19A removed it; the replacement
+`yalps` is MIT, so there is no copyleft obligation left in the engine.
+
+**Pros:** surfaces before launch rather than after. The provenance note is needed
+regardless for T40's calibration provenance, which commits to recording raw
+measurements with their derivation.
+
+**Cons:** neither question is answerable without counsel, so this is a reminder
+rather than work. The naming half may be premature.
+
+**Context:** whoever picks this up should know that the engineering-side licence
+work is already done by virtue of the D19A engine change. What remains is purely
+legal.
+
+**Effort:** human ~1 day of counsel time / CC: not compressible, not an AI task
+**Priority:** P1 pre-launch
+**Depends on / blocked by:** nothing. Should be settled before any public launch
+or before the part database is published in a repo.
+
+
+---
+
+# Deferred by /plan-ceo-review 2026-10-07 (SCOPE REDUCTION)
+
+Nine decisions, W1-W9. Six blocks of work were deferred here. **Nothing below
+was cut.** Each item keeps the design decisions already made about it; only its
+delivery was resequenced behind the minimum viable core (K1-K8: correct cited
+tolerances, free placement with multi-cycle solve, levels and bridges with the
+traversal checker, full BRIO catalogue, save/load, tests, undo/redo, planar
+overlap).
+
+Reason the core comes first: the engine's slop budgets were a guess roughly 3x
+too tight, so every verdict the product gave was probably wrong. Distribution
+features built on top of that would have distributed the error.
+
+## P1 — Inventory, manifests, constrained palette and buy list
+
+**What:** Declare which BRIO sets you own; constrain the palette to owned pieces;
+produce a shortfall buy list when a layout needs more.
+
+**Why:** Answers "can I build this with what I own", and the buy list is the most
+obviously shareable and monetisable surface in the plan.
+
+**Pros:** Strong retention and the one feature a parent would forward. Makes
+every verdict actionable rather than theoretical.
+
+**Cons:** A second data model and a second source of truth, added to a product
+whose first source of truth was numerically wrong until W1.
+
+**Context:** T28 (inventory model, add-by-set manifests, constrained palette),
+T29 (shortfall banner with part codes, buy list, rebuild-with-what-I-have),
+T38 (which-sets-do-you-own empty state, skippable). T39's rotate-into-overlap
+guard was NOT deferred: it folds into the K2 drag work, where collision handling
+has to exist anyway, and W9 added planar overlap detection to the core engine.
+Deferred at D2 on 2026-10-07.
+
+**Effort:** human ~1 week / CC ~2 hours
+**Priority:** P1
+**Depends on:** K1 correct tolerances, K4 full part catalogue (set manifests need
+the real catalogue to reference)
+
+---
+
+## P1 — Backend: library, publish, moderation, auth
+
+**What:** Hono API with email-only auth, library browse and fork, publish to a
+pending queue, admin moderation, server-side inventory filtering, stable cursor
+pagination, idempotent publish.
+
+**Why:** The library is the one feature that compounds: every published layout
+makes the tool more useful to everyone else.
+
+**Pros:** Compounding value. The design decisions are already made and recorded
+(D4 chose the optimistic publish view; G5 specified the pending-link page rather
+than a bare 404; G6 specified the one-tap rename nudge), so none of that has to
+be re-decided.
+
+**Cons:** Accounts, a database, hosting, a moderation queue and a children's
+privacy posture, all taken on at once. Publishing a tool whose verdicts are
+wrong distributes the error.
+
+**Context:** T34, T35, T36, T42, T43, plus design rows G3 (dense library rows,
+shortfall text never truncated), G4 (author sees their layout as published
+immediately while it stays out of public browse), G5 (pending-link page).
+Local save/load (K5) was KEPT in core, so work surviving the tab closing does
+not depend on this. A shareable layout file covers much of what sharing needs
+without operating a service. Deferred at D3 on 2026-10-07.
+
+**Effort:** human ~3-4 weeks / CC ~1 day, plus ongoing moderation duty
+**Priority:** P1
+**Depends on:** K5 layout document (the wire format is the file format), and the
+IP questions below should be settled before anything is published publicly
+
+---
+
+## P2 — 3D viewer, build mode and the printable sheet
+
+**What:** 3D viewer with procedurally generated meshes instanced per part type;
+build mode as a tablet-first step walkthrough in physical assembly order; a
+printable build sheet; step position persisted across navigation.
+
+**Why:** The only part of the plan that touches the physical build, which is
+where the pain actually is, and where multi-level layouts really fail.
+
+**Pros:** The design work is done and recorded: D3 chose build mode and library
+as the two designed surfaces, G1 fixed the hierarchy (next piece dominant, name
+and part code legible at 60cm, step position small), G2 chose a swipe-back
+gesture deliberately instead of a visible button. Nothing needs re-deciding.
+
+**Cons:** Both surfaces are downstream of an editor that cannot yet place a
+switch or a second level, so building them now means building against a model
+that cannot express what they would walk you through.
+
+**Context:** T31, T33, T41, G1, G2. **This deferral reverses N2 on sequencing
+only.** After OR-6 disproved the original justification for these two surfaces,
+the CEO re-review examined them as N2 and N3 and the user chose to keep both.
+D4 on 2026-10-07 resequenced them behind the core; the decision that they are
+worth building stands, as do G1 and G2.
+
+**Effort:** human ~2-3 weeks / CC ~4 hours
+**Priority:** P2
+**Depends on:** K2 arbitrary topology, K3 levels and bridges, T18 assembly order
+
+---
+
+## P2 — Animated train playback and the completion arc
+
+**What:** Deterministic fixed-timestep train traversal rendered as an animation,
+with the completion state and its copy.
+
+**Why:** Watching a train clear a bridge is the one moment that makes the
+clearance check believable rather than abstract.
+
+**Pros:** The most convincing possible proof that a layout works.
+
+**Cons:** Needs a vehicle model and an animation loop before the editor can place
+the ramps and bridges it would be driving over.
+
+**Context:** C1 had already split T16 into two halves. The headless half (the
+connectivity, grade and under-bridge clearance checker) was KEPT in core as K3,
+along with C2's vehicle scalars and C5's traversability fixture, because it
+carries the entire correctness value. Only the animation and its copy are
+deferred: the T16 animation half, N6 (what the animation says on completion) and
+G6's completion-arc tone. **G6's other two tone rules were NOT deferred** -
+near-miss-is-normal and user-as-witness-on-calibration describe the verdict line
+that already exists and stay in core. T40 (invalidate and stop a running
+simulation when the layout is edited) travels with this item, since there is no
+running simulation to invalidate until the animation exists.
+**This reverses N3 on the animation only.** Deferred at D5 on 2026-10-07.
+
+**Effort:** human ~1 week / CC ~3 hours
+**Priority:** P2
+**Depends on:** K3 levels and bridges, C2 vehicle scalars being measured rather
+than estimated (otherwise the animation dramatises a guess)
+
+---
+
+## P2 — Nudge-to-fit
+
+**What:** Discrete search over the Z[zeta16] lattice for the smallest change that
+makes a failing layout close: piece substitution, repositioning, slop
+redistribution.
+
+**Why:** Turns "this does not work" into "swap this one piece", which is the most
+delightful thing the engine could do with the maths it already has.
+
+**Pros:** The exact lattice makes the search space enumerable rather than
+approximate, so this is genuinely tractable here in a way it is not in
+floating-point CAD. This is the clearest payoff of the cyclotomic choice.
+
+**Cons:** The hardest algorithm in the plan. Wants correct slop budgets and a
+working multi-cycle solver underneath it, both of which are core work.
+
+**Context:** T17. T11 (mapping LP infeasibility's binding rows to suspect joint
+ids) was KEPT in core as part of K1, so a FAIL verdict still names which joints
+are the problem; nudge-to-fit is the expensive upgrade from "named" to
+"self-solving". E10 (auto-complete-the-loop: pick two open ends, fill the gap
+from inventory) remains undecided and was never in scope. Deferred at D6 on
+2026-10-07.
+
+**Effort:** human ~2 weeks / CC ~1 day
+**Priority:** P2
+**Depends on:** K1 correct budgets, K2 multi-cycle solve, and inventory above if
+the search is to respect what you own
+
+---
+
+## P2 — Launch operations and the physical calibration corpus
+
+**What:** Fuzz harness with a logged seed; GitHub Actions running Vitest with the
+analytic tier gating before the corpus; feature flags; content-free opt-in
+telemetry with a BUILD OUTCOME signal; runbooks; the worker hostile-input
+wall-clock bound; and the physical corpus of built-and-measured layouts split
+into a calibration set and a never-fitted validation set.
+
+**Why:** The corpus is the only thing that can ever confirm the derived budgets
+against reality, and W1 made derivation the basis of every verdict in the
+product. A CI gate would have caught the order-independence bug automatically
+instead of by inspection.
+
+**Pros:** Turns "the engine has never met real track" from a permanent condition
+into a scheduled one.
+
+**Cons:** This is the operational apparatus of a live service, and there is no
+service: zero commits, zero users, no deployment. The corpus additionally needs
+physical track, floor space and hours of measurement.
+
+**Context:** T14, T21, T22, T23, T37, T45, T47. Two items were NOT deferred:
+T46 (calibration provenance - commit raw measurements with their derivation)
+moved INTO core K1, because W1's derivation has to record its source and
+derivation beside the numbers regardless; and T19/T20 (analytic and property
+tests) stay in core as K6 and run locally in under a second.
+**W1 already demoted T22** from calibration prerequisite to held-out validation,
+so it no longer blocks confident verdicts - it is what would eventually
+CONFIRM them. No pre-launch gate was attached. Deferred at D7 on 2026-10-07.
+
+**Effort:** human ~2 weeks / CC ~4 hours, plus physical measurement time
+**Priority:** P2 for the ops; the corpus should be P1 before any public launch
+claim of accuracy
+**Depends on:** K1 derived budgets existing to validate against. Owning or
+borrowing a substantial amount of real BRIO track.
+
+---
+
+## Accepted residual risks of the 2026-10-07 reduction
+
+1. **No automated regression gate.** The 21 tests run only when someone
+   remembers. A solver regression ships silently until the next manual run.
+2. **The engine has never met real track.** W1 replaced a guess with a
+   derivation from two agreeing published sources, which is better evidence but
+   is not measurement. A wrong published dimension now propagates with a
+   `published` label and no dotted-ring hedge.
+3. **Single-player only.** No library, so no compounding value from other
+   people's layouts for as long as the core takes.
+4. **FAIL is a dead end.** T11 names the binding joints but proposes no fix.
+5. **A pathological layout can freeze the tab.** T14's time budget was deferred.
+
+---
+
+## P2 — Failure replay and solver inspector
+
+**What:** Freeze the layout at the moment of failure, zoom to the suspect joint,
+report measured-versus-budget per joint.
+
+**Why:** Debuggability three weeks after a report is currently zero: no logs, no
+persisted state. W10 now populates `suspectJoints`, so the data this needs will
+exist for the first time.
+
+**Pros:** Turns "it said my loop fails and it doesn't" into something
+reproducible. Both bugs found in this engine so far (the missing angular closure
+row, and the greedy-versus-minimax reporting) were found by reading code rather
+than by observing behaviour, which is slow.
+
+**Cons:** A developer-facing tool for a product with no users and one developer.
+K5's save/load already makes a failing layout transmissible, which covers most
+of the practical need far more cheaply.
+
+**Context:** T32 from the eng review. The 2026-10-07 CEO review left it unplaced
+and resolved it at D13. It is mostly a view over data that will already exist
+rather than new computation.
+
+**Effort:** human M / CC S (human ~4 days / CC ~2 hours)
+**Priority:** P2
+**Depends on:** W10 suspectJoints population (core), K1 per-joint usage report
+(core), K5 save/load for reproducing a reported layout (core)
+
+---
+
+# Deferred by /plan-ceo-review 2026-10-07 (second reduction, after the engine reopened)
+
+Context: the eng review measured the committed solver and found it hard-fails on
+buildable 321-piece layouts and flips verdicts on piece order at 42 pieces. R18
+reopened the engine. This review then re-decided the product shape around a new
+user instruction: multi-layer tracks, capped at three layers, modelled on PCB
+layouts.
+
+## P1 — Switches and the coupled multi-cycle solve
+
+> **CORRECTED 2026-10-09 by the fourth eng review.** This entry described work
+> that no longer exists. A coupled minimax solve over a cycle basis with
+> per-(joint, cycle) sensitivities was the LP that decision R21 DELETED, and
+> there is nothing left to couple: the verdict is now a necessary-condition
+> bound, `gap <= sum of give`, which is order-independent because addition is.
+> `Depends on: K0c engine repair proven` is likewise stale, because R21 removed
+> K0c. What remains is graph TOPOLOGY, not numerical method, and it is no longer
+> deferred: it is the live C-series (C6 graph model, C8 spanning forest and
+> per-cycle bound, C9 basis-independent reporting). The original text is kept
+> below for history.
+>
+> One correction to the Pros paragraph as well: it claims the eng review
+> "confirmed that one spanning forest can serve both the cycle basis and the pose
+> walker". That remains true and is now an approved requirement (D6 of the fourth
+> eng review), but the forest has THREE consumers, not two: the exact pose walk,
+> the float render walk, and cycle extraction.
+
+**What:** Track branching. A switch puts one joint on two cycles at once, so the
+cycles can no longer be solved independently and need a coupled minimax solve
+over a full cycle basis, with per-(joint, cycle) sensitivities and a
+spanning-forest walker.
+
+**Why:** Switches are what large real layouts are made of, and the exact lattice
+makes arbitrary topology genuinely tractable here in a way floating-point CAD
+never is. This is the part of the plan with real technical edge.
+
+**Pros:** Unlocks the layouts serious builders actually make. The design is
+already analysed: the eng review's D1 settled the arrangement and confirmed that
+one spanning forest can serve both the cycle basis and the pose walker (parent
+pointers give pose propagation downward and fundamental cycles upward to the LCA).
+
+**Cons:** It is the largest work item in the plan, and it sits directly on top of
+the measured defects. Adding cycles to a solver that fails on one cycle is the
+specific mistake R18 was raised to avoid.
+
+**Context:** Deferred at D4 (2026-10-07) in favour of **multiple independent
+components without switches**, which was kept in v1. That choice is cheap for a
+precise reason worth preserving: with no switches, no joint is ever shared
+between components, so the constraint system is block-diagonal and the solve is
+the existing single-cycle machinery run once per component. Switches are exactly
+what breaks that property. Revisit once K0c's repair has proven itself on one
+cycle, with the gauge sweep passing across every cut point at four sizes.
+
+**Effort:** human ~3-4 weeks / CC ~4 hours
+**Priority:** P1 for v2
+**Depends on:** K0c engine repair proven; K4's switch part with its centreline shift
+
+---
+
+## P1 — Drag-and-drop, with undo, the drop-overlap guard and keyboard parity
+
+**What:** One body of work, not four features: pieces drag from the palette and
+reposition after placement; a rigid forward-kinematics preview during the drag
+with one solve on release; undo/redo over layout-document snapshots with
+keyboard shortcuts; a guard that refuses a drop overlapping an existing piece;
+and keyboard equivalents for place, rotate and remove plus ARIA landmarks so the
+editor is not mouse-only.
+
+**Why:** "A graphical editor that allows the user to drag and drop" was a named
+ask in the original brief. v1 does not deliver it. Appending pieces to the end is
+tedious beyond a few dozen pieces.
+
+**Pros:** Delivers a named brief ask. The interaction is already designed: 9A
+specified the rigid preview and the single settle on release, and the eng
+review's R17 worked through the solve-trigger question. Undo's design is settled
+by T27, including the trap of snapshotting solver output rather than the document.
+
+**Cons:** Drag makes undo, the overlap guard and keyboard parity mandatory rather
+than optional, so v1 would grow by four things rather than one. It is the largest
+remaining app-side item.
+
+**Context:** Deferred at D5 (2026-10-07) with an explicitly accepted ceiling:
+the v1 editor is Completeness 4/10 as an editor, logged as decision
+`cebd0e6d-567b-4811-9f0d-62c6f4d10b87`. **Upgrade trigger: the first time a
+layout exceeds roughly 40 pieces in practice, or any edit richer than append is
+needed (repositioning or rotating a placed piece).** The eng review's R17 is
+suspended, so the solve-trigger question reopens with this. Note finding 12:
+undo consumes K5's document type, so K5's type must land before undo.
+
+**Effort:** human ~2 weeks / CC ~2 hours
+**Priority:** P1 for v2
+**Depends on:** K5's layout document type (not its file I/O); R16's fingerprint
+re-decision; K0c repair for the solve-on-release contract
+
+---
+
+## Open and unassigned: the overlap narrowphase primitive
+
+> **SUPERSEDED 2026-10-09 by the fourth eng review.** Decision D10 of the CEO
+> re-review replaced the whole footprint-overlap approach with an exact
+> coincident-connector refusal: no two non-adjacent connector positions may be
+> exactly equal. That is one `equals()` loop over integer coordinates, so it
+> needs no AABB filter, no narrowphase, no arc-against-arc test and no measured
+> plank width. It shipped on 2026-10-08 in `engine/src/feasible.ts` and catches
+> both known false passes, the 16xE double circle at 9 pairs and the 8L+8R
+> tangency at 2 pairs, while leaving the 8xE circle and the stadium clean.
+>
+> The AABB inflation table below is still correct and still worth keeping, because
+> it is the reason a bounding-box test could never have been the decision
+> primitive. What is dead is the conclusion: an exact arc-and-segment narrowphase
+> is NOT the likely answer and is not needed. What remains genuinely uncovered is
+> narrower than this entry implies: a plank crossing a plank mid-span, with no
+> connector coincidence anywhere. That needs a measured plank width and follows
+> the calibration deferral.
+>
+> Measured 2026-10-09: the shipped check costs 11.02ms and reports 25,359 pairs
+> at 640 stacked curves, which is about an eighth of the 204,480 pairs recorded
+> against decision A4 for the footprint approach.
+
+Not deferred, not decided. X4 kept planar overlap in v1, but the primitive that
+actually decides overlap has no owner.
+
+R15 chose AABB all-pairs over a spatial grid, and that cost reasoning is sound:
+this check runs once per edit over static geometry, not sixty times a second
+over moving bodies. But **AABB is a reject filter, not a decision primitive.**
+Measured inflation for the real parts:
+
+```
+  E curve (r182, 45deg), best orientation   1.46x its true footprint
+  E curve rotated 22.5deg                   3.11x
+  E curve rotated 45deg                     3.80x
+  D straight (216x40) at 45deg              3.79x
+```
+
+BRIO headings are multiples of 22.5 degrees, so the inflated cases are the common
+ones, and a check whose job is to REFUSE layouts would refuse buildable ones. An
+exact arc-and-segment narrowphase is the likely answer: arc-against-arc reduces
+to a centre-distance test against the radii plus an angular-interval check.
+Needs a decision before X4 is implemented.
+
+---
+
+# Deferred by /plan-ceo-review 2026-10-07 (third pass, after the layer instruction)
+
+## P1 — Multiple independent components (several separate tracks in one layout)
+
+**What:** Let a layout hold more than one connected run of track, so a loop can
+sit beside or under another unrelated loop.
+
+**Why:** Real large layouts are several tracks, not one. It was approved at D4
+and then reversed at Y1.
+
+**Pros:** Cheap on the solver: with no switches no joint is shared between
+components, so the constraint system is block-diagonal and each component solves
+with the existing single-cycle machinery run once per component. The outside
+voice established the cheapest implementation is a `Document { components:
+Layout[] }` wrapper plus a map over `solveLayout` plus a reducer, with ZERO lines
+changed in `fk.ts`, `residual.ts` or `result.ts`.
+
+**Cons:** Needs a component origin, which does not exist: `fk.ts:58-60` and
+`pose.ts:61` hardcode the origin and `Layout` has no field for it. Setting an
+origin is repositioning, which reopens the append-only decision.
+
+**Context:** Reversed at Y1 (2026-10-07) because multi-component and append-only
+are incompatible as decided: a second component would default to the origin,
+overlap the first, and be correctly failed by the overlap check with no user
+action available to fix it. **Hard requirement for whoever picks this up: a
+component origin MUST be a lattice point in Z[zeta16] with a heading that is a
+multiple of 22.5 degrees, or exact closure dies for that component.** That makes
+the snap/vertex-identity epsilon a prerequisite, and it is still undecided.
+
+**Effort:** human ~2 weeks / CC ~2 hours, mostly the origin and its snapping
+**Priority:** P1 for v2
+**Depends on:** the snap epsilon decision; drag-and-drop (positioning is repositioning)
+
+---
+
+## P2 — A third layer (bridge over a bridge)
+
+**What:** Widen the per-placement `elevated` boolean back to an integer layer
+index so a layout can stack two levels of bridge.
+
+**Why:** The user originally instructed a cap of three layers and then chose two
+at D9 on cost grounds. A bridge over a bridge is a real layout.
+
+**Pros:** The boolean-to-index widening is small in isolation, and rise-equals-fall
+stays exact either way (a count comparison becomes an integer sum).
+
+**Cons:** It brings back cap enforcement at append, reject-with-reason paths for
+out-of-range levels, the adjacent-vias-only rule so floor-to-top needs two ramps,
+and 3-way overlap partitioning.
+
+**Context:** Accepted ceiling logged as decision
+`f6bc20a3-29a8-4643-84d0-9ab8d6e63999`. **Upgrade trigger: the first layout that
+needs a bridge over a bridge.** Ordering hazard worth heeding: the per-placement
+field is part of the saved file format once K5 ships, so if stacked bridges are
+ever likely, widen BEFORE any file exists.
+
+**Effort:** human ~1 week / CC ~1 hour
+**Priority:** P2
+**Depends on:** nothing, but cheaper before K5 ships than after
+
+---
+
+## P2 — Support and pier modelling
+
+**What:** Support and riser parts in the catalogue, a requirement that elevated
+runs be supported, and pier footprints participating in the same-level overlap
+test so a pier landing on lower track is a short.
+
+**Why:** Raised BRIO track does not float. It rests on risers or stacked track,
+and those occupy floor footprint. In the user's own example, a loop crossing over
+a track that continues underneath, the pier frequently lands on the lower track.
+
+**Pros:** Turns the layer feature from geometrically trustworthy into physically
+trustworthy, which is the difference between a drawing and a build plan.
+
+**Cons:** A new part class with its own placement rules, and the plan has no
+support dimensions to work from.
+
+**Context:** Raised by the outside voice and verified by absence from the plan,
+the schema and K4's part list. v1 chose at D10 to STATE the gap rather than check
+it, with accepted ceiling logged as decision
+`2f1af71e-4277-4cab-ae07-bd5f205d0b7f`. **Upgrade trigger: the first report of a
+bridge that passed but could not be supported, or support parts entering the
+catalogue.** Until then the verdict says plainly that support is not verified.
+
+**Effort:** human ~2 weeks / CC ~2 hours
+**Priority:** P2
+**Depends on:** K4's catalogue; measured support dimensions
+
+## Retire or annotate the eight stale G-tasks from the first design review
+
+**What:** Annotate G1-G5, G6's two cut arcs, G8's joint-glyph framing and G10's
+joint-data framing as deferred to v2, naming the scope decision that cut each
+surface. Keep the specifications intact; remove only the implication that they
+are current P1 work.
+
+**Why:** Eight of the twelve design tasks target surfaces the CEO re-review cut
+hours after they were written. G1 and G2 are build mode, G3 is library browse,
+G4 and G5 are publish and moderation. G10 is worse than stale: it specifies a
+keyboard-navigable text view of per-joint data, justified on the grounds that
+`evaluateJoint` already produced every needed fact, and R21 deleted that data.
+Following G10 as written leads to a dead end rather than to a wrong but
+buildable feature.
+
+**Pros:** Anyone opening the backlog stops planning against four surfaces that
+are not being built. The specifications survive for v2, and they are good work:
+the library card-grid rejection on structural grounds and the three failure-arc
+tone rules are the strongest design reasoning in the plan.
+
+**Cons:** It is a TODO about TODOs, and it needs revisiting the moment any cut
+surface returns.
+
+**Context:** Added by the second design review, 2026-10-08, decision 26A. The
+first design review ran on 2026-10-07 against a seven-surface product; the CEO
+re-review reduced v1 to a single-chain append-only validator the same day, and
+the eng review then deleted the minimax LP at R21. Nobody re-read the design
+backlog against either change, which is why the second review's audit step had
+to reconstruct it. G10's replacement is decision 20A: a live region plus a
+keyboard-navigable list of the chain, retargeted from per-joint verdicts, which
+no longer exist, to per-piece facts, which do.
+
+**Effort:** human ~30min / CC ~5min
+**Priority:** P2
+**Depends on:** nothing
+
+## P2 — Continuous integration, blocked on there being a remote
+
+**What:** A CI workflow that runs `bun run test`, `tsc --noEmit` and
+`vite build` on push. Separately, a decision about where the app is published,
+and whether the self-hosted woff2 fonts plus their OFL licence file travel with
+it.
+
+**Why:** there is no `.github` directory and no CI of any kind. The third eng
+review counted 44 new code paths in the next release, and decision D14 funds
+exact ring arithmetic in `engine/src/geom/cyclotomic.ts`: a general multiply
+modulo x^8 + 1, a norm into Z[sqrt2] and a sign test there. That is precisely the
+class of code where a mistake still compiles, still reads correctly in review,
+and quietly returns a wrong answer. The only thing between that and a build today
+is somebody remembering to run a 314ms suite.
+
+**Pros:** catches arithmetic regressions on push in the one subsystem whose whole
+value is being provably right. Writes the build and typecheck commands down in
+one place. Also forces the distribution question the Scope Challenge raised: the
+fonts are the project's first bundled assets and the OFL requires its licence to
+travel with them.
+
+**Cons:** it cannot run. The repository has three commits, no origin and nothing
+pushed, so a workflow file would be configuration for a hypothetical and may be
+stale by the time it first executes.
+
+**Context:** added by the third eng review, 2026-10-08, decision D16 option A,
+from the Section 1 architecture finding and outside-voice L2. Five reviews have
+passed without deployment being addressed at all. The real blocker is not effort,
+it is that CI needs a remote, and a remote needs the two P1 pre-launch questions
+in this file resolved first: whether the woodenrailway.info compilation is
+protected, and the BRIO trademark and product name. Until then CI has nowhere to
+live. Pick this up the day a remote exists; the workflow itself is small.
+
+**Effort:** human ~1h / CC ~10min
+**Priority:** P2
+**Depends on:** a git remote, which depends on the data-provenance and
+product-naming items above in this file
+
+## P1 — Tolerances, the calibration afternoon, and everything gated on it
+
+**What:** The physical measurement afternoon described in `CALIBRATION.md`, and
+every decision that depends on its numbers: the per-joint slop budgets, plank
+width, plank thickness, the ramp rise, vehicle height, the 216mm datum, and the
+bridge clearance margin.
+
+**Why:** Every non-exact verdict the product gives is arithmetic on a guess.
+`engine/data/brio.ts` labels every slop budget `estimated`. The bound's hedged
+middle band, the footprint overlap tier and the whole elevation feature all read
+numbers nobody has measured.
+
+**Pros:** It is the cheapest item on the list by a wide margin, one afternoon,
+and it unblocks more than anything else of comparable size: the tolerance band,
+the footprint tier, the 8L+8R tangency via footprints, the ramp datum and the
+clearance margin.
+
+**Cons:** It needs real track, floor space and an afternoon, and it cannot be
+done by an agent. It is the only item on this list with that property.
+
+**Context:** Deferred by direct user instruction on 2026-10-08: "forget the
+tolerance and the calibration document for now (put it in the backlog)." This
+supersedes the measure-first recommendation two consecutive outside voices made,
+and it was taken with the consequences stated. What follows from it:
+
+- **Elevation, layers, ramps and clearance are deferred entirely.** Q5's own
+  contingency row says single-level bridges become impossible if the clearance
+  margin is zero or negative, and the margin is 8mm composed of three unmeasured
+  figures. The layer work cannot start without that number.
+- **The footprint overlap tier is deferred** with plank width, which
+  `CALIBRATION.md:76` records is not the gauge and is written down nowhere.
+  Decision D10 (2026-10-08) replaced it with an exact coincident-connector check
+  that needs no measurement and catches both known false passes, so the loss is
+  smaller than it was: what remains uncovered is near-miss adjudication and
+  visible non-joint crossings.
+- **The verdict stays permanently hedged** for anything that is not an exact
+  closure. `NEEDS_GIVE` reports numbers derived from `estimated` budgets and says
+  so; that disclosure is now permanent rather than temporary.
+- **One measurement escaped the backlog by becoming a task dependency.** Under
+  decision D9 (2026-10-08) switches are accepted as approximate, with a stated
+  per-switch error. You cannot state an error you have not measured, so the
+  switch's diverging-leg angle and lateral offset must be obtained before
+  switches ship. Published BRIO dimensions may answer it without calipers.
+
+**Effort:** human ~1 afternoon / CC ~0 (this one does not compress)
+**Priority:** P1
+**Depends on:** real track and floor space
