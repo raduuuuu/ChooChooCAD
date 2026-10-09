@@ -10877,19 +10877,920 @@ half of **B3** (a deleted piece's welds). That is the test of the structure bein
 right: the special cases stop being special.
 
 
+
+## CEO review, fifth pass: what is next (2026-10-09, SCOPE REDUCTION)
+
+Invoked as `/plan-ceo-review` with: "What is next? The UI needs to be improved
+and a lot of the features I requested are not yet implemented."
+
+Review depth: **strategy-only**. The question is prioritisation, not
+implementation design. Mode: **SCOPE REDUCTION**, recommended by the file-count
+rule and by the audit below, and selected by the user at D1.
+
+### The audit that set the mode
+
+```
+  Review artifacts generated           16
+  Task records generated              294
+  Lines of source in the product     3,343
+  Review passes in 4 days               5
+  Commits of product code               6
+```
+
+The user's three explicit asks of 2026-10-08, as found:
+
+```
+  "expand the part library"           NOT BUILT   still exactly 6 parts
+  "add switches and splitting pieces" NOT BUILT   PartKind is 'straight' | 'curve'
+  "build the inventory feature"       BUILT       shipped 2026-10-08
+  (sign-in, flagged as maybe)         CUT         correctly; inventory is local
+```
+
+`Layout` is still `{ placements, closed }`, verified at
+`engine/src/parts/schema.ts`. There is no graph, so there is no branching. Of 42
+design tasks across three design reviews, **four landed**, all four in commit
+`a933206` and all four colour or font values. `N19`'s dead `.joint` transition is
+still in `app.css` three reviews after it was found.
+
+**The finding that set the mode: the plan is not solving the problem, it is the
+problem.** Five passes improved the design of one week-long rewrite and shipped
+none of it. A sixth review of the same kind would be more of the same.
+
+**The unblock nobody acted on.** "Expand the part library" never needed the graph.
+A switch has three ends and a crossing four, so those need branching; every
+additional straight and curve has two and fits the chain model that works today.
+Worse, this was already known: task **M4**, generated 2026-10-07, reads "K4
+catalogue, TWO-ENDED PARTS ONLY: about 9 pieces including the ramp #33332, with
+plug/nest, polarity, plank width, plank thickness and footprint". Its two
+prerequisites, polarity and plank width, **shipped on 2026-10-08** in `b9cdc55`
+and `490f55f`. The remaining work is data. Nothing connected those facts across
+three reviews, and the catalogue could have shipped the same afternoon.
+
+### Decision ledger
+
+Row IDs are prefixed **CR** for this pass, because the fourth eng review
+already used R1 to R6 for different choices and a bare `R4` would be ambiguous
+between "per-cycle give" and "inventory set manifests".
+
+Process note, recorded rather than hidden: rows CR1 to CR4 were presented to the
+user before their ledger rows were saved, where the procedure wants the row saved
+first. The answers and scope below are exact; the save order was not.
+
+| ID / owner | Contract and evidence | Current | Proposed | Status | Approval and scope |
+|---|---|---|---|---|---|
+| D1 mode | 294 task records against 3,343 lines of source; >15 planned changed files | four modes | SCOPE REDUCTION | **approved** | D1. Strategy-only depth |
+| CR1 a11y / app | N12, N13, U7 plus E11's DOM project; ~1w, blocked on a second unbuilt project | in scope per design D9 | defer | **approved** | A at D2: deferred to TODOS.md. Reopens design D9; the user's earlier include is superseded by this answer |
+| CR2 backlog / process | 16 artifacts, 294 records; only 22 explicitly name LP-era machinery, so set-level supersession not record-level | all live | post-R21 C/T/U series only | **approved** | A at D3. The 16-item core is the live list; 8 older artifacts superseded as a set; M4 carried forward |
+| CR3 elevation / app | N3, N6, N8, N10, N17 all need measured clearance; calibration backlogged 2026-10-08; `CALIBRATION.md` Q5 says stop before layer work | 5 tasks live | retire all 5 | **approved, modified** | B at D4: N3, N6, N8, N10 retired. **N17 KEPT**, honouring the user's 22B choice |
+| CR5 release / plan | S1-1: 11 of 17 items serially blocked on item 6; items 1-5 touch no architecture and are 4/5 or 5/5 reversible | one list | split into two releases | **approved** | A at D6: items 1-5 are release one and ship BEFORE item 6 starts. The graph spine is release two |
+| CR6 inventory / app | S2-1 verified by execution: `Inventory.tsx:41` has no finiteness guard, so NaN or Infinity reaches state, JSON writes null, and the loader then discards the WHOLE blob silently | no guard | guard + visible rejection + non-silent loader | **approved** | C at D7: reject non-finite at the input, show the field invalid, and surface a discarded blob instead of starting empty silently. Covers the chain loader too, not just inventory. Regression tests for all three |
+| CR7 observability / app | S8-1: N9 specified an error boundary printing the chain as text; unbuilt, and CR2 retired the N-series | none; blank page on throw | add to release one | **approved** | A at D8: item 18 of release one. Prints chain + inventory as selectable `try.ts` text. Only observability gap Sections 8-9 found worth closing |
+| CR8 docs / design | S11-2: `tokens.css` says "there is no design system" while its contrast ratios were measured and corrected; `DESIGN.md` absent (N21) | header claims none exists | write DESIGN.md | **approved** | B at D9: deferred to TODOS.md as P3, matching the recommendation |
+| CR9 persistence / app | S4-1: both savers write unconditionally with no storage listener; two tabs clobber silently | last write wins | detect or warn | **approved** | A at D10: deferred to TODOS.md as P3. CR6's non-silent loader removes the silence, which is the Prime-Directive-1 part |
+| CR4 inventory / product | counts shipped as the truth; the set half shipped as 3 invented quick-fills labelled "not official BRIO set contents" | generic quick-fills | cut the fast path | **approved, REVERSED** | B at D5: **fund real BRIO set manifests.** An addition, against the reviewer's recommendation. Blocked on counsel; nothing else in the core waits on it |
+
+**Net scope effect: reduced on three counts, expanded on one.** CR4 is an
+addition made knowingly in a reduction review, and it is the one item in this
+plan gated on a legal answer rather than on engineering.
+
+### 0G. The minimum core after the four answers
+
+The C, T and U series were three reviews describing the same graph work.
+Deduplicated, with finished items removed, the live backlog is **16 items**.
+
+```
+  SHIPS WITHOUT THE GRAPH (available now)
+  1  More two-ended parts in the catalogue        M4, carried forward. Data + a relation test
+  2  Verdict line: three registers                U1 = N4
+  3  Empty state leads with one preset            U8
+  4  A4's unpaid debts and the dangling weld      T11, T12
+  5  Base-level control                           N17, kept at D4
+
+  THE GRAPH SPINE (sequential; C8 gates the rest per the eng review's own R4)
+  6  Piece-joint graph model                      C6 = T2
+  7  Spanning forest, one traversal, 3 consumers  T4
+  8  Per-cycle residual and bound                 C8 = T6
+  9  Cycle-space enumeration, worst simple cycle  C9 = T5
+  10 Reverse traversal primitive                  C5
+  11 Feasibility lifted off chain indices         T9
+  12 Differential regression harness              T7
+
+  THE PAYOFF: what was actually asked for
+  13 Switch and crossing parts                    C11
+  14 Free-end clicking and declared welds         C10
+  15 Footprint bodies, so a switch looks like one U3
+  16 Breakable welds                              U5
+
+  ADDED AT D5, BLOCKED ON COUNSEL
+  17 Real BRIO set manifests                      CR4
+```
+
+Item 1 is the recommendation for this week. It answers one of the three asks, it
+needs no architecture, its prerequisites shipped yesterday, and it is the only
+thing in the list that does not wait on item 6.
+
+
+### Current scope (published before Section 1)
+
+Mode: **SCOPE REDUCTION**, selected at D1 on the reviewer's recommendation, which
+the file-count rule also triggered. Depth: strategy-only.
+
+```
+  ROW  DISPOSITION                      ANSWER
+  ----|---------------------------------|---------------------------------------
+  D1   SCOPE REDUCTION, strategy-only    D1, matched recommendation
+  CR1  a11y body DEFERRED                D2, matched. Supersedes design D9's include
+  CR2  post-R21 series = live backlog     D3, matched. 8 artifacts superseded as a set
+  CR3  4 elevation tasks RETIRED,         D4, option B. N17 kept, honouring 22B
+       base-level control KEPT
+  CR4  real set manifests ACCEPTED        D5, option B, AGAINST recommendation
+```
+
+Accepted: the 16-item core plus item 17. Deferred: the a11y body. Rejected: N3,
+N6, N8, N10. Pending: nothing from Step 0.
+
+### Section 1: Architecture Review
+
+Everything structural here was settled an hour ago by the fourth eng review and is
+cited rather than reopened: the piece-joint graph (D9), the captured per-component
+anchor (D4), worst-simple-cycle gap reporting (D3), one shared forest traversal
+(D6), and C8 gating C10 (D5). No architecture row is reopened.
+
+**S1-1. CRITICAL GAP (plan, not system): 11 of the 17 accepted items are serially
+blocked on one task, and the reduction did not change that.**
+
+```
+  ITEM 1  catalogue, two-ended parts ─┐
+  ITEM 2  verdict three registers    ─┤
+  ITEM 3  empty state                ─┼──> independent, shippable now
+  ITEM 4  A4 debts + dangling weld   ─┤
+  ITEM 5  base-level control          ─┘
+
+  ITEM 6  PIECE-JOINT GRAPH MODEL ───────────── single point of failure
+            │
+            ├─> 7  spanning forest
+            │     └─> 8  per-cycle bound ──> 13 switch/crossing parts
+            │           └─> 9  cycle enumeration   14 free-end clicking
+            │                                      15 footprint bodies
+            ├─> 10 reverse traversal               16 breakable welds
+            ├─> 11 feasibility lift
+            └─> 12 differential harness
+
+  ITEM 17 real set manifests ──> BLOCKED ON COUNSEL, no date
+```
+
+Two single points of failure, and neither is in the software. Item 6 slipping
+stops eleven items. Item 17 is gated on a legal answer nobody has scheduled, and
+it is the one item accepted against the reviewer's recommendation, so it carries
+both the most uncertainty and the least reviewer support.
+
+The architectural response is not more design. It is to stop treating items 1 to 5
+as "the small stuff at the end of the list" and ship them as their own release
+while item 6 is being built. That is a scope and sequencing decision, so it goes
+to the user.
+
+**S1-2. WARNING: the plan has no rollback posture because it has no deploy.** No
+remote is configured, no CI exists, nothing is published. Rollback is `git revert`
+on a local branch. For this stage that is adequate and worth stating rather than
+leaving as an implied gap; it becomes inadequate the moment anything is published,
+which item 17 makes more likely by putting third-party data in the product.
+
+**Scaling.** Measured, not assumed: 11.02ms per solve at 640 pieces, quadratic in
+the clash check at 4.04x pairs for 2x pieces. The catalogue growing from 6 parts
+to about 15 does not touch that curve, because the clash check scales in placed
+pieces, not in catalogue size. 10x and 100x load are not meaningful for a
+single-user local canvas; the real limit is pieces on screen, already measured.
+
+### Section 2: Error & Rescue Map (capability rows, strategy depth)
+
+```
+  CAPABILITY               | WHAT CAN GO WRONG                  | RESCUED? | USER SEES
+  -------------------------|------------------------------------|----------|---------------------
+  catalogue, new parts      | a published dimension transcribed  | N <-GAP  | wrong verdict, no
+                            | wrong (absolute, not a relation)   |          | signal at all
+  catalogue, new parts      | a part not lattice-expressible     | Y        | refused, named
+  inventory count input     | non-finite value stored            | N <-GAP  | SILENT total loss
+  inventory, two tabs       | both write localStorage            | N <-GAP  | last write wins,
+                            |                                    |          | silently
+  set manifests (item 17)   | manifest names an absent part      | N <-GAP  | wrong shortfall
+  set manifests (item 17)   | provenance challenged after launch | N <-GAP  | legal, not UX
+  base-level control        | a level is set but nothing renders | N <-GAP  | control does
+                            | it (rendering was retired at CR3)  |          | nothing visible
+  graph model and below     | covered by the eng review's own    | see that | —
+                            | registry; not restated here        | registry |
+```
+
+**S2-1. CRITICAL GAP, shipped code: a non-finite inventory count silently
+destroys the whole inventory.** `app/src/Inventory.tsx:41` is
+`onChange({ ...base, [partId]: Math.max(0, Math.floor(value)) })` with no
+finiteness guard. Verified by execution:
+
+```
+  typed      stored       next save      next load
+  "abc"      NaN          {"E":null}     rejected -> ENTIRE inventory discarded
+  "1e309"    Infinity     {"E":null}     rejected -> ENTIRE inventory discarded
+  "-5"       0            fine           fine
+  "2.7"      2            fine           fine
+```
+
+`loadInventory` is correct to reject a non-integer; the defect is upstream, where
+the bad value is accepted into state in the first place. The user types one bad
+character into one field, reloads, and every declared count is gone with no
+message. `<input type="number">` makes it harder to reach but does not prevent
+paste, autofill, or a legitimately typed `1e309`. This is the exact shape of
+Prime Directive 1, a silent failure, in code committed today.
+
+**S2-2. GAP: a wrong absolute dimension in a new catalogue part is invisible.**
+`analytic.test.ts` proves the published RELATIONS exactly (A1 = 2*A2, D = 2*A1,
+2*D = 3*A). It cannot catch a part whose absolute length is transcribed wrong in a
+way that preserves no relation, because nothing pins an absolute value to an
+external source. Item 1 multiplies the number of chances to make that error.
+
+### Section 3: Security & Threat Model
+
+Attack surface is genuinely small and worth stating plainly rather than padding:
+no backend, no endpoints, no auth, no secrets, no network calls at runtime, no
+server-side anything. Sign-in was cut at the CEO review's D2 and nothing has
+reintroduced it.
+
+```
+  THREAT                                     | LIKELIHOOD | IMPACT | MITIGATED?
+  -------------------------------------------|------------|--------|------------
+  localStorage tampering by the page's own   | Low        | Low    | Y: both
+  user (it is their own data)                 |            |        | loaders discard
+                                             |            |        | anything unexpected
+  Non-finite count accepted into state        | Medium     | Medium | N, see S2-1
+  Dependency risk: @fontsource/* dev deps     | Low        | Low    | Y: pinned by
+                                             |            |        | lockfile, OFL
+  Third-party data provenance (part data,     | Medium     | HIGH   | N: flagged
+  and item 17 doubles it)                     |            |        | pre-launch, open
+  Injection: no SQL, no shell, no templates,  | n/a        | n/a    | n/a
+  no LLM calls anywhere in the product        |            |        |
+```
+
+**S3-1. The largest risk in this plan is legal, not technical, and item 17
+increases it.** Part data is transcribed from a third-party curated compilation
+whose protection is an open question already flagged pre-launch. CR4 accepted a
+second body of the same kind of data. That is the user's call, made knowingly, and
+the correct engineering response is to keep item 17 behind the counsel answer
+rather than build it speculatively.
+
+Input validation, concretely: inventory counts validate on load (integer, >= 0,
+known part id, whole-blob discard otherwise) and do NOT validate on entry, which
+is S2-1. The chain loader validates part id against the catalogue and turn against
+a two-value set, discarding the whole blob on anything unexpected.
+
+### Section 4: Data Flow & Interaction Edge Cases
+
+```
+  INVENTORY COUNT FLOW, with shadow paths
+
+  INPUT              VALIDATE          TRANSFORM         PERSIST         OUTPUT
+  type=number   ->   (none) <-GAP  ->  max(0,floor())-> localStorage -> shortfall line
+    │                                    │                 │
+    ├ "" ──────────> treated as 0 ───────┘                 │
+    ├ "abc" ───────> NaN survives ──────> NaN ───────────> "null" ──> whole blob
+    ├ "1e309" ─────> Infinity survives -> Infinity ──────> "null" ──> rejected on
+    └ "-5" ────────> clamped to 0 ───────> 0                          load, SILENT
+```
+
+```
+  INTERACTION                  | EDGE CASE                   | HANDLED? | HOW
+  -----------------------------|-----------------------------|----------|------------------
+  click a palette piece         | double-click                | Y        | adds two, which
+                                |                             |          | is correct
+  click a palette piece         | held down                   | Y        | onClick does not
+                                |                             |          | auto-repeat
+  edit a count                  | non-finite value            | N <-GAP  | S2-1
+  edit a count                  | blank the field             | Y        | zero, documented
+  declare inventory             | nothing declared            | Y        | unconstrained,
+                                |                             |          | said explicitly
+  two tabs open                 | both edit inventory          | N <-GAP  | last write wins
+  two tabs open                 | both edit the chain           | N <-GAP  | last write wins
+  reload mid-edit               | unsaved state                | Y        | saves on every
+                                |                             |          | change
+  place 640 pieces              | slow solve                   | Y        | 11.02ms measured
+```
+
+**S4-1. GAP: two tabs silently clobber each other.** Both `savePieces` and
+`saveInventory` write unconditionally on every state change with no version, no
+timestamp and no storage event listener. Two tabs on the same layout means the
+last writer wins and the other tab's work vanishes on its next reload. For a
+single-user local tool this is low severity and genuinely common in such apps, but
+it is a silent failure and the plan does not mention it.
+
+### Section 5: Code Quality Review
+
+The existing 3,343 lines are in good shape and that is worth recording rather than
+manufacturing findings: zero TODO, FIXME, HACK or XXX markers in source, no
+duplicated behavior found, no method branching more than five times, and naming is
+behavioral throughout. The engine's module boundaries hold: `cyclotomic` knows
+nothing of parts, `pose` nothing of solving, `feasible` nothing of verdicts.
+
+**S5-1. WARNING: dead CSS survives three design reviews.** The `.joint` transition
+rule in `app/src/app.css` was flagged as dead in the first design review (N19),
+restated in the second, and is still present. It is three lines. Its survival is
+the clearest small-scale instance of this review's central finding.
+
+**S5-2. OK, with a note.** `app/src/trackPath.ts`, created an hour ago, is the
+right shape: pure, no React, single owner of the sweep flag, imported by both the
+renderer and its test. Named here as the pattern the remaining UI work should
+follow, since the alternative (a constant restated in a test) was proven useless
+by mutation in the same hour.
+
+### Section 6: Test Review
+
+52 tests, 3 files, all passing. Coverage of what EXISTS is strong; coverage of
+what is ACCEPTED is near zero, which the eng review already measured at 1 of 22
+paths. Not restated here. What this review adds is the test requirement for the
+four items the eng review did not cover, because they were not in its scope:
+
+```
+  ACCEPTED ITEM             | TYPE        | WHAT MUST BE PROVEN
+  --------------------------|-------------|----------------------------------------
+  1 catalogue parts          | Unit        | every published relation holds EXACTLY,
+                             |             | as the 6 current parts already do; plus
+                             |             | each new part is lattice-expressible
+  1 catalogue parts          | Unit <-GAP  | an absolute dimension matches its cited
+                             |             | source. No test can do this today (S2-2)
+  5 base-level control       | Unit        | a set level survives a reload, and the
+                             |             | verdict does not silently change
+  17 set manifests           | Unit        | a manifest naming an absent part is
+                             |             | REFUSED at import, not silently dropped
+  S2-1 count guard           | Unit        | a non-finite entry never reaches state,
+                             |             | and a stored inventory survives it
+```
+
+**Test ambition check.** The 2am-on-a-Friday test for this product is the one that
+already exists and was strengthened today: 16 large curves must not report EXACT.
+The hostile-QA test is S2-1's, typing `1e309` into a count and reloading. The
+chaos test is two tabs editing simultaneously (S4-1), which nothing covers.
+
+**Flakiness risk: none found.** No test depends on time, randomness, network or
+ordering. The engine is deterministic by construction and one test asserts that
+explicitly.
+
+No LLM or prompt patterns exist anywhere in this product, so no eval scope applies.
+
+### Section 7: Performance Review
+
+No database, no ORM, no N+1 class of problem, no connection pools, no background
+jobs. Everything is synchronous in one browser tab.
+
+```
+  PATH                        | MEASURED              | SCALES WITH      | RISK
+  ----------------------------|-----------------------|------------------|------
+  solveLayout, 640 pieces      | 11.02ms median        | pieces squared   | OK
+  clash check pairs            | 25,359 at 640 pieces  | pieces squared   | OK
+  cumulative, 640 clicks       | 0.33s total           | pieces           | OK
+  cycle enumeration, rank 20   | 471ms                 | 2^rank           | capped at
+                               |                       |                  | rank 20 by D3
+  catalogue of ~15 parts        | not measured          | palette buttons  | trivial
+```
+
+**S7-1. OK.** The one unbounded path, cycle enumeration, was bounded by decision
+D3 with a ceiling on input rather than a timeout, which is the correct shape: it
+cannot hang, it refuses. Nothing in the reduced scope introduces a new unbounded
+path. Memory: the largest structure is the clash pair list at 25,359 entries worst
+case, which is kilobytes.
+
+### Section 8: Observability & Debuggability Review
+
+This section is where a local-only client app looks worst, and the honest answer
+is mostly "not applicable, except for one thing that matters".
+
+```
+  OBSERVABILITY     | STATE        | VERDICT
+  ------------------|--------------|------------------------------------------------
+  Logging            | none         | n/a: nothing to log to, no server
+  Metrics            | none         | n/a at this stage
+  Tracing            | none         | n/a: no cross-service flow exists
+  Alerting           | none         | n/a: nothing is deployed
+  Dashboards         | none         | n/a
+  Debuggability      | NONE <-GAP   | S8-1 below. This one is real
+  Admin tooling      | none         | n/a
+  Runbooks           | none         | n/a
+```
+
+**S8-1. GAP: a user cannot tell you what went wrong, and the plan has had the fix
+written down since the first design review.** N9 specified an error boundary that
+prints the placed chain as selectable text in `try.ts` form. It is unbuilt. Today
+there is no way for a user hitting a bad layout to hand over the state that caused
+it, and the state just got larger: a layout plus an inventory. Every bug report
+from now on is "it looked wrong" with nothing attached. For a tool whose entire
+value is a correctness verdict, that is the observability gap worth closing, and
+it is small.
+
+### Section 9: Deployment & Rollout Review
+
+No migrations (no database). No feature flags. No staging. No deploy. Nothing is
+published and no remote is configured.
+
+**S9-1. WARNING, already filed.** The absent CI was raised by the third eng review
+and accepted as a TODO at its D16. It is not re-proposed here. Its relevance to
+this review is narrow and real: the differential regression harness accepted at
+the eng review's D7 is the main safety net for a 2-of-5-reversibility rewrite, and
+with no CI nothing runs it except a person remembering to.
+
+**S9-2. The storage-key change is the only migration-shaped risk in the plan.**
+Item 6 changes the persisted shape, and finding A5 of the eng review already
+requires bumping `brio.chain.v0` with it. Post-change verification is one step:
+load a layout saved before the change and confirm it discards cleanly to empty
+rather than half-loading.
+
+### Section 10: Long-Term Trajectory Review
+
+```
+  ACCEPTED WORK                  | REVERSIBILITY | DEBT INTRODUCED
+  -------------------------------|---------------|---------------------------------
+  1  catalogue, two-ended parts   | 5/5           | none. Data rows
+  2  verdict three registers      | 4/5           | none
+  3  empty state                  | 5/5           | none
+  4  A4 debts, dangling weld      | 5/5           | pays debt down
+  5  base-level control           | 3/5           | a control with no rendering,
+                                  |               | per CR3. Named, accepted
+  6-16 the graph spine            | 2/5           | the big one. Mitigated by the
+                                  |               | differential harness (D7)
+  17 real set manifests           | 2/5           | legal exposure is the hard part
+                                  |               | to reverse, not the code
+```
+
+**Overall reversibility: 2/5**, set by item 6. Unchanged by this review, because
+the reduction removed items around the rewrite rather than changing it.
+
+**S10-1. Debt this review deliberately created, named so it is not lost:** the
+deferred keyboard and screen-reader work (CR1). It is now debt with an owner and a
+TODOS entry rather than an unexamined gap. The longer the spatial interactions
+bed in, the more expensive it gets, which was stated at D2 and accepted.
+
+**The 1-year question.** Would a new engineer understand this in 12 months? The
+engine, yes: it is commented to an unusual standard and the comments explain
+*why*, including the mistakes. The plan, no: at 10,895 lines across six review
+passes it is now an archive rather than a document, and CR2's single live backlog
+is the only thing making it navigable.
+
+### Section 11: Design & UX Review
+
+UI scope detected: accepted items 2, 3, 5, 14, 15 and 17 all change what the user
+sees. Section 11 runs.
+
+```
+  INTERACTION STATE COVERAGE, accepted UI items
+
+  FEATURE                | LOADING | EMPTY        | ERROR          | SUCCESS      | PARTIAL
+  -----------------------|---------|--------------|----------------|--------------|-------------
+  verdict, 3 registers    | n/a     | "Nothing to  | UNKNOWN, grey  | EXACT        | NEEDS_GIVE
+  (item 2)                |         | check yet"   | and never green|              | hedged
+  empty state (item 3)    | n/a     | THE state,   | n/a            | preset lands | n/a
+                          |         | one preset   |                |              |
+  base level (item 5)     | n/a     | floor        | GAP: no error  | GAP: nothing | n/a
+                          |         | default      | state defined  | renders      |
+  switch/crossing (14,15) | n/a     | n/a          | IMPOSSIBLE,    | drawn as a   | GAP: modelled
+                          |         |              | definite FAIL  | body         | error shown?
+  set manifests (item 17) | GAP: no | GAP: no sets | GAP: manifest  | counts written | GAP: partial
+                          | state   | defined yet  | names absent   | from the set   | match
+                          |         |              | part           |              |
+```
+
+**S11-1. CRITICAL GAP: item 17 has no interaction states designed at all.** It was
+accepted at D5 twenty minutes ago as a feature, with no design pass. Five of its
+six states are undefined: what the picker looks like, what an empty set list says,
+what happens when a manifest names a part the catalogue lacks, and what a partial
+match shows. It is also the item blocked on counsel, so there is time to design it
+properly, but it should not be built before that happens.
+
+**S11-2. WARNING: the design system is still self-declared provisional after three
+design reviews.** `app/src/tokens.css` opens with "PROVISIONAL TOKENS. There is no
+design system for this product yet" and `DESIGN.md` does not exist; N21 specified
+it and is unbuilt. Four token values were corrected and the fonts were self-hosted,
+which is real work, but the file still tells the next reader that nobody chose
+this. Either write DESIGN.md from the decided values or stop calling the tokens
+provisional, because both cannot be true.
+
+**S11-3. AI slop risk: low, and for a specific reason.** The product's one strong
+opinion, that colour is spent only where it changes a decision, is unusual and
+held consistently. The verdict glyphs carry meaning without colour. The canvas is
+the dominant element. These are choices, not defaults.
+
+```
+  USER FLOW, accepted scope only
+
+  land ──> [empty: ONE preset] ──> click ──> exact circle, EXACT verdict
+                 │                                   │
+                 │                                   ├─> read verdict (3 registers)
+                 │                                   │     verdict | trust | action
+                 │                                   │
+                 │                                   ├─> "say what you own" appears
+                 │                                   │     └─> counts ──> shortfall
+                 │                                   │     └─> set picker  <- UNDESIGNED
+                 │                                   │
+                 │                                   └─> click a free end ──> weld
+                 │                                         └─> add a switch
+                 │                                               └─> drawn as a body
+                 └─> set a base level  <- control exists, renders nothing (CR3)
+```
+
+Recommendation per this section: the accepted UI work, especially item 17, should
+go through `/plan-design-review` before implementation. That is a routing
+suggestion, not a decision taken here.
+
+
+### Approval readiness
+
+```
+  ROW  REMEDY                                  CITES        STATE
+  ----|-----------------------------------------|------------|----------
+  D1   SCOPE REDUCTION, strategy-only            D1           approved
+  CR1  a11y body deferred to TODOS               D2           approved
+  CR2  post-R21 series = the live backlog        D3           approved
+  CR3  4 elevation tasks retired, N17 kept       D4 (opt B)   approved
+  CR4  real set manifests funded                 D5 (opt B)   approved
+  CR5  release split, items 1-5 ship first       D6           approved
+  CR6  count guard + visible rejection + loader  D7 (opt C)   approved
+  CR7  error boundary into release one            D8           approved
+  CR8  DESIGN.md deferred to TODOS               D9 (opt B)   approved
+  CR9  multi-tab deferred to TODOS               D10          approved
+```
+
+Every accepted remedy cites its own actual answer. No remedy rests on the mode
+selection, on navigation, or on another row's approval. Nothing is pending.
+
+Two rows went against the reviewer's recommendation and are recorded as such:
+CR4 (funding set manifests, an addition in a reduction review) and CR3 (keeping
+the base-level control). Both are the user's call and both carry their stated cost
+in the registry below.
+
+**Approval readiness: PASS.** Checked D1, CR1, CR2, CR3, CR4, CR5, CR6, CR7, CR8,
+CR9 against answers D1 through D10.
+
+### NOT in scope
+
+**Deferred** (to TODOS.md, with context):
+
+| Item | Answer | Reason |
+|---|---|---|
+| Keyboard and screen-reader access for the graph interactions | D2 | Largest non-graph item, ~1w, and blocked on the DOM test project. Reopens design D9's include |
+| DESIGN.md and the tokens.css header | D9 | Misleading rather than harmful; release one already grew to six items |
+| Two tabs clobbering each other | D10 | CR6 removes the silence, which is the part that made it a Prime-Directive-1 problem |
+
+**Rejected** (no TODO):
+
+| Item | Answer | Reason |
+|---|---|---|
+| N3 elevation rendering with occlusion | D4 | Needs measured clearance; calibration is backlogged and Q5 says stop before layer work |
+| N6 derived ramp tile | D4 | Same prerequisite |
+| N8 narrowed EXACT wording when elevated | D4 | Same prerequisite |
+| N10 the unmatched-ramp state | D4 | Same prerequisite |
+| The eight pre-R21 task artifacts | D3 | Superseded as a set, not record by record. Anything still wanted must be re-raised; M4 already was |
+| Deferring the crossing | eng D1, not re-proposed | D9 made pieces the graph nodes, which dissolved the reason to cut it |
+| Cutting the set-manifest fast path | D5 | Proposed and reversed into an addition |
+
+### What already exists
+
+| Sub-problem | Existing code | Reused? |
+|---|---|---|
+| Exact closure verdict | `cyclotomic.ts`, `pose.ts`, `residual.ts`, `result.ts` | Yes, unchanged. 52 tests, zero defects in six passes |
+| Refusing unbuildable layouts | `feasible.ts`, shipped 2026-10-08 | Yes. Needs re-pointing off chain indices (eng A1), not rewriting |
+| Pair-wise joint budget | `residual.ts`, shipped 2026-10-08 | Yes. Already the shape a graph needs |
+| Connector polarity, plank width | `schema.ts`, `brio.ts`, shipped 2026-10-08 | Yes. Two of the fields item 6 needs already exist and are tested |
+| Inventory counts | `inventoryModel.ts`, `Inventory.tsx` | Yes. CR6 fixes its input guard |
+| Persistence | `App.tsx` localStorage | Yes. Storage key moves with item 6 |
+| Renderer sweep contract | `trackPath.ts`, shipped today | Yes. The pattern the remaining UI work should follow |
+| Catalogue data | `brio.ts`, 6 parts | Extended by item 1. Its prerequisites shipped yesterday |
+
+Nothing in release one rebuilds anything. Item 6 rebuilds `Layout` and both
+walkers' traversal; that was settled by the eng review, not here.
+
+### Dream state delta
+
+```
+  BEFORE THIS REVIEW            AFTER                      12-MONTH IDEAL
+  6 parts, one chain,      ->   same product, but a    ->   photograph your box,
+  exact verdict, local          backlog of 18 items         sketch with branches,
+  inventory, and 294            instead of 294, with        exact where it can be
+  task records across           release one shipping        and honest where it
+  16 artifacts                  this week                   cannot
+```
+
+The delta this review produces is not a feature. It is that the next thing to
+happen is a release rather than a review. On reach the plan is unchanged; on
+deliverability it moves for the first time in four days.
+
+### Error & Rescue Registry (capability rows, strategy depth)
+
+```
+  CAPABILITY               | FAILURE MECHANISM                | SAFEGUARD        | OWNER MUST PROVE
+  -------------------------|----------------------------------|------------------|------------------
+  catalogue, new parts      | absolute dimension transcribed   | none <-GAP       | each new part's
+                            | wrong, preserving no relation    |                  | absolute value
+                            |                                  |                  | against its source
+  catalogue, new parts      | part not lattice-expressible     | refused + named  | refusal is visible
+  inventory count input     | non-finite value enters state    | CR6 approved,    | a non-finite entry
+                            |                                  | not yet built    | never reaches state
+  inventory / chain loader  | blob discarded silently          | CR6 approved,    | a discard is
+                            |                                  | not yet built    | surfaced, both loaders
+  two tabs                  | last write wins                  | deferred, D10    | reassess after CR6
+  set manifests (item 17)   | manifest names an absent part    | none <-GAP       | import REFUSES it
+  set manifests (item 17)   | provenance challenged            | counsel, no date | legal, not eng
+  base-level control        | level set, nothing renders it    | none, accepted   | user is told the
+                            | (CR3 retired the rendering)      | at CR3 opt B     | level does nothing yet
+  error boundary (item 18)  | a throw yields a blank page      | CR7 approved     | chain + inventory
+                            |                                  |                  | print as text
+  graph spine (items 6-16)  | covered by the eng review's own registry; not restated here
+```
+
+### Failure Modes Registry
+
+```
+  CAPABILITY                  | FAILURE MODE                  | RESCUED? | TEST? | USER SEES | LOGGED?
+  ----------------------------|-------------------------------|----------|-------|-----------|--------
+  inventory count input        | non-finite -> whole blob lost  | N, CR6   | N     | SILENT    | N  **CRITICAL GAP**
+  catalogue, new parts         | wrong absolute dimension       | N        | N     | SILENT    | N  **CRITICAL GAP**
+  two tabs                     | last write wins                | N, D10   | N     | SILENT    | N  **CRITICAL GAP**
+  base-level control           | renders nothing                | N        | N     | nothing   | N  gap, accepted CR3
+  set manifests                | manifest drift                 | N        | N     | wrong no. | N  gap, item 17
+  error boundary absent        | blank page on throw            | N, CR7   | N     | blank     | N  gap, remedied
+  exact closure, no switches   | none in six passes             | Y        | Y     | correct   | n/a OK
+  two known false passes       | both refused since 2026-10-08  | Y        | Y     | FAIL      | n/a OK
+  renderer sweep flag          | arcs bulge wrongly             | Y        | Y     | —         | n/a OK, fixed today
+  ----------------------------|-------------------------------|----------|-------|-----------|--------
+  9 capability rows, 3 CRITICAL GAPS
+```
+
+Three critical gaps, each silent, each with no test. Two have approved remedies
+that are not yet built (CR6, and D10's deferral acknowledges CR6 covers the
+silence). **One has no remedy at all: a wrong absolute dimension in a new
+catalogue part.** That matters because item 1 is release one's headline and it
+multiplies the chances of exactly that error. The base-level control's gap is
+accepted knowingly at CR3 and is not counted critical, because the user sees a
+control that does nothing rather than nothing at all.
+
+### Diagrams
+
+```
+  1. RELEASE STRUCTURE after CR5
+
+  RELEASE ONE (no graph dependency, ships first)
+    1 catalogue, two-ended parts    <- answers one of the three asks
+    2 verdict, three registers
+    3 empty state, one preset
+    4 A4 debts + dangling weld
+    5 base-level control            <- kept at CR3, renders nothing yet
+    18 error boundary               <- added at CR7
+    + CR6 count guard, visible rejection, non-silent loaders
+         │
+         v
+  RELEASE TWO (the graph spine, strictly sequential)
+    6 piece-joint graph ──> 7 forest ──> 8 per-cycle bound ──> 9 enumeration
+                              ├─> 10 reverse traversal
+                              ├─> 11 feasibility lift
+                              └─> 12 differential harness
+         │
+         v
+  RELEASE THREE (the payoff: what was asked for)
+    13 switch + crossing parts   14 free-end clicking   15 footprint bodies
+    16 breakable welds
+         │
+  ITEM 17 real set manifests ── parallel, BLOCKED ON COUNSEL, no date
+```
+
+```
+  2. DATA FLOW: the inventory count, with the CR6 fix in place
+
+  INPUT            VALIDATE              TRANSFORM      PERSIST        OUTPUT
+  type=number  ->  isFinite? <-CR6   ->  max(0,floor)-> localStorage-> shortfall
+    │                 │  no                                 │
+    ├ "abc" ──────────┤──> field shown INVALID <-CR6         │
+    ├ "1e309" ────────┤    value never enters state          │
+    ├ "-5" ───────────┴──> 0                                 │
+    └ "" ────────────────> 0                                 │
+                                                             v
+                                    on load: bad blob -> DISCARD, and SAY SO <-CR6
+                                                          (was silent)
+```
+
+```
+  3. STATE MACHINE: a count field under CR6
+
+      ┌─────────┐  valid integer   ┌─────────┐
+      │ empty   │ ───────────────> │ valid   │ ──> persisted
+      └─────────┘                  └─────────┘
+           │  non-finite                │  non-finite
+           v                            v
+      ┌───────────────────────────────────────┐
+      │ INVALID: field marked, value rejected │  <- new at CR6
+      │ state unchanged, nothing persisted    │     no path to persistence
+      └───────────────────────────────────────┘
+```
+
+```
+  4. ERROR FLOW: a throw, with item 18 in place
+
+  engine throws
+      │
+      v
+  React error boundary  <- item 18, CR7
+      │
+      ├─> renders the placed chain as selectable try.ts text
+      ├─> renders the declared inventory as counts
+      ├─> renders browser + version
+      └─> user pastes it into a bug report      (today: blank page, nothing)
+
+  NOT caught: a hang. A hang is not a throw. Bounded instead by D3's
+  rank-20 ceiling, which refuses rather than freezing.
+```
+
+```
+  5. DEPLOYMENT SEQUENCE: there isn't one, and that is the finding
+
+  local branch ──> git commit ──> (no remote, no CI, no deploy)
+                                    │
+                                    └─> nothing runs the differential harness
+                                        except a person remembering to
+```
+
+```
+  6. ROLLBACK: git revert on a local branch. Time: seconds.
+     Adequate now; inadequate the moment item 17 publishes third-party data.
+```
+
+### Stale Diagram Audit
+
+| Diagram | Location | Still accurate? |
+|---|---|---|
+| v1 sequence `K0b -> K4 -> the bound` | plan, first eng review | **No.** Superseded; that release no longer exists |
+| Release 1 / Release 2 split | plan, third eng review | **No.** Superseded by CR5's three-release structure |
+| Chain-shaped data flow | plan, third eng review | **No.** Superseded by the graph |
+| CEO review 4 graph diagram | plan, fourth CEO review | **No.** Shows a connector graph with two connector kinds; D9 replaced it with the piece-joint graph |
+| Eng review 4 accepted architecture | plan, fourth eng review | **Partly.** Correct except it predates D9's piece-joint decision by minutes |
+| `App.tsx:13-18` header comment | source | **No.** Says ONE connected chain and no per-component origin field. Item 4 / C14 owns it |
+| `schema.ts` Layout comment | source | **No.** Describes the MVP chain. Item 6 owns it |
+| `trackPath.ts` comments | source | **Yes.** Written today, accurate |
+| `feasible.ts` comments | source | **Yes**, with one caveat: they describe chain adjacency rules that item 11 removes |
+
+Nine diagrams audited, **four fully stale and two partly**. All six are in the
+plan file or in comments item 4, 6 and 11 already own. None needs a new task.
+
+
+## Implementation Tasks
+Synthesized from this review's findings. Each task derives from a specific
+finding above. Run with Claude Code or Codex; checkbox as you ship.
+
+Strategy-only depth: these name the next build, research or verification action
+and its owner. They do not choose implementation contracts the eng review has not
+settled. **Release one is tasks K1 to K7 and is the whole answer to "what is
+next".** The graph spine and the payoff keep the eng review's T-series ids.
+
+**RELEASE ONE — ships before item 6 starts (CR5)**
+
+- [ ] **K1 (P1, human: ~1w / CC: ~2h)** — engine/data — Add the two-ended parts to the catalogue: about 9 pieces per M4, each with its published relations asserted exactly and its lattice-expressibility proven
+  - Surfaced by: audit — "expand the part library" was never built and never needed the graph; M4 scoped it on 2026-10-07 and its prerequisites shipped 2026-10-08
+  - Files: `engine/data/brio.ts`, `engine/test/analytic.test.ts`
+  - Verify: every new part's published length or radius relation holds with `equals`, no tolerance, as the six current parts already do
+- [ ] **K2 (P1, human: ~3h / CC: ~20min)** — engine/test — Pin each catalogue dimension to its cited source, closing the one critical gap with no remedy
+  - Surfaced by: S2-2 — `analytic.test.ts` proves relations but nothing pins an absolute value, so a wrong transcription is silent
+  - Files: `engine/data/brio.ts`, `engine/test/analytic.test.ts`
+  - Verify: each part carries its source reference, and a deliberately corrupted absolute dimension fails the suite
+- [x] **K3 (P1, human: ~3h / CC: ~20min)** — app — CR6: reject non-finite counts at the input, show the field invalid, and make both loaders say when they discard a blob
+  - Surfaced by: S2-1, verified by execution — `Inventory.tsx:41` has no finiteness guard; NaN becomes JSON null and the whole inventory is discarded silently
+  - Files: `app/src/Inventory.tsx`, `app/src/inventoryModel.ts`, `app/src/App.tsx`, `app/src/inventoryModel.test.ts`
+  - Verify: typing `1e309` leaves state unchanged and marks the field; a discarded blob produces a visible message, for inventory AND the chain
+  - **DONE 2026-10-09**, commit `86614bc`. `sanitizeCount` extracted to `inventoryModel.ts` so the guard is testable; deleting it now fails 3 tests, where the first version in `Inventory.tsx` could be deleted with all 92 tests still green. Both loaders report discards; notices render above the verdict.
+- [x] **K4 (P1, human: ~4h / CC: ~30min)** — app-verdict — Split the verdict into three registers: verdict, trust, action
+  - Surfaced by: accepted item 2 (U1 = N4), unbuilt through three design reviews
+  - Files: `app/src/VerdictLine.tsx`, `app/src/App.tsx`, `app/src/app.css`
+  - Verify: the estimated-give disclosure moves out of the palette paragraph into the trust register
+  - **DONE 2026-10-09**, commit `c996e42`. Action register added as `app/src/verdictAction.ts`, keyed by the verdict and failure unions so a new state cannot ship unadvised. EXCEEDS and IMPOSSIBLE had no action at all before. The provisional paragraph left the palette; folding its second sentence into the trust register verbatim was WRONG and the browser showed it, because "could fit, not that it will" contradicts an EXCEEDS verdict. That sentence now sits in the NEEDS_GIVE copy, and the trust line says only what is true in every state.
+- [x] **K5 (P2, human: ~4h / CC: ~30min)** — app — The error boundary prints the chain and inventory as selectable `try.ts` text, plus browser and version
+  - Surfaced by: S8-1 and CR7 — the only observability gap Sections 8 and 9 found worth closing
+  - Files: `app/src/ErrorBoundary.tsx`, `app/src/App.tsx`
+  - Verify: a thrown engine error yields pasteable state, not a blank page
+  - **DONE 2026-10-09**, commit `be909bf`. DEVIATION: the file is `crash-repro.ts`, not `try.ts`. `try.ts` is a committed tool that does the same job for a hand-written layout, so telling a user to save over it would destroy it. Verified by running the real output: it executed and reported gapMm 54, matching the UI. `repro.test.ts` keeps that true by writing the generated text to the repo root and running it.
+- [x] **K6 (P2, human: ~2h / CC: ~15min)** — app — Empty state leads with one preset; demote the hint and keep the inventory invitation after the first layout
+  - Surfaced by: accepted item 3 (U8), and design D10
+  - Files: `app/src/App.tsx`, `app/src/TrackCanvas.tsx`, `app/src/app.css`
+  - Verify: the empty canvas presents exactly one primary action
+  - **DONE 2026-10-09**, commit `4392345`. The empty canvas presents exactly one primary action, verified in the browser. `PRESETS` moved to `app/src/presets.ts` so the choice of which preset greets a first-time user is pinned by a test running the real solver, not by a comment.
+- [ ] **K7 (P2, human: ~3h / CC: ~20min)** — app + engine — Base-level control per CR3, and the A4 debts: the shortcut markers and the draw-every-pair half
+  - Surfaced by: CR3 (N17 kept) and Performance D2 of the eng review
+  - Files: `engine/src/parts/schema.ts`, `app/src/App.tsx`, `engine/src/feasible.ts`, `app/src/TrackCanvas.tsx`
+  - Verify: a set base level survives a reload; every reported clash pair is drawn; the markers name decision `f333f98f`
+- [x] **K8 (P3, human: ~30min / CC: ~5min)** — app — Delete the dead `.joint` transition rule, flagged as dead by three design reviews
+  - Surfaced by: S5-1 — `app/src/app.css`, N19, still present
+  - Files: `app/src/app.css`
+  - Verify: no rule targets `.joint`; the settle animation still works
+  - **DONE 2026-10-09**, commit `e037fde`. The first half of the verify holds: no rule targets `.joint`. **The second half, "the settle animation still works", was unsatisfiable as written** — no element has ever carried that class, so there was no animation to preserve. Deleting the rule leaves the product with NO motion at all. That is an unrealised intention, not a regression, and `--settle-ms` / `--settle-ease` are kept in `tokens.css` for whoever builds the settle against the arriving segment.
+
+**RELEASE TWO AND THREE — unchanged from the eng review**
+
+Tasks T2 through T13 of the fourth eng review stand as written, with D9's
+piece-joint correction already applied to T2, T4, T8, T9 and T11. Not restated
+here. `_No new tasks from Sections 5, 7, 9 or 10._`
+
+**BLOCKED, NOT SCHEDULED**
+
+- [ ] **K9 (P1, human: ~1w + legal / CC: ~2h)** — product — Real BRIO set manifests: source the data, take provenance to counsel, and design the five undesigned interaction states first
+  - Surfaced by: CR4 at D5 (an addition, against the reviewer's recommendation) and S11-1 (five of six states undefined)
+  - Files: to be determined
+  - Verify: counsel has answered; a manifest naming an absent part is REFUSED at import, not silently dropped
+
+Effort assumptions: data transcription ~30x, app features ~30x, tests ~50x,
+research ~3x. K1 does not compress much because the work is reading published
+figures, not typing.
+
+### Unresolved Decisions
+
+**None.** All ten questions asked in this review were answered: D1 through D10.
+
+## Completion summary (CEO review, fifth pass, 2026-10-09)
+
+```
+  +====================================================================+
+  |            MEGA PLAN REVIEW — COMPLETION SUMMARY                   |
+  +====================================================================+
+  | Mode selected        | SCOPE REDUCTION (strategy-only depth)       |
+  | System Audit         | 294 task records, 16 artifacts, 3,343 lines |
+  |                      | of source; 2 of 3 user asks unbuilt         |
+  | Step 0               | SCOPE REDUCTION; CR1-CR4 resolved           |
+  | Section 1  (Arch)    | 2 issues found (1 critical: 11 of 17 items  |
+  |                      | serially blocked on item 6)                 |
+  | Section 2  (Errors)  | 9 capability rows mapped, 2 GAPS            |
+  | Section 3  (Security)| 1 issue found, 1 High severity (legal)      |
+  | Section 4  (Data/UX) | 9 edge cases mapped, 2 unhandled            |
+  | Section 5  (Quality) | 2 issues found (1 is dead CSS)              |
+  | Section 6  (Tests)   | Diagram produced, 1 gap with no remedy      |
+  | Section 7  (Perf)    | 0 issues found; all paths measured          |
+  | Section 8  (Observ)  | 1 gap found, remedied at CR7                |
+  | Section 9  (Deploy)  | 2 risks flagged, both already filed         |
+  | Section 10 (Future)  | Reversibility: 2/5, debt items: 2           |
+  | Section 11 (Design)  | 3 issues (1 critical: item 17 undesigned)   |
+  +--------------------------------------------------------------------+
+  | NOT in scope         | written (10 items: 3 deferred, 7 rejected)  |
+  | What already exists  | written (8 rows, nothing in release one     |
+  |                      | rebuilds anything)                          |
+  | Dream state delta    | written                                     |
+  | Error/rescue registry| 9 rows, 3 CRITICAL GAPS                     |
+  | Failure modes        | 9 total, 3 CRITICAL GAPS                    |
+  | TODOS.md updates     | 3 items proposed, 3 written                 |
+  | Scope proposals      | 4 cuts proposed, 3 accepted, 1 reversed     |
+  |                      | into an addition (CR4)                      |
+  | CEO plan             | skipped by mode (REDUCTION writes no 0H)    |
+  | Outside voice        | codex not_installed, 9th consecutive;        |
+  |                      | native fallback NOT dispatched (TaskOutput   |
+  |                      | absent) — unavailable                       |
+  | Lake Score           | 2/2 recommendations chose complete option   |
+  | Diagrams produced    | 6 (release structure, data flow, state       |
+  |                      | machine, error flow, deployment, rollback)  |
+  | Stale diagrams found | 6 of 9 audited (4 fully, 2 partly)          |
+  | Unresolved decisions | 0                                           |
+  +====================================================================+
+```
+
+### What this review changed
+
+It did not add a feature. It found that the plan had become the obstacle: 294 task
+records across 16 artifacts against 3,343 lines of product code, five review passes
+in four days, and two of the three things the user asked for on 2026-10-08 still
+unbuilt because both sit behind one rewrite that has now been designed four times.
+
+The single most useful finding was that one of those two asks never needed the
+rewrite at all. Two-ended parts fit the chain model that already works, and task
+**M4 said so on 2026-10-07** with a piece count. Its prerequisites, polarity and
+plank width, shipped on 2026-10-08. Nothing connected those facts, so the
+catalogue could have shipped the same afternoon and did not.
+
+Four cuts were proposed. Three were accepted: the keyboard body of work deferred,
+the pre-R21 artifacts superseded as a set so the backlog is 18 items instead of
+294, and four elevation tasks retired as following a calibration deferral the user
+had already made. The fourth was reversed into an addition: real BRIO set
+manifests are now funded, against the reviewer's recommendation, and are the one
+item in the plan gated on a legal answer rather than on engineering.
+
+Then the sections found two things in code committed hours earlier. **A non-finite
+inventory count silently destroys the entire inventory**, verified by executing the
+whole round trip: `NaN` becomes JSON `null`, the loader correctly refuses it, and
+every declared count is gone with no message. And a wrong absolute dimension in a
+new catalogue part is undetectable, which matters precisely because the catalogue
+is release one's headline.
+
+The structural answer was a release split. Items 1 to 5 plus the error boundary
+touch no architecture, are 4/5 or 5/5 reversible, and ship before item 6 starts.
+For the first time in four days the next thing scheduled to happen is a release
+rather than a review.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 5 | ISSUES OPEN | 33 issues, 3 critical gaps; mode FULL_REVIEW, 13 tasks T1-T13, 7 decisions D1-D9 |
-| CEO Review | `/plan-ceo-review` | Scope & strategy | 5 | ISSUES OPEN | mode: SCOPE_REDUCTION, 6 critical gaps, 5 cuts proposed and accepted |
-| Outside Review | native fallback not dispatched (codex `not_installed`) | Independent 2nd opinion | 11 | unavailable | no reviewer completed; `TaskOutput` absent from the tool roster |
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 6 | ISSUES OPEN | mode: SCOPE_REDUCTION, 3 critical gaps; 4 cuts proposed, 3 accepted, 1 reversed into an addition |
+| Outside Review | native fallback not dispatched (codex `not_installed`) | Independent 2nd opinion | 12 | unavailable | no completed external review; `TaskOutput` absent from the tool roster |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 5 | ISSUES OPEN | 33 issues, 3 critical gaps; mode FULL_REVIEW, 13 tasks, 7 decisions |
 | Design Review | `/plan-design-review` | UI/UX gaps | 3 | ISSUES OPEN | 7 passes; 1→10, 2→9, 3=7, 4=8, 5=4, 6→9; 8 decisions, 8 tasks U1-U8 |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | not run |
 
-- **OUTSIDE COVERAGE:** `unavailable`, and for the **eighth consecutive review**. Codex preflight returned `CODEX_MODE: not_installed` again, so no external provider has ever run on this project across its entire history. This pass did **not dispatch** the native fallback, which is a change from the previous two passes: the skill requires `TaskOutput` and `TaskStop` to be present before dispatch, and `TaskOutput` is absent from this session's tool roster, so a bounded result could not have been collected. Launching an agent whose output cannot be retrieved would have produced the same empty result as the prior two attempts while burning five minutes, so the unavailable path was taken deliberately rather than after a timeout. No late-result credit, no cross-model tension, and this is not a clean review. Installing Codex needs `npm install -g @openai/codex`; the separate `No OpenAI API key found` failure that blocks design mockups is a different missing credential. **What stood in for the outside voice was execution.** One web search produced a negative result that killed a planned approach, and ten bounded probes against the committed tree produced every load-bearing number here, including three mutation tests. Two of those probes falsified the reviewer: finding A3's cited rank-2 figure-eight was wrong, and the first attempt at the performance numbers used a piece count that short-circuits before the expensive path. Both are retracted in place rather than edited away.
-- **VERDICT:** No review is CLEAR, and **eng review required** remains in force: this pass is ISSUES OPEN with 3 critical gaps. The graph architecture is now specified rather than sketched, and the last open question is settled. **Seven decisions:** the crossing and piece identity kept in scope (D1), the original file arrangement kept (D2), the reported gap is the worst SIMPLE cycle enumerated over the cycle space (D3), a component's anchor is CAPTURED at the split and never re-derived (D4), C10 is gated behind C8 (D5), one spanning forest serves all three consumers (D6), the regression contract is differential against the chain engine (D7), and the model is a **piece-joint graph** where pieces are the nodes and joints the edges (D9). D9 was the decisive one: the cycle rank of the piece graph is the count of independent closure conditions, verified at 1 for a plain circle, 1 for one switch with its legs joined, 2 for two switches with three paths, and 2 for a figure-eight through a crossing. A connector graph undercounts that last case and leaves an isolated crossing as two components. Choosing it **dissolved three of this review's own findings** rather than scheduling fixes for them: the switch heel's three treatments, the isolated crossing's component count, and half of the dangling-weld case. **Three critical gaps remain**, each with no test, no error handling and a silent symptom, and one of them, the renderer's SVG sweep flag, was in shipped code and is **now fixed and mutation-verified** in commit `a77a6f3`: inverting the flag's single owner fails 3 tests where it previously failed none. Two figures in the prior record were corrected with measured evidence: decision A4's "204,480 conflicting pairs" is C(640,2), the count of pairs compared rather than conflicts, against a real worst case of 25,359; and C7's "all 23 fixtures run unmodified" cannot hold, because there are 52 tests now, 13 assertion sites bound to chain identity, 10 fixture sites passing a retired flag, and one test that goes vacuous under the adapter.
+- **OUTSIDE COVERAGE:** `unavailable`, for the **ninth consecutive review**. Codex preflight returned `CODEX_MODE: not_installed`, so no external provider has ever run on this project. The native fallback was **not dispatched**, for the second review running: the skill requires `TaskOutput` and `TaskStop` before dispatch, and `TaskOutput` resolves to nothing in this session's tool roster, so no bounded result could be collected. Launching an agent whose output cannot be retrieved would have spent five minutes to reproduce the two empty results from earlier passes. No late-result credit, no cross-model comparison, not a clean review. `npm install -g @openai/codex` fixes the provider; the `No OpenAI API key found` failure blocking design mockups is a separate missing credential. **What stood in for it was the audit and execution.** Reading the task artifacts produced the central finding (M4's catalogue scoped two days ago with its prerequisites shipped since), and one probe falsified shipped code: the non-finite inventory count destroying the whole inventory was found by executing the round trip, not by reading it.
+- **VERDICT:** No review is CLEAR, and **eng review required** stands: the fourth eng review is ISSUES OPEN with 3 critical gaps of its own. This review is ISSUES OPEN with 3 critical gaps, all silent and all untested: a non-finite inventory count discarding the whole blob (remedy approved at CR6, unbuilt), a wrong absolute catalogue dimension being undetectable (**no remedy existed; K2 creates one**), and two tabs clobbering each other (deferred at D10, with CR6 removing the silence). **The scope is now 18 items, not 294 records**, and it is split into three releases. **Release one is tasks K1 to K8 and answers the question that opened this review**: it includes the part library, which never needed the graph rewrite, and it ships before item 6 starts. Four cuts were proposed and three accepted; the fourth, real BRIO set manifests, was reversed into an addition against the reviewer's recommendation and is the one item gated on counsel rather than engineering, with five of its six interaction states still undesigned. Reversibility is 2/5 overall, set by the graph rewrite and unchanged by this review.
 
 **UNRESOLVED DECISIONS:**
-- None from this review. Its one open item, the crossing's rigid-constraint mechanism, was reopened on request and settled at D9
-- + 5 unresolved from prior reviews, which de-duplicates to 3 live items. The mechanical sum takes the latest row per skill, 2 from the CEO review and 3 from the design review, but `PartBase.heightMm` versus an integer level index appears in both, and the CEO review's other item, set manifests versus part counts, was resolved by the design review's D6. The three distinct live items are: a path forward from a near miss, `heightMm` versus an integer level index, and the product name, which stays blocked on counsel
+- None from this review. All ten questions, D1 through D10, were answered
+- + 3 unresolved from prior reviews: a path forward from a near miss, `PartBase.heightMm` versus an integer level index, and the product name, which stays blocked on counsel. The fourth eng review closed its own one at D9, and the design review's set-manifest item was resolved at its D6
