@@ -43,7 +43,27 @@ export function TrackCanvas({ layout }: TrackCanvasProps) {
   const w = Math.max(box.maxX - box.minX, 1) + pad * 2;
   const h = Math.max(box.maxY - box.minY, 1) + pad * 2;
   const vb = `${box.minX - pad} ${box.minY - pad} ${w} ${h}`;
-  const trackWidth = Math.max(10, Math.min(w, h) * 0.022);
+
+  /*
+   * Plank width comes from the PART, in millimetres (task U2).
+   *
+   * The viewBox is in model millimetres, so a stroke width in millimetres is
+   * the physical width and nothing has to be converted. This used to read
+   * `Math.max(10, Math.min(w, h) * 0.022)`, a fraction of the viewBox extent,
+   * which meant the same piece drew thicker in a big layout than in a small one:
+   * the one thing on screen that is supposed to be a measurement was the one
+   * thing that changed with how much else you had placed.
+   *
+   * Per segment rather than once for the whole canvas, because `plankWidthMm` is
+   * a per-part field and switches and crossings have wider planks than a plain
+   * straight. Today every part carries the same estimate, so this draws
+   * identically; it stops drawing identically the moment task C11 lands, without
+   * needing to be touched again.
+   *
+   * The value is ESTIMATED and labelled as such in `brio.ts`. The UI discloses
+   * that in the palette's provisional note; nothing derives a verdict from it.
+   */
+  const plankWidth = (partId: string) => getPart(partId).plankWidthMm;
 
   if (segments.length === 0) {
     return (
@@ -66,7 +86,7 @@ export function TrackCanvas({ layout }: TrackCanvasProps) {
             d={segmentPath(s)}
             fill="none"
             stroke="var(--track-edge)"
-            strokeWidth={trackWidth}
+            strokeWidth={plankWidth(s.partId)}
             strokeLinecap="butt"
           />
         ))}
@@ -76,7 +96,7 @@ export function TrackCanvas({ layout }: TrackCanvasProps) {
             d={segmentPath(s)}
             fill="none"
             stroke="var(--track-fill)"
-            strokeWidth={trackWidth * 0.62}
+            strokeWidth={plankWidth(s.partId) * 0.62}
             strokeLinecap="butt"
           />
         ))}

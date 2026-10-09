@@ -24,6 +24,15 @@ import { solveLayout } from '../../engine/src/solver/result.js';
 import type { Layout, Turn } from '../../engine/src/parts/schema.js';
 import { TrackCanvas } from './TrackCanvas.js';
 import { VerdictLine } from './VerdictLine.js';
+import { InventoryPanel } from './Inventory.js';
+import {
+  loadInventory,
+  saveInventory,
+  shortfalls as computeShortfalls,
+  usedCounts,
+  wouldExceed,
+  type Inventory,
+} from './inventoryModel.js';
 import './tokens.css';
 import './app.css';
 
@@ -103,11 +112,18 @@ export function App() {
   // Lazy initialiser, so the read happens once on mount rather than every render.
   const [pieces, setPieces] = useState<Piece[]>(loadPieces);
   const [closed, setClosed] = useState(true);
+  // `null` is UNDECLARED, which is not the same as owning none. See inventory.ts.
+  const [inventory, setInventory] = useState<Inventory>(loadInventory);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
 
   // Only the chain is persisted. `closed` is a one-bit view toggle, not work.
   useEffect(() => {
     savePieces(pieces);
   }, [pieces]);
+
+  useEffect(() => {
+    saveInventory(inventory);
+  }, [inventory]);
 
   const layout: Layout = useMemo(
     () => ({ placements: pieces.map((p) => ({ partId: p.partId, turn: p.turn })), closed }),
@@ -128,10 +144,8 @@ export function App() {
     setClosed(true);
   };
 
-  const counts = pieces.reduce<Record<string, number>>((acc, p) => {
-    acc[p.partId] = (acc[p.partId] ?? 0) + 1;
-    return acc;
-  }, {});
+  const counts = usedCounts(pieces.map((p) => p.partId));
+  const shortfalls = computeShortfalls(inventory, counts);
 
   return (
     <div className="shell">
@@ -141,11 +155,53 @@ export function App() {
 
       <VerdictLine result={result} />
 
+      {/*
+        * The shortfall line sits with the verdict, not in the palette, because it
+        * answers the same question the verdict does: can I build this? It is a
+        * separate sentence rather than part of the verdict because it is about
+        * the BOX, not the geometry, and merging them would let a stock problem
+        * read as a layout problem. Advice, never a gate (D8).
+        */}
+      {shortfalls.length > 0 && (
+        <p className="shortfall">
+          Short by{' '}
+          {shortfalls.map((sf, i) => (
+            <span key={sf.partId}>
+              {i > 0 && ', '}
+              <span className="num">{sf.shortBy}</span>&nbsp;{sf.partId}
+            </span>
+          ))}{' '}
+          against what you own. Still fine to draw.
+        </p>
+      )}
+
       <section className="palette" aria-label="Track pieces">
         <div className="palette-row">
-          {BRIO_PARTS.map((part) => (
-            <div key={part.id} className="piece">
-              <button className="piece-main" onClick={() => add(part.id, 'left')}>
+          {BRIO_PARTS.map((part) => {
+            /*
+             * ADVICE, NEVER A GATE (decision D8).
+             *
+             * `is-unowned` greys the button and nothing else. It stays clickable,
+             * stays focusable, and carries no `disabled`, because a shortfall is
+             * information about the real world rather than an error in the
+             * layout: people borrow track, buy more, and sketch layouts they
+             * cannot build yet. Hiding or disabling the piece would teach the
+             * user nothing and read as a bug. `aria-describedby` is not used
+             * here either; the state is carried in the accessible name below so
+             * it is announced with the control rather than after it.
+             */
+            const unowned = wouldExceed(inventory, counts, part.id);
+            return (
+            <div key={part.id} className={unowned ? 'piece is-unowned' : 'piece'}>
+              <button
+                className="piece-main"
+                onClick={() => add(part.id, 'left')}
+                aria-label={
+                  unowned
+                    ? `Add ${part.name}. More than you own.`
+                    : `Add ${part.name}`
+                }
+              >
                 <span className="piece-id num">{part.id}</span>
                 <span className="piece-name">{part.name}</span>
                 <span className="piece-dim num">
@@ -163,7 +219,8 @@ export function App() {
               )}
               {counts[part.id] ? <span className="piece-count num">{counts[part.id]}</span> : null}
             </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="palette-row palette-controls">
@@ -184,6 +241,35 @@ export function App() {
             </button>
           ))}
         </div>
+
+        {/*
+          * The inventory invitation appears only once a layout EXISTS (D10). On a
+          * blank canvas three things were competing to be first: the hint, the
+          * presets and this. One click to a working layout beats a data-entry
+          * chore whose payoff arrives several steps later.
+          */}
+        {pieces.length > 0 && !inventoryOpen && (
+          <div className="palette-row palette-controls">
+            <button onClick={() => setInventoryOpen(true)}>
+              {inventory === null ? 'Say what you own' : 'What you own'}
+            </button>
+            {inventory === null && (
+              <span className="inventory-hint">
+                Nothing is checked against your box yet.
+              </span>
+            )}
+          </div>
+        )}
+
+        {inventoryOpen && (
+          <InventoryPanel
+            inventory={inventory}
+            used={counts}
+            shortfalls={shortfalls}
+            onChange={setInventory}
+            onClose={() => setInventoryOpen(false)}
+          />
+        )}
 
         <p className="provisional">
           Joint give is <strong>estimated</strong>, not measured. Nobody has put calipers on

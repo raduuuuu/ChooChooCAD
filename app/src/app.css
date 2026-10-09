@@ -159,6 +159,151 @@
 .toggle { cursor: pointer; }
 .spacer { flex: 1; }
 
+/*
+ * ADVICE, NOT A GATE (decision D8).
+ *
+ * `is-unowned` marks a palette piece and does nothing else. No `disabled`, no
+ * `pointer-events: none`, no hiding. A shortfall is a fact about the user's box,
+ * not an error in their layout.
+ *
+ * NO OPACITY HERE, and that is the second time this project has had to learn it.
+ * The obvious way to say "greyed" is to fade the label, and it is wrong: at
+ * opacity 0.75 the composite of --ink-soft over --paper measures 3.14:1, which
+ * clears WCAG 1.4.11's 3:1 floor for a graphical object but FAILS the 4.5:1
+ * floor that 14px text owes. At 0.55 it is 2.21:1 and fails both. So the label
+ * stays at full --ink-soft, which measures 5.21:1 and passes.
+ *
+ * The signal is carried by two channels instead, neither of them opacity and
+ * neither of them hue alone:
+ *   - BORDER PATTERN: dashed rather than solid, which survives greyscale and
+ *     every form of colour blindness because it is a shape difference.
+ *   - BORDER COLOUR: --ink-soft at 5.21:1, not --rule. --rule measures 1.40:1
+ *     against --paper, so a dashed --rule border is a pattern nobody can see.
+ *     Visible-dashed is the signal; dashed-in-principle is not.
+ */
+.piece.is-unowned .piece-main,
+.piece.is-unowned .piece-mirror {
+  border-style: dashed;
+  border-color: var(--ink-soft);
+  color: var(--ink-soft);
+}
+
+/* Sits with the verdict: same question, different cause. */
+.shortfall {
+  margin: 0;
+  padding: 0 var(--s4) var(--s2);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.inventory-hint { font-size: 14px; color: var(--ink-soft); }
+
+/*
+ * The inventory panel. Lives inside the palette rather than as a modal: it is
+ * read ALONGSIDE the layout it is about, and a modal would hide the thing the
+ * counts are being compared against.
+ */
+.inventory {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s3);
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+}
+.inventory-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+.inventory-title { margin: 0; font-size: 16px; font-weight: 600; }
+.inventory-close {
+  min-height: 36px;
+  padding: 0 var(--s3);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.inventory-close:hover { border-color: var(--ink-soft); }
+.inventory-undeclared,
+.inventory-shortfall,
+.inventory-note {
+  margin: 0;
+  font-size: 16px;            /* body copy, owes the floor */
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-width: 76ch;
+}
+.inventory-note { font-size: 14px; }
+
+.inventory-rows {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--s2);
+}
+.inventory-row {
+  display: grid;
+  grid-template-columns: 3ch 1fr 6ch auto;
+  gap: var(--s2);
+  align-items: center;
+  min-height: 44px;            /* touch target floor */
+  padding: 0 var(--s2);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+}
+/*
+ * Dashed, matching the palette, so the two surfaces say "short" the same way.
+ * --ink-soft rather than --rule for the same reason as above: --rule is 1.40:1
+ * against --paper and a dash drawn in it is not a signal.
+ */
+.inventory-row.is-short {
+  border-style: dashed;
+  border-color: var(--ink-soft);
+}
+.inventory-row-id { font-weight: 600; font-size: 14px; }
+.inventory-row-name { font-size: 14px; }
+.inventory-row-input {
+  width: 100%;
+  min-height: 32px;
+  padding: 0 var(--s1);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  text-align: right;
+}
+.inventory-row-used { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+
+.inventory-fills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  align-items: center;
+}
+.inventory-fills-label { font-size: 14px; color: var(--ink-soft); }
+.inventory-fills button {
+  min-height: 36px;
+  padding: 0 var(--s3);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.inventory-fills button:hover { border-color: var(--ink-soft); }
+
 .provisional {
   margin: 0;
   font-size: 16px;            /* body copy, so it owes the floor; was 13px */
@@ -182,6 +327,9 @@
 @media (pointer: coarse) {
   .piece-mirror { min-width: 44px; }
   .palette-controls button,
+  .inventory-close,
+  .inventory-fills button,
+  .inventory-row-input,
   .toggle { min-height: 44px; }
 }
 
@@ -192,7 +340,7 @@
  */
 @media (max-width: 620px) {
   .shell { display: block; padding: var(--s5) var(--s4); }
-  .stage, .verdict, .palette { display: none; }
+  .stage, .verdict, .palette, .inventory, .shortfall { display: none; }
   .shell::before {
     content: 'The track editor needs a larger screen. Open it on a desktop or tablet.';
     display: block;
