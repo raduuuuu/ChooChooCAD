@@ -275,6 +275,22 @@ export function isUncorroborated(part: Part): boolean {
   return (corroborations ?? 0) <= 1;
 }
 
+/**
+ * The code shown on a palette card: the id with its own brand prefix removed.
+ *
+ * Ids are brand-prefixed so that two brands can both ship a part called "150"
+ * without colliding, and user submissions follow the same rule. In the palette
+ * that prefix is dead weight: the cards are grouped under a brand heading, so
+ * every card in the IKEA group spelling out IKEA says nothing, and at
+ * PLAYTIVE-200 it is long enough to break the card's two-column grid.
+ *
+ * BRIO parts carry bare ids (A2, E1) and come back unchanged.
+ */
+export function shortCode(part: Part): string {
+  const prefix = `${part.brand}-`;
+  return part.id.startsWith(prefix) ? part.id.slice(prefix.length) : part.id;
+}
+
 export function centrelineRadiusMm(part: CurvePart): number {
   return part.innerRadiusMm + part.plankWidthMm / 2;
 }

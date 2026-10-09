@@ -30,7 +30,7 @@ import {
 import { brandFit } from '../../engine/data/thirdParty.js';
 import { layoutTrust } from '../../engine/src/joints/trust.js';
 import { solveLayout } from '../../engine/src/solver/result.js';
-import { centrelineRadiusMm, isUnverified } from '../../engine/src/parts/schema.js';
+import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
 import type { Brand, Layout, Part, Turn } from '../../engine/src/parts/schema.js';
 import { TrackCanvas } from './TrackCanvas.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
@@ -321,7 +321,7 @@ export function App() {
                   (unowned ? '. More than you own.' : '')
                 }
               >
-                <span className="piece-id num">{part.id}</span>
+                <span className="piece-id num">{shortCode(part)}</span>
                 <span className="piece-name">{part.name}</span>
                 <span className="piece-dim num">
                   {part.kind === 'straight' ? `${part.lengthMm}mm` : `r${centrelineRadiusMm(part)}`}
