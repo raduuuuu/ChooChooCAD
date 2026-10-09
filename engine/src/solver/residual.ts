@@ -24,14 +24,40 @@ import type { Layout, Part } from '../parts/schema.js';
  * One joint and its budget. Deliberately NOT called a sensitivity any more:
  * nothing here says how this joint influences the closure, because nothing
  * computes that. See R21.
+ *
+ * A JOINT HAS TWO SIDES (fix C3, finding F1)
+ *
+ * This used to read the budget from `placements[j-1]` alone, which is one half
+ * of a two-sided thing. A joint is a peg from one piece in a socket from
+ * another, and neither piece's recorded `slop` is the pair's give: each is a
+ * per-part summary. With two numbers and no pair data, the sound combination is
+ * the LARGER of the two, and the reason is the contract rather than the physics.
+ *
+ * `totalGiveMm` backs a NECESSARY condition: "gap exceeds give, therefore this
+ * definitely will not fit." That is a definite claim, and it is only sound if
+ * the give figure is an upper bound on the give really available. Taking the
+ * smaller side would understate give and turn the one definite verdict this
+ * engine makes into a false one, which is the worst failure mode here. Taking
+ * the larger side can only ever weaken the bound toward "might fit", which the
+ * verdict already says out loud.
+ *
+ * Today every BRIO part shares one ESTIMATED_SLOP, so min and max are the same
+ * number and this changes no output. It is fixed now because the moment the
+ * catalogue carries differing budgets, or calibration produces real per-end
+ * pair data, a one-sided read is a wrong answer rather than a tidy one.
  */
 export interface Joint {
   readonly index: number;
   /** Where the joint sits, as floats. Reporting only. */
   readonly at: [number, number];
-  /** One-sided axial give at this joint, millimetres. */
+  /**
+   * The two part ids that mate at this joint, in placement order. Recorded so
+   * the pair is inspectable and the choice above is testable from outside.
+   */
+  readonly between: readonly [string, string];
+  /** One-sided axial give at this joint, millimetres. Taken from the pair. */
   readonly axialMaxMm: number;
-  /** One-sided angular give at this joint, degrees. */
+  /** One-sided angular give at this joint, degrees. Taken from the pair. */
   readonly angularMaxDeg: number;
 }
 
@@ -70,13 +96,19 @@ export function computeResidual(layout: Layout, resolve: (id: string) => Part): 
     // closing seam is at poses[n], where the chain meets its own start.
     for (let j = 1; j <= n; j++) {
       const pose = poses[j]!;
-      const part = resolve(layout.placements[j - 1]!.partId);
+      // Both sides of the joint. For j === n this wraps to placements[0],
+      // which is correct: the closing seam mates the last piece to the first.
+      const incomingId = layout.placements[j - 1]!.partId;
+      const outgoingId = layout.placements[j % n]!.partId;
+      const incoming = resolve(incomingId);
+      const outgoing = resolve(outgoingId);
       const [px, py] = toXY(pose.pos);
       joints.push({
         index: j - 1,
         at: [px, py],
-        axialMaxMm: part.slop.axialMm,
-        angularMaxDeg: part.slop.angularDeg,
+        between: [incomingId, outgoingId],
+        axialMaxMm: Math.max(incoming.slop.axialMm, outgoing.slop.axialMm),
+        angularMaxDeg: Math.max(incoming.slop.angularDeg, outgoing.slop.angularDeg),
       });
     }
   }

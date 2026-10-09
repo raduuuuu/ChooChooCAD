@@ -22,9 +22,11 @@
  */
 
 import { evaluateLayout, type LayoutEvaluation } from '../../engine/src/joints/evaluate.js';
-import type { SolveResult } from '../../engine/src/solver/result.js';
+import type { SolveFailure, SolveResult } from '../../engine/src/solver/result.js';
 
-const FAILURE_COPY: Record<string, string> = {
+// Keyed by SolveFailure, not by string: a new failure reason is then a compile
+// error here rather than a silent fall-through to the generic copy below.
+const FAILURE_COPY: Record<SolveFailure, string> = {
   OPEN_CHAIN: 'Not a loop yet. Close it to check whether it works.',
   HEADING_MISMATCH: 'The track does not come back pointing the right way.',
   NUMERIC: 'Could not check this layout.',
@@ -65,6 +67,33 @@ export function VerdictLine({ result }: { result: SolveResult | null }) {
   const e = evaluateLayout(result, 'estimated');
 
   switch (e.verdict) {
+    // Before EXACT, matching the engine. A double circle closes perfectly.
+    // Two causes, and they need different sentences: an unjoinable END is about
+    // the pieces themselves, a shared POSITION is about where they ended up.
+    case 'IMPOSSIBLE':
+      return (
+        <div className="verdict verdict-fail">
+          <span className="verdict-mark">X</span>
+          {e.polarityViolations.length > 0 ? (
+            <span>
+              Can&rsquo;t be built. <span className="num">{e.polarityViolations.length}</span>{' '}
+              {e.polarityViolations.length === 1 ? 'joint puts' : 'joints put'} two ends of
+              the same kind together, and those do not fit.
+            </span>
+          ) : (
+            <span>
+              Can&rsquo;t be built. <span className="num">{e.clashes.length}</span>{' '}
+              {e.clashes.length === 1 ? 'pair of track ends lands' : 'pairs of track ends land'}{' '}
+              in exactly the same spot, so two pieces would have to share it.
+              {e.gapMm === 0 && ' The loop does close; that does not help.'}
+              <span className="verdict-detail">
+                {' '}Only exact overlaps like this are checked. Pieces crossing mid-span are not.
+              </span>
+            </span>
+          )}
+        </div>
+      );
+
     case 'EXACT':
       return (
         <div className="verdict verdict-pass">
