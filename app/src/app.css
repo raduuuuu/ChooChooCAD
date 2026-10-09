@@ -29,13 +29,21 @@
 /* Body copy, so it owes the 16px floor. Was 15px. */
 .canvas-empty-hint { font-size: 16px; }
 
-/* The settle: one authored motion moment, propagating from the change. */
-.joint {
-  transition: transform var(--settle-ms) var(--settle-ease);
-}
-@media (prefers-reduced-motion: reduce) {
-  .joint { transition: none; }
-}
+/*
+ * THE SETTLE IS GONE, not merely fixed.
+ *
+ * This held `.joint { transition: transform ... }` plus a reduced-motion
+ * override. No element has ever had that class: the per-joint glyphs it was
+ * written for were deleted with the per-joint verdict at R21, and three design
+ * reviews flagged the rule as dead before it was finally removed on 2026-10-09.
+ *
+ * Worth being honest about what removing it leaves. The design brief asked for
+ * ONE authored motion moment, the settle, propagating from the piece you just
+ * placed. The product now has no motion at all. That is an unrealised intention
+ * rather than a broken one, and `--settle-ms` and `--settle-ease` are kept in
+ * tokens.css for whoever builds it against the arriving segment, which is the
+ * other half of the task this deletion came from.
+ */
 
 /* 2nd in hierarchy: one unmistakable status line. */
 .verdict {
