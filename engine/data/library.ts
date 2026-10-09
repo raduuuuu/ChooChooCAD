@@ -127,7 +127,9 @@ export function userMeasured(note?: string): DimensionSource {
  * calipers, which you cannot. So this validates PER SUBMISSION and keeps the
  * ones that parse, rather than discarding the whole set on one bad row.
  */
-const STORAGE_KEY = 'brio.library.submissions.v1';
+/** Exported so the error boundary's repro reads the same key the app wrote. */
+export const SUBMISSIONS_STORAGE_KEY = 'brio.library.submissions.v1';
+const STORAGE_KEY = SUBMISSIONS_STORAGE_KEY;
 
 function looksLikePart(v: unknown): v is Part {
   if (typeof v !== 'object' || v === null) return false;

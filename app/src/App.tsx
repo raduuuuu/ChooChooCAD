@@ -33,6 +33,7 @@ import { solveLayout } from '../../engine/src/solver/result.js';
 import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
 import type { Brand, Layout, Part, Turn } from '../../engine/src/parts/schema.js';
 import { TrackCanvas } from './TrackCanvas.js';
+import { CHAIN_STORAGE_KEY } from './storageKeys.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
 import { VerdictLine } from './VerdictLine.js';
 import { InventoryPanel } from './Inventory.js';
@@ -71,7 +72,8 @@ interface Piece {
  * nothing that could detect a stale blob from an older build, so the only honest
  * response to anything unexpected is to drop it and start empty.
  */
-const STORAGE_KEY = 'brio.chain.v0';
+// The key itself lives in storageKeys.ts; see that file for why.
+const STORAGE_KEY = CHAIN_STORAGE_KEY;
 
 function loadPieces(knownPartIds: ReadonlySet<string>): LoadResult<Piece[]> {
   try {

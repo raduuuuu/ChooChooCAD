@@ -28,6 +28,7 @@
  */
 
 import { BRIO_PARTS } from '../../engine/data/brio.js';
+import { INVENTORY_STORAGE_KEY } from './storageKeys.js';
 
 /** Count per part id. `null` is UNDECLARED, which is not the same as all zeroes. */
 export type Inventory = Readonly<Record<string, number>> | null;
@@ -154,7 +155,8 @@ export function wouldExceed(
  * stops constraining anything and says so, rather than silently showing a
  * shortfall computed from a half-read blob.
  */
-const STORAGE_KEY = 'brio.inventory.v0';
+// The key itself lives in storageKeys.ts; see that file for why.
+const STORAGE_KEY = INVENTORY_STORAGE_KEY;
 
 /**
  * The outcome of a load, so a discard can be SHOWN rather than swallowed.
