@@ -14,12 +14,29 @@
 
 import { describe, expect, it } from 'vitest';
 import { BRIO_PARTS, getPart } from '../data/brio.js';
+import {
+  BUILT_IN,
+  makeResolver,
+  resolveLibrary,
+  type Submission,
+} from '../data/library.js';
+import { brandFit } from '../data/thirdParty.js';
+import { layoutTrust } from '../src/joints/trust.js';
+import {
+  CONFLICTS,
+  CURVE_ARC_STEPS,
+  CURVE_RADII_OURS,
+  BRIO_PIECE_TABLE,
+  RESOLVED,
+  STRAIGHT_LENGTHS,
+} from '../data/sources.js';
 import { equals, isZero, scale, toXY } from '../src/geom/cyclotomic.js';
 import { displacement } from '../src/geom/pose.js';
 import { computeResidual } from '../src/solver/residual.js';
 import { findPolarityViolations } from '../src/feasible.js';
 import { solveLayout } from '../src/solver/result.js';
 import { evaluateLayout } from '../src/joints/evaluate.js';
+import { centrelineRadiusMm, isUncorroborated, isUnverified } from '../src/parts/schema.js';
 import type { Layout, Part } from '../src/parts/schema.js';
 
 const loop = (ids: string[]): Layout => ({
@@ -30,13 +47,17 @@ const loop = (ids: string[]): Layout => ({
 const rep = (id: string, n: number): string[] => Array.from({ length: n }, () => id);
 
 describe('exact forward kinematics', () => {
-  it('one E curve lands at (91*sqrt2, 182 - 91*sqrt2)', () => {
-    const d = displacement(getPart('E'), 0, 'left');
-    const [x, y] = toXY(d);
-    expect(x).toBeCloseTo(91 * Math.SQRT2, 9);
-    expect(y).toBeCloseTo(182 - 91 * Math.SQRT2, 9);
-    expect(x).toBeCloseTo(128.69343417595164, 9);
-    expect(y).toBeCloseTo(53.30656582404836, 9);
+  it('a 45-degree curve lands at (r/sqrt2, r - r/sqrt2) for ITS OWN radius', () => {
+    // Derived from the part, not from a literal. This tests the GEOMETRY and
+    // stays correct if the radius datum is ever corrected; pinning the datum
+    // itself is one test, in 'catalogue data matches its published source'.
+    for (const id of ['E', 'E1']) {
+      const part = getPart(id) as Extract<Part, { kind: 'curve' }>;
+      const r = centrelineRadiusMm(part);
+      const [x, y] = toXY(displacement(part, 0, 'left'));
+      expect(x, id).toBeCloseTo(r / Math.SQRT2, 9);
+      expect(y, id).toBeCloseTo(r - r / Math.SQRT2, 9);
+    }
   });
 
   it('a right E curve mirrors a left one', () => {
@@ -54,6 +75,9 @@ describe('exact forward kinematics', () => {
     expect(equals(run('A2', 2), run('A1', 1))).toBe(true);
     expect(equals(run('A1', 2), run('D', 1))).toBe(true);
     expect(equals(run('D', 2), run('A', 3))).toBe(true);
+    // A3 is half of A, added 2026-10-09. The source notes it is the ONLY
+    // division of A, which is why gaps between A1 and A2 are hard to resolve.
+    expect(equals(run('A3', 2), run('A', 1))).toBe(true);
   });
 });
 
@@ -250,13 +274,104 @@ describe('bound contract', () => {
 });
 
 /**
- * Task U2: the plank is wider than the gauge.
+ * Task K2: the catalogue's absolute dimensions, pinned to ONE place.
  *
- * This exists because the project already got it wrong once. The first design
- * review proposed using `gaugeWidthMm` as the drawn plank width; the 40mm gauge
- * is the spacing of the rail grooves, which sit inboard of the plank's edges, so
- * the plank is strictly wider. Encoding the relation as a test means the
- * conflation cannot come back quietly when the catalogue grows.
+ * Before this, every absolute figure was pinned to nothing. The relation tests
+ * below are exact and still pass, but a relation holds for a whole family of
+ * values: scale every straight by 10% and they all still pass. The curve radius
+ * looked pinned by four tests and was not; each restated 182 as its own expected
+ * value, so the number was pinned to itself. Mutation proved it: changing the
+ * datum and the literals together kept the suite green.
+ *
+ * So the published figures live in `engine/data/sources.ts` with a citation
+ * each, and this is the ONLY test that compares the catalogue against them.
+ * Correcting a figure is one edit there, and this test is what tells you.
+ */
+describe('catalogue data matches its published source', () => {
+  it('every straight length matches the published figure exactly', () => {
+    for (const [id, mm] of Object.entries(STRAIGHT_LENGTHS)) {
+      const part = getPart(id);
+      expect(part.kind, id).toBe('straight');
+      expect((part as Extract<Part, { kind: 'straight' }>).lengthMm, id).toBe(mm);
+    }
+  });
+
+  it('every curve arc matches the published 45-degree division', () => {
+    for (const [id, steps] of Object.entries(CURVE_ARC_STEPS)) {
+      const part = getPart(id) as Extract<Part, { kind: 'curve' }>;
+      expect(part.arcSteps, id).toBe(steps);
+      expect(part.arcSteps * 22.5, id).toBe(45);
+    }
+  });
+
+  it('curve radii match OUR recorded values, which are DISPUTED', () => {
+    // Deliberately pinned to our own values rather than the source, because the
+    // two disagree and the conflict is unresolved. This test exists so that
+    // changing a radius is a visible, single-line decision rather than a silent
+    // edit. See CONFLICTS in sources.ts.
+    for (const [id, mm] of Object.entries(CURVE_RADII_OURS)) {
+      expect((getPart(id) as Extract<Part, { kind: 'curve' }>).innerRadiusMm, id).toBe(mm);
+    }
+  });
+
+  it('records every resolved conflict with its verbatim source', () => {
+    // Was: assert conflicts EXIST. All three resolved on 2026-10-09 from the
+    // primary source, so this now pins the resolutions. CONFLICTS is empty and
+    // stays named, so "nothing unresolved" is explicit rather than absent.
+    expect(CONFLICTS).toHaveLength(0);
+    expect(RESOLVED.length).toBe(3);
+    for (const r of RESOLVED) {
+      expect(r.status).toBe('published');
+      expect(r.conflict).toBeDefined();
+      expect(r.conflict!.ours).not.toBe(r.conflict!.theirs);
+      expect(r.conflict!.note).toMatch(/RESOLVED/);
+      expect(r.source).toContain('woodenrailway.info');
+    }
+  });
+
+  it('the centreline derivation matches the published inner and outer radii', () => {
+    // The whole correction in one assertion. The source states the E curve's
+    // inner radius as 182 and its outer as 222; the centreline is the midpoint,
+    // and the plank width is the difference. If any of the three drifts apart
+    // from the others, this fails.
+    const e = getPart('E') as Extract<Part, { kind: 'curve' }>;
+    const INNER = 182;
+    const OUTER = 222;
+    expect(e.innerRadiusMm).toBe(INNER);
+    expect(e.plankWidthMm).toBe(OUTER - INNER);
+    expect(centrelineRadiusMm(e)).toBe((INNER + OUTER) / 2);
+    expect(centrelineRadiusMm(e)).toBe(202);
+  });
+
+  it('the profile figures come from one published sentence and agree', () => {
+    // "40mm wide and 12mm high, with two 6mm wide grooves that are 3mm deep,
+    //  spaced 20mm apart, measuring 26mm from center to center."
+    for (const p of BRIO_PARTS) {
+      expect(p.plankWidthMm, p.id).toBe(40);
+      expect(p.plankThicknessMm, p.id).toBe(12);
+      expect(p.gaugeWidthMm, p.id).toBe(26);
+      // 20mm apart + 6mm wide = 26mm centre to centre. The sentence is
+      // self-consistent, and this is what makes it trustworthy.
+      expect(p.gaugeWidthMm, p.id).toBe(20 + 6);
+      // And the grooves must fit inside the plank, with wood left on each side.
+      expect(p.gaugeWidthMm + 6, p.id).toBeLessThan(p.plankWidthMm);
+    }
+  });
+
+});
+
+/**
+ * The plank is wider than the gauge. Still true, but the story was backwards.
+ *
+ * Original note, 2026-10-08: "the 40mm gauge is the spacing of the rail grooves,
+ * which sit inboard of the plank's edges, so the plank is strictly wider", and a
+ * 44mm plank width was estimated on that basis.
+ *
+ * CORRECTED 2026-10-09 from the primary source. The 40mm was the PLANK WIDTH all
+ * along, under the name `gaugeWidthMm`. The real gauge is 26mm. So the invented
+ * 44mm was an estimate of a number already in the file, and the inequality this
+ * test asserts held only by accident at 44 > 40. It now holds for the right
+ * reason at 40 > 26, with both figures published.
  */
 describe('plank width is a part property, and is not the gauge', () => {
   it('every part records a plank strictly wider than its gauge', () => {
@@ -281,6 +396,370 @@ describe('plank width is a part property, and is not the gauge', () => {
     for (const p of BRIO_PARTS) {
       expect(p.slop.calibrationStatus).not.toBe('measured');
     }
+  });
+});
+
+/**
+ * Multi-brand catalogue: provenance is enforced, not just written down.
+ *
+ * The catalogue holds BRIO parts whose figures are published and third-party
+ * parts whose figures are not. The engine's exactness is arithmetic, not
+ * evidence: a layout of unverified parts gets an exact answer about numbers
+ * nobody stands behind. These tests make the distinction structural.
+ */
+describe('the trust register: what the verdict is worth', () => {
+  const lib = resolveLibrary([]);
+  const r = makeResolver(lib);
+  const layoutOf = (ids: string[]): Layout => ({
+    placements: ids.map((partId) => ({ partId, turn: 'left' as const })),
+    closed: true,
+  });
+  const kinds = (ids: string[]) =>
+    layoutTrust(layoutOf(ids), r, brandFit).map((t) => t.kind);
+
+  it('an empty layout has nothing to distrust', () => {
+    expect(layoutTrust(layoutOf([]), r, brandFit)).toHaveLength(0);
+  });
+
+  it('a pure BRIO layout discloses only the estimated give', () => {
+    // Everything else about it is published. This is the best case the product
+    // currently has, and it still is not silent.
+    expect(kinds(rep('E', 8))).toEqual(['estimated-give']);
+  });
+
+  it('an unmeasured third-party part is disclosed as exact-about-an-estimate', () => {
+    const k = kinds(['A', 'PLAYTIVE-110']);
+    expect(k).toContain('unverified-size');
+    const issue = layoutTrust(layoutOf(['A', 'PLAYTIVE-110']), r, brandFit)
+      .find((t) => t.kind === 'unverified-size')!;
+    expect(issue.detail).toContain('PLAYTIVE-110');
+    expect(issue.detail).toMatch(/exact about an estimate/);
+  });
+
+  it('brands that do not physically join are disclosed, naming why', () => {
+    const issue = layoutTrust(layoutOf(['A', 'IKEA-150']), r, brandFit)
+      .find((t) => t.kind === 'brands-do-not-join');
+    expect(issue).toBeDefined();
+    expect(issue!.detail).toContain('BRIO');
+    expect(issue!.detail).toContain('IKEA');
+    // The reason travels with the claim, not just the claim.
+    expect(issue!.detail.length).toBeGreaterThan(60);
+  });
+
+  it('a brand pair with no source is NOT disclosed as not joining', () => {
+    // 'unknown' must not be reported as a failure. Absence of evidence is not
+    // evidence, in either direction.
+    expect(brandFit('BRIO', 'PLAYTIVE').fit).toBe('unknown');
+    expect(kinds(['A', 'PLAYTIVE-110'])).not.toContain('brands-do-not-join');
+  });
+
+  it('a user measurement downgrades unverified to single-source, not to silent', () => {
+    const measured = resolveLibrary([{
+      submissionId: 'sub-t', at: '2026-10-09T10:00:00Z',
+      part: {
+        ...(BUILT_IN.find((p) => p.id === 'IKEA-150') as Extract<Part, { kind: 'straight' }>),
+        lengthMm: 148,
+        dimensions: { status: 'user-measured', source: 'test', corroborations: 1 },
+      },
+    }]);
+    const k = layoutTrust(layoutOf(['A', 'IKEA-150']), makeResolver(measured), brandFit)
+      .map((t) => t.kind);
+    // Measuring it removes the strongest caveat and leaves the honest weaker one.
+    expect(k).not.toContain('unverified-size');
+    expect(k).toContain('single-source');
+    // The brands still do not join; measuring a piece does not change its pegs.
+    expect(k).toContain('brands-do-not-join');
+  });
+
+  it('every issue carries a sentence a user could act on', () => {
+    for (const ids of [rep('E', 8), ['A', 'IKEA-150'], ['A', 'PLAYTIVE-110']]) {
+      for (const t of layoutTrust(layoutOf(ids), r, brandFit)) {
+        expect(t.detail.length, t.kind).toBeGreaterThan(20);
+        expect(t.detail.trim().endsWith('.'), t.kind).toBe(true);
+      }
+    }
+  });
+});
+
+describe('the library: tiers, and a seed a user can correct', () => {
+  const seed = BUILT_IN.find((p) => p.id === 'IKEA-150')!;
+
+  const submission = (lengthMm: number, status: 'user-measured' | 'community', at: string): Submission => ({
+    submissionId: 'sub-test-' + at,
+    at,
+    part: {
+      ...(seed as Extract<Part, { kind: 'straight' }>),
+      lengthMm,
+      dimensions: { status, source: 'test', submittedAt: at, corroborations: 1 },
+    },
+  });
+
+  it('with no submissions the library is exactly the built-ins', () => {
+    expect(resolveLibrary([]).map((p) => p.id).sort()).toEqual(BUILT_IN.map((p) => p.id).sort());
+  });
+
+  it('a user measurement OVERRIDES an unverified seed', () => {
+    // The whole point of seeds. The shipped figure for an IKEA straight is a
+    // 3D-print model title; a user with the piece in their hand beats it.
+    expect(seed.dimensions.status).toBe('unverified');
+    const lib = resolveLibrary([submission(148, 'user-measured', '2026-10-09T10:00:00Z')]);
+    const got = lib.find((p) => p.id === 'IKEA-150') as Extract<Part, { kind: 'straight' }>;
+    expect(got.lengthMm).toBe(148);
+    expect(got.dimensions.status).toBe('user-measured');
+    // And it does not duplicate the part.
+    expect(lib.filter((p) => p.id === 'IKEA-150')).toHaveLength(1);
+  });
+
+  it('a user measurement outranks a community submission', () => {
+    const lib = resolveLibrary([
+      submission(151, 'community', '2026-10-09T12:00:00Z'),
+      submission(148, 'user-measured', '2026-10-09T10:00:00Z'),
+    ]);
+    const got = lib.find((p) => p.id === 'IKEA-150') as Extract<Part, { kind: 'straight' }>;
+    // Despite being OLDER, the user measurement wins: trust beats recency.
+    expect(got.lengthMm).toBe(148);
+  });
+
+  it('at equal trust the newer submission wins, because that is self-correction', () => {
+    const lib = resolveLibrary([
+      submission(148, 'user-measured', '2026-10-09T10:00:00Z'),
+      submission(149, 'user-measured', '2026-10-09T18:00:00Z'),
+    ]);
+    const got = lib.find((p) => p.id === 'IKEA-150') as Extract<Part, { kind: 'straight' }>;
+    expect(got.lengthMm).toBe(149);
+  });
+
+  it('a submission can NOT quietly beat a published BRIO figure by being newer', () => {
+    // Trust ordering, not recency. A community submission must not silently
+    // replace a published reference figure for an existing BRIO part.
+    const brio = getPart('A') as Extract<Part, { kind: 'straight' }>;
+    const lib = resolveLibrary([{
+      submissionId: 'sub-x', at: '2030-01-01T00:00:00Z',
+      part: { ...brio, lengthMm: 999, dimensions: { status: 'community', source: 'test' } },
+    }]);
+    expect((lib.find((p) => p.id === 'A') as Extract<Part, { kind: 'straight' }>).lengthMm).toBe(144);
+  });
+
+  it('a brand-new submitted part is ADDED, not merged', () => {
+    const lib = resolveLibrary([{
+      submissionId: 'sub-new', at: '2026-10-09T10:00:00Z',
+      part: {
+        ...(seed as Extract<Part, { kind: 'straight' }>),
+        id: 'IKEA-99', name: 'Lillabo tiny', lengthMm: 99,
+        dimensions: { status: 'user-measured', source: 'test', corroborations: 1 },
+      },
+    }]);
+    expect(lib).toHaveLength(BUILT_IN.length + 1);
+    expect(lib.some((p) => p.id === 'IKEA-99')).toBe(true);
+  });
+
+  it('the resolver reaches submitted parts, so the engine can place them', () => {
+    const sub = submission(148, 'user-measured', '2026-10-09T10:00:00Z');
+    const r = makeResolver(resolveLibrary([sub]));
+    expect((r('IKEA-150') as Extract<Part, { kind: 'straight' }>).lengthMm).toBe(148);
+    expect(() => r('NOPE')).toThrow(/unknown part id/);
+  });
+
+  it('one submitted measurement is uncorroborated, and says so', () => {
+    const lib = resolveLibrary([submission(148, 'user-measured', '2026-10-09T10:00:00Z')]);
+    const got = lib.find((p) => p.id === 'IKEA-150')!;
+    // Best available source AND still one person's word. Both are true, and the
+    // UI needs to be able to say the second part.
+    expect(isUnverified(got)).toBe(false);
+    expect(isUncorroborated(got)).toBe(true);
+    expect(isUncorroborated(getPart('A'))).toBe(false);  // published
+  });
+});
+
+describe('the BRIO piece registry is complete and honest', () => {
+  it('records all 28 pieces from the source table', () => {
+    expect(BRIO_PIECE_TABLE).toHaveLength(28);
+    for (const r of BRIO_PIECE_TABLE) {
+      expect(r.ids.length, r.ids).toBeGreaterThan(0);
+      expect(r.name.length, r.ids).toBeGreaterThan(0);
+      // Every piece has at least one dimension, or it is not a track piece.
+      expect(r.lengthMm !== undefined || r.innerRadiusMm !== undefined, r.ids).toBe(true);
+    }
+  });
+
+  it('every piece marked in-catalogue is actually in the catalogue', () => {
+    // Guards the registry against drifting out of step with the data, which is
+    // how a "complete" list quietly stops being one.
+    const held = new Set(BRIO_PARTS.map((p) => p.id));
+    for (const r of BRIO_PIECE_TABLE) {
+      if (r.blocker !== 'in-catalogue') continue;
+      const ids = r.ids.split(',').map((x) => x.trim());
+      // At least one id of the row is held. B/C variants are retired, and the
+      // ramp tracks row is addable-but-undecided, so not every id must be held.
+      const anyHeld = ids.some((id) => held.has(id)) || r.ids === 'U, V';
+      expect(anyHeld, r.ids).toBe(true);
+    }
+  });
+
+  it('T and X are flagged approximate, which is why exact switches are impossible', () => {
+    const approx = BRIO_PIECE_TABLE.filter((r) => r.blocker === 'approximate-radius');
+    expect(approx.map((r) => r.ids).sort()).toEqual(['T', 'X']);
+    for (const r of approx) {
+      expect(r.innerRadiusMm).toBe(88);
+      expect(r.note).toMatch(/APPROXIMATE/);
+    }
+  });
+
+  it('the pieces that break the 18mm rule are recorded as such', () => {
+    // F/G at 150 and H1 at 116. Both exactly representable as integers, both
+    // off BRIO's own increment lattice, so a layout using them cannot be
+    // resolved with ordinary BRIO straights.
+    for (const ids of ['F, G', 'H1']) {
+      const row = BRIO_PIECE_TABLE.find((r) => r.ids === ids);
+      expect(row, ids).toBeDefined();
+      expect(row!.lengthMm! % 18, ids).not.toBe(0);
+      expect(row!.note, ids).toMatch(/multiple of 18/);
+    }
+    // And every length the catalogue actually holds IS on the 18mm lattice.
+    for (const p of BRIO_PARTS) {
+      if (p.kind === 'straight') expect(p.lengthMm % 18, p.id).toBe(0);
+    }
+  });
+});
+
+describe('multi-brand catalogue provenance', () => {
+  it('every part declares where its dimensions came from', () => {
+    for (const p of BUILT_IN) {
+      expect(p.dimensions, p.id).toBeDefined();
+      expect(p.dimensions.source.length, p.id).toBeGreaterThan(10);
+      expect(['published', 'community-measured', 'unverified']).toContain(p.dimensions.status);
+    }
+  });
+
+  it('every BRIO part is published and every third-party part is not', () => {
+    for (const p of BUILT_IN) {
+      if (p.brand === 'BRIO') {
+        expect(p.dimensions.status, p.id).toBe('published');
+        expect(isUnverified(p), p.id).toBe(false);
+      } else {
+        // The honest state of the world: nobody publishes piece dimensions for
+        // IKEA Lillabo or Lidl Playtive. If that ever changes, upgrade the part
+        // and this assertion changes with it, deliberately.
+        expect(isUnverified(p), p.id).toBe(true);
+      }
+    }
+  });
+
+  it('third-party ids are brand-prefixed, so nothing collides with BRIO', () => {
+    const ids = BUILT_IN.map((p) => p.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const p of BUILT_IN) {
+      if (p.brand !== 'BRIO') expect(p.id, p.id).toContain('-');
+    }
+  });
+
+  it('every third-party length is a whole millimetre, so it stays exact', () => {
+    // The inch hazard: US brands round to fractions of an inch, and 25.4mm is
+    // not an integer, so such a part could not live in Z[zeta16] at all. IKEA
+    // and Playtive are metric, which is why they CAN be added at all. This
+    // guards the boundary rather than assuming it.
+    for (const p of BUILT_IN) {
+      if (p.kind !== 'straight') continue;
+      expect(Number.isInteger(p.lengthMm), p.id).toBe(true);
+    }
+  });
+
+  it('no third-party CURVE exists, because no radius is published for one', () => {
+    // Angles are known for both brands and are on the 22.5-degree lattice, but
+    // no source states a radius. Adding a curve would mean inventing the one
+    // number that decides the geometry.
+    for (const p of BUILT_IN) {
+      if (p.brand !== 'BRIO') expect(p.kind, p.id).toBe('straight');
+    }
+  });
+
+  it('brand fit records that BRIO and IKEA do not join', () => {
+    // The most useful fact the research produced, and the one a user actually
+    // needs: these pieces do not physically connect.
+    expect(brandFit('BRIO', 'IKEA').fit).toBe('does-not-join');
+    expect(brandFit('IKEA', 'BRIO').fit).toBe('does-not-join');   // symmetric
+    expect(brandFit('BRIO', 'BRIO').fit).toBe('joins');
+    // Unsourced combinations are 'unknown', never optimistically 'joins'.
+    expect(brandFit('BRIO', 'PLAYTIVE').fit).toBe('unknown');
+    expect(brandFit('BRIO', 'HAPE').fit).toBe('unknown');
+    for (const a of ['BRIO', 'IKEA', 'PLAYTIVE'] as const) {
+      expect(brandFit(a, a).fit).toBe('joins');
+      expect(brandFit(a, a).why.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('a layout mixing brands that do not join is detectable', () => {
+    // Not yet surfaced in the verdict; that is K4's trust register. This pins
+    // that the data needed to surface it is present and correct.
+    const mixed = ['A', 'IKEA-150'];
+    const brands = new Set(mixed.map((id) => getPart(id).brand));
+    expect(brands.size).toBe(2);
+    const pairs = [...brands].flatMap((a) => [...brands].map((b) => brandFit(a, b).fit));
+    expect(pairs).toContain('does-not-join');
+  });
+});
+
+/**
+ * Which dimensions can change a verdict, and which only change the drawing.
+ *
+ * Discovered 2026-10-09 while correcting the curve radii from an inner radius to
+ * a centreline radius, a change of +20mm on both curves. Every fixture's residual
+ * came out byte-identical, which looked like the correction had done nothing.
+ *
+ * It is a provable property, not luck. A left arc of angle t from heading h
+ * displaces by i*r*(e^ih - e^i(h+t)), and a straight does not change the
+ * heading, so consecutive curves chain and the sum telescopes. For a
+ * heading-closed loop the first and last headings agree, so the curves of ONE
+ * radius contribute exactly zero. With two radius classes the two telescoped
+ * sums are negatives of each other, T2 = -T1, so the total is i*(r1 - r2)*T1.
+ *
+ * Therefore: a heading-closed layout's residual depends on the straight lengths
+ * and on the DIFFERENCE between curve radii. It never depends on a radius in
+ * absolute terms.
+ *
+ * Why that matters for data errors. Getting both radii wrong by the same amount
+ * is invisible to every verdict, which is exactly what had happened and why no
+ * test caught it for three days. Getting ONE radius wrong changes verdicts
+ * immediately. So the dangerous transcription error is an asymmetric one, and
+ * the absolute values are only load-bearing for what gets DRAWN, and for
+ * switches, whose geometry the source says derives from these radii.
+ */
+describe('verdicts depend on radius DIFFERENCES, not absolute radii', () => {
+  const shifted = (dE: number, dE1: number) => (id: string): Part => {
+    const p = getPart(id);
+    if (p.kind !== 'curve') return p;
+    return { ...p, innerRadiusMm: p.innerRadiusMm + (id === 'E' ? dE : dE1) };
+  };
+  const residual = (ids: string[], resolve: (id: string) => Part) =>
+    computeResidual(loop(ids), resolve).exact.join(',');
+
+  const mixed = 'A2 E E E1 E A1 E E1 E E'.split(' ');   // 6 x E and 2 x E1
+  const singleRadius = rep('E', 8);
+
+  it('shifting BOTH radii equally leaves every residual identical', () => {
+    for (const ids of [mixed, singleRadius, [...rep('E', 4), 'D', ...rep('E', 4), 'D']]) {
+      const base = residual(ids, getPart);
+      expect(residual(ids, shifted(20, 20)), ids.join(' ')).toBe(base);
+      expect(residual(ids, shifted(500, 500)), ids.join(' ')).toBe(base);
+      expect(residual(ids, shifted(-7, -7)), ids.join(' ')).toBe(base);
+    }
+  });
+
+  it('shifting ONE radius changes a mixed-radius layout', () => {
+    // The asymmetric error is the dangerous one. This is the regression that
+    // would have caught the original inner-versus-centreline mistake had only
+    // one curve been transcribed with the wrong convention.
+    const base = residual(mixed, getPart);
+    expect(residual(mixed, shifted(20, 0))).not.toBe(base);
+    expect(residual(mixed, shifted(0, -7))).not.toBe(base);
+  });
+
+  it('a single-radius layout is indifferent to its own radius', () => {
+    // Which is why the 8-curve circle and the stadium could never have caught
+    // the error, and why they were the wrong fixtures to trust for it.
+    const base = residual(singleRadius, getPart);
+    expect(residual(singleRadius, shifted(20, 0))).toBe(base);
+    expect(residual(singleRadius, shifted(500, 0))).toBe(base);
   });
 });
 

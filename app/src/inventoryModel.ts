@@ -50,26 +50,61 @@ export interface QuickFill {
   readonly counts: Readonly<Record<string, number>>;
 }
 
-const everyPart = (n: number): Record<string, number> =>
+/**
+ * Quick-fills are BRIO-ONLY, deliberately.
+ *
+ * A "set you own" is brand-specific: nobody buys a box containing BRIO and IKEA
+ * and Playtive track. Once the catalogue gained third-party brands, spanning all
+ * of them would have handed a BRIO owner six pieces they do not have, and the
+ * third-party sizes are unverified besides. Declaring third-party stock is a
+ * manual count, which is what the editable fields are for.
+ */
+const everyBrioPart = (n: number): Record<string, number> =>
   Object.fromEntries(BRIO_PARTS.map((p) => [p.id, n]));
 
 export const QUICK_FILLS: readonly QuickFill[] = [
   {
     label: 'A few of each',
-    note: '4 of every part in the catalogue. Not a real BRIO set.',
-    counts: everyPart(4),
+    note: '4 of every BRIO part. Not a real BRIO set, and no third-party track.',
+    counts: everyBrioPart(4),
   },
   {
     label: 'Enough for a circle',
     note: '8 large curves and nothing else, so the shortfall line has something to say.',
-    counts: { ...everyPart(0), E: 8 },
+    counts: { ...everyBrioPart(0), E: 8 },
   },
   {
     label: 'A big box',
-    note: '16 of every part. Not a real BRIO set.',
-    counts: everyPart(16),
+    note: '16 of every BRIO part. Not a real BRIO set, and no third-party track.',
+    counts: everyBrioPart(16),
   },
 ];
+
+/**
+ * Turn whatever the count field contains into a storable count, or refuse it.
+ *
+ * Pure, and in this file rather than in the component, for one reason: the
+ * component cannot be tested. There is no DOM environment in the suite until the
+ * DOM test project exists, so a guard living inside `Inventory.tsx` is a guard
+ * nothing can verify. An earlier version of this fix put it there, and deleting
+ * it left all 92 tests green.
+ *
+ * `null` means REFUSE and show the field as invalid. Returning 0 instead would
+ * silently turn a typo into "I own none of these", which is a real claim.
+ *
+ *   ''      -> 0        blanking a field means zero, documented behaviour
+ *   '3'     -> 3
+ *   '2.7'   -> 2        floor, not round: you cannot own 2.7 pieces
+ *   '-5'    -> 0        clamp, because negative stock is not a thing
+ *   'abc'   -> null     REFUSED. Used to become NaN and destroy the whole blob
+ *   '1e309' -> null     REFUSED. Infinity, same path
+ */
+export function sanitizeCount(raw: string): number | null {
+  if (raw.trim() === '') return 0;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return null;
+  return Math.max(0, Math.floor(n));
+}
 
 /** How many of each part a layout consumes. */
 export function usedCounts(partIds: readonly string[]): Record<string, number> {
@@ -120,26 +155,64 @@ export function wouldExceed(
  * shortfall computed from a half-read blob.
  */
 const STORAGE_KEY = 'brio.inventory.v0';
-const KNOWN_PART_IDS: ReadonlySet<string> = new Set(BRIO_PARTS.map((p) => p.id));
 
-export function loadInventory(): Inventory {
+/**
+ * The outcome of a load, so a discard can be SHOWN rather than swallowed.
+ *
+ * Returning a bare `Inventory` meant a rejected blob and a genuinely empty one
+ * were indistinguishable, so the user saw their counts vanish with no message.
+ * That is Prime Directive 1, a silent failure, and it was live in shipped code.
+ */
+export interface LoadResult<T> {
+  readonly value: T;
+  /** Present when stored data was rejected. User-facing sentence. */
+  readonly discarded?: string;
+}
+
+/**
+ * Takes the library's ids, because the library is no longer a static list: it
+ * includes parts this user submitted. Load submissions, resolve the library,
+ * then load inventory against it.
+ */
+export function loadInventory(knownPartIds: ReadonlySet<string>): LoadResult<Inventory> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
+    if (!raw) return { value: null };
     const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null;
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return { value: null, discarded: 'Your saved inventory could not be read, so it was cleared.' };
+    }
     const out: Record<string, number> = {};
+    let dropped = 0;
     for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
-      // An unknown part id means the catalogue moved under the blob. Discard the
-      // whole inventory rather than keeping the half of it that still resolves,
-      // which would understate what the user owns without saying so.
-      if (!KNOWN_PART_IDS.has(k)) return null;
-      if (typeof v !== 'number' || !Number.isInteger(v) || v < 0) return null;
+      // An unknown id is DROPPED, not fatal. This differs from the chain loader
+      // on purpose. Dropping a piece out of the middle of a chain changes its
+      // geometry, so the chain discards wholesale. Dropping one count changes
+      // nothing about the other counts, and discarding a whole inventory because
+      // one submitted part failed to load would throw away measurements the user
+      // took with calipers. Per-entry is the right granularity here.
+      if (!knownPartIds.has(k)) { dropped++; continue; }
+      // A malformed VALUE is still fatal for the blob: a count that is not a
+      // non-negative integer means the writer was broken, not the catalogue.
+      if (typeof v !== 'number' || !Number.isInteger(v) || v < 0) {
+        return {
+          value: null,
+          discarded:
+            `Your saved inventory had an unusable count for ${k}, so it was cleared. ` +
+            'This is a bug; the app should not have been able to store that.',
+        };
+      }
       out[k] = v;
     }
-    return out;
+    return {
+      value: out,
+      discarded: dropped > 0
+        ? `${dropped} saved ${dropped === 1 ? 'count was' : 'counts were'} for ` +
+          'parts no longer in the library, so they were dropped. Your other counts are intact.'
+        : undefined,
+    };
   } catch {
-    return null;
+    return { value: null, discarded: 'Your saved inventory could not be read, so it was cleared.' };
   }
 }
 

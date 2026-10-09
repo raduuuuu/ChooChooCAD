@@ -12,14 +12,19 @@
  * stored truth (D6). The quick-fills write counts and are then forgotten.
  */
 
-import { BRIO_PARTS } from '../../engine/data/brio.js';
+
+import { useState } from 'react';
+import { isUncorroborated, isUnverified, type Part } from '../../engine/src/parts/schema.js';
 import {
   QUICK_FILLS,
+  sanitizeCount,
   type Inventory as InventoryCounts,
   type Shortfall,
 } from './inventoryModel.js';
 
 export interface InventoryPanelProps {
+  /** The resolved library: built-ins, seeds, and this user's submissions. */
+  readonly library: readonly Part[];
   readonly inventory: InventoryCounts;
   readonly used: Readonly<Record<string, number>>;
   readonly shortfalls: readonly Shortfall[];
@@ -28,6 +33,7 @@ export interface InventoryPanelProps {
 }
 
 export function InventoryPanel({
+  library,
   inventory,
   used,
   shortfalls,
@@ -35,10 +41,33 @@ export function InventoryPanel({
   onClose,
 }: InventoryPanelProps) {
   const declared = inventory !== null;
+  /** Part ids whose last keystroke was refused. Per-field, not global. */
+  const [invalid, setInvalid] = useState<Record<string, boolean>>({});
 
-  const setOne = (partId: string, value: number) => {
+  /*
+   * THE GUARD. `Math.max(0, Math.floor(value))` passes NaN and Infinity straight
+   * through, because Math.max(0, NaN) is NaN. JSON.stringify then wrote `null`,
+   * the loader correctly refused a non-integer count, and every declared count
+   * was discarded with no message. Typing one bad character destroyed the lot.
+   *
+   * Rejecting at the INPUT is the fix, not relaxing the loader: the loader was
+   * right. A rejected keystroke is also shown rather than swallowed, so the
+   * field does not just appear to ignore you. See `invalid` below.
+   */
+  const setOne = (partId: string, raw: string) => {
+    const value = sanitizeCount(raw);
+    if (value === null) {
+      setInvalid((prev) => ({ ...prev, [partId]: true }));
+      return;
+    }
+    setInvalid((prev) => {
+      if (!prev[partId]) return prev;
+      const next = { ...prev };
+      delete next[partId];
+      return next;
+    });
     const base = inventory ?? {};
-    onChange({ ...base, [partId]: Math.max(0, Math.floor(value)) });
+    onChange({ ...base, [partId]: value });
   };
 
   return (
@@ -58,12 +87,18 @@ export function InventoryPanel({
       )}
 
       <div className="inventory-rows">
-        {BRIO_PARTS.map((part) => {
+        {library.map((part) => {
           const owned = inventory?.[part.id];
           const usedN = used[part.id] ?? 0;
           const short = declared && usedN > (owned ?? 0);
+          const bad = invalid[part.id] === true;
           return (
-            <label key={part.id} className={short ? 'inventory-row is-short' : 'inventory-row'}>
+            <label
+              key={part.id}
+              className={
+                'inventory-row' + (short ? ' is-short' : '') + (bad ? ' is-invalid' : '')
+              }
+            >
               <span className="inventory-row-id num">{part.id}</span>
               <span className="inventory-row-name">{part.name}</span>
               <input
@@ -75,19 +110,25 @@ export function InventoryPanel({
                 value={owned ?? ''}
                 placeholder="—"
                 aria-label={`How many ${part.name} you own`}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (v === '') {
-                    // Blanking one field means zero of that part, not undeclared.
-                    // Undeclared is the whole inventory, and "Forget this" clears it.
-                    setOne(part.id, 0);
-                  } else {
-                    setOne(part.id, Number(v));
-                  }
-                }}
+                aria-invalid={bad}
+                // The raw string goes to the model; the component does no
+                // arithmetic and makes no decision about what is valid.
+                onChange={(e) => setOne(part.id, e.target.value)}
               />
               <span className="inventory-row-used num">
                 {usedN > 0 ? `${usedN} in use` : ''}
+              </span>
+              {bad && (
+                <span className="inventory-row-bad">needs a number</span>
+              )}
+              <span className="inventory-row-src" title={part.dimensions.source}>
+                {isUnverified(part)
+                  ? 'size unverified'
+                  : part.dimensions.status === 'user-measured'
+                    ? 'you measured this'
+                    : isUncorroborated(part)
+                      ? 'one source'
+                      : ''}
               </span>
             </label>
           );

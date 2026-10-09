@@ -8,8 +8,11 @@
 
 import { describe, expect, it } from 'vitest';
 import { BRIO_PARTS } from '../../engine/data/brio.js';
+import { BUILT_IN } from '../../engine/data/library.js';
 import {
+  loadInventory,
   QUICK_FILLS,
+  sanitizeCount,
   shortfalls,
   usedCounts,
   wouldExceed,
@@ -71,10 +74,21 @@ describe('shortfall arithmetic', () => {
 
 describe('quick-fills write counts and are then forgotten (D6)', () => {
   it('every quick-fill names only parts the catalogue has', () => {
-    const known = new Set(BRIO_PARTS.map((p) => p.id));
+    const known = new Set(BUILT_IN.map((p) => p.id));
     for (const q of QUICK_FILLS) {
       for (const id of Object.keys(q.counts)) {
         expect(known.has(id), `${q.label} names ${id}`).toBe(true);
+      }
+    }
+  });
+
+  it('quick-fills stay BRIO-only, so a BRIO owner is not given other brands', () => {
+    // Added when the catalogue gained IKEA and Playtive. A "set you own" is
+    // brand-specific, and the third-party sizes are unverified besides.
+    const brio = new Set(BRIO_PARTS.map((p) => p.id));
+    for (const q of QUICK_FILLS) {
+      for (const id of Object.keys(q.counts)) {
+        expect(brio.has(id), `${q.label} names ${id}`).toBe(true);
       }
     }
   });
@@ -116,3 +130,106 @@ describe('usedCounts', () => {
     expect(usedCounts(['E', 'E', 'D'])).toEqual({ E: 2, D: 1 });
   });
 });
+
+
+/**
+ * CR6 / K3: the silent data loss, and all three halves of its fix.
+ *
+ * The bug: `Math.max(0, Math.floor(value))` passes NaN through, because
+ * Math.max(0, NaN) is NaN. JSON.stringify wrote `null`, the loader correctly
+ * refused a non-integer count, and every declared count was discarded with no
+ * message. One bad keystroke destroyed the lot.
+ */
+describe('CR6: a non-finite count can never reach storage', () => {
+  const ids = new Set(BRIO_PARTS.map((p) => p.id));
+
+  it('REFUSES every input that used to become NaN or Infinity', () => {
+    // Tests the real function the component calls, not a restatement of the
+    // hazard. An earlier version of this test asserted that 'abc' is non-finite,
+    // which is true of JavaScript and says nothing about our guard: deleting the
+    // guard left the suite green. This fails if the guard goes.
+    for (const raw of ['abc', '1e309', '-1e309', 'NaN', 'Infinity', '٣']) {
+      expect(sanitizeCount(raw), raw).toBeNull();
+    }
+  });
+
+  it('accepts and normalises everything legitimate', () => {
+    for (const [raw, want] of [
+      ['3', 3],
+      ['2.7', 2],      // floor: you cannot own 2.7 pieces
+      ['-5', 0],       // clamp: negative stock is not a thing
+      ['', 0],         // blanking a field means zero, documented
+      ['   ', 0],
+      ['0', 0],
+      ['999', 999],
+    ] as const) {
+      expect(sanitizeCount(raw), raw).toBe(want);
+    }
+  });
+
+  it('a refusal is distinct from zero, because zero is a real claim', () => {
+    // The reason sanitizeCount returns null rather than 0 on bad input: zero
+    // means "I own none of these", which is a claim the user did not make.
+    expect(sanitizeCount('abc')).toBeNull();
+    expect(sanitizeCount('0')).toBe(0);
+    expect(sanitizeCount('')).toBe(0);
+  });
+
+  it('nothing sanitizeCount returns can ever survive JSON as a non-integer', () => {
+    // Closes the loop end to end: the whole bug was a value that round-tripped
+    // through JSON as null and then failed the loader.
+    for (const raw of ['3', '2.7', '-5', '', '999', 'abc', '1e309']) {
+      const v = sanitizeCount(raw);
+      if (v === null) continue;
+      const back = JSON.parse(JSON.stringify({ E: v })).E;
+      expect(typeof back === 'number' && Number.isInteger(back) && back >= 0, raw).toBe(true);
+    }
+  });
+
+  it('a stored non-finite count is refused, and the refusal is REPORTED', () => {
+    // The second half: the loader was always right to refuse. What was missing
+    // was saying so, which is what made it silent.
+    const res = loadInventoryFrom({ E: NaN as unknown as number }, ids);
+    expect(res.value).toBeNull();
+    expect(res.discarded, 'a discard must be reported').toBeTruthy();
+    expect(res.discarded).toContain('E');
+  });
+
+  it('an unknown part id drops ONE count and keeps the rest, reporting it', () => {
+    // Deliberately different from the chain loader. Dropping one count changes
+    // nothing about the others; dropping a piece from a chain changes its shape.
+    const res = loadInventoryFrom({ E: 8, 'GONE-99': 3 }, ids);
+    expect(res.value).toEqual({ E: 8 });
+    expect(res.discarded).toMatch(/dropped/i);
+    expect(res.discarded).toMatch(/intact/i);
+  });
+
+  it('a clean load reports no discard at all', () => {
+    const res = loadInventoryFrom({ E: 8, A: 2 }, ids);
+    expect(res.value).toEqual({ E: 8, A: 2 });
+    expect(res.discarded).toBeUndefined();
+  });
+});
+
+/**
+ * Exercises the real loader against a stubbed localStorage, because the
+ * persistence half cannot be reached any other way and it is where the data
+ * loss actually happened.
+ */
+function loadInventoryFrom(blob: Record<string, number>, ids: ReadonlySet<string>) {
+  const store = new Map<string, string>([['brio.inventory.v0', JSON.stringify(blob)]]);
+  const g = globalThis as { localStorage?: unknown };
+  const had = 'localStorage' in g;
+  const prev = g.localStorage;
+  g.localStorage = {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => void store.set(k, v),
+    removeItem: (k: string) => void store.delete(k),
+  };
+  try {
+    return loadInventory(ids);
+  } finally {
+    if (had) g.localStorage = prev;
+    else delete g.localStorage;
+  }
+}

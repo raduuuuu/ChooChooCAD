@@ -16,7 +16,8 @@
 import { describe, expect, it } from 'vitest';
 import { getPart } from '../data/brio.js';
 import { walkFloat } from '../src/geom/fk.js';
-import type { Layout } from '../src/parts/schema.js';
+import { centrelineRadiusMm } from '../src/parts/schema.js';
+import type { Layout, Part } from '../src/parts/schema.js';
 
 const loop = (ids: string[]): Layout => ({
   placements: ids.map((partId) => ({ partId, turn: 'left' as const })),
@@ -31,7 +32,11 @@ describe('the float walk', () => {
     );
     expect(segments).toHaveLength(10);
     expect(poses).toHaveLength(11);
-    expect(segments.filter((s) => s.kind === 'curve').every((s) => s.radiusMm === 182)).toBe(true);
-    expect(segments.filter((s) => s.kind === 'straight').every((s) => s.radiusMm === undefined)).toBe(true);
+    // Derived from the part, not a literal: this asserts that a curve segment
+    // CARRIES its part's radius, which is the renderer contract. Pinning the
+    // radius value itself is analytic.test.ts's source-comparison test.
+    const expected = centrelineRadiusMm(getPart('E') as Extract<Part, { kind: 'curve' }>);
+    expect(segments.filter((s) => s.kind === 'curve').every((s) => s.centrelineRadiusMm === expected)).toBe(true);
+    expect(segments.filter((s) => s.kind === 'straight').every((s) => s.centrelineRadiusMm === undefined)).toBe(true);
   });
 });

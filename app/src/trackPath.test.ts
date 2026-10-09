@@ -17,7 +17,8 @@
 import { describe, expect, it } from 'vitest';
 import { getPart } from '../../engine/data/brio.js';
 import { walkFloat, type Segment } from '../../engine/src/geom/fk.js';
-import type { Layout } from '../../engine/src/parts/schema.js';
+import { centrelineRadiusMm } from '../../engine/src/parts/schema.js';
+import type { Layout, Part } from '../../engine/src/parts/schema.js';
 import { segmentPath } from './trackPath.js';
 
 /** SVG F.6.5 endpoint-to-centre conversion, for rx = ry = r and phi = 0. */
@@ -64,10 +65,12 @@ describe('the rendered arc convention', () => {
     const { segments } = walkFloat(loop(Array(8).fill('E')), getPart);
     expect(segments).toHaveLength(8);
     const centres = segments.map(centreOfRenderedArc);
-    // The first curve starts at the origin heading +x, so its centre is 182mm
-    // to its left: straight up the y axis.
+    // Derived from the part: the first curve starts at the origin heading +x,
+    // so its centre is ITS OWN radius to the left, straight up the y axis.
+    // Pinning the radius value is analytic.test.ts's source-comparison test.
+    const r = centrelineRadiusMm(getPart('E') as Extract<Part, { kind: 'curve' }>);
     expect(centres[0]![0]).toBeCloseTo(0, 6);
-    expect(centres[0]![1]).toBeCloseTo(182, 6);
+    expect(centres[0]![1]).toBeCloseTo(r, 6);
     for (const c of centres) {
       expect(c[0]).toBeCloseTo(centres[0]![0], 6);
       expect(c[1]).toBeCloseTo(centres[0]![1], 6);
@@ -80,7 +83,8 @@ describe('the rendered arc convention', () => {
     const { segments } = walkFloat(loop(Array(8).fill('E')), getPart);
     const a = parseArc(segmentPath(segments[0]!));
     const flipped = svgArcCentre(a.x1, a.y1, a.x2, a.y2, a.r, a.largeArc, (1 - a.sweep) as 0 | 1);
-    expect(Math.hypot(flipped[0] - 0, flipped[1] - 182)).toBeGreaterThan(100);
+    const r = centrelineRadiusMm(getPart('E') as Extract<Part, { kind: 'curve' }>);
+    expect(Math.hypot(flipped[0] - 0, flipped[1] - r)).toBeGreaterThan(100);
   });
 
   it('a right turn centres on the opposite side', () => {
@@ -89,8 +93,9 @@ describe('the rendered arc convention', () => {
       getPart,
     );
     const c = centreOfRenderedArc(segments[0]!);
+    const r = centrelineRadiusMm(getPart('E') as Extract<Part, { kind: 'curve' }>);
     expect(c[0]).toBeCloseTo(0, 6);
-    expect(c[1]).toBeCloseTo(-182, 6);
+    expect(c[1]).toBeCloseTo(-r, 6);
   });
 
   it('a left and a right turn emit DIFFERENT sweep flags', () => {

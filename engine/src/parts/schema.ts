@@ -16,7 +16,93 @@
  * and that remains an open question for the graph work.
  */
 
-export type Brand = 'BRIO' | 'IKEA' | 'HAPE' | 'THOMAS' | 'MELISSA_DOUG';
+export type Brand = 'BRIO' | 'IKEA' | 'PLAYTIVE' | 'HAPE' | 'THOMAS' | 'MELISSA_DOUG';
+
+/**
+ * How much the DIMENSIONS of a part can be trusted. Separate from `SlopBudget`'s
+ * `calibrationStatus`, which is about tolerances, not sizes.
+ *
+ * This exists because the catalogue now holds parts from sources of very
+ * different quality, and the engine's exactness claim is only as good as the
+ * numbers under it.
+ *
+ * Ordered best to worst, and the order is the point: a dimension someone
+ * measured off a real piece outranks a figure copied from the web, because the
+ * web figures for third-party track demonstrably do not exist.
+ *
+ * 'user-measured'  THIS user measured their own piece. Highest trust: it is a
+ *                  measurement of the object the layout will actually be built
+ *                  from, and it carries no provenance question because it is
+ *                  their own property.
+ * 'published'      a manufacturer or established reference states it. Strong,
+ *                  but not infallible: the reference this project uses gave a
+ *                  curve radius to the INNER edge where the engine needed the
+ *                  centreline, which was a 20mm error that survived six review
+ *                  passes.
+ * 'community'      one other user's submission. Deliberately BELOW published:
+ *                  a single stranger's word must not silently overwrite a
+ *                  referenced figure. `corroborations` is how it climbs, and
+ *                  several independent submitters agreeing SHOULD outrank one
+ *                  published figure. That comparison is not implemented yet and
+ *                  must not be assumed.
+ * 'unverified'     a circulating figure with no measurement behind it. Seeds.
+ *
+ * An 'unverified' part makes every verdict involving it unverified too, however
+ * exact the arithmetic. Nothing may present a layout containing one as reliable.
+ */
+export type DimensionStatus =
+  | 'user-measured'
+  | 'published'
+  | 'community'
+  | 'unverified';
+
+/** Best first. Used to decide which source wins when two describe one part. */
+export const DIMENSION_TRUST: readonly DimensionStatus[] = [
+  'user-measured',
+  'published',
+  'community',
+  'unverified',
+];
+
+/** Lower is better. A part with a better source overrides a worse one. */
+export function trustRank(status: DimensionStatus): number {
+  return DIMENSION_TRUST.indexOf(status);
+}
+
+export interface DimensionSource {
+  readonly status: DimensionStatus;
+  /** Where the figures came from. Specific enough to re-check. */
+  readonly source: string;
+  /** Why this status and not a better one; what would upgrade it. */
+  readonly note?: string;
+  /**
+   * ISO date a submission was recorded. Present for user and community sources.
+   * Carried so a shared library can order and age submissions later; it is not
+   * used for anything today.
+   */
+  readonly submittedAt?: string;
+  /**
+   * How many independent submitters reported the same figures.
+   *
+   * The answer to the problem a shared library creates: inside a correctness
+   * engine a wrong submitted dimension looks exactly like a right one, so the
+   * only honest signal is whether anyone else measured the same thing. 1 means
+   * one person said so. It is recorded now so submissions made before the server
+   * exists are not retroactively unanswerable.
+   */
+  readonly corroborations?: number;
+}
+
+/**
+ * Whether two brands' connectors physically join.
+ *
+ * Recorded as data because the answer is "mostly no" and that is the single most
+ * useful thing we learned about multi-brand track. From woodenrailway's
+ * third-party page: "There is no established standard for wooden track gauges,
+ * and while just about everyone uses the BRIO system as their guide, to avoid
+ * patent issues each has small deviations in their measurements."
+ */
+export type BrandFit = 'joins' | 'tight' | 'does-not-join' | 'unknown';
 
 /**
  * How much a measured physical constant can be trusted.
@@ -72,36 +158,44 @@ export interface PartEnds {
 interface PartBase {
   readonly id: string;
   readonly brand: Brand;
+  /** Provenance of this part's DIMENSIONS. See `DimensionSource`. */
+  readonly dimensions: DimensionSource;
   readonly name: string;
   /** Manufacturer part number, where one exists. */
   readonly partNumber?: string;
-  /** Track gauge in millimetres. 40 is the de facto standard; Thomas is 42. */
+  /**
+   * Track gauge: the spacing of the two rail grooves, centre to centre,
+   * millimetres. PUBLISHED.
+   *
+   * 26mm on BRIO. Source, verbatim: "A typical piece of BRIO track is 40mm wide
+   * and 12mm high, with two 6mm wide grooves that are 3mm deep, spaced 20mm
+   * apart, measuring 26mm from center to center."
+   * (woodenrailway.info/track/brio-track-guide). 20 + 6 = 26 checks out.
+   *
+   * This field held 40 until 2026-10-09, which was the PLANK WIDTH under the
+   * wrong name. Everything downstream that reasoned about "the 40mm gauge",
+   * including a design review and a calibration question, inherited that error.
+   */
   readonly gaugeWidthMm: number;
   /**
-   * Width of the wooden plank, millimetres. ESTIMATED, and NOT the gauge.
+   * Width of the wooden plank, millimetres. PUBLISHED, no longer estimated.
    *
-   * gstack-shortcut(dec-286b942e): drawn footprints are approximate until
-   * calibration runs, upgrade when the calibration afternoon happens.
+   * 40mm, from the same sentence as the gauge above. This replaces the 44mm
+   * ESTIMATE added on 2026-10-08, which was a guess at a number already present
+   * in the file under the name `gaugeWidthMm`.
    *
-   * These are two different measurements and conflating them is a mistake this
-   * project has already made once: `gaugeWidthMm` is the spacing of the two rail
-   * grooves, and the grooves sit inboard of the plank's edges, so the plank is
-   * strictly wider than the gauge. `CALIBRATION.md:76` records plank width as an
-   * open question and `CALIBRATION.md:83-84` says it "is not the gauge and is
-   * currently not recorded anywhere". It is recorded here now, as a guess.
-   *
-   * Why ship a guess rather than wait for the measurement: the canvas has to
-   * pick SOME width, and it was picking `min(viewportW, viewportH) * 0.022`,
-   * which made the same piece render at different widths depending on how big
-   * the rest of the layout was. A labelled estimate that stays constant per part
-   * is honest and stable; a viewport fraction was neither.
-   *
-   * Nothing may derive a VERDICT from this number while it is estimated. It is
-   * for drawing. The footprint-overlap check it would enable is explicitly out
-   * of scope (decision D10 of the CEO re-review replaced it with an exact
-   * connector-coincidence test that needs no measurement at all).
+   * Load-bearing for geometry, not just drawing: the centreline radius of a
+   * curve is derived from it. See `centrelineRadiusMm`.
    */
   readonly plankWidthMm: number;
+  /**
+   * Thickness of the plank, millimetres. PUBLISHED.
+   *
+   * 12mm, from the same sentence. Recorded because `CALIBRATION.md` lists plank
+   * thickness as one of the unknowns gating elevation work, and it turned out to
+   * be published rather than needing a measurement.
+   */
+  readonly plankThicknessMm: number;
   readonly slop: SlopBudget;
   /** Connector polarity at each end. See `Polarity` for why this is a convention. */
   readonly ends: PartEnds;
@@ -122,8 +216,28 @@ export interface StraightPart extends PartBase {
 
 export interface CurvePart extends PartBase {
   readonly kind: 'curve';
-  /** Arc radius in millimetres. Always an integer on real track. */
-  readonly radiusMm: number;
+  /**
+   * Radius to the INNER edge of the wood, millimetres. PUBLISHED.
+   *
+   * THE NAME IS THE POINT. This field was called `radiusMm` and held 182 for the
+   * E curve, and the engine used it as if it were the centreline radius. It is
+   * not. Source, verbatim: "The inner radius of E track is just over 182mm, and
+   * the outer radius just over 222mm." 222 - 182 = 40, the plank width, so the
+   * centreline sits 20mm outside the inner edge and the real centreline radius
+   * is 202mm. The same page warns that "The small curve diameter corresponds to
+   * the inside curve diameter, not the centerline diameter" and that the large
+   * curve diameter printed in catalogs "does not appear to correspond to any
+   * actual measurements on the track".
+   *
+   * So every curve the engine walked was 20mm tighter than real track. It was
+   * invisible because closure of an 8-curve circle and of the stadium is
+   * radius-independent, and the four tests that looked like they pinned the
+   * radius were each restating 182 as their own expected value.
+   *
+   * NOTHING should use this field for geometry. Use `centrelineRadiusMm`. The
+   * rename exists so that misuse is a compile error rather than a silent 20mm.
+   */
+  readonly innerRadiusMm: number;
   /**
    * Arc angle as a count of 22.5-degree steps, so it stays exact in Z[zeta16].
    * A BRIO E curve is 45 degrees, i.e. 2 steps.
@@ -132,6 +246,38 @@ export interface CurvePart extends PartBase {
 }
 
 export type Part = StraightPart | CurvePart;
+
+/**
+ * The radius the ENGINE needs: from the arc centre to the centre of the track.
+ *
+ * The walker advances connector poses, and a connector sits at the centre of the
+ * plank's end face, so the path a connector travels is the centreline. That is
+ * the inner edge plus half the plank width.
+ *
+ * This is the ONLY place the convention is applied. If you are reaching for a
+ * radius anywhere else, you want this function.
+ */
+/** True when a part's dimensions are not backed by a measurement or a publisher. */
+export function isUnverified(part: Part): boolean {
+  return part.dimensions.status === 'unverified';
+}
+
+/**
+ * True when a part's dimensions rest on exactly one person's word.
+ *
+ * Distinct from unverified: a single user measurement is the BEST source
+ * available for third-party track and still deserves saying out loud, because
+ * one measurement of one piece is not the same as a published standard.
+ */
+export function isUncorroborated(part: Part): boolean {
+  const { status, corroborations } = part.dimensions;
+  if (status === 'published') return false;
+  return (corroborations ?? 0) <= 1;
+}
+
+export function centrelineRadiusMm(part: CurvePart): number {
+  return part.innerRadiusMm + part.plankWidthMm / 2;
+}
 
 export type Turn = 'left' | 'right';
 

@@ -56,6 +56,33 @@
   width: 2.2ch;
 }
 .verdict-detail { color: var(--ink-soft); }
+
+/*
+ * THE TRUST REGISTER.
+ *
+ * Its own block under the verdict, not a trailing clause, because it now
+ * carries several independent reasons rather than one fixed disclaimer. Quiet
+ * by default at --ink-soft 5.21:1; `is-serious` raises the marker to --fail
+ * when a size is unmeasured or brands do not physically join, which are the two
+ * cases where the verdict above is actively misleading.
+ */
+.verdict-trust {
+  margin: var(--s1) 0 0;
+  padding: 0 0 0 var(--s4);
+  list-style: none;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-width: 76ch;
+}
+.verdict-trust li { position: relative; }
+.verdict-trust li::before {
+  content: '\00B7';
+  position: absolute;
+  left: calc(var(--s3) * -1);
+  font-weight: 600;
+}
+.verdict-trust.is-serious li::before { content: '!'; color: var(--fail); }
 .verdict-pass    .verdict-mark { color: var(--pass); }
 .verdict-tight   .verdict-mark { color: var(--tight); }
 .verdict-fail    .verdict-mark { color: var(--fail); }
@@ -159,6 +186,155 @@
 .toggle { cursor: pointer; }
 .spacer { flex: 1; }
 
+/* Submit-a-part form. Same sunken panel as inventory: both are modes, not chrome. */
+.submit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s3);
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+}
+.submit-why, .submit-hint, .submit-err {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-width: 76ch;
+}
+.submit-hint { font-size: 14px; }
+/* A blocked save is a correctness message, so it gets --fail at 5.58:1. */
+.submit-err { color: var(--fail); font-weight: 600; }
+.submit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--s2);
+}
+.submit-field { display: flex; flex-direction: column; gap: var(--s1); font-size: 14px; }
+.submit-field > span { color: var(--ink-soft); }
+.submit-field input,
+.submit-field select {
+  min-height: 44px;            /* touch floor, unconditional on a data-entry form */
+  padding: 0 var(--s2);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+.submit-actions { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+.submit-actions button {
+  min-height: 44px;
+  padding: 0 var(--s4);
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: 3px;
+  color: var(--paper);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.submit-actions button:disabled { opacity: 0.4; cursor: default; }
+.submit-id { font-size: 14px; color: var(--ink-soft); }
+
+/* Provenance per inventory row. Quiet: it is a caveat, not the content. */
+.inventory-row-src { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+
+/*
+ * A REFUSED KEYSTROKE, and a DISCARDED LOAD.
+ *
+ * Both are correctness messages, so both get --fail at 5.58:1 on --paper and a
+ * solid border rather than a pattern: these are not "you might want to know"
+ * states like the dashed not-owned border or the dotted unverified one, they are
+ * "the app just refused something you did" and "the app just threw data away".
+ */
+.inventory-row.is-invalid {
+  border-style: solid;
+  border-color: var(--fail);
+}
+.inventory-row-bad { font-size: 12px; color: var(--fail); font-weight: 600; white-space: nowrap; }
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin: 0 var(--s4) var(--s2);
+  padding: var(--s2) var(--s3);
+  background: var(--paper-sunk);
+  border: 1px solid var(--fail);
+  border-radius: 3px;
+}
+.notice-line {
+  margin: 0;
+  font-size: 16px;            /* body copy: this is a sentence, it owes the floor */
+  line-height: 1.5;
+  color: var(--ink);
+  max-width: 76ch;
+}
+.notice-line + .notice-line { margin-top: var(--s1); }
+.notice-close {
+  flex: none;
+  min-height: 36px;
+  padding: 0 var(--s3);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/*
+ * BRAND GROUPS.
+ *
+ * A heading-plus-rule per non-BRIO brand, so the separation is structural rather
+ * than a colour the user has to interpret. The warning is text, not a badge: the
+ * reason these pieces are different needs a sentence, and a sentence cannot be
+ * mistaken for decoration.
+ */
+.brand-group + .brand-group {
+  margin-top: var(--s3);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--rule);
+}
+.brand-note {
+  margin: 0 0 var(--s2);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-width: 76ch;
+}
+.brand-name { font-weight: 600; color: var(--ink); }
+/*
+ * --fail, not a new colour. This IS a correctness warning: the sizes are not
+ * backed by any publisher. It sits on --paper at 5.58:1, above the 4.5:1 floor
+ * 14px text owes.
+ */
+.brand-warn { color: var(--fail); font-weight: 600; }
+
+/*
+ * UNVERIFIED DIMENSIONS.
+ *
+ * A dotted border, distinct from the DASHED border that means "more than you
+ * own". Two different facts need two different patterns, and both survive
+ * greyscale because they are patterns rather than hues. A piece can be both:
+ * dotted and greyed at once is a part you do not own whose size is also a guess.
+ */
+.piece.is-unverified .piece-main,
+.piece.is-unverified .piece-mirror {
+  border-style: dotted;
+  border-color: var(--fail);
+}
+.piece.is-unverified .piece-id::after {
+  content: '*';
+  color: var(--fail);
+}
+
 /*
  * ADVICE, NOT A GATE (decision D8).
  *
@@ -250,7 +426,7 @@
 }
 .inventory-row {
   display: grid;
-  grid-template-columns: 3ch 1fr 6ch auto;
+  grid-template-columns: 3ch 1fr 6ch auto auto auto;
   gap: var(--s2);
   align-items: center;
   min-height: 44px;            /* touch target floor */
@@ -327,6 +503,8 @@
 @media (pointer: coarse) {
   .piece-mirror { min-width: 44px; }
   .palette-controls button,
+  .submit-actions button,
+  .notice-close,
   .inventory-close,
   .inventory-fills button,
   .inventory-row-input,
@@ -340,7 +518,7 @@
  */
 @media (max-width: 620px) {
   .shell { display: block; padding: var(--s5) var(--s4); }
-  .stage, .verdict, .palette, .inventory, .shortfall { display: none; }
+  .stage, .verdict, .palette, .inventory, .submit, .shortfall, .notice { display: none; }
   .shell::before {
     content: 'The track editor needs a larger screen. Open it on a desktop or tablet.';
     display: block;

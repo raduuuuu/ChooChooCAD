@@ -23,6 +23,7 @@
 
 import { evaluateLayout, type LayoutEvaluation } from '../../engine/src/joints/evaluate.js';
 import type { SolveFailure, SolveResult } from '../../engine/src/solver/result.js';
+import type { TrustIssue } from '../../engine/src/joints/trust.js';
 
 // Keyed by SolveFailure, not by string: a new failure reason is then a compile
 // error here rather than a silent fall-through to the generic copy below.
@@ -32,16 +33,37 @@ const FAILURE_COPY: Record<SolveFailure, string> = {
   NUMERIC: 'Could not check this layout.',
 };
 
-function Hedge({ e }: { e: LayoutEvaluation }) {
-  if (e.calibrationStatus === 'measured') return null;
+/**
+ * The trust register.
+ *
+ * Replaces the old Hedge, which said one fixed sentence about estimated give.
+ * The library made that insufficient: a layout can now also contain sizes
+ * nobody measured, sizes resting on one person's word, and brands that do not
+ * physically join. Each is a different reason to discount the same verdict, so
+ * each gets its own line rather than being averaged into a disclaimer.
+ */
+function Trust({ trust }: { trust: readonly TrustIssue[] }) {
+  if (trust.length === 0) return null;
+  const serious = trust.some(
+    (t) => t.kind === 'unverified-size' || t.kind === 'brands-do-not-join',
+  );
   return (
-    <span className="verdict-detail">
-      {' '}Joint give is {e.calibrationStatus}, not measured.
-    </span>
+    <ul className={serious ? 'verdict-trust is-serious' : 'verdict-trust'}>
+      {trust.map((t) => (
+        <li key={t.kind + t.detail}>{t.detail}</li>
+      ))}
+    </ul>
   );
 }
 
-export function VerdictLine({ result }: { result: SolveResult | null }) {
+export function VerdictLine({
+  result,
+  trust = [],
+}: {
+  result: SolveResult | null;
+  /** Why this verdict is worth less than it looks. See engine/joints/trust.ts. */
+  trust?: readonly TrustIssue[];
+}) {
   if (!result) {
     return (
       <div className="verdict verdict-unknown">
@@ -66,6 +88,8 @@ export function VerdictLine({ result }: { result: SolveResult | null }) {
 
   const e = evaluateLayout(result, 'estimated');
 
+  // The trust register rides with EVERY verdict, including EXACT. An exact
+  // closure over unmeasured sizes is the case that most needs saying.
   switch (e.verdict) {
     // Before EXACT, matching the engine. A double circle closes perfectly.
     // Two causes, and they need different sentences: an unjoinable END is about
@@ -99,6 +123,7 @@ export function VerdictLine({ result }: { result: SolveResult | null }) {
         <div className="verdict verdict-pass">
           <span className="verdict-mark">O</span>
           <span>This works. Closes exactly, no give needed at any joint.</span>
+          <Trust trust={trust} />
         </div>
       );
 
@@ -111,8 +136,8 @@ export function VerdictLine({ result }: { result: SolveResult | null }) {
             <span className="num">{e.jointCount}</span> joints, which give{' '}
             <span className="num">{e.totalGiveMm.toFixed(0)}mm</span> between them. It may
             well seat. Seat the triangles firmly.
-            <Hedge e={e} />
           </span>
+          <Trust trust={trust} />
         </div>
       );
 
@@ -124,8 +149,8 @@ export function VerdictLine({ result }: { result: SolveResult | null }) {
             Won&rsquo;t fit. Needs <span className="num">{e.gapMm.toFixed(0)}mm</span>{' '}
             absorbed, but the joints give only{' '}
             <span className="num">{e.totalGiveMm.toFixed(0)}mm</span> in total.
-            <Hedge e={e} />
           </span>
+          <Trust trust={trust} />
         </div>
       );
 

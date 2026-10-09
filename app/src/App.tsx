@@ -20,12 +20,24 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { BRIO_PARTS } from '../../engine/data/brio.js';
+import {
+  loadSubmissions,
+  makeResolver,
+  resolveLibrary,
+  saveSubmissions,
+  type Submission,
+} from '../../engine/data/library.js';
+import { brandFit } from '../../engine/data/thirdParty.js';
+import { layoutTrust } from '../../engine/src/joints/trust.js';
 import { solveLayout } from '../../engine/src/solver/result.js';
-import type { Layout, Turn } from '../../engine/src/parts/schema.js';
+import { centrelineRadiusMm, isUnverified } from '../../engine/src/parts/schema.js';
+import type { Brand, Layout, Part, Turn } from '../../engine/src/parts/schema.js';
 import { TrackCanvas } from './TrackCanvas.js';
 import { VerdictLine } from './VerdictLine.js';
 import { InventoryPanel } from './Inventory.js';
+import { SubmitPart } from './SubmitPart.js';
 import {
+  type LoadResult,
   loadInventory,
   saveInventory,
   shortfalls as computeShortfalls,
@@ -59,29 +71,41 @@ interface Piece {
  * response to anything unexpected is to drop it and start empty.
  */
 const STORAGE_KEY = 'brio.chain.v0';
-const KNOWN_PART_IDS: ReadonlySet<string> = new Set(BRIO_PARTS.map((p) => p.id));
 
-function loadPieces(): Piece[] {
+function loadPieces(knownPartIds: ReadonlySet<string>): LoadResult<Piece[]> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
+    if (!raw) return { value: [] };
     const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
+    if (!Array.isArray(parsed)) {
+      return { value: [], discarded: 'Your saved track could not be read, so the canvas started empty.' };
+    }
     const pieces: Piece[] = [];
     for (const item of parsed) {
-      if (typeof item !== 'object' || item === null) return [];
+      if (typeof item !== 'object' || item === null) {
+        return { value: [], discarded: 'Your saved track could not be read, so the canvas started empty.' };
+      }
       const { partId, turn } = item as Record<string, unknown>;
       // An unknown part id means the catalogue moved under the blob. Discard the
       // whole chain rather than silently dropping pieces out of the middle of it,
       // which would change the layout's geometry without saying so.
-      if (typeof partId !== 'string' || !KNOWN_PART_IDS.has(partId)) return [];
-      if (turn !== 'left' && turn !== 'right') return [];
+      if (typeof partId !== 'string' || !knownPartIds.has(partId)) {
+        return {
+          value: [],
+          discarded:
+            `Your saved track used a part the library no longer has (${String(partId)}), ` +
+            'so the whole layout was cleared. Dropping one piece would have changed its shape.',
+        };
+      }
+      if (turn !== 'left' && turn !== 'right') {
+        return { value: [], discarded: 'Your saved track could not be read, so the canvas started empty.' };
+      }
       pieces.push({ partId, turn });
     }
-    return pieces;
+    return { value: pieces };
   } catch {
-    // Unavailable storage, a quota error, or malformed JSON. Start empty.
-    return [];
+    // Unavailable storage, a quota error, or malformed JSON.
+    return { value: [], discarded: 'Your saved track could not be read, so the canvas started empty.' };
   }
 }
 
@@ -93,6 +117,18 @@ function savePieces(pieces: readonly Piece[]): void {
     // not worth losing the session over, so this is deliberately silent.
   }
 }
+
+/** BRIO first, because it is the only brand whose dimensions are published. */
+const BRAND_ORDER: readonly Brand[] = ['BRIO', 'IKEA', 'PLAYTIVE', 'HAPE', 'THOMAS', 'MELISSA_DOUG'];
+const BRAND_LABEL: Record<Brand, string> = {
+  BRIO: 'BRIO',
+  IKEA: 'IKEA Lillabo',
+  PLAYTIVE: 'Lidl Playtive',
+  HAPE: 'Hape',
+  THOMAS: 'Thomas',
+  MELISSA_DOUG: 'Melissa & Doug',
+};
+const partsByBrand = (lib: readonly Part[], b: Brand) => lib.filter((p) => p.brand === b);
 
 const PRESETS: ReadonlyArray<{ label: string; pieces: string[]; note: string }> = [
   { label: 'Circle', pieces: Array(8).fill('E'), note: '8 large curves, exact' },
@@ -109,12 +145,40 @@ const PRESETS: ReadonlyArray<{ label: string; pieces: string[]; note: string }> 
 ];
 
 export function App() {
-  // Lazy initialiser, so the read happens once on mount rather than every render.
-  const [pieces, setPieces] = useState<Piece[]>(loadPieces);
+  /*
+   * ORDER MATTERS HERE. The library includes parts this user submitted, so it
+   * cannot be a module constant any more. Submissions load first, the library
+   * resolves from them, and only then can the chain and the inventory be
+   * validated, because both reference part ids that may be user-submitted.
+   */
+  const [submissions, setSubmissions] = useState<readonly Submission[]>(loadSubmissions);
+  const library = useMemo(() => resolveLibrary(submissions), [submissions]);
+  const resolve = useMemo(() => makeResolver(library), [library]);
+  const libraryIds = useMemo(() => new Set(library.map((p) => p.id)), [library]);
+
+  /*
+   * Both loaders now report whether they threw stored data away, and those
+   * notices are held in state so they can be SHOWN. Previously a rejected blob
+   * and an empty one were indistinguishable and the user watched their work
+   * vanish in silence.
+   */
+  const [chainLoad] = useState(() => loadPieces(libraryIds));
+  const [inventoryLoad] = useState(() => loadInventory(libraryIds));
+  const [dismissed, setDismissed] = useState(false);
+  const notices = [chainLoad.discarded, inventoryLoad.discarded].filter(
+    (x): x is string => typeof x === 'string',
+  );
+
+  const [pieces, setPieces] = useState<Piece[]>(chainLoad.value);
   const [closed, setClosed] = useState(true);
-  // `null` is UNDECLARED, which is not the same as owning none. See inventory.ts.
-  const [inventory, setInventory] = useState<Inventory>(loadInventory);
+  // `null` is UNDECLARED, which is not the same as owning none. See inventoryModel.ts.
+  const [inventory, setInventory] = useState<Inventory>(inventoryLoad.value);
   const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [submitOpen, setSubmitOpen] = useState(false);
+
+  useEffect(() => {
+    saveSubmissions(submissions);
+  }, [submissions]);
 
   // Only the chain is persisted. `closed` is a one-bit view toggle, not work.
   useEffect(() => {
@@ -134,7 +198,10 @@ export function App() {
   // keeps a React error boundary able to catch a throw from the engine, which
   // an event-handler trigger would not. See the eng review's finding on the
   // blank-page rescue.
-  const result = useMemo(() => (pieces.length === 0 ? null : solveLayout(layout)), [layout, pieces.length]);
+  const result = useMemo(
+    () => (pieces.length === 0 ? null : solveLayout(layout, resolve)),
+    [layout, pieces.length, resolve],
+  );
 
   const add = (partId: string, turn: Turn) => setPieces((p) => [...p, { partId, turn }]);
   const undo = () => setPieces((p) => p.slice(0, -1));
@@ -144,16 +211,36 @@ export function App() {
     setClosed(true);
   };
 
+  // The trust register. Computed from the library, so it knows what the solver
+  // cannot: how good the numbers under the verdict actually are.
+  const trust = useMemo(
+    () => (pieces.length === 0 ? [] : layoutTrust(layout, resolve, brandFit)),
+    [layout, resolve, pieces.length],
+  );
+
   const counts = usedCounts(pieces.map((p) => p.partId));
   const shortfalls = computeShortfalls(inventory, counts);
 
   return (
     <div className="shell">
       <main className="stage">
-        <TrackCanvas layout={layout} />
+        <TrackCanvas layout={layout} resolve={resolve} />
       </main>
 
-      <VerdictLine result={result} />
+      {notices.length > 0 && !dismissed && (
+        <div className="notice" role="status">
+          <div>
+            {notices.map((n) => (
+              <p key={n} className="notice-line">{n}</p>
+            ))}
+          </div>
+          <button className="notice-close" onClick={() => setDismissed(true)}>
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      <VerdictLine result={result} trust={trust} />
 
       {/*
         * The shortfall line sits with the verdict, not in the palette, because it
@@ -176,8 +263,30 @@ export function App() {
       )}
 
       <section className="palette" aria-label="Track pieces">
+        {/*
+          * GROUPED BY BRAND, because the brands are not interchangeable.
+          *
+          * This is not organisation for its own sake. BRIO and IKEA connectors
+          * are documented as not fitting each other, and no manufacturer
+          * publishes piece dimensions for IKEA or Playtive at all, so those
+          * parts carry unverified sizes. Mixing them in one undifferentiated row
+          * would say they are equivalent, and they are not. Each non-BRIO group
+          * states its provenance once, above its pieces.
+          */}
+        {BRAND_ORDER.filter((b) => partsByBrand(library, b).length > 0).map((brand) => (
+        <div key={brand} className="brand-group">
+          {brand !== 'BRIO' && (
+            <p className="brand-note">
+              <span className="brand-name">{BRAND_LABEL[brand]}</span>{' '}
+              <span className="brand-warn">unverified sizes</span>{' '}
+              {brandFit('BRIO', brand).fit === 'does-not-join'
+                ? 'and these do not physically join BRIO track.'
+                : 'and compatibility with BRIO is undocumented.'}{' '}
+              Nobody publishes dimensions for these; the figures come from 3D-print reproductions.
+            </p>
+          )}
         <div className="palette-row">
-          {BRIO_PARTS.map((part) => {
+          {partsByBrand(library, brand).map((part) => {
             /*
              * ADVICE, NEVER A GATE (decision D8).
              *
@@ -191,21 +300,27 @@ export function App() {
              * it is announced with the control rather than after it.
              */
             const unowned = wouldExceed(inventory, counts, part.id);
+            const unverified = isUnverified(part);
             return (
-            <div key={part.id} className={unowned ? 'piece is-unowned' : 'piece'}>
+            <div
+              key={part.id}
+              className={
+                'piece' + (unowned ? ' is-unowned' : '') + (unverified ? ' is-unverified' : '')
+              }
+            >
               <button
                 className="piece-main"
                 onClick={() => add(part.id, 'left')}
                 aria-label={
-                  unowned
-                    ? `Add ${part.name}. More than you own.`
-                    : `Add ${part.name}`
+                  `Add ${part.name}` +
+                  (unverified ? '. Unverified size.' : '') +
+                  (unowned ? '. More than you own.' : '')
                 }
               >
                 <span className="piece-id num">{part.id}</span>
                 <span className="piece-name">{part.name}</span>
                 <span className="piece-dim num">
-                  {part.kind === 'straight' ? `${part.lengthMm}mm` : `r${part.radiusMm}`}
+                  {part.kind === 'straight' ? `${part.lengthMm}mm` : `r${centrelineRadiusMm(part)}`}
                 </span>
               </button>
               {part.kind === 'curve' && (
@@ -222,6 +337,8 @@ export function App() {
             );
           })}
         </div>
+        </div>
+        ))}
 
         <div className="palette-row palette-controls">
           <label className="toggle">
@@ -253,6 +370,7 @@ export function App() {
             <button onClick={() => setInventoryOpen(true)}>
               {inventory === null ? 'Say what you own' : 'What you own'}
             </button>
+            <button onClick={() => setSubmitOpen(true)}>Add a part you own</button>
             {inventory === null && (
               <span className="inventory-hint">
                 Nothing is checked against your box yet.
@@ -261,8 +379,20 @@ export function App() {
           </div>
         )}
 
+        {submitOpen && (
+          <SubmitPart
+            existingIds={libraryIds}
+            onSubmit={(sub) => {
+              setSubmissions((prev) => [...prev, sub]);
+              setSubmitOpen(false);
+            }}
+            onCancel={() => setSubmitOpen(false)}
+          />
+        )}
+
         {inventoryOpen && (
           <InventoryPanel
+            library={library}
             inventory={inventory}
             used={counts}
             shortfalls={shortfalls}

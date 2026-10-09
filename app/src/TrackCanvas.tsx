@@ -17,16 +17,20 @@
 
 import { useMemo } from 'react';
 import { bounds, walkFloat } from '../../engine/src/geom/fk.js';
-import { getPart } from '../../engine/data/brio.js';
-import type { Layout } from '../../engine/src/parts/schema.js';
+import type { Layout, Part } from '../../engine/src/parts/schema.js';
 import { segmentPath } from './trackPath.js';
 
 export interface TrackCanvasProps {
   readonly layout: Layout;
+  /**
+   * Library resolver. Passed in rather than imported, because the library now
+   * includes user-submitted parts and so cannot be a module constant.
+   */
+  readonly resolve: (id: string) => Part;
 }
 
-export function TrackCanvas({ layout }: TrackCanvasProps) {
-  const { poses, segments } = useMemo(() => walkFloat(layout, getPart), [layout]);
+export function TrackCanvas({ layout, resolve }: TrackCanvasProps) {
+  const { poses, segments } = useMemo(() => walkFloat(layout, resolve), [layout, resolve]);
 
   const box = useMemo(() => bounds(poses), [poses]);
   const pad = 90;
@@ -53,7 +57,7 @@ export function TrackCanvas({ layout }: TrackCanvasProps) {
    * The value is ESTIMATED and labelled as such in `brio.ts`. The UI discloses
    * that in the palette's provisional note; nothing derives a verdict from it.
    */
-  const plankWidth = (partId: string) => getPart(partId).plankWidthMm;
+  const plankWidth = (partId: string) => resolve(partId).plankWidthMm;
 
   if (segments.length === 0) {
     return (

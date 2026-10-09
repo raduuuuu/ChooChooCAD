@@ -42,6 +42,6 @@ export function svgSweepFlag(sweep: Segment['sweep']): 0 | 1 {
 export function segmentPath(s: Segment): string {
   const { from, to } = s;
   if (s.kind === 'straight') return `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
-  const r = s.radiusMm ?? 0;
+  const r = s.centrelineRadiusMm ?? 0;
   return `M ${from.x} ${from.y} A ${r} ${r} 0 0 ${svgSweepFlag(s.sweep)} ${to.x} ${to.y}`;
 }

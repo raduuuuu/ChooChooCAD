@@ -67,20 +67,52 @@ Take the 216mm straight (D, #33341).
 - [ ] Overall length, end face to end face .............. ______ mm
 - [ ] Length from the base of the peg to the opposite
       end face (i.e. excluding the protruding peg) ...... ______ mm
-- [ ] Peg (plug) head diameter ........................... ______ mm
+- [x] Peg (plug) head diameter ............................ **11.5 mm** PUBLISHED
 - [ ] Peg neck diameter .................................. ______ mm
-- [ ] Peg neck length .................................... ______ mm
-- [ ] Socket (nest) hole diameter ........................ ______ mm
+- [x] Peg neck length ..................................... **7 mm** PUBLISHED
+- [x] Socket (nest) hole diameter .......................... **15-17 mm** PUBLISHED, a RANGE
 - [ ] Socket throat width ................................ ______ mm
-- [ ] Socket throat depth ................................ ______ mm
-- [ ] Plank width (NOT the 40mm gauge — the wood's width) ______ mm
-- [ ] Plank THICKNESS, floor to railhead ................. ______ mm
+- [x] Socket throat depth ................................. **5 mm** PUBLISHED
+
+> **PARTLY ANSWERED 2026-10-09 from the primary source.** Verbatim: "The male
+> connector is an 11.5mm peg on a 7mm long neck, and the female connector ranges
+> from 15 to 17mm in diameter with a 5mm long throat."
+> (woodenrailway.info/track/brio-track-guide)
+>
+> Note the socket is a RANGE, 15 to 17mm, not a value. That 2mm spread is
+> probably most of the axial slop this sheet exists to quantify: an 11.5mm peg in
+> a 15mm hole and the same peg in a 17mm hole are different joints. So the
+> published figures narrow the question without closing it, and the two
+> still-blank rows, peg neck diameter and socket throat width, are the ones that
+> actually bound the pull-apart.
+>
+> This also settles which plug/nest pair the note below refers to: 11.5 against
+> 15-17 is the published pair. Where 6.25 and 6.4 came from is unrecorded, and
+> 6mm is the GROOVE width from the same sentence, so those two figures are
+> plausibly the groove, not the connector, and the plan conflated them.
+- [x] Plank width ......................................... **40 mm** PUBLISHED
+- [x] Plank THICKNESS, floor to railhead .................. **12 mm** PUBLISHED
+
+> **ANSWERED 2026-10-09 from the primary source, no measuring needed.** Verbatim:
+> "A typical piece of BRIO track is 40mm wide and 12mm high, with two 6mm wide
+> grooves that are 3mm deep, spaced 20mm apart, measuring 26mm from center to
+> center." (woodenrailway.info/track/brio-track-guide)
+>
+> The parenthetical this question used to carry, "NOT the 40mm gauge", was itself
+> the error. The 40mm WAS the plank width, sitting in a field named
+> `gaugeWidthMm`. The real gauge is 26mm. Both are now in the part records as
+> published values, along with the 12mm thickness, so this question is closed
+> without calipers.
 
 **Why it matters:** two different plug/nest pairs appear in the plan (11.5 vs
 15–17mm, and 6.25 vs 6.4mm) and they give answers 23x apart. Which pair bounds
 pulling a joint apart is unknown. Separately, if 216 is measured to the butted
 face then the usable length when joined is LESS than 216 and every closure
-calculation inherits the error. And the angular lever needs plank width, which
+calculation inherits the error. The angular lever needs plank width, which is now
+recorded as a published 40mm (see above; this sentence previously said it "is not
+the gauge and is currently not recorded anywhere", and both halves were wrong:
+it WAS the 40mm, recorded under the name gaugeWidthMm). What remains unmeasured
+is the SLOP, which
 is not the gauge and is currently not recorded anywhere.
 
 ## Q4 — Is the ascending track's 216mm the run or the plank?

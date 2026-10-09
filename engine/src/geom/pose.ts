@@ -22,7 +22,7 @@
  */
 
 import { type Cyc, ZERO, add, mulZetaPow, scale, sub, zetaPow } from './cyclotomic.js';
-import type { Layout, Part, Turn } from '../parts/schema.js';
+import { centrelineRadiusMm, type Layout, type Part, type Turn } from '../parts/schema.js';
 
 export interface Pose {
   readonly pos: Cyc;
@@ -37,7 +37,9 @@ export function displacement(part: Part, heading: number, turn: Turn = 'left'): 
   if (part.kind === 'straight') {
     return scale(zetaPow(heading), part.lengthMm);
   }
-  const { radiusMm: r, arcSteps: s } = part;
+  // Centreline, not the inner edge: a connector travels the middle of the track.
+  const r = centrelineRadiusMm(part);
+  const s = part.arcSteps;
   if (turn === 'left') {
     return scale(sub(zetaPow(4 + heading), zetaPow(4 + heading + s)), r);
   }

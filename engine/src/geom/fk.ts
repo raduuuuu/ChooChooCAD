@@ -14,7 +14,7 @@
  *   right  disp = r * ( sin(h) - sin(h-th),  cos(h-th) - cos(h) )   h -= th
  */
 
-import type { Layout, Part } from '../parts/schema.js';
+import { centrelineRadiusMm, type Layout, type Part } from '../parts/schema.js';
 
 export interface Slop {
   axialMm: number;
@@ -33,8 +33,8 @@ export interface Segment {
   readonly kind: 'straight' | 'curve';
   readonly from: FPose;
   readonly to: FPose;
-  /** Curves only: radius in mm and which way it bends. */
-  readonly radiusMm?: number;
+  /** Curves only: CENTRELINE radius in mm, which is what gets drawn. */
+  readonly centrelineRadiusMm?: number;
   readonly sweep?: 'left' | 'right';
   readonly partId: string;
 }
@@ -71,7 +71,7 @@ export function walkFloat(
       y += part.lengthMm * Math.sin(h);
       segments.push({ kind: 'straight', from, to: { x, y, h }, partId: part.id });
     } else {
-      const r = part.radiusMm;
+      const r = centrelineRadiusMm(part);
       const th = (part.arcSteps * Math.PI) / 8;
       if (turn === 'left') {
         x += r * (Math.sin(h + th) - Math.sin(h));
@@ -86,7 +86,7 @@ export function walkFloat(
         kind: 'curve',
         from,
         to: { x, y, h },
-        radiusMm: r,
+        centrelineRadiusMm: r,
         sweep: turn,
         partId: part.id,
       });
