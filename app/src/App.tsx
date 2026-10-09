@@ -411,11 +411,15 @@ export function App() {
           />
         )}
 
-        <p className="provisional">
-          Joint give is <strong>estimated</strong>, not measured. Nobody has put calipers on
-          real track yet, so the verdict reports whether the gap could fit inside the total
-          give, not that it will.
-        </p>
+        {/*
+          * The provisional note used to sit here, under the palette, saying
+          * that joint give is estimated and that the verdict reports what
+          * could fit rather than what will. Both sentences are caveats on a
+          * VERDICT, and here they were a footnote about the product, far
+          * enough from the verdict line to be read as neither. They now ride
+          * in the trust register, next to the claim they qualify, where the
+          * engine emits them per layout (kind: 'estimated-give'). Task K4.
+          */}
       </section>
     </div>
   );

@@ -24,11 +24,12 @@
 import { evaluateLayout, type LayoutEvaluation } from '../../engine/src/joints/evaluate.js';
 import type { SolveFailure, SolveResult } from '../../engine/src/solver/result.js';
 import type { TrustIssue } from '../../engine/src/joints/trust.js';
+import { ACTION_FOR_FAILURE, ACTION_FOR_VERDICT } from './verdictAction.js';
 
 // Keyed by SolveFailure, not by string: a new failure reason is then a compile
 // error here rather than a silent fall-through to the generic copy below.
 const FAILURE_COPY: Record<SolveFailure, string> = {
-  OPEN_CHAIN: 'Not a loop yet. Close it to check whether it works.',
+  OPEN_CHAIN: 'Not a loop yet.',
   HEADING_MISMATCH: 'The track does not come back pointing the right way.',
   NUMERIC: 'Could not check this layout.',
 };
@@ -54,6 +55,16 @@ function Trust({ trust }: { trust: readonly TrustIssue[] }) {
       ))}
     </ul>
   );
+}
+
+/**
+ * The action register. One imperative, visually quietest of the three, because
+ * it is the last thing read rather than the first. Never rendered empty: a
+ * state with nothing to suggest returns null instead of an empty box.
+ */
+function Action({ action }: { action: string | null }) {
+  if (!action) return null;
+  return <p className="verdict-action">{action}</p>;
 }
 
 export function VerdictLine({
@@ -82,6 +93,7 @@ export function VerdictLine({
           {FAILURE_COPY[result.reason] ?? 'Could not check this layout.'}{' '}
           <span className="verdict-detail">{result.detail}</span>
         </span>
+        <Action action={ACTION_FOR_FAILURE[result.reason] ?? null} />
       </div>
     );
   }
@@ -115,6 +127,8 @@ export function VerdictLine({
               </span>
             </span>
           )}
+          <Trust trust={trust} />
+          <Action action={ACTION_FOR_VERDICT.IMPOSSIBLE} />
         </div>
       );
 
@@ -124,6 +138,7 @@ export function VerdictLine({
           <span className="verdict-mark">O</span>
           <span>This works. Closes exactly, no give needed at any joint.</span>
           <Trust trust={trust} />
+          <Action action={ACTION_FOR_VERDICT[e.verdict]} />
         </div>
       );
 
@@ -134,10 +149,11 @@ export function VerdictLine({
           <span>
             Needs <span className="num">{e.gapMm.toFixed(0)}mm</span> absorbed across{' '}
             <span className="num">{e.jointCount}</span> joints, which give{' '}
-            <span className="num">{e.totalGiveMm.toFixed(0)}mm</span> between them. It may
-            well seat. Seat the triangles firmly.
+            <span className="num">{e.totalGiveMm.toFixed(0)}mm</span> between them. That
+            means the gap could fit inside the total give, not that it will.
           </span>
           <Trust trust={trust} />
+          <Action action={ACTION_FOR_VERDICT[e.verdict]} />
         </div>
       );
 
@@ -151,6 +167,7 @@ export function VerdictLine({
             <span className="num">{e.totalGiveMm.toFixed(0)}mm</span> in total.
           </span>
           <Trust trust={trust} />
+          <Action action={ACTION_FOR_VERDICT[e.verdict]} />
         </div>
       );
 
@@ -162,6 +179,8 @@ export function VerdictLine({
             Could not check this layout.{' '}
             <span className="verdict-detail">{e.reasons.join('; ')}</span>
           </span>
+          <Trust trust={trust} />
+          <Action action={ACTION_FOR_VERDICT.UNKNOWN} />
         </div>
       );
   }

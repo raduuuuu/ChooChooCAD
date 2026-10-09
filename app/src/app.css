@@ -139,6 +139,32 @@
   font-weight: 600;
 }
 .verdict-trust.is-serious li::before { content: '!'; color: var(--fail); }
+
+/*
+ * The ACTION register, third and quietest (task K4).
+ *
+ * It must not be mistaken for the trust list directly above it: both are
+ * --ink-soft at 14px, so the marker does the separating. Trust items carry
+ * a middot, or an exclamation when serious; the action carries an arrow,
+ * which reads as "do this" rather than "note this".
+ *
+ * --ink-soft on --paper is 5.21:1, clear of the 4.5:1 text floor.
+ */
+.verdict-action {
+  position: relative;
+  margin: var(--s2) 0 0;
+  padding: 0 0 0 var(--s4);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-width: 76ch;
+}
+.verdict-action::before {
+  content: '\2192';
+  position: absolute;
+  left: calc(var(--s3) * -1 + var(--s4) - var(--s4));
+  font-weight: 600;
+}
 .verdict-pass    .verdict-mark { color: var(--pass); }
 .verdict-tight   .verdict-mark { color: var(--tight); }
 .verdict-fail    .verdict-mark { color: var(--fail); }
@@ -545,13 +571,12 @@
 }
 .inventory-fills button:hover { border-color: var(--ink-soft); }
 
-.provisional {
-  margin: 0;
-  font-size: 16px;            /* body copy, so it owes the floor; was 13px */
-  line-height: 1.5;
-  color: var(--ink-soft);
-  max-width: 76ch;
-}
+/*
+ * `.provisional` lived here. The paragraph it styled moved into the verdict's
+ * trust register (task K4), so like `.joint` before it the rule had no element
+ * left. Deleted rather than kept "in case", which is how `.joint` survived
+ * three design reviews.
+ */
 
 /*
  * TOUCH TARGETS.

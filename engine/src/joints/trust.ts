@@ -83,10 +83,24 @@ export function layoutTrust(
 
   // 4. The joint give is still estimated. Always true today, and the reason the
   // verdict copy says "may well seat" rather than "will".
+  //
+  // This used to be a paragraph under the palette, five screen inches from the
+  // verdict it qualifies, where it read as a footnote about the product rather
+  // than a caveat on THIS result.
+  //
+  // It must stay true in EVERY verdict state, because this register rides with
+  // all of them. A first attempt folded in the necessary-versus-sufficient
+  // sentence ("the gap could fit inside the total give, not that it will"),
+  // which is the right point but only about NEEDS_GIVE; on an EXCEEDS verdict
+  // it read as contradicting the verdict directly above it. That sentence now
+  // lives in the NEEDS_GIVE copy, where it is true, and this one says the
+  // thing that holds everywhere: the number is a guess.
   if (parts.some((p) => p.slop.calibrationStatus !== 'measured')) {
     issues.push({
       kind: 'estimated-give',
-      detail: 'Joint give is estimated, not measured.',
+      detail:
+        'Joint give is estimated, not measured, so the give total and any verdict ' +
+        'resting on it are provisional.',
     });
   }
 

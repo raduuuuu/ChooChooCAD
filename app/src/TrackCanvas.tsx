@@ -61,7 +61,7 @@ export function TrackCanvas({ layout, resolve, emptyAction }: TrackCanvasProps) 
    * needing to be touched again.
    *
    * The value is ESTIMATED and labelled as such in `brio.ts`. The UI discloses
-   * that in the palette's provisional note; nothing derives a verdict from it.
+   * that in the verdict's trust register; nothing derives a verdict from it.
    */
   const plankWidth = (partId: string) => resolve(partId).plankWidthMm;
 
