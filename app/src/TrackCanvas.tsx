@@ -16,20 +16,10 @@
  */
 
 import { useMemo } from 'react';
-import { bounds, walkFloat, type Segment } from '../../engine/src/geom/fk.js';
+import { bounds, walkFloat } from '../../engine/src/geom/fk.js';
 import { getPart } from '../../engine/data/brio.js';
 import type { Layout } from '../../engine/src/parts/schema.js';
-
-function segmentPath(s: Segment): string {
-  const { from, to } = s;
-  if (s.kind === 'straight') return `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
-  const r = s.radiusMm ?? 0;
-  // SVG sweep flag: our y axis points down in screen space after the flip in
-  // the viewBox transform, so a left turn draws as sweep 1. Pinned by
-  // engine/test/render.test.ts, which proves all arcs of a circle share a centre.
-  const sweepFlag = s.sweep === 'left' ? 1 : 0;
-  return `M ${from.x} ${from.y} A ${r} ${r} 0 0 ${sweepFlag} ${to.x} ${to.y}`;
-}
+import { segmentPath } from './trackPath.js';
 
 export interface TrackCanvasProps {
   readonly layout: Layout;
