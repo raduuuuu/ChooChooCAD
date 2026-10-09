@@ -33,6 +33,7 @@ import { solveLayout } from '../../engine/src/solver/result.js';
 import { centrelineRadiusMm, isUnverified } from '../../engine/src/parts/schema.js';
 import type { Brand, Layout, Part, Turn } from '../../engine/src/parts/schema.js';
 import { TrackCanvas } from './TrackCanvas.js';
+import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
 import { VerdictLine } from './VerdictLine.js';
 import { InventoryPanel } from './Inventory.js';
 import { SubmitPart } from './SubmitPart.js';
@@ -130,19 +131,6 @@ const BRAND_LABEL: Record<Brand, string> = {
 };
 const partsByBrand = (lib: readonly Part[], b: Brand) => lib.filter((p) => p.brand === b);
 
-const PRESETS: ReadonlyArray<{ label: string; pieces: string[]; note: string }> = [
-  { label: 'Circle', pieces: Array(8).fill('E'), note: '8 large curves, exact' },
-  {
-    label: 'Stadium',
-    pieces: [...Array(4).fill('E'), 'D', ...Array(4).fill('E'), 'D'],
-    note: 'exact',
-  },
-  {
-    label: 'Near miss',
-    pieces: [...Array(4).fill('E'), 'D', ...Array(4).fill('E'), 'A'],
-    note: '72mm short',
-  },
-];
 
 export function App() {
   /*
@@ -206,7 +194,7 @@ export function App() {
   const add = (partId: string, turn: Turn) => setPieces((p) => [...p, { partId, turn }]);
   const undo = () => setPieces((p) => p.slice(0, -1));
   const clear = () => setPieces([]);
-  const preset = (ids: string[]) => {
+  const preset = (ids: readonly string[]) => {
     setPieces(ids.map((partId) => ({ partId, turn: 'left' as Turn })));
     setClosed(true);
   };
@@ -224,7 +212,23 @@ export function App() {
   return (
     <div className="shell">
       <main className="stage">
-        <TrackCanvas layout={layout} resolve={resolve} />
+        <TrackCanvas
+          layout={layout}
+          resolve={resolve}
+          emptyAction={
+            <>
+              <button
+                className="primary"
+                onClick={() => preset(presetByLabel(EMPTY_STATE_PRESET).pieces)}
+              >
+                Build a {EMPTY_STATE_PRESET.toLowerCase()}
+              </button>
+              <span className="canvas-empty-note">
+                {presetByLabel(EMPTY_STATE_PRESET).note}
+              </span>
+            </>
+          }
+        />
       </main>
 
       {notices.length > 0 && !dismissed && (
@@ -352,6 +356,12 @@ export function App() {
             Clear
           </button>
           <span className="spacer" />
+          {/*
+            * All three presets, including the one the empty state offers. Once a
+            * layout exists these are "replace what I have", a different act from
+            * the blank canvas's "give me something to look at", so the overlap
+            * is not a duplicate invitation.
+            */}
           {PRESETS.map((p) => (
             <button key={p.label} onClick={() => preset(p.pieces)} title={p.note}>
               {p.label}

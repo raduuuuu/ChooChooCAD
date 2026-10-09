@@ -15,7 +15,7 @@
  * allocation does.
  */
 
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { bounds, walkFloat } from '../../engine/src/geom/fk.js';
 import type { Layout, Part } from '../../engine/src/parts/schema.js';
 import { segmentPath } from './trackPath.js';
@@ -27,9 +27,15 @@ export interface TrackCanvasProps {
    * includes user-submitted parts and so cannot be a module constant.
    */
   readonly resolve: (id: string) => Part;
+  /**
+   * The one primary action the blank canvas offers (design D10). A slot, not a
+   * preset id, because the canvas has no business knowing what a preset is or
+   * how to apply one. App owns the piece list, so App owns the button.
+   */
+  readonly emptyAction?: ReactNode;
 }
 
-export function TrackCanvas({ layout, resolve }: TrackCanvasProps) {
+export function TrackCanvas({ layout, resolve, emptyAction }: TrackCanvasProps) {
   const { poses, segments } = useMemo(() => walkFloat(layout, resolve), [layout, resolve]);
 
   const box = useMemo(() => bounds(poses), [poses]);
@@ -59,12 +65,27 @@ export function TrackCanvas({ layout, resolve }: TrackCanvasProps) {
    */
   const plankWidth = (partId: string) => resolve(partId).plankWidthMm;
 
+  /*
+   * The empty state leads with ONE action (design D10).
+   *
+   * It used to read "No track yet." over "Add pieces from the palette. Eight
+   * large curves make an exact circle." Two sentences, neither of them a
+   * thing you could click, and the useful one was a recipe you had to carry
+   * to the palette and reassemble by hand. Meanwhile three other invitations
+   * competed to be first: the preset row, the palette itself, and the
+   * inventory prompt. A first-time user had no obvious first move.
+   *
+   * Now: a lead line, the circle preset as the primary action, and the rest
+   * demoted to one quiet line underneath. The inventory invitation is gone
+   * from here entirely and appears only after a layout exists.
+   */
   if (segments.length === 0) {
     return (
       <div className="canvas-empty">
-        <p>No track yet.</p>
+        <p className="canvas-empty-lead">Nothing on the floor yet.</p>
+        {emptyAction && <div className="canvas-empty-action">{emptyAction}</div>}
         <p className="canvas-empty-hint">
-          Add pieces from the palette. Eight large curves make an exact circle.
+          Or place pieces one at a time from the palette below.
         </p>
       </div>
     );

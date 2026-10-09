@@ -26,6 +26,54 @@
   max-width: 34ch;
 }
 .canvas-empty p { margin: 0 0 var(--s2); font-size: 17px; }
+
+/*
+ * One primary action, one lead, one demoted line (design D10, task K6).
+ *
+ * The lead takes --ink rather than inheriting the block's --ink-soft, so the
+ * three lines read in the order they should be read: statement, action, aside.
+ * Measured on --paper: lead 13.43:1, hint 5.21:1, button label 13.43:1
+ * against the filled --ink, all clear of WCAG 1.4.3's 4.5:1 text floor.
+ */
+.canvas-empty-lead { color: var(--ink); }
+
+.canvas-empty-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s2);
+  margin: 0 0 var(--s3);
+}
+
+/*
+ * FILLED, not outlined. The only filled button in the product.
+ *
+ * Every other button here is a 1px --rule outline, which is right for a row of
+ * equal choices. This one is not one of several choices, it is the single thing
+ * to do on an empty screen, so it gets the one step of hierarchy that outline
+ * buttons cannot express. If a second filled button ever appears, this stops
+ * being a hierarchy and becomes decoration: fix that, do not add a third.
+ */
+.canvas-empty-action button {
+  min-height: 40px;
+  padding: 0 var(--s4);
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: 3px;
+  color: var(--paper);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+.canvas-empty-action button:hover { background: var(--ink-soft); border-color: var(--ink-soft); }
+
+/* The preset's own claim, in the data face because "8 large curves" is a count. */
+.canvas-empty-note {
+  font-family: var(--font-data);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
 /* Body copy, so it owes the 16px floor. Was 15px. */
 .canvas-empty-hint { font-size: 16px; }
 
@@ -516,6 +564,7 @@
   .inventory-close,
   .inventory-fills button,
   .inventory-row-input,
+  .canvas-empty-action button,
   .toggle { min-height: 44px; }
 }
 
