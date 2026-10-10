@@ -10694,14 +10694,16 @@ bound lands before the vertex lift and before any weld is declarable.
   - Files: `engine/src/solver/residual.ts`, `engine/src/geom/pose.ts`, `engine/src/geom/fk.ts`
   - Verify: the order, the parent pointers, and the forest over a disconnected graph, each asserted directly
   - **DONE 2026-10-10**, commit `287e7d3`. Depth-first in declaration order, visited marked on POP. Both words were bought with a failing test: breadth-first reaches the last piece of a closed chain across the CLOSING weld and leaves an interior one over, and marking on push lets the root's late weld claim a piece before the deep path arrives. Either way the gap is reported at the wrong edge.
-- [ ] **T5 (P1, human: ~1 day / CC: ~45min)** — engine/solver + app — Enumerate the cycle space, keep connected even subgraphs, report the WORST SIMPLE CYCLE. Ceiling at rank 20 reports "too many loops to rank" rather than falling back to a basis cycle
+- [x] **T5 (P1, human: ~1 day / CC: ~45min)** — engine/solver + app — Enumerate the cycle space, keep connected even subgraphs, report the WORST SIMPLE CYCLE. Ceiling at rank 20 reports "too many loops to rank" rather than falling back to a basis cycle
   - Surfaced by: Scope Challenge finding 1, remedy R3, answer D3
   - Files: `engine/src/solver/residual.ts`, `engine/src/solver/result.ts`, `app/src/VerdictLine.tsx`
   - Verify: adding an unrelated piece does not change the reported gap for an untouched loop; the rank-20 ceiling is a bound on INPUT, checked before enumeration starts
-- [ ] **T6 (P1, human: ~1w / CC: ~1h)** — engine/solver — Per-cycle residual and per-cycle bound, with no give pooled across cycles, and one gauge anchor per connected component. Record C10's hard dependency on this task
+  - **DONE 2026-10-10**, commit `9450aa8`. Enumerates the cycle space by subsets of the fundamental basis and keeps only SIMPLE cycles, every vertex degree exactly 2: a degree-4 vertex is two loops meeting at a piece, and calling that one cycle would pool their give. The ceiling is checked before any enumeration and returns `worst: null`, so there is nothing to mistake for a ranked answer.
+- [x] **T6 (P1, human: ~1w / CC: ~1h)** — engine/solver — Per-cycle residual and per-cycle bound, with no give pooled across cycles, and one gauge anchor per connected component. Record C10's hard dependency on this task
   - Surfaced by: Architecture A3, remedy R4, answer D5. Measured: 9 distinct gaps at 10 pieces per cycle sit in the band where pooling flips the verdict
   - Files: `engine/src/solver/residual.ts`, `engine/src/solver/result.ts`
   - Verify: cycle rank equals E - V + CC; a gap in one cycle is never offset by give in another
+  - **DONE 2026-10-10**, commit `9450aa8`. Give is per-cycle, mutation-tested: pooling across the graph now fails by 6.4mm. The first version of that assertion was an inequality a pooled value cleared by 4e-15, which is not an assertion. One limit recorded honestly: cycle gaps are only COMBINED when every closing weld is rotation-aligned, because weld defects compose in SE(2) and only pure translations commute. A misaligned layout already fails on rotation, so nothing is lost.
 - [x] **T7 (P1, human: ~2 days / CC: ~1.5h)** — engine/test — Differential harness: every rank-1 fixture runs through BOTH engines and must agree exactly on gapMm, verdict and clash set. Migrate the 13 chain-coupled assertions; replace the vacuous rotation test with a graph-identity test
   - Surfaced by: Test review C2, remedy R6, answer D7
   - Files: `engine/test/analytic.test.ts`, `engine/test/render.test.ts`, `engine/test/`
@@ -10712,14 +10714,16 @@ bound lands before the vertex lift and before any weld is declarable.
   - Files: `engine/src/parts/schema.ts`, `engine/src/feasible.ts`, `engine/src/solver/residual.ts`
   - Verify: a switch heel contributes zero to `totalGiveMm`, raises no polarity violation, and still refuses a second piece placed on it
   - **DONE 2026-10-10**, commit `6f18bf5`. All three treatments, each pinned separately. Also closed a silent path the widening opened: `pose.ts` treated any non-straight as a curve and `SwitchPart` carries `arcSteps`, so a switch was walked as its diverging road with no error and a clean typecheck. Both `pose.ts` and `fk.ts` now throw and name the part.
-- [ ] **T9 (P1, human: ~3h / CC: ~20min)** — engine/feasible — Lift both feasibility predicates to vertices: no two DISTINCT vertices share a position, and polarity is a property of each weld. Delete the adjacency and seam exclusions, which were chain artifacts
+- [x] **T9 (P1, human: ~3h / CC: ~20min)** — engine/feasible — Lift both feasibility predicates to vertices: no two DISTINCT vertices share a position, and polarity is a property of each weld. Delete the adjacency and seam exclusions, which were chain artifacts
   - Surfaced by: Architecture A1 — `feasible.ts:81-82` and `:128-131`. Must not land ahead of T6 per R4
   - Files: `engine/src/feasible.ts`
   - Verify: a declared weld is never reported as an overlap; 16xE and the 8L+8R tangency still FAIL
-- [ ] **T10 (P2, human: ~1h / CC: ~10min)** — engine/solver + app — Rename `OPEN_CHAIN` to `NO_CYCLE` and rewrite its detail text to say the graph has no loop to check
+  - **DONE 2026-10-10**, commit `3ba214e`. Both index exclusions deleted outright. Mutation-tested in BOTH directions, which is the only way to show a predicate like this is calibrated rather than merely passing: re-introducing an adjacency exclusion fails 3 tests, and dropping the same-vertex check so declared welds report as clashes fails 4.
+- [x] **T10 (P2, human: ~1h / CC: ~10min)** — engine/solver + app — Rename `OPEN_CHAIN` to `NO_CYCLE` and rewrite its detail text to say the graph has no loop to check
   - Surfaced by: Code Quality B2 — `result.ts:47`
   - Files: `engine/src/solver/result.ts`, `app/src/VerdictLine.tsx`, `engine/test/analytic.test.ts`
   - Verify: `FAILURE_COPY`'s `Record<SolveFailure, string>` typing makes a missed rename a compile error
+  - **DONE 2026-10-10**, commit `e0026f6`. Renamed, and the `Record<SolveFailure, string>` enforcement verified by deleting the key: TS2741, not a fallthrough. Its detail text now reports how many separate runs of track are on the table instead of restating the headline, which is something a chain could not know.
 - [ ] **T11 (P2, human: ~2h / CC: ~15min)** — app — Deleting a piece removes every weld touching it; if that disconnects the graph, T3's captured anchor applies to the new component
   - Surfaced by: Code Quality B3 — C10's verify covers the active end, not a declared weld
   - Files: `app/src/App.tsx`, `engine/src/parts/schema.ts`
