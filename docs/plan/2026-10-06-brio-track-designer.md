@@ -10675,22 +10675,25 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
 code.** Everything else sits behind the sequencing gate from R4: C8's per-cycle
 bound lands before the vertex lift and before any weld is declarable.
 
-- [ ] **T1 (P1, human: ~1h / CC: ~10min)** — app + test — Give the SVG sweep flag one owner: export it from `TrackCanvas.tsx` and import it in `render.test.ts` instead of redeclaring it
+- [x] **T1 (P1, human: ~1h / CC: ~10min)** — app + test — Give the SVG sweep flag one owner: export it from `TrackCanvas.tsx` and import it in `render.test.ts` instead of redeclaring it
   - Surfaced by: Test review C1 — inverting `TrackCanvas.tsx:30` leaves all 50 tests green, proven by mutation
   - Files: `app/src/TrackCanvas.tsx`, `engine/test/render.test.ts`
   - Verify: invert the exported flag and the suite must FAIL; it passes today
-- [ ] **T2 (P1, human: ~1w / CC: ~2h)** — engine/parts — `Layout` becomes a graph: nodes with a kind, edges as routes, user-declared welds, piece identity, and the crossing's rigid same-piece constraint. Graph types live in `schema.ts` per D2
+  - **DONE** earlier this session, commit `86614bc`. The flag lives in `app/src/trackPath.ts` and is imported, not redeclared.
+- [x] **T2 (P1, human: ~1w / CC: ~2h)** — engine/parts — `Layout` becomes a graph: nodes with a kind, edges as routes, user-declared welds, piece identity, and the crossing's rigid same-piece constraint. Graph types live in `schema.ts` per D2
   - Surfaced by: scope record D1 and D2, implementing C6 as written
   - Files: `engine/src/parts/schema.ts`, `engine/src/geom/pose.ts`, `engine/src/geom/fk.ts`
   - Verify: a crossing's two routes stay rigidly related under both traversal orders
+  - **DONE 2026-10-10**, commit `287e7d3`. Ports in a local frame, NOT routes between ends: a crossing's two routes share no end, so a route model loses their relation and the halves drift by traversal order. One frame per piece makes rigidity structural. Verified by reaching a four-port crossing through each of its ports and asserting identical pairwise distances and heading differences.
 - [ ] **T3 (P1, human: ~4h / CC: ~30min)** — engine/parts + app — Per-component anchor pose, CAPTURED at the moment of a split and never re-derived, so it stays a lattice point with no epsilon. Bump the storage key with the field
   - Surfaced by: Architecture A2 and A5, remedy R2, answer D4
   - Files: `engine/src/parts/schema.ts`, `engine/src/geom/pose.ts`, `engine/src/geom/fk.ts`, `app/src/App.tsx`
   - Verify: breaking an interior weld leaves both halves exactly where they were, and neither loses exact closure
-- [ ] **T4 (P1, human: ~1 day / CC: ~45min)** — engine/solver — One spanning forest, built once, returning parent pointers and a deterministic visit order. Three consumers: the exact walk, the float render walk, and cycle extraction. Shared-contract tests required
+- [x] **T4 (P1, human: ~1 day / CC: ~45min)** — engine/solver — One spanning forest, built once, returning parent pointers and a deterministic visit order. Three consumers: the exact walk, the float render walk, and cycle extraction. Shared-contract tests required
   - Surfaced by: Code Quality B1, remedy R5, answer D6
   - Files: `engine/src/solver/residual.ts`, `engine/src/geom/pose.ts`, `engine/src/geom/fk.ts`
   - Verify: the order, the parent pointers, and the forest over a disconnected graph, each asserted directly
+  - **DONE 2026-10-10**, commit `287e7d3`. Depth-first in declaration order, visited marked on POP. Both words were bought with a failing test: breadth-first reaches the last piece of a closed chain across the CLOSING weld and leaves an interior one over, and marking on push lets the root's late weld claim a piece before the deep path arrives. Either way the gap is reported at the wrong edge.
 - [ ] **T5 (P1, human: ~1 day / CC: ~45min)** — engine/solver + app — Enumerate the cycle space, keep connected even subgraphs, report the WORST SIMPLE CYCLE. Ceiling at rank 20 reports "too many loops to rank" rather than falling back to a basis cycle
   - Surfaced by: Scope Challenge finding 1, remedy R3, answer D3
   - Files: `engine/src/solver/residual.ts`, `engine/src/solver/result.ts`, `app/src/VerdictLine.tsx`
@@ -10699,14 +10702,16 @@ bound lands before the vertex lift and before any weld is declarable.
   - Surfaced by: Architecture A3, remedy R4, answer D5. Measured: 9 distinct gaps at 10 pieces per cycle sit in the band where pooling flips the verdict
   - Files: `engine/src/solver/residual.ts`, `engine/src/solver/result.ts`
   - Verify: cycle rank equals E - V + CC; a gap in one cycle is never offset by give in another
-- [ ] **T7 (P1, human: ~2 days / CC: ~1.5h)** — engine/test — Differential harness: every rank-1 fixture runs through BOTH engines and must agree exactly on gapMm, verdict and clash set. Migrate the 13 chain-coupled assertions; replace the vacuous rotation test with a graph-identity test
+- [x] **T7 (P1, human: ~2 days / CC: ~1.5h)** — engine/test — Differential harness: every rank-1 fixture runs through BOTH engines and must agree exactly on gapMm, verdict and clash set. Migrate the 13 chain-coupled assertions; replace the vacuous rotation test with a graph-identity test
   - Surfaced by: Test review C2, remedy R6, answer D7
   - Files: `engine/test/analytic.test.ts`, `engine/test/render.test.ts`, `engine/test/`
   - Verify: the differential suite passes on all 50 rank-1 fixtures with exact equality, not tolerance; the chain engine is deleted only once it is green
-- [ ] **T8 (P1, human: ~3h / CC: ~20min)** — engine — The switch-heel node kind gets all three of its treatments: donates no give, exempt from polarity, included in the coincident-vertex check
+  - **DONE 2026-10-10**, commit `287e7d3`. Enumerates rather than lists: 600 random chains, 1 to 12 pieces, both turn directions, fixed seed. Found three real disagreements: the self-weld of a single closed piece (rank 1, which I had skipped), the heading mismatch signed the opposite way, and open chains where `computeResidual` returns a displacement that `solveLayout` discards. Also checks it can fail, by bending ONE radius class; bending both moves nothing, which is the radius-difference invariant.
+- [x] **T8 (P1, human: ~3h / CC: ~20min)** — engine — The switch-heel node kind gets all three of its treatments: donates no give, exempt from polarity, included in the coincident-vertex check
   - Surfaced by: Architecture A4 — C6 names one of the three
   - Files: `engine/src/parts/schema.ts`, `engine/src/feasible.ts`, `engine/src/solver/residual.ts`
   - Verify: a switch heel contributes zero to `totalGiveMm`, raises no polarity violation, and still refuses a second piece placed on it
+  - **DONE 2026-10-10**, commit `6f18bf5`. All three treatments, each pinned separately. Also closed a silent path the widening opened: `pose.ts` treated any non-straight as a curve and `SwitchPart` carries `arcSteps`, so a switch was walked as its diverging road with no error and a clean typecheck. Both `pose.ts` and `fk.ts` now throw and name the part.
 - [ ] **T9 (P1, human: ~3h / CC: ~20min)** — engine/feasible — Lift both feasibility predicates to vertices: no two DISTINCT vertices share a position, and polarity is a property of each weld. Delete the adjacency and seam exclusions, which were chain artifacts
   - Surfaced by: Architecture A1 — `feasible.ts:81-82` and `:128-131`. Must not land ahead of T6 per R4
   - Files: `engine/src/feasible.ts`
