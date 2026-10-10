@@ -126,7 +126,19 @@ export interface SlopBudget {
   readonly calibrationStatus: CalibrationStatus;
 }
 
-export type PartKind = 'straight' | 'curve';
+/*
+ * 'switch' is the first kind with more than two ends, and adding it is what
+ * the graph rewrite was for. A chain `Layout` could not express a branch at
+ * all, so a switch in the palette would have built a layout the engine could
+ * not represent: eng review R22, which is why the catalogue was held to
+ * two-ended parts until now.
+ *
+ * 'crossing' is deliberately NOT here yet. The model handles four ports (see
+ * the crossing test in graphModel.test.ts) but a crossing also needs the
+ * same-layer overlap rule it is allowed to violate at its own footprint,
+ * which is K8's scope.
+ */
+export type PartKind = 'straight' | 'curve' | 'switch';
 
 /**
  * Which half of a joint an end is. A joint mates a peg with a socket; peg to peg
@@ -262,7 +274,37 @@ export interface CurvePart extends PartBase {
   readonly arcSteps: number;
 }
 
-export type Part = StraightPart | CurvePart;
+/**
+ * A switch: one piece, three ends, two roads.
+ *
+ * Entry is the HEEL, where the roads meet; from there the track either runs
+ * straight for `throughLengthMm` or curves away by `arcSteps`. Both are
+ * measured in the part's own frame, so the piece is rigid by construction
+ * and its two roads cannot drift apart depending on which one you walk.
+ *
+ * `turn` at placement decides which side it diverges to, so a left-hand and
+ * a right-hand switch are one part placed two ways rather than two records
+ * that could disagree with each other.
+ *
+ * NO SWITCH IS IN THE CATALOGUE YET, and that is on purpose. Nobody has
+ * published BRIO's switch geometry in a form this file could cite, and the
+ * rule this project runs on is that a dimension without a source does not
+ * get written down. The type exists so the engine can carry one the day the
+ * figures are sourced (task K1); until then switches appear only in tests,
+ * where their numbers are declared locally and claim nothing about real
+ * track.
+ */
+export interface SwitchPart extends PartBase {
+  readonly kind: 'switch';
+  /** Heel to the straight road's end, millimetres. */
+  readonly throughLengthMm: number;
+  /** Arc of the diverging road, in 22.5-degree steps. */
+  readonly arcSteps: number;
+  /** Radius of the diverging road, to the INNER edge. See CurvePart. */
+  readonly innerRadiusMm: number;
+}
+
+export type Part = StraightPart | CurvePart | SwitchPart;
 
 /**
  * The radius the ENGINE needs: from the arc centre to the centre of the track.
@@ -308,7 +350,7 @@ export function shortCode(part: Part): string {
   return part.id.startsWith(prefix) ? part.id.slice(prefix.length) : part.id;
 }
 
-export function centrelineRadiusMm(part: CurvePart): number {
+export function centrelineRadiusMm(part: CurvePart | SwitchPart): number {
   return part.innerRadiusMm + part.plankWidthMm / 2;
 }
 

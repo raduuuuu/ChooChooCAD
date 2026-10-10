@@ -104,19 +104,85 @@ export interface Graph {
  * without anything downstream changing.
  */
 export function portsOf(part: Part, turn: Turn = 'left'): readonly Port[] {
-  const entry: Port = { kind: 'end', at: { pos: ZERO, heading: 8 } };
+  // Port 0 is the HEEL on a switch and an ordinary end everywhere else. On a
+  // two-ported part the distinction is invisible, which is why it can be set
+  // here once rather than threaded through the walk.
+  const entry: Port = { kind: part.kind === 'switch' ? 'heel' : 'end', at: ENTRY };
   if (part.kind === 'straight') {
-    return [entry, { kind: 'end', at: { pos: scale(zetaPow(0), part.lengthMm), heading: 0 } }];
+    return [entry, { kind: 'end', at: { pos: straightEnd(part.lengthMm), heading: 0 } }];
   }
-  const r = centrelineRadiusMm(part);
-  const s = part.arcSteps;
-  // Same displacement the chain walk used, with heading 0: the local frame IS
-  // "entering at the origin heading +x", so these agree by construction.
+  if (part.kind === 'curve') {
+    return [entry, { kind: 'end', at: arcEnd(centrelineRadiusMm(part), part.arcSteps, turn) }];
+  }
+  /*
+   * A SWITCH. Three ports, and nothing else in this file had to change.
+   *
+   * Port 0 is the heel, where the two routes meet. Port 1 is the straight
+   * road, port 2 the diverging one. Both are measured from the same local
+   * frame, so the switch is rigid for exactly the reason the crossing is:
+   * there is one frame, not two routes that have to be kept in step.
+   *
+   * `turn` picks which side the switch diverges to, the same way it mirrors
+   * a curve, so a left-hand and a right-hand switch are one part placed two
+   * ways rather than two catalogue entries.
+   */
+  return [
+    entry,
+    { kind: 'end', at: { pos: straightEnd(part.throughLengthMm), heading: 0 } },
+    { kind: 'end', at: arcEnd(centrelineRadiusMm(part), part.arcSteps, turn) },
+  ];
+}
+
+const ENTRY: Frame = { pos: ZERO, heading: 8 };
+
+function straightEnd(lengthMm: number): Cyc {
+  return scale(zetaPow(0), lengthMm);
+}
+
+/**
+ * The far end of an arc entered at the local origin heading +x.
+ *
+ * The same displacement the chain walk used at heading 0, so the two engines
+ * agree by construction rather than by a test that happens to pass.
+ */
+function arcEnd(r: number, s: number, turn: Turn): Frame {
   const pos =
     turn === 'left'
       ? scale(sub(zetaPow(4), zetaPow(4 + s)), r)
       : scale(sub(zetaPow(4 - s), zetaPow(4)), r);
-  return [entry, { kind: 'end', at: { pos, heading: turn === 'left' ? s : -s } }];
+  return { pos, heading: turn === 'left' ? s : -s };
+}
+
+/**
+ * Give at a weld, millimetres (T8's first heel treatment).
+ *
+ * A HEEL DONATES NOTHING. The heel is not a connector: it is the point inside
+ * one moulded piece where its two roads meet, so there is no plug, no socket
+ * and no slop to take up. Counting it would hand every switch in a loop a
+ * free millimetre of tolerance it does not physically have, and the error
+ * compounds with the number of switches.
+ */
+export function weldGiveMm(
+  a: Port,
+  b: Port,
+  slopA: number,
+  slopB: number,
+): number {
+  if (a.kind === 'heel' || b.kind === 'heel') return 0;
+  // Max, not min: the bound is a NECESSARY condition, so give must be an
+  // upper estimate or a layout that cannot be built could still pass.
+  return Math.max(slopA, slopB);
+}
+
+/**
+ * Whether a weld can be checked for polarity (T8's second heel treatment).
+ *
+ * A heel is exempt. Polarity models peg against socket, and a heel is neither,
+ * so asking whether it mates correctly is a category error that would report
+ * a violation on every switch.
+ */
+export function weldHasPolarity(a: Port, b: Port): boolean {
+  return a.kind !== 'heel' && b.kind !== 'heel';
 }
 
 /** Compose: where a local pose lands once its piece's frame is placed. */
