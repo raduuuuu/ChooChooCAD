@@ -79,7 +79,7 @@ export function VerdictLine({
     return (
       <div className="verdict verdict-unknown">
         <span className="verdict-mark">?</span>
-        <span>Nothing to check yet.</span>
+        <span className="verdict-text">Nothing to check yet.</span>
       </div>
     );
   }
@@ -89,7 +89,7 @@ export function VerdictLine({
     return (
       <div className="verdict verdict-unknown">
         <span className="verdict-mark">?</span>
-        <span>
+        <span className="verdict-text">
           {FAILURE_COPY[result.reason] ?? 'Could not check this layout.'}{' '}
           <span className="verdict-detail">{result.detail}</span>
         </span>
@@ -111,13 +111,13 @@ export function VerdictLine({
         <div className="verdict verdict-fail">
           <span className="verdict-mark">X</span>
           {e.polarityViolations.length > 0 ? (
-            <span>
+            <span className="verdict-text">
               Can&rsquo;t be built. <span className="num">{e.polarityViolations.length}</span>{' '}
               {e.polarityViolations.length === 1 ? 'joint puts' : 'joints put'} two ends of
               the same kind together, and those do not fit.
             </span>
           ) : (
-            <span>
+            <span className="verdict-text">
               Can&rsquo;t be built. <span className="num">{e.clashes.length}</span>{' '}
               {e.clashes.length === 1 ? 'pair of track ends lands' : 'pairs of track ends land'}{' '}
               in exactly the same spot, so two pieces would have to share it.
@@ -136,7 +136,7 @@ export function VerdictLine({
       return (
         <div className="verdict verdict-pass">
           <span className="verdict-mark">O</span>
-          <span>This works. Closes exactly, no give needed at any joint.</span>
+          <span className="verdict-text">This works. Closes exactly, no give needed at any joint.</span>
           <Trust trust={trust} />
           <Action action={ACTION_FOR_VERDICT[e.verdict]} />
         </div>
@@ -146,7 +146,7 @@ export function VerdictLine({
       return (
         <div className="verdict verdict-tight">
           <span className="verdict-mark">/\</span>
-          <span>
+          <span className="verdict-text">
             Needs <span className="num">{e.gapMm.toFixed(0)}mm</span> absorbed across{' '}
             <span className="num">{e.jointCount}</span> joints, which give{' '}
             <span className="num">{e.totalGiveMm.toFixed(0)}mm</span> between them. That
@@ -161,7 +161,7 @@ export function VerdictLine({
       return (
         <div className="verdict verdict-fail">
           <span className="verdict-mark">X</span>
-          <span>
+          <span className="verdict-text">
             Won&rsquo;t fit. Needs <span className="num">{e.gapMm.toFixed(0)}mm</span>{' '}
             absorbed, but the joints give only{' '}
             <span className="num">{e.totalGiveMm.toFixed(0)}mm</span> in total.
@@ -175,7 +175,7 @@ export function VerdictLine({
       return (
         <div className="verdict verdict-unknown">
           <span className="verdict-mark">?</span>
-          <span>
+          <span className="verdict-text">
             Could not check this layout.{' '}
             <span className="verdict-detail">{e.reasons.join('; ')}</span>
           </span>

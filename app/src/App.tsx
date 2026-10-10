@@ -18,7 +18,7 @@
  *     (R21). There is no per-joint ratio and no per-joint glyph.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState , type ReactNode } from 'react';
 import { BRIO_PARTS } from '../../engine/data/brio.js';
 import {
   loadSubmissions,
@@ -134,6 +134,31 @@ const BRAND_LABEL: Record<Brand, string> = {
 const partsByBrand = (lib: readonly Part[], b: Brand) => lib.filter((p) => p.brand === b);
 
 
+/**
+ * A brand's shelf in the palette.
+ *
+ * BRIO is a plain open group. Every other brand is a `<details>` that starts
+ * CLOSED, so its pieces cost one line until you want them.
+ *
+ * The first attempt capped the palette and let it scroll, which gave the
+ * canvas its space back and then hid IKEA and Playtive entirely below an
+ * invisible fold: on macOS the overlay scrollbar does not show until you
+ * scroll, so a third of the catalogue simply looked absent. Collapsing is
+ * better than clipping, because a closed row still says the brand is there
+ * and still carries its warning.
+ *
+ * It also matches the actual hierarchy. BRIO is the only brand whose
+ * dimensions are published, so it is the default; the others are opt-in, and
+ * their summary line states that their sizes are unverified before you can
+ * reach a single one of their pieces.
+ */
+function BrandGroup({ brand, children }: { brand: Brand; children: ReactNode }) {
+  if (brand === 'BRIO') return <div className="brand-group">{children}</div>;
+  return (
+    <details className="brand-group is-collapsible">{children}</details>
+  );
+}
+
 export function App() {
   /*
    * ORDER MATTERS HERE. The library includes parts this user submitted, so it
@@ -211,6 +236,113 @@ export function App() {
   const counts = usedCounts(pieces.map((p) => p.partId));
   const shortfalls = computeShortfalls(inventory, counts);
 
+  /* One brand's shelf. Used twice: BRIO inside the scrolling region, the
+     rest pinned below it. See the comment at the call site. */
+  const renderBrand = (brand: Brand) => (
+    <BrandGroup key={brand} brand={brand}>
+          {brand !== 'BRIO' && (
+            /*
+              * ONE LINE, not a paragraph, and it doubles as the group's
+              * disclosure control.
+              *
+              * This was four lines of running prose between two rows of
+              * buttons, twice over, and it was most of why the palette ate 70%
+              * of the screen. The content was right and the placement was not:
+              * a tool's parts bin is scanned, not read.
+              *
+              * Nothing is hidden that matters. The summary keeps both facts
+              * that change what you click, the sizes are unverified and
+              * whether the brand joins BRIO, and it says them BEFORE you can
+              * reach one of the pieces. Provenance and the pieces themselves
+              * are one click away. The full consequence still arrives
+              * unprompted at the moment it matters: place one and the
+              * verdict's trust register spells out the mismatch for THAT
+              * layout. Same move K4 made with the provisional note.
+              */
+            <>
+            <summary className="brand-note">
+              <span className="brand-name">{BRAND_LABEL[brand]}</span>
+              <span className="brand-warn">unverified</span>
+              <span className="brand-count">
+                {partsByBrand(library, brand).length}
+                {partsByBrand(library, brand).length === 1 ? ' piece' : ' pieces'}
+              </span>
+            </summary>
+            {/*
+              * The full warning sits INSIDE the shelf, above its pieces.
+              *
+              * The summary has to fit one line in a 320px rail, and the whole
+              * sentence does not. Putting it here loses nothing, because the
+              * shelf has to be opened before any of its pieces can be clicked:
+              * the warning is still read before the part is chosen, which is
+              * the thing that actually matters. The summary keeps the word
+              * that makes you look.
+              */}
+            <p className="brand-detail">
+              {brandFit('BRIO', brand).fit === 'does-not-join'
+                ? 'These do not physically join BRIO track.'
+                : 'Whether these join BRIO track is undocumented.'}{' '}
+              Nobody publishes dimensions for them; the figures come from 3D-print
+              reproductions. Place one and the verdict says what that means for your
+              layout.
+            </p>
+            </>
+          )}
+        <div className="palette-row">
+          {partsByBrand(library, brand).map((part) => {
+            /*
+             * ADVICE, NEVER A GATE (decision D8).
+             *
+             * `is-unowned` greys the button and nothing else. It stays clickable,
+             * stays focusable, and carries no `disabled`, because a shortfall is
+             * information about the real world rather than an error in the
+             * layout: people borrow track, buy more, and sketch layouts they
+             * cannot build yet. Hiding or disabling the piece would teach the
+             * user nothing and read as a bug. `aria-describedby` is not used
+             * here either; the state is carried in the accessible name below so
+             * it is announced with the control rather than after it.
+             */
+            const unowned = wouldExceed(inventory, counts, part.id);
+            const unverified = isUnverified(part);
+            return (
+            <div
+              key={part.id}
+              className={
+                'piece' + (unowned ? ' is-unowned' : '') + (unverified ? ' is-unverified' : '')
+              }
+            >
+              <button
+                className="piece-main"
+                onClick={() => add(part.id, 'left')}
+                aria-label={
+                  `Add ${part.name}` +
+                  (unverified ? '. Unverified size.' : '') +
+                  (unowned ? '. More than you own.' : '')
+                }
+              >
+                <span className="piece-id num">{shortCode(part)}</span>
+                <span className="piece-name">{part.name}</span>
+                <span className="piece-dim num">
+                  {part.kind === 'straight' ? `${part.lengthMm}mm` : `r${centrelineRadiusMm(part)}`}
+                </span>
+              </button>
+              {part.kind === 'curve' && (
+                <button
+                  className="piece-mirror"
+                  onClick={() => add(part.id, 'right')}
+                  title={`Add ${part.name} turning right`}
+                >
+                  ↻
+                </button>
+              )}
+              {counts[part.id] ? <span className="piece-count num">{counts[part.id]}</span> : null}
+            </div>
+            );
+          })}
+        </div>
+    </BrandGroup>
+  );
+
   return (
     <div className="shell">
       <main className="stage">
@@ -279,72 +411,34 @@ export function App() {
           * would say they are equivalent, and they are not. Each non-BRIO group
           * states its provenance once, above its pieces.
           */}
-        {BRAND_ORDER.filter((b) => partsByBrand(library, b).length > 0).map((brand) => (
-        <div key={brand} className="brand-group">
-          {brand !== 'BRIO' && (
-            <p className="brand-note">
-              <span className="brand-name">{BRAND_LABEL[brand]}</span>{' '}
-              <span className="brand-warn">unverified sizes</span>{' '}
-              {brandFit('BRIO', brand).fit === 'does-not-join'
-                ? 'and these do not physically join BRIO track.'
-                : 'and compatibility with BRIO is undocumented.'}{' '}
-              Nobody publishes dimensions for these; the figures come from 3D-print reproductions.
-            </p>
-          )}
-        <div className="palette-row">
-          {partsByBrand(library, brand).map((part) => {
-            /*
-             * ADVICE, NEVER A GATE (decision D8).
-             *
-             * `is-unowned` greys the button and nothing else. It stays clickable,
-             * stays focusable, and carries no `disabled`, because a shortfall is
-             * information about the real world rather than an error in the
-             * layout: people borrow track, buy more, and sketch layouts they
-             * cannot build yet. Hiding or disabling the piece would teach the
-             * user nothing and read as a bug. `aria-describedby` is not used
-             * here either; the state is carried in the accessible name below so
-             * it is announced with the control rather than after it.
-             */
-            const unowned = wouldExceed(inventory, counts, part.id);
-            const unverified = isUnverified(part);
-            return (
-            <div
-              key={part.id}
-              className={
-                'piece' + (unowned ? ' is-unowned' : '') + (unverified ? ' is-unverified' : '')
-              }
-            >
-              <button
-                className="piece-main"
-                onClick={() => add(part.id, 'left')}
-                aria-label={
-                  `Add ${part.name}` +
-                  (unverified ? '. Unverified size.' : '') +
-                  (unowned ? '. More than you own.' : '')
-                }
-              >
-                <span className="piece-id num">{shortCode(part)}</span>
-                <span className="piece-name">{part.name}</span>
-                <span className="piece-dim num">
-                  {part.kind === 'straight' ? `${part.lengthMm}mm` : `r${centrelineRadiusMm(part)}`}
-                </span>
-              </button>
-              {part.kind === 'curve' && (
-                <button
-                  className="piece-mirror"
-                  onClick={() => add(part.id, 'right')}
-                  title={`Add ${part.name} turning right`}
-                >
-                  ↻
-                </button>
-              )}
-              {counts[part.id] ? <span className="piece-count num">{counts[part.id]}</span> : null}
-            </div>
-            );
-          })}
+        {/*
+          * The parts region scrolls only as a last resort; the controls below
+          * it never do. Capping the palette gave the canvas its space back,
+          * but it also put Clear, Remove last, the presets and the inventory
+          * buttons inside the clipped region. Primary controls that scroll out
+          * of sight are worse than a tall palette, so only this region can.
+          */}
+        {/*
+          * BRIO SCROLLS; THE OTHER SHELVES DO NOT.
+          *
+          * Two attempts got this wrong. Capping the palette hid IKEA and
+          * Playtive below an invisible fold. Collapsing them to one line each
+          * helped but they were still inside the scrolling region, so with the
+          * full BRIO list above them they were still off-screen, and styling
+          * the scrollbar was decorating the problem rather than fixing it.
+          *
+          * The scrolling region now holds ONE homogeneous list, the BRIO
+          * catalogue, which is the only one long enough to need scrolling and
+          * the one a user expects to scroll. The other brands are navigation,
+          * one line each, pinned where they are always visible.
+          */}
+        <div className="palette-parts">
+          {renderBrand('BRIO')}
         </div>
+        <div className="palette-shelves">
+          {BRAND_ORDER.filter((b) => b !== 'BRIO' && partsByBrand(library, b).length > 0)
+            .map(renderBrand)}
         </div>
-        ))}
 
         <div className="palette-row palette-controls">
           <label className="toggle">
@@ -380,9 +474,9 @@ export function App() {
         {pieces.length > 0 && !inventoryOpen && (
           <div className="palette-row palette-controls">
             <button onClick={() => setInventoryOpen(true)}>
-              {inventory === null ? 'Say what you own' : 'What you own'}
+              {inventory === null ? 'Your box' : 'Your box'}
             </button>
-            <button onClick={() => setSubmitOpen(true)}>Add a part you own</button>
+            <button onClick={() => setSubmitOpen(true)}>Add a part</button>
             {inventory === null && (
               <span className="inventory-hint">
                 Nothing is checked against your box yet.

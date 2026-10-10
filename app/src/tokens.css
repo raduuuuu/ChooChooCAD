@@ -94,6 +94,20 @@
    * never depends on seeing a groove.
    */
   --track-groove: #9c7f50;
+  /*
+   * THE FLOOR. The canvas ground, not --paper.
+   *
+   * Canvas and palette were both --paper, so the thing you are designing and
+   * the bin you pull parts from were the same surface. This makes the canvas
+   * a floor and leaves the palette light, which is the right way round: track
+   * goes down on a floor and gets picked out of a tray.
+   *
+   * #ece6da and no darker. The empty state's secondary line sits on it at
+   * 4.64:1, over the 4.5:1 text floor, and the plank edge reads 3.65:1, over
+   * the 3:1 for non-text. Darkening the TRAY instead was the first attempt
+   * and it fails: #eae2d4 puts --ink-soft at 4.48:1.
+   */
+  --floor: #ece6da;
   --track-edge: #8a7349;
 
   /*

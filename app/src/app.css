@@ -1,8 +1,22 @@
 /* Layout and chrome. All colour comes from tokens.css. */
 
+/*
+ * WHO GETS THE SCREEN.
+ *
+ * Measured before this change, at a 720px viewport: canvas 135px, verdict
+ * 79px, palette 506px. The palette took 70% and the thing being designed took
+ * 19%, while TrackCanvas.tsx's own docblock claimed the canvas "dominates".
+ *
+ * The stage was always `1fr`, so this was not a missing flex. `1fr` takes what
+ * the auto rows leave, and the palette's natural height was 506px. The fix is
+ * on both sides: `minmax(320px, 1fr)` stops the canvas being squeezed below a
+ * usable size, and the palette is capped, so adding a fourth brand can never
+ * again take the canvas apart. On wide screens the media query at the end of
+ * this file moves the palette into a rail, which is what actually solves it.
+ */
 .shell {
   display: grid;
-  grid-template-rows: 1fr auto auto;
+  grid-template-rows: minmax(320px, 1fr) auto auto;
   height: 100%;
   min-height: 0;
 }
@@ -11,7 +25,7 @@
 .stage {
   min-height: 0;
   display: flex;
-  background: var(--paper);
+  background: var(--floor);
   overflow: hidden;
 }
 .canvas {
@@ -94,10 +108,30 @@
  */
 
 /* 2nd in hierarchy: one unmistakable status line. */
+/*
+ * THREE REGISTERS, TWO ROWS.
+ *
+ * K4 gave the verdict three registers and laid them out as three flex
+ * columns, which put the claim, the caveat and the instruction at the same
+ * visual weight across the full width: a strip of undifferentiated grey with
+ * "Nothing to fix. Build it." marooned at the far right in 14px.
+ *
+ * The registers were right, the layout was not. Row one carries what you need
+ * at a glance, the claim on the left and the action beside it, both in --ink.
+ * Row two carries the trust caveats under the claim, smaller and softer.
+ */
 .verdict {
-  display: flex;
+  display: grid;
+  /*
+   * `auto minmax(0,1fr) auto` pushed the action hard against the right edge,
+   * half a screen from the claim it answers. The text column now takes its
+   * natural width and the action follows immediately, with the slack trailing
+   * off to the right where it costs nothing.
+   */
+  grid-template-columns: auto minmax(0, auto) 1fr;
+  column-gap: var(--s4);
+  row-gap: var(--s1);
   align-items: baseline;
-  gap: var(--s3);
   padding: var(--s3) var(--s4);
   border-top: 1px solid var(--rule);
   border-bottom: 1px solid var(--rule);
@@ -105,6 +139,9 @@
   font-size: 16px;
   line-height: 1.45;
 }
+.verdict-mark { grid-column: 1; grid-row: 1; }
+.verdict-text { grid-column: 2; grid-row: 1; }
+.verdict-trust { grid-column: 2 / -1; grid-row: 2; }
 .verdict-mark {
   font-family: var(--font-data);
   font-weight: 600;
@@ -151,19 +188,32 @@
  * --ink-soft on --paper is 5.21:1, clear of the 4.5:1 text floor.
  */
 .verdict-action {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: start;
   position: relative;
-  margin: var(--s2) 0 0;
+  margin: 0;
   padding: 0 0 0 var(--s4);
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--ink-soft);
-  max-width: 76ch;
+  max-width: 34ch;
+  font-size: 15px;
+  line-height: 1.45;
+  /* --ink, not --ink-soft: this is the instruction, not a footnote. */
+  color: var(--ink);
+  font-weight: 500;
+  text-align: left;
 }
+/*
+ * The arrow sits INSIDE the action's padding box. It was at a negative
+ * offset left over from when the action was a block under the trust list,
+ * which in the one-line layout printed it on top of the end of the verdict
+ * sentence: "...at any joint.->".
+ */
 .verdict-action::before {
   content: '\2192';
   position: absolute;
-  left: calc(var(--s3) * -1 + var(--s4) - var(--s4));
+  left: 0;
   font-weight: 600;
+  color: var(--ink-soft);
 }
 .verdict-pass    .verdict-mark { color: var(--pass); }
 .verdict-tight   .verdict-mark { color: var(--tight); }
@@ -177,10 +227,66 @@
   display: flex;
   flex-direction: column;
   gap: var(--s3);
+  /*
+   * A ceiling, not a target. See .shell.
+   *
+   * 34vh was the first try and it was too tight once the brand shelves
+   * collapsed: it clipped BRIO's own rows. The tray takes the height it needs
+   * up to 45vh, and `.shell`'s `minmax(320px, 1fr)` is what protects the
+   * canvas. Below that, on a short window, the parts region scrolls. That is
+   * the last resort it was always meant to be rather than the normal case.
+   */
+  max-height: 45vh;
+  min-height: 0;
+  background: var(--paper);
+}
+/*
+ * Only the parts scroll. The control rows under this stay put, because a
+ * Clear button that scrolls out of sight is worse than the tall palette this
+ * cap was introduced to fix.
+ */
+.palette-parts {
+  min-height: 0;
+  overflow-y: auto;
+  /*
+   * A VISIBLE scrollbar, not the macOS overlay one.
+   *
+   * The overlay scrollbar appears only while you scroll, so a clipped list
+   * looks like a complete list. That is exactly how two whole brands went
+   * missing from the palette earlier. If content is cut off, the UI has to
+   * say so without being touched first.
+   */
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule) transparent;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  /* Clipped content needs to look clipped, so the last row is cut mid-card
+     rather than ending flush with the edge. */
+  padding-bottom: var(--s2);
+}
+.palette-parts::-webkit-scrollbar { width: 10px; }
+.palette-parts::-webkit-scrollbar-thumb {
+  background: var(--rule);
+  border: 3px solid var(--paper);
+  border-radius: 5px;
+}
+
+/*
+ * The brand shelves, pinned under the scrolling BRIO list. One line each, so
+ * a user can always see that IKEA and Playtive exist and what is wrong with
+ * their data, whatever the BRIO list is doing above.
+ */
+.palette-shelves {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  padding-top: var(--s2);
+  border-top: 1px solid var(--rule);
 }
 .palette-row {
   display: flex;
-  gap: var(--s2);
+  gap: var(--s1);
   align-items: center;
   flex-wrap: wrap;
 }
@@ -201,12 +307,26 @@
    * grow means a long code from a brand or a user submission pushes the name
    * across instead of landing underneath it.
    */
-  grid-template-columns: minmax(2.6ch, auto) 1fr;
-  grid-template-rows: auto auto;
+  /*
+   * ONE ROW: code, name, dimension. It was two rows with the dimension under
+   * the name, which made every card 49px tall. Nine of those in the 320px
+   * rail is 513px of a 641px column, so the list clipped before it reached
+   * the brand shelves. One row is 36px and the whole catalogue fits.
+   *
+   * It also scans better. A parts bin is read down a column of codes and
+   * across to a size; stacking the size under the name put it in neither
+   * place.
+   */
+  grid-template-columns: minmax(2.6ch, auto) 1fr auto;
   gap: 0 var(--s2);
   align-items: baseline;
   text-align: left;
-  min-height: 44px;            /* touch target floor */
+  /*
+   * 36px on a pointer, 44px on touch (see the coarse-pointer block below).
+   * WCAG 2.5.8 asks 24px for pointer input, so 36 clears it with room. 44
+   * everywhere cost 72px of a 641px rail for no accessibility gain on a mouse.
+   */
+  min-height: 36px;
   padding: var(--s2) var(--s3);
   background: var(--paper);
   border: 1px solid var(--rule);
@@ -227,9 +347,9 @@
  * The floor existed as a 16px rule the code broke in eight places. Naming the
  * second floor makes the rule true instead of violated.
  */
-.piece-id { grid-row: span 2; font-weight: 600; font-size: 15px; white-space: nowrap; }
+.piece-id { font-weight: 600; font-size: 15px; white-space: nowrap; }
 .piece-name { font-size: 14px; }
-.piece-dim { font-size: 12px; color: var(--ink-soft); }
+.piece-dim { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
 .piece-mirror {
   min-width: 32px;
   min-height: 44px;
@@ -393,13 +513,62 @@
   padding-top: var(--s3);
   border-top: 1px solid var(--rule);
 }
+/*
+ * A brand's shelf, as one scannable line.
+ *
+ * It was a 76ch paragraph wrapping to four lines, twice over, between rows of
+ * buttons. Two of those plus fifteen cards is how the palette reached 506px
+ * and squeezed the canvas to 135px. A parts bin is scanned, not read.
+ *
+ * The line is also the disclosure control for the whole group. Capping the
+ * palette and letting it scroll was the first attempt and it was worse: macOS
+ * hides the overlay scrollbar until you scroll, so IKEA and Playtive just
+ * looked absent. A closed row still says the brand exists, still carries its
+ * warning, and still costs one line.
+ */
 .brand-note {
-  margin: 0 0 var(--s2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s2);
+  margin: 0;
+  min-height: 32px;
   font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  cursor: pointer;
+  /* Replaces the browser's tiny triangle with the caret below. */
+  list-style: none;
+}
+.brand-note::-webkit-details-marker { display: none; }
+.brand-note::after {
+  content: '>';
+  font-family: var(--font-data);
+  font-size: 12px;
+  color: var(--ink-soft);
+  transition: transform 120ms ease;
+}
+.brand-group[open] > .brand-note::after { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) {
+  .brand-note::after { transition: none; }
+}
+.brand-note:hover { color: var(--ink); }
+/* So a closed shelf still says how much is behind it. */
+.brand-count {
+  font-family: var(--font-data);
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-left: auto;
+}
+/* The full warning, read before any of the shelf's pieces can be clicked. */
+.brand-detail {
+  margin: 0 0 var(--s2);
+  font-size: 13px;
   line-height: 1.5;
   color: var(--ink-soft);
   max-width: 76ch;
 }
+.brand-group.is-collapsible > .palette-row { margin-top: var(--s2); }
 .brand-name { font-weight: 600; color: var(--ink); }
 /*
  * --fail, not a new colour. This IS a correctness warning: the sizes are not
@@ -599,6 +768,7 @@
   .inventory-fills button,
   .inventory-row-input,
   .canvas-empty-action button,
+  .piece-main,
   .toggle { min-height: 44px; }
 }
 
@@ -690,4 +860,66 @@
 
 @media (pointer: coarse) {
   .crash-actions button { min-height: 44px; }
+}
+
+/*
+ * WIDE SCREENS PUT THE PALETTE IN A RAIL.
+ *
+ * Stacking canvas over verdict over palette cannot be made to work on a short
+ * window, and the arithmetic says why rather than taste. At 1280x720 the
+ * palette needs 376px for nine cards, two brand shelves and two control rows;
+ * the verdict needs 79. That leaves 265 for the canvas, under the 320 floor,
+ * so the grid hits the floor and canvas and palette end up splitting the
+ * screen 320/321. Shorter cards and collapsed shelves each bought 30px and
+ * neither changed the outcome.
+ *
+ * Horizontally there is room to spare: the palette's widest content is one
+ * card. A 320px rail gives the canvas the full height minus the verdict, 641px
+ * instead of 320, and the rail no longer needs to hide anything.
+ *
+ * 1000px, because below that a 320px rail leaves under 680 for the canvas and
+ * the stack reads better. The narrow layout above is unchanged.
+ *
+ * LAST IN THE FILE on purpose. A media query adds no specificity, so when this
+ * sat next to .shell the later `.palette { max-height: 45vh }` won and the
+ * rail stayed 324px tall in a 720px column.
+ */
+@media (min-width: 1000px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  .stage   { grid-column: 1; grid-row: 1; }
+  .verdict { grid-column: 1; grid-row: 2; }
+  .palette {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    max-height: none;
+    border-left: 1px solid var(--rule);
+    border-top: none;
+  }
+  /* The notice and the inventory panel span both columns when they appear. */
+  .notice, .inventory, .submit { grid-column: 1 / -1; }
+
+  /*
+   * Six columns so each control can take the width it needs.
+   *
+   * Left to wrap, these took 229px of a 641px rail, which is what kept the
+   * BRIO curves below the fold. Two even columns did not help: "Remove last"
+   * and the three presets still landed on four separate rows. Six columns
+   * lets the pair of edit buttons halve the row and the three presets thirds
+   * of it, which is three rows instead of five.
+   */
+  .palette-controls {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: var(--s2);
+    align-items: stretch;
+  }
+  .palette-controls .spacer { display: none; }
+  .palette-controls > .toggle { grid-column: span 6; }
+  .palette-controls > button { grid-column: span 3; font-size: 14px; }
+  /* The three presets: the last three buttons of the editing row. */
+  .palette-controls > button:nth-last-of-type(-n+3) { grid-column: span 2; }
+  .palette-controls .inventory-hint { grid-column: span 6; }
 }
