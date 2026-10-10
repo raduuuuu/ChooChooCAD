@@ -21,6 +21,9 @@ import { graphFromChain } from '../src/graph/fromChain.js';
 import { portsOf, type Piece, type Port } from '../src/graph/model.js';
 import type { Layout, Turn } from '../src/parts/schema.js';
 import { computeResidual } from '../src/solver/residual.js';
+import { solveLayout } from '../src/solver/result.js';
+import { solveGraph } from '../src/graph/solve.js';
+import type { Part } from '../src/parts/schema.js';
 
 const resolve = makeResolver(BUILT_IN);
 const ports = (piece: Piece): readonly Port[] => portsOf(resolve(piece.partId), piece.turn);
@@ -31,7 +34,7 @@ const ports = (piece: Piece): readonly Port[] => portsOf(resolve(piece.partId), 
  *
  * `computeResidual` returns end-minus-start for an open chain too: five
  * 144mm straights report a 720mm "gap". That is a displacement, not a gap,
- * and `solveLayout` discards it with OPEN_CHAIN before any verdict is made.
+ * and `solveLayout` discards it with NO_CYCLE before any verdict is made.
  * The graph engine has no cycle to report and says so. Comparing the two
  * numbers directly would be comparing two different questions, so open
  * layouts are checked on RANK instead: both engines must agree that there is
@@ -201,5 +204,82 @@ describe('both engines agree exactly', () => {
     const right = magnitude(residuals(mg, ports, placeAll(mg, ports))[0]!.gap);
     const bent = magnitude(residuals(mg, wrong, placeAll(mg, wrong))[0]!.gap);
     expect(bent).not.toBeCloseTo(right, 6);
+  });
+});
+
+/*
+ * THE FULL VERDICT, not just the gap.
+ *
+ * Agreeing on a number is necessary and not sufficient: the app shows a
+ * verdict, and the verdict is where clashes override closure and where
+ * rotation outranks give. This runs the same enumerated layouts through
+ * `solveLayout` and `solveGraph` and requires the user-visible conclusion to
+ * match. It is the gate for pointing the app at the graph engine.
+ */
+describe('both engines reach the same verdict', () => {
+  const slop = (pieceId: string, layout: Layout): number => {
+    const index = Number(pieceId.slice(1));
+    return resolve(layout.placements[index]!.partId).slop.axialMm;
+  };
+
+  /** The conclusion a user would act on, reduced to something comparable. */
+  function verdictOfChain(layout: Layout) {
+    const r = solveLayout(layout, resolve);
+    if (!r.ok) return { kind: r.reason === 'NO_CYCLE' ? 'NO_CYCLE' : r.reason };
+    if (r.clashes.length > 0) return { kind: 'IMPOSSIBLE' };
+    if (r.polarityViolations.length > 0) return { kind: 'IMPOSSIBLE' };
+    if (r.closesExactly) return { kind: 'EXACT' };
+    return { kind: r.withinBound ? 'NEEDS_GIVE' : 'EXCEEDS' };
+  }
+
+  function verdictOfGraph(layout: Layout) {
+    const g = graphFromChain(layout);
+    const r = solveGraph(
+      g,
+      ports,
+      (id: string): Part => resolve(id),
+      (pieceId) => slop(pieceId, layout),
+    );
+    if (!r.ok) return { kind: r.reason };
+    if (r.clashes.length > 0) return { kind: 'IMPOSSIBLE' };
+    if (r.polarityViolations.length > 0) return { kind: 'IMPOSSIBLE' };
+    if (r.closesExactly) return { kind: 'EXACT' };
+    return { kind: r.withinBound ? 'NEEDS_GIVE' : 'EXCEEDS' };
+  }
+
+  it('600 random chains reach the same user-visible verdict', () => {
+    const rand = lcg(20261010);
+    const disagreements: string[] = [];
+    for (let i = 0; i < 600; i++) {
+      const n = 1 + Math.floor(rand() * 12);
+      const layout = randomChain(rand, n, rand() < 0.7);
+      const a = verdictOfChain(layout);
+      const b = verdictOfGraph(layout);
+      if (a.kind !== b.kind) {
+        disagreements.push(
+          `${layout.placements.map((p) => p.partId + (p.turn === 'right' ? 'R' : 'L')).join(' ')}` +
+            ` closed=${layout.closed} chain=${a.kind} graph=${b.kind}`,
+        );
+      }
+    }
+    expect(disagreements.slice(0, 6)).toEqual([]);
+  });
+
+  it('the two known false passes are IMPOSSIBLE in both', () => {
+    const double: Layout = {
+      placements: Array(16).fill({ partId: 'E', turn: 'left' }),
+      closed: true,
+    };
+    const eight: Layout = {
+      placements: [
+        ...Array(8).fill({ partId: 'E', turn: 'left' }),
+        ...Array(8).fill({ partId: 'E', turn: 'right' }),
+      ],
+      closed: true,
+    };
+    for (const l of [double, eight]) {
+      expect(verdictOfGraph(l)).toEqual(verdictOfChain(l));
+      expect(verdictOfGraph(l).kind).toBe('IMPOSSIBLE');
+    }
   });
 });

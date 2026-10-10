@@ -29,7 +29,7 @@ import {
 } from '../../engine/data/library.js';
 import { brandFit } from '../../engine/data/thirdParty.js';
 import { layoutTrust } from '../../engine/src/joints/trust.js';
-import { solveLayout } from '../../engine/src/solver/result.js';
+import { solveViaGraph } from './solveViaGraph.js';
 import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
 import type { Brand, Layout, Part, Turn } from '../../engine/src/parts/schema.js';
 import { TrackCanvas } from './TrackCanvas.js';
@@ -214,7 +214,7 @@ export function App() {
   // an event-handler trigger would not. See the eng review's finding on the
   // blank-page rescue.
   const result = useMemo(
-    () => (pieces.length === 0 ? null : solveLayout(layout, resolve)),
+    () => (pieces.length === 0 ? null : solveViaGraph(layout, resolve)),
     [layout, pieces.length, resolve],
   );
 

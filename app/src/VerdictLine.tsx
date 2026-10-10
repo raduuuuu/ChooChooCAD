@@ -29,7 +29,7 @@ import { ACTION_FOR_FAILURE, ACTION_FOR_VERDICT } from './verdictAction.js';
 // Keyed by SolveFailure, not by string: a new failure reason is then a compile
 // error here rather than a silent fall-through to the generic copy below.
 const FAILURE_COPY: Record<SolveFailure, string> = {
-  OPEN_CHAIN: 'Not a loop yet.',
+  NO_CYCLE: 'Not a loop yet.',
   HEADING_MISMATCH: 'The track does not come back pointing the right way.',
   NUMERIC: 'Could not check this layout.',
 };

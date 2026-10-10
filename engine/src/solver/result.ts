@@ -44,7 +44,17 @@ import type { Layout, Part } from '../parts/schema.js';
  * Three reasons, down from eight. INFEASIBLE, UNBOUNDED, CYCLED, TIMEDOUT and
  * DEGENERATE were all statuses of the deleted LP and are unreachable now.
  */
-export type SolveFailure = 'OPEN_CHAIN' | 'HEADING_MISMATCH' | 'NUMERIC';
+/*
+ * NO_CYCLE, renamed from OPEN_CHAIN (T10).
+ *
+ * The old name was a chain artifact and says something false about a graph:
+ * a layout can be a tree, a forest, or four loose pieces on the table, none
+ * of which is "an open chain". What is true in every case is that there is
+ * no loop to check. `Record<SolveFailure, string>` on FAILURE_COPY and
+ * ACTION_FOR_FAILURE means a missed rename is a compile error, not a
+ * fallthrough to generic copy.
+ */
+export type SolveFailure = 'NO_CYCLE' | 'HEADING_MISMATCH' | 'NUMERIC';
 
 export type SolveResult =
   | {
@@ -98,8 +108,8 @@ export function solveLayout(
   if (!layout.closed) {
     return {
       ok: false,
-      reason: 'OPEN_CHAIN',
-      detail: 'layout is an open chain; there is no loop to close',
+      reason: 'NO_CYCLE',
+      detail: 'nothing here forms a loop yet, so there is nothing to close',
     };
   }
 

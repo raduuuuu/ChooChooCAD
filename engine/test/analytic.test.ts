@@ -200,7 +200,7 @@ describe('the bound: a gap cannot exceed the give', () => {
     const r = solveLayout({ placements: [{ partId: 'E' }], closed: false });
     expect(r.ok).toBe(false);
     if (r.ok) return;
-    expect(r.reason).toBe('OPEN_CHAIN');
+    expect(r.reason).toBe('NO_CYCLE');
   });
 });
 
@@ -833,7 +833,7 @@ describe('connector polarity', () => {
   it('an open chain has one fewer joint to check, and no phantom seam', () => {
     const open: Layout = { placements: [{ partId: 'PP' }, { partId: 'PP' }], closed: false };
     const r = solveLayout(open, doublePeg);
-    // An open chain fails earlier, at OPEN_CHAIN, so check the predicate directly.
+    // An open chain fails earlier, at NO_CYCLE, so check the predicate directly.
     expect(r.ok).toBe(false);
     const violations = findPolarityViolations(open, doublePeg);
     // One joint only (between the two pieces), and it IS a violation: peg to peg.

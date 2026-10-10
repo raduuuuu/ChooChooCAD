@@ -42,7 +42,7 @@ export const ACTION_FOR_VERDICT: Record<LayoutVerdict, string> = {
 };
 
 export const ACTION_FOR_FAILURE: Record<SolveFailure, string> = {
-  OPEN_CHAIN: 'Tick Closed loop to check whether it joins up.',
+  NO_CYCLE: 'Tick Closed loop to check whether it joins up.',
   HEADING_MISMATCH:
     'The curves need to add up to a whole turn. Add one, remove one, or mirror one.',
   NUMERIC: 'Nothing to act on until the check completes.',
