@@ -33,7 +33,7 @@
  */
 
 import { type Cyc, ZERO, add, mulZetaPow, scale, sub, zetaPow } from '../geom/cyclotomic.js';
-import { centrelineRadiusMm, type Part, type Turn } from '../parts/schema.js';
+import { centrelineRadiusMm, type Part, type Polarity, type Turn } from '../parts/schema.js';
 
 /** A pose in a piece's local frame, or in world space. Both are exact. */
 export interface Frame {
@@ -151,6 +151,23 @@ function arcEnd(r: number, s: number, turn: Turn): Frame {
       ? scale(sub(zetaPow(4), zetaPow(4 + s)), r)
       : scale(sub(zetaPow(4 - s), zetaPow(4)), r);
   return { pos, heading: turn === 'left' ? s : -s };
+}
+
+/**
+ * The polarity of one port.
+ *
+ * `PartEnds` has two fields because a part used to have two ends. Port 0 is
+ * the start; every other port takes the part's `end` polarity.
+ *
+ * For a switch that is a MODELLING CONVENTION and is labelled as one: both
+ * roads leaving the heel are assumed to terminate the same way. Real BRIO
+ * switches do behave like this, but nobody has published it in a form this
+ * file could cite, and no switch is in the catalogue yet, so nothing depends
+ * on the assumption today. When one is sourced (K1) it brings its own
+ * per-port polarity and this collapses to reading it.
+ */
+export function portPolarity(part: Part, portIndex: number): Polarity {
+  return portIndex === 0 ? part.ends.start : part.ends.end;
 }
 
 /**
