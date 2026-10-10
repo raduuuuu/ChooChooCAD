@@ -87,6 +87,13 @@
    * lighter fill, so the two-pass edge/fill reading survives.
    */
   --track-fill: #d9be93;
+  /*
+   * The rail grooves. A recess, so it sits between the wood and the plank
+   * edge: 2.11:1 against the fill, which is a shadow line rather than an
+   * information channel, so WCAG 1.4.11's 3:1 does not bind it. The verdict
+   * never depends on seeing a groove.
+   */
+  --track-groove: #9c7f50;
   --track-edge: #8a7349;
 
   /*

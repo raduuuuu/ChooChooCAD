@@ -44,26 +44,58 @@ export function TrackCanvas({ layout, resolve, emptyAction }: TrackCanvasProps) 
   const h = Math.max(box.maxY - box.minY, 1) + pad * 2;
   const vb = `${box.minX - pad} ${box.minY - pad} ${w} ${h}`;
 
+
   /*
-   * Plank width comes from the PART, in millimetres (task U2).
+   * HOW THE TRACK IS DRAWN, and why it is four strokes rather than two.
    *
-   * The viewBox is in model millimetres, so a stroke width in millimetres is
-   * the physical width and nothing has to be converted. This used to read
-   * `Math.max(10, Math.min(w, h) * 0.022)`, a fraction of the viewBox extent,
-   * which meant the same piece drew thicker in a big layout than in a small one:
-   * the one thing on screen that is supposed to be a measurement was the one
-   * thing that changed with how much else you had placed.
+   * It used to be a dark stroke at the full plank width with a lighter one at
+   * 62% on top: a band with a thick border. It did not look like track, and
+   * the 62% was a number chosen to look right rather than to mean anything.
    *
-   * Per segment rather than once for the whole canvas, because `plankWidthMm` is
-   * a per-part field and switches and crossings have wider planks than a plain
-   * straight. Today every part carries the same estimate, so this draws
-   * identically; it stops drawing identically the moment task C11 lands, without
-   * needing to be touched again.
+   * Now every width comes from the part's published cross section, and the
+   * grooves land where BRIO says they land. A stroke of width W covers W/2
+   * either side of the path, so concentric strokes paint annuli:
    *
-   * The value is ESTIMATED and labelled as such in `brio.ts`. The UI discloses
-   * that in the verdict's trust register; nothing derives a verdict from it.
+   *   plankWidth          40mm   the dark plank edge
+   *   plankWidth - 2.4    37.6   wood, leaving a 1.2mm edge line
+   *   gauge + groove      32mm   groove colour out to 16mm either side
+   *   gauge - groove      20mm   wood again inside 10mm, leaving two 6mm grooves
+   *
+   * With gauge 26 and groove 6 the grooves run 10mm to 16mm either side of the
+   * centreline, which is the published figure, and on a curve they come out as
+   * concentric arcs because the stroke follows the path.
+   *
+   * A part with no published groove width gets the first two strokes only. An
+   * IKEA or Playtive piece is drawn as a bare plank, because nobody has
+   * measured its grooves and inventing them would be the renderer making up
+   * data. Absent looks absent.
    */
-  const plankWidth = (partId: string) => resolve(partId).plankWidthMm;
+  const EDGE_MM = 1.2;
+  const layers = (partId: string) => {
+    const part = resolve(partId);
+    const out: Array<{ w: number; stroke: string }> = [
+      { w: part.plankWidthMm, stroke: 'var(--track-edge)' },
+      { w: part.plankWidthMm - EDGE_MM * 2, stroke: 'var(--track-fill)' },
+    ];
+    if (part.grooveWidthMm !== undefined) {
+      out.push(
+        { w: part.gaugeWidthMm + part.grooveWidthMm, stroke: 'var(--track-groove)' },
+        { w: part.gaugeWidthMm - part.grooveWidthMm, stroke: 'var(--track-fill)' },
+      );
+    }
+    return out;
+  };
+
+  /*
+   * The layer count is the MAX across the layout, not the first piece's.
+   *
+   * Taking it from segment 0 meant a chain that happened to start with an
+   * IKEA straight (two layers, no published grooves) drew only two layers for
+   * everything, silently erasing the grooves from every BRIO piece behind it.
+   * Per-segment `layers()` still decides what each piece gets; this only sets
+   * how many passes to make.
+   */
+  const maxLayers = Math.max(...segments.map((s) => layers(s.partId).length));
 
   /*
    * The empty state leads with ONE action (design D10).
@@ -95,26 +127,28 @@ export function TrackCanvas({ layout, resolve, emptyAction }: TrackCanvasProps) 
     <svg className="canvas" viewBox={vb} role="img" aria-label="Track layout">
       {/* y grows downward in SVG; flip so the geometry reads as it would on a floor. */}
       <g transform={`translate(0, ${2 * box.minY - 2 * pad + h}) scale(1, -1)`}>
-        {segments.map((s, i) => (
-          <path
-            key={i}
-            d={segmentPath(s)}
-            fill="none"
-            stroke="var(--track-edge)"
-            strokeWidth={plankWidth(s.partId)}
-            strokeLinecap="butt"
-          />
-        ))}
-        {segments.map((s, i) => (
-          <path
-            key={`i${i}`}
-            d={segmentPath(s)}
-            fill="none"
-            stroke="var(--track-fill)"
-            strokeWidth={plankWidth(s.partId) * 0.62}
-            strokeLinecap="butt"
-          />
-        ))}
+        {/*
+          * Layer by layer across ALL segments, not all layers per segment.
+          * Otherwise a piece's grooves would paint over the neighbouring
+          * piece's plank edge wherever two pieces meet, and every joint would
+          * show a seam that is not there.
+          */}
+        {Array.from({ length: maxLayers }).map((_, layerIndex) =>
+          segments.map((s, i) => {
+            const layer = layers(s.partId)[layerIndex];
+            if (!layer || layer.w <= 0) return null;
+            return (
+              <path
+                key={`${layerIndex}-${i}`}
+                d={segmentPath(s)}
+                fill="none"
+                stroke={layer.stroke}
+                strokeWidth={layer.w}
+                strokeLinecap="butt"
+              />
+            );
+          }),
+        )}
       </g>
     </svg>
   );

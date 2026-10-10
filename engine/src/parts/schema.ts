@@ -196,6 +196,23 @@ interface PartBase {
    * be published rather than needing a measurement.
    */
   readonly plankThicknessMm: number;
+  /**
+   * Width of each rail groove, millimetres. PUBLISHED for BRIO, absent
+   * elsewhere.
+   *
+   * 6mm, from the same sentence as the gauge and the plank: "two 6mm wide
+   * grooves that are 3mm deep, spaced 20mm apart, measuring 26mm from center
+   * to center". With `gaugeWidthMm` at 26 the grooves therefore span 10mm to
+   * 16mm either side of the centreline.
+   *
+   * OPTIONAL, and that is the point. Nobody publishes a groove width for IKEA
+   * Lillabo or Lidl Playtive, so those parts leave it undefined and the canvas
+   * draws them as a bare plank with no grooves. Drawing BRIO's grooves on a
+   * piece whose grooves nobody has measured would be the renderer inventing
+   * data, which is the one thing this product must not do. Absent means
+   * unknown and looks unknown.
+   */
+  readonly grooveWidthMm?: number;
   readonly slop: SlopBudget;
   /** Connector polarity at each end. See `Polarity` for why this is a convention. */
   readonly ends: PartEnds;
