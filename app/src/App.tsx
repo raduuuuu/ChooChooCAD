@@ -8,12 +8,26 @@
  *
  * Hierarchy, in order: the canvas, then the verdict line, then the palette.
  *
- * MVP constraints worth knowing, each a recorded decision rather than an
- * oversight:
- *   - A layout is ONE connected chain, optionally closed (Y1). Several separate
- *     tracks need a per-component origin, which the engine has no field for.
- *   - Pieces append to the end and remove from the end (X1b). Drag-and-drop,
- *     undo and keyboard parity are one body of deferred work.
+ * WHAT THIS FILE CAN AND CANNOT BUILD, which are now two different lists.
+ *
+ * The ENGINE is a graph. A layout is pieces joined by declared welds, it can
+ * branch, it can hold several separate runs of track, each component carries
+ * its own captured anchor, and every independent loop is checked against its
+ * own give. Switches are three-ported pieces the model already handles.
+ *
+ * The UI here is still a single ordered chain. Pieces append to the end and
+ * remove from the end (X1b), so every graph this file can produce has a cycle
+ * rank of 0 or 1 and no branch in it. That gap is the remaining work, not an
+ * engine limitation: drag-and-drop, declaring a weld between two chosen ends,
+ * deleting an interior piece, undo and keyboard parity are one body of
+ * deferred work, and `solveViaGraph.ts` is the scaffolding that stands in
+ * until they land.
+ *
+ * This header used to claim a layout was ONE connected chain and that the
+ * engine had no field for a per-component origin. Both were true when written
+ * and neither is now; `Graph.anchors` is that field.
+ *
+ * Still true, and still a recorded decision rather than an oversight:
  *   - The verdict reports a necessary condition, not a per-joint allocation
  *     (R21). There is no per-joint ratio and no per-joint glyph.
  */
