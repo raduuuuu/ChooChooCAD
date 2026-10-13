@@ -10685,10 +10685,11 @@ bound lands before the vertex lift and before any weld is declarable.
   - Files: `engine/src/parts/schema.ts`, `engine/src/geom/pose.ts`, `engine/src/geom/fk.ts`
   - Verify: a crossing's two routes stay rigidly related under both traversal orders
   - **DONE 2026-10-10**, commit `287e7d3`. Ports in a local frame, NOT routes between ends: a crossing's two routes share no end, so a route model loses their relation and the halves drift by traversal order. One frame per piece makes rigidity structural. Verified by reaching a four-port crossing through each of its ports and asserting identical pairwise distances and heading differences.
-- [ ] **T3 (P1, human: ~4h / CC: ~30min)** — engine/parts + app — Per-component anchor pose, CAPTURED at the moment of a split and never re-derived, so it stays a lattice point with no epsilon. Bump the storage key with the field
+- [x] **T3 (P1, human: ~4h / CC: ~30min)** — engine/parts + app — Per-component anchor pose, CAPTURED at the moment of a split and never re-derived, so it stays a lattice point with no epsilon. Bump the storage key with the field
   - Surfaced by: Architecture A2 and A5, remedy R2, answer D4
   - Files: `engine/src/parts/schema.ts`, `engine/src/geom/pose.ts`, `engine/src/geom/fk.ts`, `app/src/App.tsx`
   - Verify: breaking an interior weld leaves both halves exactly where they were, and neither loses exact closure
+  - **DONE 2026-10-13**, commit `5b10b1c`. Captured at the split and never rewritten: a test asserts an anchor survives a later unrelated edit untouched, and another that every stored coefficient is still an integer. Storage-key bump is NOT done and is not yet owed: the app still persists a chain, so there is no anchors field in anything written to disk. It lands with graph persistence.
 - [x] **T4 (P1, human: ~1 day / CC: ~45min)** — engine/solver — One spanning forest, built once, returning parent pointers and a deterministic visit order. Three consumers: the exact walk, the float render walk, and cycle extraction. Shared-contract tests required
   - Surfaced by: Code Quality B1, remedy R5, answer D6
   - Files: `engine/src/solver/residual.ts`, `engine/src/geom/pose.ts`, `engine/src/geom/fk.ts`
@@ -10724,18 +10725,21 @@ bound lands before the vertex lift and before any weld is declarable.
   - Files: `engine/src/solver/result.ts`, `app/src/VerdictLine.tsx`, `engine/test/analytic.test.ts`
   - Verify: `FAILURE_COPY`'s `Record<SolveFailure, string>` typing makes a missed rename a compile error
   - **DONE 2026-10-10**, commit `e0026f6`. Renamed, and the `Record<SolveFailure, string>` enforcement verified by deleting the key: TS2741, not a fallthrough. Its detail text now reports how many separate runs of track are on the table instead of restating the headline, which is something a chain could not know.
-- [ ] **T11 (P2, human: ~2h / CC: ~15min)** — app — Deleting a piece removes every weld touching it; if that disconnects the graph, T3's captured anchor applies to the new component
+- [x] **T11 (P2, human: ~2h / CC: ~15min)** — app — Deleting a piece removes every weld touching it; if that disconnects the graph, T3's captured anchor applies to the new component
   - Surfaced by: Code Quality B3 — C10's verify covers the active end, not a declared weld
   - Files: `app/src/App.tsx`, `engine/src/parts/schema.ts`
   - Verify: deleting a piece that carries two welds leaves no edge pointing at a missing vertex
-- [ ] **T12 (P2, human: ~2h / CC: ~15min)** — engine + app — Pay decision A4's two owed debts: write the `gstack-shortcut` markers it required, and implement the DRAW half, which does not exist
+  - **DONE 2026-10-13**, commit `5b10b1c`. The piece's welds go with it, and so does its own anchor, which would otherwise pin a component root that no longer exists. Forced a real fix: deleting an interior piece re-routes half a loop the long way round, and the same pieces came back with headings 56 and 42 where they had been 8 and 10. Identical poses, different integers, `toEqual` silently disagreeing. Headings are now normalised where frames are BUILT.
+- [x] **T12 (P2, human: ~2h / CC: ~15min)** — engine + app — Pay decision A4's two owed debts: write the `gstack-shortcut` markers it required, and implement the DRAW half, which does not exist
   - Surfaced by: Performance D2 — `feasible.ts` has no marker and `TrackCanvas.tsx` draws nothing
   - Files: `engine/src/feasible.ts`, `app/src/TrackCanvas.tsx`
   - Verify: every reported clash pair is drawn; the markers name the superseding decision id `f333f98f`
-- [ ] **T13 (P3, human: ~30min / CC: ~5min)** — docs — Rewrite the `App.tsx` header: it still says a layout is ONE connected chain and that the engine has no field for a per-component origin, which T3 adds
+  - **DONE 2026-10-13**, commit `fb895ec`. Drawing it exposed that the COUNT was wrong by a factor of four: the verdict said 32 pairs while the canvas drew 8 markers, because the scan compared ports and each place holds two joins of two ports. Clashes are now counted per pair of VERTICES, which is what a user sees as a join. The dedupe moved into `trackPath.ts` so the invariant is pinned rather than asserted in a comment. Markers written in both all-pairs scans.
+- [x] **T13 (P3, human: ~30min / CC: ~5min)** — docs — Rewrite the `App.tsx` header: it still says a layout is ONE connected chain and that the engine has no field for a per-component origin, which T3 adds
   - Surfaced by: Code Quality B4 — `App.tsx:13-18`. Already filed as C14; listed so the dependency on T3 is visible
   - Files: `app/src/App.tsx`
   - Verify: no comment claims a single chain or a missing component origin
+  - **DONE 2026-10-13**, commit `68d26ab`. Rewritten to keep two lists apart, because they have diverged: the ENGINE branches and holds several runs, the UI is still a single ordered chain producing rank 0 or 1. Naming that as remaining UI work rather than an engine limit matters, or the next reader assumes switches are unimplemented when they are only unreachable.
 
 Effort assumptions, stated: exact geometry ~5x, tests ~50x, app features ~30x,
 bug fix with regression ~20x, architecture ~5x. T1 and T12 are bug-fix shaped;
