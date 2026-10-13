@@ -69,6 +69,29 @@
 }
 
 :root {
+  /*
+   * LIGHT, DECLARED (task W6, decision D8).
+   *
+   * Without this the browser styles everything the page does not: the five
+   * selects and the number inputs in SubmitPart.tsx, the ErrorBoundary
+   * textarea, the scrollbars and the caret all came back in dark UA styling on
+   * a dark-OS machine, sitting on a page that is still warm paper. White text
+   * in a dark box beside black text on cream, on the one screen that asks the
+   * user to type real data.
+   *
+   * This declares the mode; it does not add a dark one. Every colour below
+   * carries a contrast ratio measured against a SPECIFIC ground (--paper,
+   * --paper-sunk or --floor), and the four verdict colours already sit in one
+   * greyscale luminance band. New grounds mean re-deriving every ratio, and an
+   * unmeasured dark palette is worse than none: it would drop verdict text
+   * under 4.5:1 silently, in the place this product's credibility lives.
+   *
+   * gstack-shortcut(dec-2508388b): light-only, every contrast ratio is measured
+   * against a light ground, upgrade when a researched dark palette has its
+   * ratios re-measured against dark grounds.
+   */
+  color-scheme: light;
+
   /* Ground and ink */
   --paper: #f7f3ec;
   --paper-sunk: #efe9df;
