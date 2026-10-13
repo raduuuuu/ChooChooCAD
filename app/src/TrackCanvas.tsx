@@ -125,6 +125,14 @@ export function TrackCanvas({
    * Now: a lead line, the circle preset as the primary action, and the rest
    * demoted to one quiet line underneath. The inventory invitation is gone
    * from here entirely and appears only after a layout exists.
+   *
+   * The hint names NO DIRECTION (task W4). It used to say "from the palette
+   * below", which was written for a bottom strip and went silently wrong when
+   * the 1000px layout (app.css:924) moved the palette to a right-hand rail:
+   * the one sentence whose whole job is orientation pointed the wrong way, on
+   * the layout most people see. Copy that names a position depends on a
+   * breakpoint and nothing asserts that dependency, so the position is left
+   * out instead of branched on.
    */
   if (segments.length === 0) {
     return (
@@ -132,7 +140,7 @@ export function TrackCanvas({
         <p className="canvas-empty-lead">Nothing on the floor yet.</p>
         {emptyAction && <div className="canvas-empty-action">{emptyAction}</div>}
         <p className="canvas-empty-hint">
-          Or place pieces one at a time from the palette below.
+          Or place pieces one at a time from the palette.
         </p>
       </div>
     );
