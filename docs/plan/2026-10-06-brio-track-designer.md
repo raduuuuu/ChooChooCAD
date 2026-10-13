@@ -11688,6 +11688,7 @@ next".** The graph spine and the payoff keep the eng review's T-series ids.
   - Surfaced by: CR3 (N17 kept) and Performance D2 of the eng review
   - Files: `engine/src/parts/schema.ts`, `app/src/App.tsx`, `engine/src/feasible.ts`, `app/src/TrackCanvas.tsx`
   - Verify: a set base level survives a reload; every reported clash pair is drawn; the markers name decision `f333f98f`
+  - **PARTLY DONE 2026-10-13**, commit `fb895ec`. T12 closed two of the three verify clauses: every reported clash is drawn, and both all-pairs scans carry the `f333f98f` marker with its ceiling and upgrade trigger. Only the base-level control remains, so what is left of K7 is smaller than its estimate.
 - [x] **K8 (P3, human: ~30min / CC: ~5min)** — app — Delete the dead `.joint` transition rule, flagged as dead by three design reviews
   - Surfaced by: S5-1 — `app/src/app.css`, N19, still present
   - Files: `app/src/app.css`
