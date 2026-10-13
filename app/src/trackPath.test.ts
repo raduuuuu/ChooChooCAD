@@ -19,7 +19,7 @@ import { getPart } from '../../engine/data/brio.js';
 import { walkFloat, type Segment } from '../../engine/src/geom/fk.js';
 import { centrelineRadiusMm } from '../../engine/src/parts/schema.js';
 import type { Layout, Part } from '../../engine/src/parts/schema.js';
-import { clashMarkers, segmentPath } from './trackPath.js';
+import { clashMarkers, gapAnnotations, segmentPath } from './trackPath.js';
 
 /** SVG F.6.5 endpoint-to-centre conversion, for rx = ry = r and phi = 0. */
 function svgArcCentre(
@@ -146,5 +146,54 @@ describe('clashMarkers', () => {
 
   it('nothing reported means nothing drawn', () => {
     expect(clashMarkers([])).toEqual([]);
+  });
+});
+
+describe('gapAnnotations', () => {
+  const mark = (
+    a: readonly [number, number],
+    b: readonly [number, number],
+    gapMm: number,
+  ) => ({ a, b, gapMm });
+
+  it('annotates the point midway between the two ends that failed to meet', () => {
+    const [ann] = gapAnnotations([mark([100, 200], [112, 200], 12)], 46, 22);
+    expect(ann!.at).toEqual([106, 200]);
+  });
+
+  it('runs the leader perpendicular to the gap, so the figure never sits on it', () => {
+    const [ann] = gapAnnotations([mark([0, 0], [12, 0], 12)], 46, 22);
+    const leader = [ann!.leaderEnd[0] - ann!.at[0], ann!.leaderEnd[1] - ann!.at[1]];
+    // Dot product with the gap direction is zero: the two are at right angles.
+    expect(leader[0]! * 12 + leader[1]! * 0).toBeCloseTo(0, 12);
+    expect(Math.hypot(leader[0]!, leader[1]!)).toBeCloseTo(46, 12);
+  });
+
+  it('puts the figure past the end of the leader by the label gap', () => {
+    const [ann] = gapAnnotations([mark([0, 0], [0, 10], 10)], 46, 22);
+    expect(Math.hypot(ann!.label[0] - ann!.at[0], ann!.label[1] - ann!.at[1])).toBeCloseTo(68, 12);
+    // Past it, not short of it: the leader is the nearer of the two.
+    expect(Math.hypot(ann!.leaderEnd[0] - ann!.at[0], ann!.leaderEnd[1] - ann!.at[1])).toBeCloseTo(46, 12);
+  });
+
+  it('CARRIES the engine figure rather than measuring the drawn positions', () => {
+    /*
+     * The one assertion that bites. The engine measures a gap exactly in
+     * Z[zeta16] and converts once; if this function ever derives the number
+     * from the two screen positions instead, the canvas will disagree with the
+     * sentence under it. Here the positions are 100mm apart and the engine says
+     * 7, so a hypot() implementation fails loudly.
+     */
+    const [ann] = gapAnnotations([mark([0, 0], [100, 0], 7)], 46, 22);
+    expect(ann!.gapMm).toBe(7);
+  });
+
+  it('survives a degenerate gap with a usable leader direction', () => {
+    const [ann] = gapAnnotations([mark([5, 5], [5, 5], 0.4)], 46, 22);
+    expect(Math.hypot(ann!.leaderEnd[0] - 5, ann!.leaderEnd[1] - 5)).toBeCloseTo(46, 12);
+  });
+
+  it('nothing reported means nothing drawn', () => {
+    expect(gapAnnotations([], 46, 22)).toEqual([]);
   });
 });

@@ -19,7 +19,7 @@ import { useMemo, type ReactNode } from 'react';
 import { renderBounds, type GraphRender, type RenderedPort } from '../../engine/src/graph/render.js';
 import type { PortRef } from '../../engine/src/graph/model.js';
 import type { Part } from '../../engine/src/parts/schema.js';
-import { clashMarkers, segmentPath } from './trackPath.js';
+import { clashMarkers, gapAnnotations, segmentPath, type GapMark } from './trackPath.js';
 
 export interface TrackCanvasProps {
   /** Everything drawable, already placed exactly by the graph engine. */
@@ -35,6 +35,14 @@ export interface TrackCanvasProps {
    * count you cannot locate is not actionable.
    */
   readonly clashes?: readonly { readonly at: readonly [number, number] }[];
+  /**
+   * Where a loop fails to close, and by how much (task W2, decision D4).
+   *
+   * Positions already resolved, like `clashes`, so this stays a drawing
+   * component. The caller owns which welds qualify, because that is a verdict
+   * question and not a drawing one.
+   */
+  readonly gaps?: readonly GapMark[];
   /** The free end currently armed, if any. */
   readonly selected?: PortRef | null;
   /** Clicking a free end. This is the whole editing interaction (D5). */
@@ -46,6 +54,7 @@ export function TrackCanvas({
   resolve,
   emptyAction,
   clashes = [],
+  gaps = [],
   selected = null,
   onPortClick,
 }: TrackCanvasProps) {
@@ -111,6 +120,12 @@ export function TrackCanvas({
     segments.length === 0 ? 0 : Math.max(...segments.map((s) => layers(s.partId).length));
 
   const dedupedClashes = useMemo(() => clashMarkers(clashes), [clashes]);
+  /*
+   * Leader 46mm, figure 22mm past it, so the furthest ink sits 68mm plus half
+   * the figure's height from the weld. `pad` below is 90mm, which is what
+   * keeps an annotation inside the viewBox instead of clipped at its edge.
+   */
+  const gapMarks = useMemo(() => gapAnnotations(gaps, 46, 22), [gaps]);
 
   /*
    * The empty state leads with ONE action (design D10).
@@ -236,6 +251,41 @@ export function TrackCanvas({
               </g>
             );
           })}
+        {/*
+          * THE GAP, DRAWN (task W2, decision D4).
+          *
+          * Monochrome on purpose. The only colour on this canvas belongs to a
+          * verdict, and the only red belongs to a clash; a gap is a
+          * measurement, and NEEDS_GIVE is a gap that is perfectly fine. An
+          * amber or red leader here would tell the user something is broken on
+          * a layout that builds.
+          *
+          * The figure is counter-flipped. The whole group above is drawn under
+          * `scale(1, -1)` so the geometry reads as it would on a floor, and
+          * text inside that group renders mirrored. Flipping it back at the
+          * label's own origin is what makes "12mm" legible rather than
+          * reversed.
+          *
+          * No extra mark sits AT the spot: the two port dots are already there
+          * at r=8 and the armed ring at r=16, and a third ring in the same
+          * place would read as another state rather than as a dimension.
+          */}
+        {gapMarks.map((g, i) => (
+          <g key={`gap-${i}`} className="gap">
+            <line
+              x1={g.at[0]}
+              y1={g.at[1]}
+              x2={g.leaderEnd[0]}
+              y2={g.leaderEnd[1]}
+              className="gap-leader"
+            />
+            <g transform={`translate(${g.label[0]}, ${g.label[1]}) scale(1, -1)`}>
+              <text className="gap-figure num" x={0} y={0}>
+                {g.gapMm.toFixed(0)}mm
+              </text>
+            </g>
+          </g>
+        ))}
         {dedupedClashes.map(([x, y], i) => (
           <g key={`clash-${i}`}>
             <circle

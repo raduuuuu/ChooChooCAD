@@ -71,3 +71,69 @@ export function clashMarkers(
   for (const c of clashes) seen.set(`${c.at[0]},${c.at[1]}`, c.at);
   return [...seen.values()];
 }
+
+/**
+ * THE GAP ANNOTATION (task W2, decision D4).
+ *
+ * A layout that fails on a gap used to draw identically to one that closes:
+ * six references to clash markers in the canvas and zero to gaps. The only
+ * difference a user saw was a sentence underneath, so the one failure they can
+ * fix by swapping a piece was also the one the drawing said nothing about.
+ *
+ * Geometry only, and pure, so the suite can check it with no DOM. The shape is
+ * a drafting leader: a line out from the spot where two ends fail to meet, and
+ * the figure at the far end of it, clear of the track.
+ *
+ * `gapMm` is CARRIED, never derived from `a` and `b`. The engine measures the
+ * mismatch exactly in Z[zeta16] and converts once (`WeldResidual.gapMm`);
+ * re-deriving it here from two rounded screen positions is how a drawing ends
+ * up labelled with a different number than the sentence under it.
+ */
+export interface GapMark {
+  /** The two ends that should have met, in millimetres. */
+  readonly a: readonly [number, number];
+  readonly b: readonly [number, number];
+  /** The engine's figure for this weld. Not recomputed from a and b. */
+  readonly gapMm: number;
+}
+
+export interface GapAnnotation {
+  /** The spot being annotated: midway between the two ends. */
+  readonly at: readonly [number, number];
+  /** Where the leader line stops. */
+  readonly leaderEnd: readonly [number, number];
+  /** Where the figure sits, past the leader so it never lies on it. */
+  readonly label: readonly [number, number];
+  readonly gapMm: number;
+}
+
+/**
+ * Leader direction is PERPENDICULAR to the gap, which is the drafting
+ * convention and also the practical one: a label along the gap would sit on
+ * the two track ends it is measuring. A degenerate gap cannot reach here
+ * because the caller filters on `gapMm > 0`, but a near-degenerate one still
+ * yields a usable direction, and an exactly-zero vector falls back to up.
+ */
+export function gapAnnotations(
+  marks: readonly GapMark[],
+  leaderMm: number,
+  labelGapMm: number,
+): readonly GapAnnotation[] {
+  return marks.map((m) => {
+    const mx = (m.a[0] + m.b[0]) / 2;
+    const my = (m.a[1] + m.b[1]) / 2;
+    const dx = m.b[0] - m.a[0];
+    const dy = m.b[1] - m.a[1];
+    const len = Math.hypot(dx, dy);
+    const [px, py] = len === 0 ? [0, 1] : [-dy / len, dx / len];
+    return {
+      at: [mx, my] as const,
+      leaderEnd: [mx + px * leaderMm, my + py * leaderMm] as const,
+      label: [
+        mx + px * (leaderMm + labelGapMm),
+        my + py * (leaderMm + labelGapMm),
+      ] as const,
+      gapMm: m.gapMm,
+    };
+  });
+}

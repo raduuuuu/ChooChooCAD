@@ -20,7 +20,7 @@
  * the catalogue yet.
  */
 
-import { type Cyc, isZero, sub } from '../geom/cyclotomic.js';
+import { type Cyc, isZero, magnitude, sub } from '../geom/cyclotomic.js';
 import { spanningForest, type Forest } from './forest.js';
 import {
   IDENTITY,
@@ -112,6 +112,17 @@ export interface WeldResidual {
    * keeps `HEADING_MISMATCH`'s user-facing copy meaning what it already said.
    */
   readonly headingSteps: number;
+  /**
+   * The same mismatch in millimetres, so ONE function turns a residual into a
+   * number a user reads (task W2).
+   *
+   * `gap` is exact and `gapMm` is lossy, and the lossy one is what the canvas
+   * draws and the verdict prints. Deriving it here rather than at each call
+   * site is the point: the cycle analysis already called `magnitude` on a sum
+   * of these, and a second caller doing its own arithmetic is how a drawing
+   * ends up labelled with a different number than the sentence under it.
+   */
+  readonly gapMm: number;
   readonly closes: boolean;
 }
 
@@ -137,7 +148,13 @@ export function residuals(
     const want = opposed(a);
     const gap = sub(b.pos, want.pos);
     const headingSteps = (((want.heading - b.heading) % 16) + 16) % 16;
-    return { weld: index, gap, headingSteps, closes: isZero(gap) && headingSteps === 0 };
+    return {
+      weld: index,
+      gap,
+      headingSteps,
+      gapMm: magnitude(gap),
+      closes: isZero(gap) && headingSteps === 0,
+    };
   });
 }
 

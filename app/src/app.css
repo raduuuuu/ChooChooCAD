@@ -855,6 +855,42 @@
 .port:focus-visible .port-dot { stroke: var(--ink); stroke-width: 7; }
 
 /*
+ * THE GAP ANNOTATION (task W2, decision D4).
+ *
+ * MONOCHROME, and that is the whole decision. A gap is a measurement, not an
+ * alarm: NEEDS_GIVE is a gap of several millimetres on a layout that builds
+ * fine. The canvas spends colour on verdicts and red on clashes only, so a
+ * coloured leader here would report a fault on a working layout.
+ *
+ * Lengths are in MILLIMETRES, like everything else in this SVG: the viewBox is
+ * the layout's own extent in mm, so `font-size: 40` is a 40mm figure that
+ * scales with the drawing. That means the on-screen size varies with layout
+ * extent, which is the same trade the clash marker already makes at r=28, and
+ * the alternative (fixed pixels) cannot follow a canvas that rescales to fit.
+ *
+ * The stroke does NOT scale: `vector-effect` keeps the leader one hairline
+ * wide at every zoom, so a leader on a 40-piece layout stays as thin as the
+ * one on a 4-piece layout instead of thickening into the track.
+ */
+.gap-leader {
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.gap-figure {
+  font-size: 40px;
+  font-weight: 600;
+  fill: var(--ink);
+  text-anchor: middle;
+  dominant-baseline: middle;
+  /* Paper behind the figure, so it stays readable over track or a groove. */
+  paint-order: stroke;
+  stroke: var(--floor);
+  stroke-width: 8;
+  stroke-linejoin: round;
+}
+
+/*
  * THE CRASH SCREEN (task K5).
  *
  * Styled at all, rather than left as browser defaults, because this is the

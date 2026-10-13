@@ -19,7 +19,7 @@
 
 import { analyseCycles, type CycleReport } from './cycles.js';
 import { findVertexClashes, findWeldPolarityViolations, type VertexClash, type WeldPolarityViolation } from './feasible.js';
-import { placeAll, residuals, type PortsOf } from './frames.js';
+import { placeAll, residuals, type PortsOf, type WeldResidual } from './frames.js';
 import type { Graph } from './model.js';
 import type { Part } from '../parts/schema.js';
 
@@ -40,6 +40,18 @@ export type GraphResult =
       readonly worst: CycleReport | null;
       readonly clashes: readonly VertexClash[];
       readonly polarityViolations: readonly WeldPolarityViolation[];
+      /**
+       * One per closing weld, with the mismatch in millimetres.
+       *
+       * Reported alongside the cycle figures, not instead of them, because
+       * they answer different questions. A cycle's gap says whether a LOOP
+       * closes; a residual says which two ends are apart and by how much,
+       * which is the only form of the answer a user can act on by swapping a
+       * piece. A combined cycle sums several residuals, so there is no single
+       * weld carrying its gap, which is exactly why the drawing annotates
+       * welds and the sentence talks about loops.
+       */
+      readonly residuals: readonly WeldResidual[];
     }
   | {
       readonly ok: false;
@@ -56,6 +68,12 @@ export type GraphResult =
        */
       readonly clashes: readonly VertexClash[];
       readonly polarityViolations: readonly WeldPolarityViolation[];
+      /**
+       * Also on this branch, for the reason the clashes are: two ends being
+       * 12mm apart is a fact about where the pieces ARE. It does not become
+       * true only once the layout earns a rankable loop.
+       */
+      readonly residuals: readonly WeldResidual[];
     };
 
 export function solveGraph(
@@ -100,6 +118,7 @@ export function solveGraph(
       rank,
       clashes,
       polarityViolations,
+      residuals: rs,
     };
   }
 
@@ -115,6 +134,7 @@ export function solveGraph(
       rank,
       clashes,
       polarityViolations,
+      residuals: rs,
     };
   }
 
@@ -126,6 +146,7 @@ export function solveGraph(
       rank,
       clashes,
       polarityViolations,
+      residuals: rs,
     };
   }
 
@@ -139,6 +160,7 @@ export function solveGraph(
       rank,
       clashes,
       polarityViolations,
+      residuals: rs,
     };
   }
 
@@ -155,5 +177,6 @@ export function solveGraph(
     worst: space.worst,
     clashes,
     polarityViolations,
+    residuals: rs,
   };
 }

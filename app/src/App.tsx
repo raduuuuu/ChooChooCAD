@@ -289,6 +289,34 @@ export function App() {
 
   const verdictView = useMemo(() => viewOf(result), [result]);
 
+  /*
+   * WHICH WELDS THE CANVAS ANNOTATES (task W2, decision D4).
+   *
+   * One per closing weld whose two ends are apart, resolved to the positions
+   * the canvas already drew them at. The engine's `gapMm` is passed through
+   * untouched: the drawing must not be able to disagree with the sentence
+   * under it.
+   *
+   * A rotated weld is SKIPPED. `headingSteps !== 0` means the loop comes back
+   * pointing the wrong way, and a distance there would promise a fix that does
+   * not exist: closing those millimetres still leaves the track turned. The
+   * verdict says that in words and the canvas stays quiet rather than
+   * contradicting it with a number.
+   */
+  const gaps = useMemo(() => {
+    if (!result) return [];
+    const byPort = new Map(render.ports.map((p) => [`${p.pieceId}#${p.port}`, p]));
+    return result.residuals.flatMap((r) => {
+      if (!(r.gapMm > 0) || r.headingSteps !== 0) return [];
+      const w = graph.welds[r.weld];
+      if (!w) return [];
+      const a = byPort.get(`${w.a.pieceId}#${w.a.port}`);
+      const b = byPort.get(`${w.b.pieceId}#${w.b.port}`);
+      if (!a || !b) return [];
+      return [{ a: [a.x, a.y] as const, b: [b.x, b.y] as const, gapMm: r.gapMm }];
+    });
+  }, [result, render, graph]);
+
   const counts = usedCounts(graph.pieces.map((p) => p.partId));
   const shortfalls = computeShortfalls(inventory, counts);
 
@@ -407,7 +435,17 @@ export function App() {
           resolve={resolve}
           selected={selected}
           onPortClick={clickPort}
-          clashes={result?.ok ? result.clashes : []}
+          /*
+            * `result`, not `result?.ok`. The clash list lives on BOTH branches
+            * of GraphResult, and gating the DRAWING on `ok` undid half of the
+            * reason it was put on the failure branch: `viewOf` reports
+            * IMPOSSIBLE with a clash count on a failed solve, so the verdict
+            * said "2 pairs of track ends land in exactly the same spot" while
+            * the canvas marked none of them. A count you cannot locate is not
+            * actionable, which was decision A4's whole point.
+            */
+          clashes={result ? result.clashes : []}
+          gaps={gaps}
           emptyAction={
             <>
               <button
