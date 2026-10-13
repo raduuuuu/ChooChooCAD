@@ -143,3 +143,50 @@ describe('polarity is a property of the weld', () => {
     expect(findWeldPolarityViolations(g, resolve, ports)).toEqual([]);
   });
 });
+
+/*
+ * THE BUG A USER REPORTED. Eight large curves laid end to end bring their two
+ * loose ends to the same spot; that is the moment before you join them, and
+ * it was being reported as "Can't be built."
+ */
+describe('free ends meeting are an invitation, not a clash', () => {
+  const openRun = (n: number) => clashes(graphFromChain(chain(Array(n).fill('E'), false)));
+
+  it('eight curves whose ends have arrived at the same spot report nothing', () => {
+    expect(openRun(8)).toEqual([]);
+  });
+
+  it('and welding them keeps it clean', () => {
+    expect(clashes(graphFromChain(chain(Array(8).fill('E'), true)))).toEqual([]);
+  });
+
+  /*
+   * The discriminator is how many points a pair of pieces shares. One is a
+   * meeting; both ends is a pile-up that no weld can fix.
+   */
+  it('two pieces lying on top of each other are still reported', () => {
+    const g: Graph = {
+      pieces: [
+        { pieceId: 'x', partId: 'A' },
+        { pieceId: 'y', partId: 'A' },
+      ],
+      welds: [],
+    };
+    expect(clashes(g).length).toBeGreaterThan(0);
+  });
+
+  /*
+   * An end that is ALREADY welded is spoken for, so a free end landing on it
+   * is still a clash, which is what keeps the exclusion from swallowing real
+   * overlaps. Sixteen curves in an OPEN run is the real case: after eight the
+   * track is back where it started, so the free first end sits exactly on a
+   * joint in the middle of the run.
+   *
+   * My first attempt welded a third piece onto that joint, which merges all
+   * three ports into ONE vertex and therefore correctly reports nothing. A
+   * declared join is never a collision.
+   */
+  it('a free end landing on an existing joint is still a clash', () => {
+    expect(openRun(16).length).toBeGreaterThan(0);
+  });
+});

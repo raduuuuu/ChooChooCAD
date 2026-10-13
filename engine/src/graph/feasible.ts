@@ -39,6 +39,21 @@ export interface WeldPolarityViolation {
   readonly polarity: 'peg' | 'socket';
 }
 
+/**
+ * Ports a weld already claims. A port nobody has welded is FREE.
+ *
+ * The distinction decides whether two ends in one place are a problem or an
+ * invitation, which is the difference between the two cases below.
+ */
+function claimedPorts(graph: Graph): ReadonlySet<string> {
+  const out = new Set<string>();
+  for (const w of graph.welds) {
+    out.add(`${w.a.pieceId}#${w.a.port}`);
+    out.add(`${w.b.pieceId}#${w.b.port}`);
+  }
+  return out;
+}
+
 /** Union-find over ports, joined by welds. One set is one vertex. */
 function vertices(graph: Graph): (key: string) => string {
   const parent = new Map<string, string>();
@@ -73,20 +88,24 @@ export function findVertexClashes(
   placement: Placement,
 ): readonly VertexClash[] {
   const find = vertices(graph);
+  const claimed = claimedPorts(graph);
   const placed: Array<{
     pieceId: string;
     port: number;
     vertex: string;
+    free: boolean;
     pos: Cyc;
   }> = [];
 
   for (const piece of graph.pieces) {
     const count = ports(piece).length;
     for (let i = 0; i < count; i++) {
+      const key = `${piece.pieceId}#${i}`;
       placed.push({
         pieceId: piece.pieceId,
         port: i,
-        vertex: find(`${piece.pieceId}#${i}`),
+        vertex: find(key),
+        free: !claimed.has(key),
         pos: portFrame(placement, ports, piece, i).pos,
       });
     }
@@ -117,6 +136,8 @@ export function findVertexClashes(
    */
   const clashes: VertexClash[] = [];
   const reported = new Set<string>();
+  /** Free-end coincidences, grouped by the pair of pieces that share them. */
+  const touching = new Map<string, VertexClash[]>();
   for (let i = 0; i < placed.length; i++) {
     for (let j = i + 1; j < placed.length; j++) {
       const a = placed[i]!;
@@ -130,13 +151,47 @@ export function findVertexClashes(
       if (reported.has(key)) continue;
       reported.add(key);
       const [x, y] = toXY(a.pos);
-      clashes.push({
+      const pair = a.pieceId < b.pieceId ? `${a.pieceId}|${b.pieceId}` : `${b.pieceId}|${a.pieceId}`;
+      const clash: VertexClash = {
         a: { pieceId: a.pieceId, port: a.port },
         b: { pieceId: b.pieceId, port: b.port },
         at: [x, y],
-      });
+      };
+      if (a.free && b.free) {
+        touching.set(pair, [...(touching.get(pair) ?? []), clash]);
+      } else {
+        clashes.push(clash);
+      }
     }
   }
+
+  /*
+   * TWO FREE ENDS MEETING AT ONE POINT ARE NOT A CLASH. They are the moment
+   * before you join them, and it is the single most common state in building
+   * track: eight large curves laid end to end bring their two loose ends
+   * together, and the next thing anybody does is push them into each other.
+   *
+   * Reporting that as "can't be built" was a real defect, found by a user
+   * doing exactly this. It arrived when clashes were made to outrank
+   * NO_CYCLE so two overlapping RUNS would stop being silent; that fix was
+   * right, and this is the other half of it.
+   *
+   * COUNT DISCRIMINATES. Two pieces that meet share exactly ONE point. Two
+   * pieces lying on top of each other share BOTH of their ends, and that is
+   * not an invitation, it is a pile-up: no weld makes their middles stop
+   * overlapping. So a single touching point between a pair of pieces is
+   * excused and two or more are reported.
+   *
+   * This is an endpoint test, not a body test. Pieces that cross mid-span
+   * are still not checked, which the verdict copy says out loud.
+   */
+  for (const group of touching.values()) {
+    if (group.length > 1) clashes.push(...group);
+  }
+
+  // If either end is already welded, it is spoken for: a third thing landing
+  // on it is a clash however few points are shared. That case never reaches
+  // `touching`, because it is pushed straight to `clashes` above.
   return clashes;
 }
 

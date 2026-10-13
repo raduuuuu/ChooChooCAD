@@ -148,7 +148,13 @@ export function VerdictLine({
               Can&rsquo;t be built. <span className="num">{e.clashCount}</span>{' '}
               {e.clashCount === 1 ? 'pair of track ends lands' : 'pairs of track ends land'}{' '}
               in exactly the same spot, so two pieces would have to share it.
-              {e.gapMm === 0 && ' The loop does close; that does not help.'}
+              {/*
+                * Only when there IS a loop. `viewOf` reports a gap of 0 on the
+                * failure branch, so keying this on gapMm alone printed "the
+                * loop does close" over a layout with no loop at all, which a
+                * user read in a bug report.
+                */}
+              {e.rank > 0 && e.gapMm === 0 && ' The loop does close; that does not help.'}
               <span className="verdict-detail">
                 {' '}Only exact overlaps like this are checked. Pieces crossing mid-span are not.
               </span>
