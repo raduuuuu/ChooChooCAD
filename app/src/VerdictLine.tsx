@@ -21,6 +21,7 @@
  * every measured defect in the engine lived in it.
  */
 
+import type { ReactNode } from 'react';
 import type { TrustIssue } from '../../engine/src/joints/trust.js';
 import type { VerdictKind, VerdictView } from './verdictView.js';
 import { ACTION_FOR_FAILURE, ACTION_FOR_VERDICT } from './verdictAction.js';
@@ -76,6 +77,56 @@ function Action({ action }: { action: string | null }) {
   return <p className="verdict-action">{action}</p>;
 }
 
+/**
+ * THE LIVE REGION (task W1, decision D3).
+ *
+ * Every branch below renders through this one wrapper, so a new verdict state
+ * cannot ship unannounced: there is no second place to forget. The element is
+ * the same `div.verdict` it always was, carrying the same classes, because at
+ * 1000px and up `.verdict` is a grid child of `.shell` (app.css:930) and an
+ * extra wrapper would have taken its placement.
+ *
+ * `role="status"` already implies polite, and both are written anyway: the
+ * implication is exactly what a future edit drops without noticing.
+ *
+ * `aria-atomic` is TRUE on purpose. A verdict is only true whole. "Needs 12mm
+ * absorbed across 8 joints, which give 16mm between them" read in fragments is
+ * worse than silence, because every fragment is a number without its referent.
+ * Polite plus atomic also means eight fast placements collapse into one
+ * announcement of the final state rather than eight interruptions, which is the
+ * behaviour D3 chose over announcing each graph mutation.
+ *
+ * gstack-shortcut(dec-cc66dbf5): the result is audible, the editor is not
+ * operable, upgrade when U7 lands and the announcement policy has to cover
+ * piece, end and weld actions.
+ */
+function Verdict({ tone, children }: { tone: string; children: ReactNode }) {
+  return (
+    <div
+      className={`verdict verdict-${tone}`}
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      {children}
+    </div>
+  );
+}
+
+/*
+ * The glyph is hidden from assistive tech. It exists so the four verdicts stay
+ * distinguishable on paper, where they flatten into one greyscale band; read
+ * aloud, "slash backslash" is noise in front of a sentence that already states
+ * the verdict in words.
+ */
+function Mark({ glyph }: { glyph: string }) {
+  return (
+    <span className="verdict-mark" aria-hidden="true">
+      {glyph}
+    </span>
+  );
+}
+
 export function VerdictLine({
   view,
   trust = [],
@@ -88,24 +139,24 @@ export function VerdictLine({
 
   if (e.kind === 'NOTHING') {
     return (
-      <div className="verdict verdict-unknown">
-        <span className="verdict-mark">?</span>
+      <Verdict tone="unknown">
+        <Mark glyph="?" />
         <span className="verdict-text">Nothing to check yet.</span>
-      </div>
+      </Verdict>
     );
   }
 
   // Every failure is GREY. Never green, never styled as a near-pass.
   if (isFailure(e.kind)) {
     return (
-      <div className="verdict verdict-unknown">
-        <span className="verdict-mark">?</span>
+      <Verdict tone="unknown">
+        <Mark glyph="?" />
         <span className="verdict-text">
           {FAILURE_COPY[e.kind]}{' '}
           <span className="verdict-detail">{e.detail}</span>
         </span>
         <Action action={ACTION_FOR_FAILURE[e.kind] ?? null} />
-      </div>
+      </Verdict>
     );
   }
 
@@ -135,8 +186,8 @@ export function VerdictLine({
     // the pieces themselves, a shared POSITION is about where they ended up.
     case 'IMPOSSIBLE':
       return (
-        <div className="verdict verdict-fail">
-          <span className="verdict-mark">X</span>
+        <Verdict tone="fail">
+          <Mark glyph="X" />
           {e.polarityCount > 0 ? (
             <span className="verdict-text">
               Can&rsquo;t be built. <span className="num">{e.polarityCount}</span>{' '}
@@ -162,23 +213,23 @@ export function VerdictLine({
           )}
           <Trust trust={trust} />
           <Action action={ACTION_FOR_VERDICT.IMPOSSIBLE} />
-        </div>
+        </Verdict>
       );
 
     case 'EXACT':
       return (
-        <div className="verdict verdict-pass">
-          <span className="verdict-mark">O</span>
+        <Verdict tone="pass">
+          <Mark glyph="O" />
           <span className="verdict-text">This works. Closes exactly, no give needed at any joint.</span>
           <Trust trust={trust} />
           <Action action={ACTION_FOR_VERDICT[e.kind]} />
-        </div>
+        </Verdict>
       );
 
     case 'NEEDS_GIVE':
       return (
-        <div className="verdict verdict-tight">
-          <span className="verdict-mark">/\</span>
+        <Verdict tone="tight">
+          <Mark glyph={'/\\'} />
           <span className="verdict-text">
             Needs <span className="num">{e.gapMm.toFixed(0)}mm</span> absorbed across{' '}
             <span className="num">{e.jointCount}</span> joints, which give{' '}
@@ -187,13 +238,13 @@ export function VerdictLine({
           </span>
           <Trust trust={trust} />
           <Action action={ACTION_FOR_VERDICT[e.kind]} />
-        </div>
+        </Verdict>
       );
 
     case 'EXCEEDS':
       return (
-        <div className="verdict verdict-fail">
-          <span className="verdict-mark">X</span>
+        <Verdict tone="fail">
+          <Mark glyph="X" />
           <span className="verdict-text">
             Won&rsquo;t fit. Needs <span className="num">{e.gapMm.toFixed(0)}mm</span>{' '}
             absorbed, but the joints give only{' '}
@@ -201,7 +252,7 @@ export function VerdictLine({
           </span>
           <Trust trust={trust} />
           <Action action={ACTION_FOR_VERDICT[e.kind]} />
-        </div>
+        </Verdict>
       );
 
   }
