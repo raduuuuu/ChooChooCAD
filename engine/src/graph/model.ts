@@ -38,8 +38,26 @@ import { centrelineRadiusMm, type Part, type Polarity, type Turn } from '../part
 /** A pose in a piece's local frame, or in world space. Both are exact. */
 export interface Frame {
   readonly pos: Cyc;
-  /** Power of zeta. Meaningful modulo 16. */
+  /** Power of zeta, always normalised to 0..15 by `norm16`. */
   readonly heading: number;
+}
+
+/**
+ * Headings are canonical, 0..15.
+ *
+ * "Meaningful modulo 16" was true and not enough. Walking a closed loop one
+ * way accumulated heading 8 and walking it the other way accumulated 56: the
+ * same pose, a different integer, and `toEqual` on two frames quietly said
+ * they differed. Deleting an interior piece re-routes half the layout the
+ * long way round, so this showed up the moment T11 tried to assert that
+ * untouched track had not moved.
+ *
+ * Normalising where frames are BUILT, rather than at each comparison, means
+ * there is one representation of a pose and nothing downstream has to
+ * remember to reduce it.
+ */
+export function norm16(heading: number): number {
+  return ((heading % 16) + 16) % 16;
 }
 
 export const IDENTITY: Frame = { pos: ZERO, heading: 0 };
@@ -92,6 +110,22 @@ export interface Weld {
 export interface Graph {
   readonly pieces: readonly Piece[];
   readonly welds: readonly Weld[];
+  /**
+   * Where a component's root sits (task T3). Keyed by piece id.
+   *
+   * CAPTURED, NEVER RE-DERIVED. When a weld is broken and a layout falls into
+   * two pieces, the half that no longer contains the original root would
+   * otherwise be re-placed from the identity frame and jump to the origin.
+   * So at the moment of the split its current frame is written down here and
+   * kept.
+   *
+   * Captured rather than recomputed because the frame is an exact lattice
+   * point, a Z[zeta16] position and an integer heading. Re-deriving it later
+   * from a float render pose, or from a "nearest" fit, would introduce the
+   * one epsilon this engine does not have. A value that was exact when it was
+   * written stays exact forever if nobody recomputes it.
+   */
+  readonly anchors?: ReadonlyMap<string, Frame>;
 }
 
 /**
@@ -150,7 +184,7 @@ function arcEnd(r: number, s: number, turn: Turn): Frame {
     turn === 'left'
       ? scale(sub(zetaPow(4), zetaPow(4 + s)), r)
       : scale(sub(zetaPow(4 - s), zetaPow(4)), r);
-  return { pos, heading: turn === 'left' ? s : -s };
+  return { pos, heading: norm16(turn === 'left' ? s : -s) };
 }
 
 /**
@@ -206,7 +240,7 @@ export function weldHasPolarity(a: Port, b: Port): boolean {
 export function compose(frame: Frame, local: Frame): Frame {
   return {
     pos: add(frame.pos, mulZetaPow(local.pos, frame.heading)),
-    heading: frame.heading + local.heading,
+    heading: norm16(frame.heading + local.heading),
   };
 }
 
@@ -218,11 +252,11 @@ export function compose(frame: Frame, local: Frame): Frame {
  * position facing the opposite way, which fixes the new piece's frame.
  */
 export function frameForPortAt(local: Frame, target: Frame): Frame {
-  const heading = target.heading - local.heading;
+  const heading = norm16(target.heading - local.heading);
   return { pos: sub(target.pos, mulZetaPow(local.pos, heading)), heading };
 }
 
 /** Facing the other way. A weld joins two ports whose headings are opposite. */
 export function opposed(f: Frame): Frame {
-  return { pos: f.pos, heading: f.heading + 8 };
+  return { pos: f.pos, heading: norm16(f.heading + 8) };
 }

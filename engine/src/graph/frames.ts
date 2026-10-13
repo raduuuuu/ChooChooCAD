@@ -70,7 +70,7 @@ export function portFrame(
 export function placeAll(
   graph: Graph,
   ports: PortsOf,
-  anchors: ReadonlyMap<string, Frame> = new Map(),
+  anchors: ReadonlyMap<string, Frame> = graph.anchors ?? new Map(),
 ): Placement {
   const forest = spanningForest(graph);
   const byId = new Map(graph.pieces.map((p) => [p.pieceId, p]));
