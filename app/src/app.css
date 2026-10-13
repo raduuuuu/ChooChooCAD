@@ -822,9 +822,34 @@
   transition: none;
 }
 .port:hover .port-dot { stroke: var(--ink); }
+/*
+ * ARMED: a small solid dot inside a ring (task W3, decision D5).
+ *
+ * Was `fill: --ink; stroke: --ink` on a dot grown to r=13, which is a solid
+ * 15mm disc of the darkest ink on the page. On a canvas whose only red is a
+ * clash, the heaviest MONOCHROME mark being a pending choice sent the same
+ * signal by weight: something is wrong here. Nothing is wrong; the user is
+ * halfway through an action.
+ *
+ * Now the dot stays r=8 and only its fill changes, and a separate thin ring
+ * says armed. Inked area drops from ~707 to ~555 square mm and, more to the
+ * point, most of the new mark is empty space, which is what "pending" looks
+ * like. The ring is --ink because it IS the signal; the dot's own stroke drops
+ * to 2 so the centre does not re-thicken what the ring already states.
+ *
+ * Still distinct from focus, which is the other state that darkens this dot:
+ * focus is a thick stroke around a PAPER centre with no ring, armed is a thin
+ * stroke around an INK centre with one.
+ */
+.port-ring {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 3;
+}
 .port.is-armed .port-dot {
   fill: var(--ink);
   stroke: var(--ink);
+  stroke-width: 2;
 }
 .port:focus { outline: none; }
 .port:focus-visible .port-dot { stroke: var(--ink); stroke-width: 7; }

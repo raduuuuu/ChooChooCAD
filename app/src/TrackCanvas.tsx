@@ -220,7 +220,19 @@ export function TrackCanvas({
                 }}
               >
                 <circle cx={p.x} cy={p.y} r={26} className="port-hit" />
-                <circle cx={p.x} cy={p.y} r={armed ? 13 : 8} className="port-dot" />
+                {/*
+                  * ARMED IS A RING, NOT A BIGGER BLOB (task W3, decision D5).
+                  *
+                  * The dot keeps ONE radius in every state. It used to swell
+                  * from 8 to 13 and fill with --ink, which made a pending
+                  * choice the heaviest mark on the canvas, heavier than most
+                  * of the track it sat on, and it read as a defect. The ring
+                  * carries the signal instead; at r=16 it is also visibly
+                  * smaller than the r=28 clash ring below, so the two marks
+                  * cannot be mistaken for each other.
+                  */}
+                {armed && <circle cx={p.x} cy={p.y} r={16} className="port-ring" />}
+                <circle cx={p.x} cy={p.y} r={8} className="port-dot" />
               </g>
             );
           })}
