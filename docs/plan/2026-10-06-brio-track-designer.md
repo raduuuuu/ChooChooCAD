@@ -9654,36 +9654,41 @@ Design tasks for the new surfaces. **These sit behind the CEO review's C-series*
 U1, U3, U5, U7 and U8 all need the graph model (C6) or the catalogue (C11) to
 exist first. U2, U4 and U6 do not.
 
-- [ ] **U1 (P1, human: ~4h / CC: ~30min)** — app-verdict — Split the verdict line into three registers: verdict, trust, action. The provisional note moves out of `App.tsx:188-192` into the trust register, where it is read. With switches, trust is load-bearing, not a disclaimer
+- [x] **U1 (P1, human: ~4h / CC: ~30min)** — app-verdict — Split the verdict line into three registers: verdict, trust, action. The provisional note moves out of `App.tsx:188-192` into the trust register, where it is read. With switches, trust is load-bearing, not a disclaimer
   - Surfaced by: D3
   - Files: `app/src/VerdictLine.tsx`, `app/src/App.tsx`, `app/src/app.css`
   - Verify: a layout with switches shows a trust register that names the count and the modelled error; EXACT never appears without one
-- [ ] **U2 (P1, human: ~2h / CC: ~15min)** — engine/parts + app — Add a provisional `plankWidthMm` per part, marked estimated in the schema and surfaced as estimated in the UI. Replace `TrackCanvas.tsx:46`'s `min(w,h)*0.022` so a piece's drawn width stops changing with layout extent
+  - **DONE 2026-10-13**, commit `c996e42`. Shipped as K4. Three registers: verdict, trust, action. The provisional note moved out of the palette into the trust register.
+- [x] **U2 (P1, human: ~2h / CC: ~15min)** — engine/parts + app — Add a provisional `plankWidthMm` per part, marked estimated in the schema and surfaced as estimated in the UI. Replace `TrackCanvas.tsx:46`'s `min(w,h)*0.022` so a piece's drawn width stops changing with layout extent
   - Surfaced by: D4; corrects the first review's 1A, which wrongly used `gaugeWidthMm`
   - Files: `engine/src/parts/schema.ts`, `engine/data/brio.ts`, `app/src/TrackCanvas.tsx`
   - Marker owed in code (D4 is a 7/10 shortcut): `gstack-shortcut(dec-286b942e): drawn footprints are approximate until calibration runs, upgrade when the calibration afternoon happens`
   - Verify: the same piece renders the same width in a 4-piece and a 40-piece layout
+  - **DONE 2026-10-13**, commit `67ccaa2`. Shipped, and better than planned: `plankWidthMm` is PUBLISHED (40mm) not provisional, and the canvas now draws grooves from `gaugeWidthMm` and `grooveWidthMm` too.
 - [ ] **U3 (P1, human: ~1w / CC: ~2h)** — app-canvas — Draw each piece as one footprint body rather than a centreline stroke. A switch's two routes and a crossing's two routes must be visually distinguishable inside one body
   - Surfaced by: D5; depends on U2's `plankWidthMm` and C11's catalogue
   - Files: `app/src/TrackCanvas.tsx`
   - Verify: a switch is identifiable as a switch from the drawing alone, without the label
-- [ ] **U4 (P1, human: ~3h / CC: ~20min)** — app-inventory — Inventory holds **part counts** as the stored truth; declaring a set is a fast path that writes counts and is then forgotten. Counts stay editable afterwards
+- [x] **U4 (P1, human: ~3h / CC: ~20min)** — app-inventory — Inventory holds **part counts** as the stored truth; declaring a set is a fast path that writes counts and is then forgotten. Counts stay editable afterwards
   - Surfaced by: D6. RESOLVES the CEO review's open set-manifests question and changes C12's shape
   - Files: `app/src/Inventory.tsx`, `engine/data/`
   - Verify: a wrong set manifest is correctable by editing counts; no manifest is re-read after import
+  - **DONE 2026-10-13**, commit `86614bc`. Shipped. Inventory holds part counts; `usedCounts` compares against the layout.
 - [ ] **U5 (P1, human: ~2h / CC: ~15min)** — app-canvas — Welds are clickable; clicking one breaks it. Breaking a weld may split the graph into two components, and both must stay drawn and both must keep a gauge anchor
   - Surfaced by: D7; the component-split case is the CEO review's own registry row
   - Files: `app/src/TrackCanvas.tsx`, `app/src/App.tsx`
   - Verify: breaking an interior weld leaves two drawn components, neither of which disappears
-- [ ] **U6 (P1, human: ~2h / CC: ~15min)** — app-inventory — A shortfall is advice, never a gate. Unavailable palette pieces are greyed and still clickable; the shortfall line says what is missing and never blocks a placement
+- [x] **U6 (P1, human: ~2h / CC: ~15min)** — app-inventory — A shortfall is advice, never a gate. Unavailable palette pieces are greyed and still clickable; the shortfall line says what is missing and never blocks a placement
   - Surfaced by: D8
   - Files: `app/src/App.tsx`, `app/src/app.css`, `app/src/VerdictLine.tsx`
   - Verify: every palette button stays operable with inventory declared and exhausted
+  - **DONE 2026-10-13**, commit `86614bc`. Shipped. `is-unowned` is a dashed border and nothing else: still clickable, still focusable, never a gate.
 - [ ] **U7 (P1, human: ~1w / CC: ~2h)** — app-a11y — The graph listing becomes operable, not just announced: every piece, end and weld enumerated; Enter activates a free end, Enter on a second welds, Enter on a weld breaks it. Focus order and a state announcement after each action
   - Surfaced by: D9. **Blocked on E11** — the DOM test project has to exist before any of this is verifiable
   - Files: `app/src/GraphListing.tsx`, `app/src/App.tsx`
   - Verify: the whole storyboard, steps 3 through 7, completes with the keyboard alone
-- [ ] **U8 (P2, human: ~2h / CC: ~15min)** — app — The empty state leads with one preset. The inventory invitation moves to after the first layout exists; the eight-large-curves hint becomes secondary rather than a third competing call to action
+  - **Carries the upgrade trigger for `dec-cc66dbf5`** (design review D3, 2026-10-13): the verdict is announced by W1, but the announcement policy stops at the result. When this lands, extend it to piece, end and weld actions and remove the shortcut marker.
+- [x] **U8 (P2, human: ~2h / CC: ~15min)** — app — The empty state leads with one preset. The inventory invitation moves to after the first layout exists; the eight-large-curves hint becomes secondary rather than a third competing call to action
   - Surfaced by: D10
   - Files: `app/src/App.tsx`, `app/src/app.css`
   - Verify: the empty canvas presents exactly one primary action
@@ -12631,33 +12636,324 @@ settled; the TODO is recorded. The twelve open items carried from the sixth CEO
 review remain open and are listed in its own section; they are strategy and
 product questions, not engineering blockers for T1 to T6.
 
+
+## Design review, seventh pass (2026-10-13)
+
+Scope: the live app at `app/src` plus this plan file, named by the user. The
+previous design pass is 28 commits stale and predates the graph rewrite, free-end
+clicking and the verdict split, so every U-series item was re-checked against the
+code rather than trusted.
+
+**Mockups: NOT AVAILABLE.** `$D variants` exits 2 with `No OpenAI API key found`,
+the same failure as the 2026-10-08 pass. Treated as `DESIGN_NOT_AVAILABLE`: no
+board, no `$D check`, and no hand-built wireframes substituted in their place, so
+no pass below cites a mockup as evidence. Outside voices declined by the user.
+
+### U-series reconciliation (what the stale pass got wrong about itself)
+
+Five of the eight U items had shipped without the plan being updated. Marked
+`[x]` with commits: U1 `c996e42`, U2 `67ccaa2`, U4 and U6 `86614bc`, U8
+`4392345`. U3, U5 and U7 are genuinely open. U2 shipped better than planned:
+`plankWidthMm` is a published 40mm figure, not the provisional estimate the item
+asked for.
+
+### Pass ratings
+
+| Pass | Before | After fixes | What moved it |
+|---|---|---|---|
+| 1 Information architecture | 8/10 | 9/10 | D6 removes the one sentence that pointed the wrong way |
+| 2 Interaction state coverage | 6/10 | 8/10 | D4 gives the failure state a number instead of a sentence |
+| 3 User journey | 7/10 | 8/10 | D4 and D6 both land on the first-run path |
+| 4 AI slop risk | 9/10 | 9/10 | Nothing to fix. Zero hard rejections |
+| 5 Design system alignment | 7/10 | 9/10 | D7 names `tokens.css` as the source of truth and writes down the rules a token cannot hold |
+| 6 Responsive and accessibility | 5/10 | 7/10 | D3 announces the verdict, D5 stops the armed dot shouting, D8 stops the controls inverting |
+
+**Overall: 5/10 before, 7/10 after** (lowest of the six rated passes, per the
+scoring rule). Pass 6 is the ceiling and stays the ceiling: the graph is still
+not operable by keyboard, which is U7, which is blocked on E11. D7 and D8 were
+asked after the first close of this review, at the user's request, which is why
+Pass 5 and Pass 6 both moved a second time.
+
+### Pass 1 — Information architecture, 8/10
+
+The hierarchy reads correctly: canvas, verdict, then controls. The verdict split
+from U1 did what it was supposed to do, and the three registers are distinct in
+the DOM, not just in CSS. One finding, which became D6.
+
+### Pass 2 — Interaction state coverage, 6/10
+
+The gap state has no visual. `TrackCanvas.tsx` carries six references to clash
+markers and zero to gaps, so a layout that fails on a 12mm gap renders
+identically to one that closes, and the only difference is a sentence underneath.
+That is the state a user most needs to see on the canvas, because it is the one
+they can fix by swapping a piece. Became D4.
+
+### Pass 3 — User journey, 7/10
+
+Steps 1 and 2 are clean after U8. The failure step is where the arc breaks: the
+app tells the user the loop does not close and then leaves them to guess by how
+much and where. D4 closes that. D6 fixes the orientation sentence at step 0.
+
+### Pass 4 — AI slop risk, 9/10
+
+Classifier verdict: OPERATE. Zero hard rejections. `::selection` and
+`:focus-visible` are both themed rather than left at browser defaults, which is
+the usual tell and is absent here. No gradient-on-everything, no centred hero, no
+emoji in place of state. The copy is specific about what was and was not checked,
+which is the opposite of the generic-confidence failure mode.
+
+### Pass 5 — Design system alignment, 7/10
+
+There is no `DESIGN.md`. `app/src/tokens.css` is a design system in all but name:
+it holds the palette, the type scale and the spacing steps, and every component
+file reads from it rather than hard-coding values. The gap is that nothing names
+it as the source of truth, so the next contributor has no reason to look there
+first.
+
+Worse than unnamed: the file disowns itself. `tokens.css:1-8` opens with
+**"PROVISIONAL TOKENS. There is no design system for this product yet... Replace
+wholesale when the real system lands."** That is no longer true. The file assigns
+typeface roles, self-hosts both faces with licence provenance, documents a
+measured contrast ratio for every colour against the surface it actually sits on,
+spends colour only on verdicts, and names one authored motion. The header is
+telling the next contributor to throw away measured WCAG work. Became D7.
+
+### Pass 6 — Responsive and accessibility, 5/10
+
+Verified in the CSS, not assumed:
+
+- `@media (pointer: coarse)` raises touch targets to 44px, and the data-entry
+  form carries an unconditional 44px floor at `app.css:438`. Good.
+- `@media (prefers-reduced-motion: reduce)` is present at `app.css:561`. Good.
+- `@media (prefers-color-scheme: ...)`: **zero rules**, and no `color-scheme`
+  declaration in `tokens.css` or `app/index.html` either. The app is light-only
+  and never says so, so on a dark OS the browser restyles everything the page did
+  not: the five `<select>`s and the number inputs in `SubmitPart.tsx`, the
+  `ErrorBoundary.tsx:119` textarea, the scrollbars and the caret come back dark on
+  a page that is still warm paper. Became D8.
+- The verdict is not announced. A probe confirmed `verdictLive: null`, and the
+  only live region in the whole app is `App.tsx:428`, which is the notice, not
+  the verdict. A screen reader user clicks a piece and nothing says what changed.
+  Became D3.
+- The armed port dot is the heaviest mark on the canvas: `app.css:826` fills AND
+  strokes it with `--ink`, so it reads as a defect rather than a pending choice.
+  Became D5.
+- The graph is not operable by keyboard. This is U7, already decided and still
+  blocked on E11.
+
+### Decisions made this pass
+
+**D3 — aria-live on the verdict.** The verdict region gets `aria-live="polite"`
+so the result is announced when it changes. Chosen over announcing every graph
+mutation, which would narrate eight placements as eight interruptions. Ceiling:
+this makes the result audible, not the editor operable. The editor remains U7.
+
+**D4 — the dimension annotation goes at the weld that fails.** When a layout
+fails to close, the canvas annotates the failing weld with the gap in
+millimetres, at the weld, rather than only in the verdict line. Chosen over a
+canvas-wide callout: the number is only actionable next to the joint it belongs
+to.
+
+**D5 — the armed port is a smaller solid dot inside a ring.** The ring carries
+the "this is armed" signal and the dot stays visually lighter than a clash
+marker, so arming a port no longer looks like an error. Replaces the fill-and-
+stroke treatment at `app.css:826`.
+
+**D6 — the empty state drops the direction word.** `TrackCanvas.tsx:135` becomes
+"Or place pieces one at a time from the palette." The sentence was written for a
+bottom strip; the side-rail layout at 1000px and up moved the palette right and
+the copy never followed. Removing the word rather than branching on the
+breakpoint means the sentence survives the next layout change too.
+
+**D7 — `tokens.css` is the design system, and a thin `DESIGN.md` names it.** The
+doc points at the token file as the single source of truth and duplicates none of
+its values, because duplicated values are what makes a design doc go stale. What
+it does hold is the four rules a token cannot express: colour is spent only on
+verdicts; no verdict may be colour-only, because all four verdict colours flatten
+into a greyscale band of 0.106 to 0.137 and the `O / \ X ?` glyph shapes carry
+the entire signal on paper; every number uses tabular figures; and
+`font-display` is `optional`, never `swap`, because swap repaints measurement
+columns in a different face mid-load. The stale PROVISIONAL header comes out in
+the same change.
+
+**D8 — the product is light-only and declares it.** `color-scheme: light` so the
+browser stops inverting the controls the page does not style. Chosen over
+building a dark theme: every colour in `tokens.css` carries a ratio measured
+against a specific ground, and the four verdict colours already sit in one narrow
+greyscale band, so new grounds mean re-deriving every ratio or silently dropping
+verdict text under 4.5:1. Ceiling: this fixes the mismatched controls and gives a
+dark-OS user no dark product. Logged as `dec-2508388b` with the upgrade trigger.
+
+### Pass 7 — Unresolved design decisions
+
+```
+  DECISION NEEDED                      | WHAT HAPPENED
+  -------------------------------------|---------------------------------------
+  Is tokens.css the named design        | RESOLVED as D7. A thin DESIGN.md names
+  system, or does DESIGN.md exist?      | it and holds the non-token rules
+  Does the app have a dark mode?        | RESOLVED as D8. Light-only, declared,
+                                        | so the controls stop inverting
+```
+
+Both surfaced unanswered at the first close of this review and both were asked
+and answered immediately after, at the user's request. **Nothing is left
+unresolved from this pass.**
+
+Three further items look like decisions but are not: U3 (switch drawn as a
+footprint body), U5 (two components after a weld break) and U7 (keyboard
+operability) are already decided in this plan and blocked on the switch geometry,
+on implementation order, and on E11 respectively.
+
+### NOT in scope
+
+- **A dark theme.** D8 declares the product light-only and fixes the inverting
+  controls; it does not build a dark palette. Cut because every colour's contrast
+  ratio is measured against a specific light ground and would have to be
+  re-derived. Upgrade trigger recorded at `dec-2508388b`.
+- **Duplicating the token values into prose.** D7's `DESIGN.md` points at
+  `tokens.css` and copies nothing out of it. A doc that restates the palette goes
+  stale the first time a colour changes.
+- **Regenerating mockups.** The tool is unavailable, not skipped by choice.
+- **Touch and reduced-motion work.** Already handled in the CSS and verified this
+  pass. Nothing to add.
+- **Keyboard operability of the graph.** Decided at U7, blocked on E11. This pass
+  adds the announcement only, and says so in D3's ceiling.
+
+### What already exists and should be reused
+
+- `app/src/tokens.css` is the palette, type scale and spacing. Every fix below
+  reads from it. No new colour is introduced by any of W1 to W4.
+- `app/src/VerdictLine.tsx` already has the three registers from U1, so D3 adds
+  an attribute to an existing region rather than a new one.
+- `App.tsx:428` is the existing `role="status"` notice and is the working
+  precedent for how this app announces a change.
+- `TrackCanvas.tsx`'s four-layer render and its clash-marker layer are where D4's
+  annotation belongs. The marker code already resolves a weld to a screen point.
+- `@media (pointer: coarse)` and `@media (prefers-reduced-motion: reduce)` are
+  the two responsive blocks to extend rather than duplicate.
+
+### TODOS.md updates
+
+None proposed. Both Pass 7 items are now decided (D7, D8) and became tasks, so
+there is no undecided debt left to file. A dark theme is the one deferred item and
+it is NOT a TODO: its upgrade trigger lives on `dec-2508388b`, which is where
+`/retro` will find it. The six approved fixes are in the tasks below, with their
+verification, rather than as optional follow-ups.
+
+## Implementation Tasks
+
+Synthesized from this review's findings. Each task derives from a specific
+finding above. Run with Claude Code or Codex; checkbox as you ship.
+
+- [x] **W1 (P1, human: ~1h / CC: ~10min)** — app-a11y — Announce the verdict with `aria-live="polite"`
+  - Surfaced by: Pass 6 — a probe returned `verdictLive: null`; the only live region is `App.tsx:428`, the notice
+  - Files: `app/src/VerdictLine.tsx`, `app/src/App.tsx`
+  - Marker owed in code (D3 is a 7/10 shortcut): `gstack-shortcut(dec-cc66dbf5): the result is audible, the editor is not operable, upgrade when U7 lands and the announcement policy has to cover piece, end and weld actions`
+  - Verify: the verdict region carries `aria-live="polite"`; placing a piece changes its text content, and no other region announces per placement
+  - **DONE 2026-10-13**, commit `2d7cef4`. One `Verdict` wrapper carries role=status, aria-live=polite and aria-atomic=true, so a new branch cannot ship unannounced. The O / \ X ? glyph is now aria-hidden: it exists for paper, where the four verdicts flatten into one greyscale band. Verified by rendering all six branches through react-dom/server, which needs no DOM.
+- [x] **W2 (P1, human: ~6h / CC: ~45min)** — app-canvas — Annotate the failing weld with the gap in millimetres
+  - Surfaced by: Pass 2 — six clash-marker references in `TrackCanvas.tsx`, zero gap references, so a 12mm failure draws identically to a closing loop
+  - Files: `app/src/TrackCanvas.tsx`, `app/src/app.css`
+  - Verify: a layout that fails on a gap renders the number at the failing weld, not canvas-wide; a closing layout renders no annotation; the annotation reads from the solver's reported gap rather than recomputing it
+  - **DONE 2026-10-13**, commit `da982e0`. `WeldResidual.gapMm` means one function turns an exact residual into millimetres, and the drawing cannot disagree with the sentence. `gapAnnotations` is pure geometry with six tests; the carried-figure pin was mutation-checked against a `hypot()` substitution and fails exactly one test. **Also fixed a real bug found while wiring it:** App gated clashes on `result.ok`, but `viewOf` reports IMPOSSIBLE with a clash count on the FAILURE branch, so 16xE said "9 pairs" and marked none. Now draws eight.
+- [x] **W3 (P2, human: ~30min / CC: ~5min)** — app-canvas — The armed port becomes a smaller solid dot inside a ring
+  - Surfaced by: Pass 6 — `app.css:826` fills and strokes with `--ink`, making a pending choice the heaviest mark on the canvas
+  - Files: `app/src/app.css`
+  - Verify: the armed dot is visually lighter than a clash marker at the same zoom; `:focus-visible` still reads as distinct from armed; no new colour token
+  - **DONE 2026-10-13**, commit `c2770de`. The dot keeps r=8 in every state and a separate r=16 ring carries the armed signal. Inked area drops from about 707 to about 555 square mm and most of the new mark is empty space. Verified in the browser.
+- [x] **W4 (P2, human: ~10min / CC: ~2min)** — app-canvas — Drop the direction word from the empty state
+  - Surfaced by: Pass 1 and D6 — `TrackCanvas.tsx:135` says "from the palette below" while the palette is a right rail at 1000px and up
+  - Files: `app/src/TrackCanvas.tsx`
+  - Verify: the sentence names no direction, and reads correctly at 375px, 800px and 1400px
+  - **DONE 2026-10-13**, commit `ed74457`. Verified at 1280px: the hint reads "Or place pieces one at a time from the palette."
+- [x] **W5 (P2, human: ~2h / CC: ~15min)** — docs/design-system — Write `DESIGN.md` naming `tokens.css` as the source of truth
+  - Surfaced by: Pass 5 and D7 — `tokens.css:1-8` says "There is no design system for this product yet... Replace wholesale", which is no longer true of a file carrying measured contrast ratios
+  - Files: `DESIGN.md`, `app/src/tokens.css`
+  - Verify: `DESIGN.md` restates no colour, spacing or type value that `tokens.css` already holds; it does state all four non-token rules (colour only on verdicts, never colour-only because the greyscale band is 0.106 to 0.137, tabular figures on every number, `font-display: optional` never `swap`); the PROVISIONAL header is gone and the replacement says what the file is
+  - **DONE 2026-10-13**, commit `d7238cb`. `DESIGN.md` holds zero hex codes, zero spacing steps and zero type sizes; it holds ten rules. The stale PROVISIONAL header is gone.
+- [x] **W6 (P2, human: ~20min / CC: ~5min)** — app-a11y — Declare `color-scheme: light`
+  - Surfaced by: Pass 6 and D8 — no `color-scheme` anywhere, so a dark OS restyles the `SubmitPart.tsx` selects and inputs, the `ErrorBoundary.tsx:119` textarea, the scrollbars and the caret against a paper page
+  - Files: `app/src/tokens.css`, `app/index.html`
+  - Marker owed in code (D8 is a 7/10 shortcut): `gstack-shortcut(dec-2508388b): light-only, every contrast ratio is measured against a light ground, upgrade when a researched dark palette has its ratios re-measured against dark grounds`
+  - Verify: with the OS set to dark, every `<select>`, `<input>` and the textarea render light to match the page; no verdict colour changes; the four measured ratios in `tokens.css` are still the ratios in force
+  - **DONE 2026-10-13**, commit `29d1053`. `color-scheme: light` on `:root` plus the matching meta, so the UA never paints a dark control before the CSS lands. Probed in the browser: computed colorScheme is `light`.
+
+Effort assumption: features ~30x, docs ~8x and copy ~5x human-to-CC. W2 is the
+only one with real work in it; the others are small because the structure they
+need already exists. W5 is deliberately slow for its size: the value is in
+writing down four rules precisely, not in producing a file.
+
+## Completion Summary (design review, seventh pass, 2026-10-13)
+
+```
+  +====================================================================+
+  |         DESIGN PLAN REVIEW — COMPLETION SUMMARY                    |
+  +====================================================================+
+  | System Audit         | No DESIGN.md; tokens.css is one unnamed     |
+  | Step 0               | 6/10; focus: verdict a11y, failure legibility|
+  | Pass 1  (Info Arch)  |   8/10 →   9/10 after fixes                 |
+  | Pass 2  (States)     |   6/10 →   8/10 after fixes                 |
+  | Pass 3  (Journey)    |   7/10 →   8/10 after fixes                 |
+  | Pass 4  (AI Slop)    |   9/10 →   9/10 after fixes                 |
+  | Pass 5  (Design Sys) |   7/10 →   9/10 after fixes                 |
+  | Pass 6  (Responsive) |   5/10 →   7/10 after fixes                 |
+  | Pass 7  (Decisions)  |   2 resolved, 0 deferred                    |
+  +--------------------------------------------------------------------+
+  | NOT in scope         | written (5 items)                           |
+  | What already exists  | written                                     |
+  | TODOS.md updates     | 0 items proposed                            |
+  | Approved Mockups     | 0 generated, 0 approved (tool unavailable)  |
+  | Decisions made       | 6 added to plan                             |
+  | Decisions deferred   | 0                                           |
+  | Overall design score | 5/10 → 7/10                                 |
+  +====================================================================+
+```
+
+Pass 6 at 7/10 holds the overall down, and it should. The app announces its
+verdict after W1 and stops inverting its own form controls after W6, but it still
+cannot be edited without a mouse, and that is U7, not a gap this pass can close.
+Nothing here is design-complete; run this again once U7 lands and the switch
+reaches the canvas.
+
+Two 7/10 shortcuts were accepted and both carry a logged ceiling and an owed code
+marker: `dec-cc66dbf5` (the verdict is audible, the editor is not operable) and
+`dec-2508388b` (light-only, declared).
+
+### Unresolved decisions
+
+None. Both items that stood open at the first close of this review were asked and
+answered: D7 names the design system, D8 declares the product light-only. The
+twelve strategy items from the sixth CEO review remain open and are listed in
+that review's own section; they are product questions, not design gaps.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 3 | ISSUES OPEN | 3 proposals, 2 accepted, 2 deferred |
-| Outside Review | codex (`codex-plan-review`) | Independent 2nd opinion | 7 | unavailable | no completed external review |
+| Outside Review | codex (`codex-plan-review`) | Independent 2nd opinion | 6 | unavailable | no completed external review |
 | Eng Review | `/plan-eng-review` | Architecture & tests (required) | 3 | ISSUES OPEN | 7 issues, 0 critical gaps |
-| Design Review | `/plan-design-review` | UI/UX gaps | 1 | ISSUES OPEN | score: 3/10 → 10/10 p1, 8 decisions |
+| Design Review | `/plan-design-review` | UI/UX gaps | 2 | ISSUES OPEN | score: 5/10 → 7/10, 6 decisions |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | never run |
 
-- **OUTSIDE COVERAGE:** codex, plan-review phase, **unavailable** on all 7
-  attempts. This run: `codex` is not installed and the native fallback needs
-  `TaskOutput`, which is undeclared in this session, so neither path could run.
-  No completed external review, so no cross-model comparison and no clean-review
-  credit.
-- **VERDICT:** No review is CLEAR. This eng review is ISSUES OPEN with **0
-  critical gaps**: the one the sixth CEO review flagged, an unbounded
-  per-switch modelled error, is closed by E1, which puts the ceiling where the
-  give actually lives. Two decisions changed previously accepted scope, both
-  with the user's answer: E2 replaces P6-4's DOM environment with a reducer
-  extraction, because the updaters at `App.tsx:227-250` were already pure and
-  two of the three motivating defects were not DOM defects; and D1 regroups 14
-  file touches into 10 across 3 tasks. Design Review is 28 commits stale and
-  predates both the graph rewrite and free-end clicking, so it should be re-run
-  before the switch reaches the canvas. **eng review required** is satisfied by
-  this run for the reviewed scope, but the status stays ISSUES OPEN because the
-  twelve strategy items from the CEO review are unresolved.
+- **OUTSIDE COVERAGE:** codex, plan-review phase, **unavailable** on every
+  logged attempt (6 in the review log). This design review did not attempt a new
+  one: the user declined outside voices for this pass. No completed external
+  review exists, so there is no cross-model comparison and no clean-review credit
+  from one.
+- **VERDICT:** No review is CLEAR. This design review is ISSUES OPEN at 7/10
+  overall, held there by Pass 6: after W1 and W6 the app announces its verdict and
+  stops inverting its own form controls, but the graph still cannot be edited
+  without a mouse, which is U7 and is blocked on E11. Six decisions were made and
+  are in the plan (D3 aria-live, D4 the dimension at the failing weld, D5 the
+  armed-port ring, D6 the empty-state copy, D7 `DESIGN.md` naming `tokens.css`,
+  D8 light-only declared), producing tasks W1 to W6. **Zero design decisions are
+  unresolved.** Two of the six are 7/10 shortcuts with logged ceilings:
+  `dec-cc66dbf5` and `dec-2508388b`. Eng Review ran today at commit `1224e87` and
+  is now 1 commit behind HEAD `a107971`, which is its own T1 output, so it is not
+  stale in substance. **eng review required** is satisfied for the
+  reviewed scope; the status stays ISSUES OPEN because the twelve strategy items
+  from the sixth CEO review are still unresolved.
 
 **UNRESOLVED DECISIONS:**
-- + 15 unresolved from prior reviews
+- + 12 unresolved from prior reviews
