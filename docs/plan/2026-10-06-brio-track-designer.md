@@ -11792,19 +11792,872 @@ touch no architecture, are 4/5 or 5/5 reversible, and ship before item 6 starts.
 For the first time in four days the next thing scheduled to happen is a release
 rather than a review.
 
+## CEO review, sixth pass: what is next (2026-10-13, SELECTIVE EXPANSION)
+
+Invoked as `/plan-ceo-review` with: "review the current state and plan for the
+next steps". Review depth: **strategy-only**; the request is prioritisation, not
+implementation design. Mode selected by the user at D1.
+
+### The audit, re-running the fifth pass's own numbers
+
+```
+                                 2026-10-09      2026-10-13
+  lines of product source             3,343           7,077
+  tests passing                          92             199
+  product commits since 10-06             6              29
+  open release-one items                  9               4
+  graph rewrite (T1-T13)             0 of 13        13 of 13
+  release two (items 8-12)                 0 of 5          5 of 5
+  release three (items 13-16)              0 of 4     1 of 4 (item 14)
+```
+
+The fifth pass's finding was "the plan is not solving the problem, it is the
+problem". That was acted on. Source more than doubled, the graph rewrite landed
+whole, and the UI stopped being a form: free-end clicking shipped on 10-13 and
+`closed: boolean` is retired.
+
+### Finding 1: switches were cut for a reason that no longer exists
+
+CORRECTED after adversarial review. My first draft said "no open task adds a
+switch" and "no decision ever cut switches from the product". Both are false
+and the plan says so:
+
+- **D5 at R22 cut them explicitly**: "Switches and the crossing are EXCLUDED
+  from v1 and recorded in TODOS.md **with the chain model named as the
+  blocker**" (line 6350).
+- **Item 13 of the live backlog is "Switch and crossing parts - C11"**, under
+  the heading "THE PAYOFF: what was actually asked for" (line 10992).
+
+The real finding is better than the one I wrote. R22 named its own return
+trigger, the multi-end topology work, and that work is **done**: T1 to T13 are
+13 of 13. The blocker D5 cut switches for has been removed, so reinstating
+them is not new scope, it is the condition R22 set being met.
+
+What IS true: the engine models switches (`portsOf` returns three ports), the
+heel has all three T8 treatments, and `switches.test.ts` proves a layout with
+both roads rejoining. The editor enumerates every port of a placed piece, so a
+3-port piece would offer three free ends, but **no test covers that** and P6-4
+below now owns it.
+
+`P6-2` supersedes the switch half of C11 / item 13. The crossing stays excluded:
+R22 cut the pair, and only the switch's blocker has been cleared.
+
+### Finding 2: the suite cannot fail where the bugs are
+
+Three defects reached the user in two days, all in the seam between a correct
+engine and the screen:
+
+```
+  defect                                   module            had tests?
+  eight clicks built eight separate runs   App.tsx           no
+  new runs anchored on top of each other   App.tsx wiring    no
+  clash outranked "not a loop yet"         verdictView.ts    no
+```
+
+In all three the pure model was right and its tests passed. Every `.tsx`
+component has zero tests and nothing imports one, because vitest runs with no
+DOM. `layoutStore.ts` is the sharpest case: it decides whether to discard a
+saved layout and has no test at all. Accepted into scope at D3.
+
+### Finding 3: the landscape has no incumbent to beat
+
+No dedicated BRIO layout planner exists; woodenrailway.info is the nearest
+thing and is prose. The model-railway tools (SCARM, AnyRail, XTrackCAD) and
+LEGO's BlueBrick all snap within a TOLERANCE, so they will show a layout that
+does not physically close. This project's exact Z[zeta16] arithmetic answers
+"does it close" as a yes or no. That is the differentiator.
+
+It does NOT grow with switches, and my first draft said it did. D9 traded
+unconditional exactness FOR switch support, "with a stated per-switch modelled
+error" (line 9341). The honest claim is narrower and still strong: exact for
+two-ended track with no epsilon anywhere; switches carry a bounded error that
+the verdict discloses. Every incumbent applies an undisclosed tolerance to
+EVERY piece.
+
+### Scope decisions
+
+| # | Proposal | Effort | Decision | Reasoning |
+|---|---|---|---|---|
+| E1 | Switch in the catalogue, via C1's sourcing | human ~5h (P6-1 2h + P6-2 3h) | **ACCEPTED** (D2) | Everything downstream is built and proven; only the data row is missing |
+| E2 | Tests for the engine/UI seam | human ~10h (P6-3 2h + P6-4 8h) | **ACCEPTED** (D3) | All three of this week's defects live where the suite cannot fail |
+| E3 | Offer only polarity-compatible ends | human ~3h | **DEFERRED** (D4) | The verdict backstop exists and is tested; switches change what a port is |
+
+Effort, corrected after review: both tables first showed only the research
+step. Accepted work is about **17 human hours**, roughly 2 to 2.5 days, which
+includes the two dependencies P6-2 needs: K2 (~3h, open in release one) and
+P6-5 (~2h).
+
+### Implementation tasks, sixth pass
+
+Numbered `P6-n`, pass-scoped. `S1`-`S8` are the worktree lane steps (10641),
+`S1-1` onward are the fifth pass's audit findings, and `X1a`/`X1b`/`P6-2`/`P6-3`/`P6-4`
+are approved third-pass rows (4385). Two earlier id collisions were caught by
+review; a pass prefix ends the class.
+
+- [ ] **P6-1 (P1, human: ~2h / CC: ~0)** — research/data — Source the BRIO switch's diverging-leg angle and lateral offset. This is C1, unblocked and scheduled
+  - Surfaced by: finding 1; C1's own evidence is that `CALIBRATION.md` has zero switch questions
+  - Files: `CALIBRATION.md`, `engine/data/sources.ts`
+  - Verify: deliver an ENUMERATED source list, each with URL or edition, access date and outcome, covering at minimum BRIO/Ravensburger published dimensions, retailer specifications, patent drawings and woodenrailway.info. "Citable" means a figure attributable to the manufacturer or a dimensioned drawing. THREE outcomes, all of which must name the next action: (a) a citable figure that is exactly expressible in Z[zeta16]; (b) a citable figure that is NOT lattice-exact, which is D9's case and requires the per-switch rounding residual recorded as a number; (c) nothing citable, which requires switch questions added to `CALIBRATION.md` and a measurement task filed. A bare "I could not find one" does not satisfy (c)
+- [ ] **P6-2 (P2, human: ~3h / CC: ~30min)** — engine/data — The switch catalogue row
+  - Surfaced by: finding 1. Supersedes the switch half of C11 / backlog item 13; the crossing stays excluded per R22
+  - Depends on: P6-1, and on **K2** for the citation mechanism, and on **C13** for the verdict disclosure
+  - Files: `engine/data/brio.ts`, `engine/data/sources.ts`, `engine/test/switches.test.ts`
+  - Verify: ships on a cited exact figure as `published`, OR on an approximate figure as `estimated` with the dotted unverified ring on and C13's per-switch modelled-error disclosure live, which is exactly what D9 approved. It does NOT ship on an invented figure. Uses K2's mutation-style check, "a deliberately corrupted absolute dimension fails the suite", not merely "a citation sits next to the number"
+  - On P6-1 outcome (c), nothing citable: P6-2 becomes BLOCKED, NOT SCHEDULED, and the physical measurement goes to TODOS.md under the EXISTING calibration deferral (line 9332) rather than becoming new scope the user already deferred
+  - Exit condition: re-examine UNRESOLVED #6, the figure-eight cycle count, and D5's recorded consequence that "the shared-vertex unresolved item is CLOSED by refusal". Both were premised on no 3-port part existing. P6-2 owns the re-examination; it is not a separate task
+  - Open implementation question, not settled at strategy depth: one row plus a mirror flag, or two rows for left and right. `turn` already mirrors a switch in `portsOf`, which argues for one
+- [ ] **P6-3 (P1, human: ~2h / CC: ~30min)** — app/test — Test `verdictView.ts` and `layoutStore.ts`. Both pure; no DOM needed
+  - Surfaced by: finding 2
+  - Files: `app/src/verdictView.test.ts`, `app/src/layoutStore.test.ts`
+  - Verify: write the verdict order out once and assert it. The order is IMPOSSIBLE > HEADING_MISMATCH > EXCEEDS > NEEDS_GIVE > EXACT, with NO_CYCLE reported when rank is 0. The 10-13 defect was NOT that IMPOSSIBLE outranks NO_CYCLE, which is correct; it was that two FREE ends meeting counted as a clash at all. Both must be cases. For the loader: every discard path, including the legacy `brio.chain.v0` blob, a weld naming a missing piece, and the K3 contract that a discard is always reported rather than silent
+- [ ] **P6-4 (P2, human: ~1d / CC: ~1h)** — app/test — A DOM environment and component tests for the editor
+  - Surfaced by: finding 2; two of the three 10-13 defects were React state wiring
+  - Files: `package.json`, `vitest.config.ts`, `app/src/App.test.tsx`
+  - Decide first: jsdom or happy-dom, plus `@testing-library/react`. The existing `app/**` include is pure-logic with no environment, so this adds a second environment rather than changing the first
+  - Verify: three tests. Eight palette clicks build ONE run; two runs do not share an origin; a 3-port piece offers three free ends (which P6-2 needs and nothing currently covers). For the first, name the fixing commit `8ca3c43`, re-introduce the stale-closure read by hand once, and record the failing output in the completion note, the way K3's note recorded "deleting it now fails 3 tests". There is no CI (S9-1), so this check is manual and one-time by construction
+
+### C13's disposition, because P6-2 depends on it
+
+C13 ("a layout with switches never claims unconditional exactness") is open at
+line 9405 and sits in NO release: not in the 16-item backlog, not in K1-K9, not
+in T1-T13. The fifth pass's dedup dropped it, as it dropped C2. Depending on an
+unscheduled task converts a missing dependency into an unschedulable one, so:
+
+- [ ] **P6-5 (P1, human: ~2h / CC: ~15min)** — app-verdict — C13's disclosure half, funded. A layout containing a switch never claims unconditional exactness; the per-switch modelled error is stated in the verdict
+  - Surfaced by: review of this pass. C13 is otherwise a dependency with no owner
+  - Files: `app/src/verdictView.ts`, `app/src/VerdictLine.tsx`
+  - Verify: the disclosure is UNCONDITIONAL on any switch being present, whatever its `DimensionStatus`. C13's own verify says EXACT never appears without it, so it does not hang off the `estimated` branch only
+  - Note: K4's three-register trust line may already carry this. Check before building; if it does, close P6-5 as satisfied rather than writing a second disclosure
+
+### 0I. Temporal interrogation
+
+```
+  HOUR 1   P6-1. Open four source classes at once: BRIO/Ravensburger published
+           dimensions, retailer specs, patent drawings, woodenrailway.info.
+           The deliverable is the TABLE of outcomes, not the number. Expect (c).
+  HOUR 2-3 The branch decides everything downstream. On (a) P6-2 is a data row.
+           On (b) the residual must be computed and compared against a ceiling
+           that does not yet exist. On (c) P6-2 stops and the measurement goes
+           to the existing calibration deferral.
+  HOUR 4-5 P6-2 touches more than data: the palette renders every BRIO part
+           unfiltered, `presets.ts` is pinned by a test running the real solver,
+           and 199 tests have never seen a 3-port part. Surprise comes from the
+           existing suite, not the new row.
+  HOUR 6+  P6-3 first, then P6-4. P6-3 is pure and cheap and covers the loader
+           that silently decides whether to discard a saved layout. P6-4 needs
+           a dependency decision (jsdom or happy-dom) before any test is written.
+```
+
+Feasibility blockers, named not settled:
+- **The per-switch error ceiling.** Without it P6-2(b) can ship a switch whose
+  modelled error exceeds the whole axial budget, and every verdict containing
+  it is then dominated by the approximation. This is the one open item that can
+  produce a confident wrong verdict, which is this project's named failure class.
+- **P6-2 cannot start** until K2 (open, release one) and P6-5 both land.
+
+### What this pass did NOT settle
+
+- **Switch handedness** (one row plus a flag, or two rows). Implementation
+  depth; P6-2 names it.
+- **Whether UNRESOLVED #6 reopens.** R22's accepted consequence "branching and
+  self-crossing layouts are not expressible in v1" was premised on there being
+  no 3-port part. P6-2 removes that premise. The figure-eight cycle-counting item
+  must be re-examined when P6-2 lands; it is NOT closed by this review.
+- **The crossing.** Still excluded. R22 cut switches and the crossing together
+  and only the switch's blocker has cleared.
+- **A ceiling on the per-switch modelled error.** P6-1(b) records the residual
+  as a number; nothing says above what value a switch must not ship. The axial
+  budget is about 1.0-1.5mm, so a residual of that order would dominate every
+  switch verdict and still pass. Needs a threshold before P6-2 ships.
+- **Which release P6-1 to P6-5 belong to.** CR5's split is the live structure
+  and these are unassigned.
+- **C2's disposition.** Like C13 it survived no dedup. E3's deferral covers its
+  editor half; the schema half shipped.
+- **E3's deferral touches D11**, which approved polarity work including
+  compatible-ends-only. Deferring the editor-side filter is a PARTIAL reversal
+  of D11's second clause; the schema-side half shipped and the verdict backstop
+  is tested. Recorded here rather than left implicit.
+
+### Review Sections 1-11, sixth pass
+
+Strategy-only depth: capability rows, not method registries. Scope reviewed is
+P6-1 to P6-5 plus the four already-open release-one items.
+
+#### Section 1: Architecture — 3 findings
+
+```
+  THE CATALOGUE IS A SINGLE SOURCE WITH SIX UNFILTERED CONSUMERS
+
+  brio.ts ──> library.ts (BUILT_IN) ──┬──> App palette      (maps ALL parts)
+                                      ├──> inventory rows   (one per part)
+                                      ├──> presets.ts       (pinned by a real-solver test)
+                                      ├──> solver           (portsOf)
+                                      ├──> renderGraph      (one segment per road)
+                                      └──> clash scan       (one entry per port)
+
+  Adding ONE row touches all six. None of them filters.
+```
+
+**WARNING — rank grows twice as fast with switches.** A 2-port piece in a run
+adds one vertex and one edge, so rank is unchanged. A switch with both roads
+welded adds one vertex and three edges: **rank +2 per switch**. The cycle-space
+ceiling is 20, so roughly **ten fully-connected switches** exhausts it and the
+verdict degrades to "too many loops to rank". That is a real ceiling for a
+layout a child could build on a big table. Not a blocker; it needs stating in
+P6-2 so it is not discovered as a bug.
+
+**OK — rollback posture is the best in the project.** A catalogue row is data.
+Rollback is deleting the row; reversibility 5/5.
+
+**WARNING — the palette has no gate.** `App.tsx:35` imports `BRIO_PARTS` and
+renders every part. A switch appears the moment the row exists, including
+before P6-5's disclosure lands. That ordering is a real risk, which is why
+P6-5 is a hard dependency rather than a follow-up.
+
+#### Section 2: Error & Rescue map — capability rows, 1 GAP
+
+```
+  CAPABILITY              | FAILURE MECHANISM            | RESCUED | USER SEES
+  ------------------------|------------------------------|---------|------------------
+  switch row resolve      | unknown part id              | Y       | crash screen + repro
+  switch in a chain walk  | pose.ts refuses explicitly   | Y       | thrown, named part
+  switch missing groove   | grooveWidthMm undefined      | Y       | bare plank, by design
+  saved layout w/ switch  | row later removed            | Y       | whole layout discarded, stated
+  switch beyond budget    | modelled error > axial give  | N ←GAP  | confident wrong verdict
+```
+
+**CRITICAL GAP — the per-switch error has no ceiling.** P6-1(b) records the
+rounding residual as a number and P6-2 ships `estimated` on it. Nothing refuses
+a residual larger than the axial budget (~1.0-1.5mm). A switch whose modelled
+error exceeds the give it is measured against makes every verdict containing it
+meaningless while still reading as a verdict. This is the project's named
+"confident wrong verdict" class. Owner: P6-1 must state the threshold; P6-2
+must refuse above it. Recorded as open, not settled here.
+
+#### Section 3: Security & threat model — 2 findings, 0 High
+
+**WARNING — P6-4 adds 3 or 4 devDependencies** (jsdom or happy-dom, plus
+`@testing-library/react` and its peers) to a project that currently has a very
+small tree. Test-only, so no production surface, but it is the largest supply
+chain change this plan makes. Likelihood Low, impact Med, unmitigated.
+
+**OK — no new attack surface otherwise.** No endpoints, no auth, no network.
+The one real exposure is unchanged and already tracked P1 pre-launch: part data
+is transcribed from woodenrailway.info and the provenance question goes to
+counsel before any publication.
+
+#### Section 4: Data flow and interaction edge cases — 1 unhandled
+
+```
+  INTERACTION                  | EDGE CASE                   | HANDLED | HOW
+  -----------------------------|-----------------------------|---------|-------------------
+  place a 3-port switch        | which end is armed next?    | ARBITRARY| port 1, unexplained
+  weld two free ends           | incompatible polarity       | Y       | verdict, E3 deferred
+  delete a switch              | 3 welds removed             | Y       | removePiece + anchors
+  two tabs open                | clobber                     | N       | deferred at D10
+  saved layout, row removed    | discard whole layout        | Y       | notice shown
+```
+
+**WARNING — the armed-end choice after placing a switch is arbitrary.**
+`addPiece` returns `port 1` for any multi-port part, which for a switch is the
+through road. Nothing tells the user why, and building the diverging road first
+needs an extra click on port 2. Defensible default; it should be a stated one.
+
+#### Section 5: Code quality — 1 finding
+
+**WARNING — `App.tsx` is 584 lines** and owns state, persistence, palette,
+presets, inventory and submission wiring. It is the file this week's two state
+defects were in. P6-4 tests it rather than splitting it, which is the right
+order (characterise, then extract), but the split should follow.
+Good references for the extraction: `engine/src/graph/model.ts` (262),
+`cycles.ts` (231), `app/src/layoutModel.ts` (148).
+
+#### Section 6: Tests — the diagram, 3 gaps
+
+```
+  NEW THING                     | TYPE        | EXISTS | GAP
+  ------------------------------|-------------|--------|---------------------------
+  switch row resolves           | unit        | P6-2   | —
+  branching layout solves       | integration | exists | switches.test.ts, local part
+  3-port free-end enumeration   | component   | P6-4   | nothing covers it today
+  verdict ranking rules         | unit        | P6-3   | verdictView.ts untested
+  loader discard paths          | unit        | P6-3   | layoutStore.ts untested
+  8xE and 8L+8R still IMPOSSIBLE| unit        | exists | must re-run after P6-2
+  per-switch error ceiling      | unit        | NONE   | ←GAP, no threshold to assert
+```
+
+2am-on-a-Friday test: place a switch, weld both roads into two loops, and
+confirm each loop is checked against its OWN give. Hostile-QA test: a switch
+whose modelled error exceeds the axial budget; today nothing refuses it.
+Chaos test: 10 switches, which hits the rank ceiling exactly.
+
+Flakiness risk: P6-4's revert check depends on hand-reverting a commit and
+cannot be re-run; with no CI it is one-time by construction.
+
+#### Section 7: Performance — 2 findings, neither blocking
+
+Cycle enumeration is 2^rank with a ceiling of 20, checked before enumeration.
+The all-pairs clash scan is O(n^2) in ports and carries its
+`gstack-shortcut(dec-f333f98f)` marker with a 25,359-pair measured ceiling.
+A switch adds a third port per piece, so the pair count grows ~2.25x for an
+all-switch layout. Still milliseconds. No DB, no network, no jobs.
+
+#### Section 8: Observability — 1 gap, accepted
+
+There is no logging, no metrics and no alerting, because this is a local tool
+with no server. The crash screen's runnable repro IS the observability, and it
+is tested end to end. **Gap:** nothing records which verdict a user saw, so a
+"it said it would fit and it didn't" report cannot be reconstructed. Acceptable
+while there is no telemetry and no users; it becomes real at publication.
+
+#### Section 9: Deployment — 1 risk, outside this plan's scope
+
+**WARNING — 30 commits, no remote, no CI, no backup.** `git remote -v` is
+empty and `main` is 30 commits behind. Every artifact of the last week exists
+on one machine with no second copy. This is not in the accepted scope and is
+not mine to fix, so it is flagged rather than actioned: REPO_MODE is unknown.
+Deployment, rollout order and migration safety are all N/A: no deploy exists.
+
+#### Section 10: Long-term trajectory
+
+Reversibility: **5/5** for P6-2 (delete a data row), **4/5** for P6-3/P6-4
+(tests and a dev dependency), **3/5** for P6-5 (verdict copy that other copy
+will come to depend on).
+
+Debt introduced: 3 or 4 devDependencies; a component test suite that rots if
+the editor keeps moving; `App.tsx` left un-split.
+Debt repaid: the two untested state modules, and C13 going from unscheduled to
+funded.
+
+Retrospective on the cherry-picks: E3 was the right defer. It is C2's editor
+half, and P6-2 changes what a port is (a heel is exempt from polarity), so
+building it first would have been building it twice. Nothing rejected turned
+out to be load-bearing for what was accepted.
+
+#### Section 11: Design & UX — 1 finding
+
+UI scope IS present: P6-2 puts a switch in the palette and on the canvas.
+
+```
+  FEATURE          | LOADING | EMPTY | ERROR          | SUCCESS        | PARTIAL
+  -----------------|---------|-------|----------------|----------------|------------------
+  place a switch   | n/a     | n/a   | unknown id ->  | 3 free ends    | one road welded,
+                   |         |       | crash screen   | offered        | one free
+  switch verdict   | n/a     | n/a   | heading/clash  | EXACT + stated | P6-5 owns the
+                   |         |       |                | modelled error | disclosure
+```
+
+**WARNING — a switch will draw as a centreline stroke, same as a curve.**
+`render.ts:89` emits one segment per road, so a switch becomes two strokes that
+meet. Nothing distinguishes it from two separate pieces touching. Item 15 (U3,
+footprint bodies) is open and owns the real fix. Until it lands, P6-2 ships a
+part the canvas cannot show as one object. Record the ceiling rather than
+pretend otherwise.
+
+Recommend running `/plan-design-review` before P6-2 implements, and
+`/design-review` on the live site after.
+
+### Decision ledger, sixth pass
+
+| ID | Owner | Contract and evidence | Current | Proposed | Status | Exact approval and scope |
+|---|---|---|---|---|---|---|
+| D1 | Step 0E | 4 open items, ~12 files, added capability | — | four modes | answered | SELECTIVE EXPANSION, user-selected |
+| D2 | 0G / E1 | D5-R22 cut switches; its return trigger has fired | excluded | add | **ACCEPTED** | A) Add to scope → P6-1, P6-2 |
+| D3 | 0G / E2 | 3 defects in 2 days, all in untested wiring | untested | add | **ACCEPTED** | A) Add in full → P6-3, P6-4 |
+| D4 | 0G / E3 | backstop exists and is tested | unfiltered ends | filter | **DEFERRED** | B) Defer to TODOS.md |
+| D5 | 0H | 2 adversarial passes, 40 of 52 findings applied | — | approve | **APPROVED** | A) Approve and continue |
+| D6 | TODO scan | `git remote -v` empty, 30 commits ahead | no backup | record | **ACCEPTED** | A) Add to TODOS.md |
+| P6-5 | Section 1 | C13 depended on, scheduled nowhere | unscheduled | fund | derived | dependency of D2 |
+
+**Approval readiness: PASS** — rows D1, D2, D3, D4, D5, D6 and P6-5 checked
+against their actual answers above.
+
+### NOT in scope
+
+**Deferred** (recorded in `docs/plan/brio-TODOS.md`):
+- E3, polarity-filtered free ends (D4). The verdict backstop exists and is
+  tested, and P6-2 changes what a port is.
+- No remote, no backup, no CI (D6). Outside the accepted scope; recorded P1.
+
+**Rejected:** none this pass. No proposal was skipped.
+
+**Unchanged exclusions carried forward:** the crossing (R22 cut it with
+switches; only the switch's blocker has cleared), drag-and-drop and undo (D5),
+the backend and published library (D2 of the fifth pass), elevation and
+calibration (user instruction).
+
+### What already exists
+
+| Sub-problem | Existing code | Reused? |
+|---|---|---|
+| 3-port geometry | `portsOf`, `SwitchPart`, heel treatments | YES, unchanged |
+| branching solve | `forest.ts`, `cycles.ts`, `solve.ts` | YES, unchanged |
+| switch under test | `engine/test/switches.test.ts` | YES, part declared locally |
+| citation pinning | K2's mechanism, open | YES, P6-2 depends on it rather than duplicating |
+| verdict disclosure | K4's three-register trust line | MAYBE, P6-5 checks before building |
+| editor port enumeration | `renderGraph`, free-end clicking | YES, untested until P6-4 |
+
+Nothing is rebuilt. P6-2 is a data row on machinery that already exists.
+
+### Dream state delta
+
+```
+  BEFORE THIS PASS               AFTER P6-1..P6-5            12-MONTH IDEAL
+  branching engine, unusable --> a switch you can place --> say what is in your
+  9 parts, no switch             tests where bugs are       box, get layouts you
+  wiring untested                                           can actually build
+```
+
+Closer on reach. Unchanged on the inventory question, which is still the thing
+no planner answers and still has no task.
+
+### Error & Rescue Registry (strategy-only, capability rows)
+
+See Section 2. Five capability rows, **1 CRITICAL GAP**: the per-switch
+modelled error has no ceiling, so a switch whose error exceeds the axial budget
+can ship and make every verdict containing it meaningless. Owner: P6-1 states
+the threshold, P6-2 refuses above it.
+
+### Failure Modes Registry
+
+```
+  CAPABILITY                | FAILURE MODE            | RESCUED? | TEST? | USER SEES    | LOGGED?
+  --------------------------|-------------------------|----------|-------|--------------|--------
+  switch row resolve        | unknown part id         | Y        | Y     | crash+repro  | console
+  switch in a chain walk    | refused explicitly      | Y        | Y     | thrown       | N
+  switch missing groove     | undefined grooveWidth   | Y        | Y     | bare plank   | N
+  saved layout, row removed | discard whole layout    | Y        | P6-3  | notice       | N
+  switch beyond budget      | error > axial give      | N ←GAP   | N     | WRONG VERDICT| N
+  rank ceiling with switches| >10 switches hits 20    | Y        | Y     | "too many"   | N
+```
+
+**1 CRITICAL GAP** (RESCUED=N, TEST=N, user sees a confident wrong verdict).
+
+### Scope Expansion Decisions
+
+- **Accepted:** E1 switch in the catalogue (P6-1, P6-2); E2 seam tests
+  (P6-3, P6-4). P6-5 derived as a dependency.
+- **Deferred:** E3 polarity-filtered free ends; the backup/remote/CI gap.
+- **Skipped:** none.
+
+### Diagrams produced
+
+System architecture (Section 1), error flow (Section 2), data-flow and
+interaction edge cases (Section 4), test coverage map (Section 6), interaction
+state map (Section 11). Deployment sequence and rollback flowchart are **N/A**:
+there is no deploy, and rollback for a catalogue row is deleting the row.
+
+### Stale Diagram Audit
+
+| Diagram | Location | Accurate? |
+|---|---|---|
+| T13 completion note, "UI is still a single ordered chain" | plan line 10742 | **STALE**; written at `68d26ab`, free-end clicking shipped after at `8ca3c43`. Corrected in Finding 1 rather than edited, because a completion note records what was true when it closed |
+| release-structure diagram, items 13-16 | plan ~11560 | accurate; item 14 shipped, 13/15/16 open |
+| the six-consumer catalogue graph | this pass, Section 1 | new |
+
+### Completion Summary
+
+```
+  +====================================================================+
+  |            MEGA PLAN REVIEW — COMPLETION SUMMARY                   |
+  +====================================================================+
+  | Mode selected        | SELECTIVE EXPANSION                         |
+  | System Audit         | source 3,343->7,077; tests 92->199; 29      |
+  |                      | product commits since the fifth pass        |
+  | Step 0               | SELECTIVE EXPANSION; 3 findings; switch gap |
+  | Section 1  (Arch)    | 3 issues found                              |
+  | Section 2  (Errors)  | 5 capability rows mapped, 1 GAP             |
+  | Section 3  (Security)| 2 issues found, 0 High severity             |
+  | Section 4  (Data/UX) | 5 edge cases mapped, 1 unhandled            |
+  | Section 5  (Quality) | 1 issue found                               |
+  | Section 6  (Tests)   | Diagram produced, 3 gaps                    |
+  | Section 7  (Perf)    | 2 issues found, neither blocking            |
+  | Section 8  (Observ)  | 1 gap found, accepted while local-only      |
+  | Section 9  (Deploy)  | 1 risk flagged (no remote/CI/backup)        |
+  | Section 10 (Future)  | Reversibility: 5/5 for P6-2, debt items: 3  |
+  | Section 11 (Design)  | 1 issue (switch draws as a centreline)      |
+  +--------------------------------------------------------------------+
+  | NOT in scope         | written (2 deferred, 0 rejected)            |
+  | What already exists  | written                                     |
+  | Dream state delta    | written                                     |
+  | Error/rescue registry| 5 rows, 1 CRITICAL GAP                      |
+  | Failure modes        | 6 total, 1 CRITICAL GAP                     |
+  | TODOS.md updates     | 2 items proposed, 2 accepted                |
+  | Scope proposals      | 3 proposed, 2 accepted (+1 derived)         |
+  | CEO plan             | written                                     |
+  | Outside voice        | codex unavailable (not installed); native   |
+  |                      | fallback needs TaskOutput, undeclared here  |
+  | Lake Score           | N/A (no coverage-scored questions; all      |
+  |                      | differed in kind)                           |
+  | Diagrams produced    | 5 (arch, error, data/UX, tests, UI states)  |
+  | Stale diagrams found | 1 (T13 note, corrected in place by Finding 1)|
+  | Unresolved decisions | 12 (listed below)                           |
+  +====================================================================+
+```
+
+### Unresolved Decisions, sixth pass
+
+1. No ceiling on the per-switch modelled error. **CRITICAL GAP.**
+2. Switch handedness: one row plus a mirror flag, or two rows.
+3. Whether UNRESOLVED #6 (figure-eight cycle count) and D5's "shared-vertex
+   closed by refusal" reopen once a 3-port part exists. P6-2 owns it.
+4. Which release P6-1 to P6-5 belong to.
+5. C2's disposition; it survived no dedup, like C13 did.
+6. The crossing's status beyond "still excluded".
+7. X3's verdict order is asserted from current behaviour, not a cited source.
+8. P6-4's revert check has no owner and cannot be re-verified without CI.
+9. Whether K4's trust line already satisfies P6-5, making it a no-op.
+10. The armed-end default after placing a switch (port 1) is arbitrary and
+    unexplained to the user.
+11. A switch will draw as a centreline stroke until U3 lands.
+12. No observability records which verdict a user saw.
+
+## Eng review, fifth pass (2026-10-13)
+
+Target: this plan's sixth-pass scope, tasks P6-1 to P6-5, plus the open
+release-one items K1, K2, K7, K9. Report file: this file.
+
+### Scope Challenge
+
+**A. Assessment.** 14 distinct files, 0 new classes or services, 3 new test
+files and 1 new devDependency group. The complexity gate trips at 8 files.
+
+Retrospective on the named paths: `brio.ts` 4 commits, `sources.ts` 1,
+`verdictView.ts` 1, `layoutStore.ts` 1, `package.json` 4. Two reverts touch
+`engine/data` or `app/src`. No recurring failure in these paths.
+
+**Search check** for the one new infrastructure component, a DOM test
+environment for Vitest:
+- **[Layer 1]** jsdom is the broad-compatibility default.
+- **[Layer 2]** happy-dom runs 2-4x faster and is adequate for most React
+  component tests.
+- **[Layer 3]** The sharper point the sources make: neither is a real browser,
+  so layout, focus and native events still need browser-level tests. This
+  project ALREADY drives a real browser (`$B`), and that is what found all
+  three defects P6-4 is justified by. See finding E2.
+
+**B. Complexity selectors.** No feature cuts proposed. Structure question asked
+and answered.
+
+`feature answers: none proposed; structure: B) Smaller arrangement (D1);
+accepted scope: merge P6-3 and P6-5 into one verdict-layer task since both edit
+verdictView.ts, and fold P6-1's source notes into P6-2's sources.ts edit, taking
+14 file touches to 10 across 3 tasks; pending remedies: E1 per-switch ceiling,
+E2 P6-4 test approach`
+
+**Scope Challenge result: scope accepted as-is.** The smaller arrangement
+preserves every commitment; regrouping is not a scope reduction.
+
+### Decision ledger
+
+#### E1: ceiling on the per-switch modelled error
+Finding: #1, P1, confidence 9/10, `engine/src/graph/cycles.ts` (give is computed
+per cycle; nothing bounds a part's modelled error against it). Reviewer: native.
+Plan baseline: D9 approved "accept approximate switches" with a STATED
+per-switch error; no ceiling was ever set.
+Runtime evidence: `slop.axialMm` is 0.8 on every BRIO part; `weldGiveMm` returns
+`Math.max` of the pair, so a 10-joint loop gives about 8mm total.
+Question D2: asked and answered.
+State: approved
+Actual answer: A) Ceiling as a fraction of axial give (D2)
+Accepted scope: P6-1 records the rounding residual as a number; the verdict
+refuses when the summed residual of the switches in a cycle exceeds a stated
+fraction of that cycle's own summed axial give; a test asserts the refusal.
+
+#### E2: how to test the editor wiring
+Finding: #2, P2, confidence 9/10, `app/src/App.tsx:227-250`. Verbatim:
+`setEditor((e) => {` / `  const next = addPiece(e.graph, partId, turn, count, e.selected, ports);`
+These updaters are already pure `(state) => state`; only their location makes
+them hard to test. Reviewer: native.
+Plan baseline: D3 of the CEO review accepted P6-4 "in full", a DOM environment
+plus component tests.
+Runtime evidence: of the three defects cited for P6-4, two were pure-module
+failures (`verdictView.ts` ranking, anchor geometry) and one was React state.
+Question D3: asked and answered.
+State: approved
+Actual answer: A) Extract the reducer, no DOM (D3)
+Accepted scope: move the four updaters into `app/src/editorReducer.ts` as pure
+`(state, action, deps) => state`; test them directly, including applying `add`
+eight times to one state value; NO DOM environment and NO new devDependency.
+Wiring remains checked only by the real browser via `$B`, which is manual.
+History: supersedes D3's "in full" DOM-environment scope for P6-4, by the
+user's answer at D3 of this review.
+
+**Approval readiness: PASS** — E1 cites D2, E2 cites D3 of this review, and the
+arrangement cites D1. P6-1, P6-2, P6-3 and P6-5 keep their CEO-review approvals
+(D2 and D3 of that review); P6-4's scope is replaced by E2 above.
+
+### 1. Architecture review
+
+**[P1] (confidence: 9/10)** `engine/src/graph/cycles.ts:204,212` — E1's ceiling
+cannot live where it first sounds like it should. Verbatim:
+
+```
+204:    const giveMm = edges.reduce((sum, e) => sum + giveOfWeld(e), 0);
+212:      withinGive: !rotationBroken && gapMm <= giveMm,
+```
+
+Give is computed **per cycle**. A switch's modelled error is **per part**. So
+"this switch's error is too large" is not a question the catalogue can answer:
+the same switch is fine in a twenty-joint loop and meaningless in a four-joint
+one. The refusal must therefore be a VERDICT-time check inside `analyseCycles`,
+comparing the summed residual of the switches in that cycle against that
+cycle's own give, and it inherits the no-pooling rule for free.
+
+```
+  WHERE THE CEILING GOES
+
+  brio.ts  --(modelledErrorMm, recorded by P6-1)-->  part data
+                                                       |
+  analyseCycles(graph, ...)                            |
+    per cycle:  giveMm = sum of ITS OWN welds    <-----+
+                errMm  = sum of switch residuals in THIS cycle
+                if errMm > CEILING_FRACTION * giveMm  -> refuse this cycle
+                                                        (not the whole layout)
+```
+
+Consequence worth stating: the refusal is per cycle, so a layout can have one
+loop refused and another checked normally. That matches T6's rule and needs a
+distinct verdict state rather than reusing EXCEEDS.
+
+**[P2] (confidence: 8/10)** A switch adds **rank +2**, not +0. A 2-port piece
+in a run adds one vertex and one edge; a switch with both roads welded adds one
+vertex and three. With `CYCLE_RANK_CEILING = 20`, roughly ten fully-connected
+switches exhausts the cycle space and the verdict degrades to "too many loops
+to rank". That is reachable on a large table, not a hostile input.
+
+**[OK]** Rollback for the switch row is deleting a data row. Reversibility 5/5.
+
+**[OK]** No new endpoints, services, auth boundaries or network calls. The
+distribution question is unchanged: no build or publish path exists, which the
+CEO review recorded as a P1 TODO.
+
+Dispositions: #1 accepted (D2, E1). #2 pending, recorded as a documentation
+requirement on P6-2 rather than a code change. #3, #4 no action.
+
+### 2. Code quality review
+
+**[P2] (confidence: 9/10)** `app/src/App.tsx` is 584 lines with 6 `setEditor`
+call sites, and it is where both React defects of 2026-10-13 lived. D3 of this
+review accepts extracting the four updaters to `app/src/editorReducer.ts`.
+Scope of the extraction, stated so it does not grow: move the updaters and the
+`{graph, selected}` type; leave persistence, palette, presets, inventory and
+submission wiring where they are. That is the smallest change that makes the
+failing case testable.
+
+**[OK] Shared-code rubric, not met and therefore not proposed.** The only
+candidate is `portsOf(resolve(piece.partId), piece.turn)`, repeated in
+`App.tsx`, `layoutModel.test.ts` and four engine tests. Callers verified: 6.
+But five are test files, which the rubric excludes from savings, and the single
+production caller is one line. Estimated implementation lines saved: 0 to 2.
+**Rejected:** the abstraction costs more than it saves.
+
+**[P3] (confidence: 7/10)** `sources.ts` is touched by P6-1, P6-2 and K1. D1's
+smaller arrangement folds P6-1's notes into P6-2, leaving two tasks on that
+file. Residual risk accepted.
+
+Dispositions: #1 accepted (D3, E2). #2 rejected by rubric. #3 accepted via D1.
+
+### 3. Test review
+
+Framework: **Vitest 3.2.7**, `include: ['engine/**/*.test.ts', 'app/**/*.test.ts']`,
+no environment (pure logic). 15 files, 199 tests passing. CLAUDE.md has no
+Testing section, so this is auto-detected from `vitest.config.ts`.
+
+```
+CODE PATHS                                          USER FLOWS
+[+] engine/data/brio.ts (switch row, P6-2)          [+] Place a switch
+  |- row resolves + portsOf -> 3 ports                |- [GAP] [->E2E] 3 free ends offered
+  |   |- [★★★ TESTED] shape, heel, mirror             |     (real browser via $B; manual)
+  |   |    switches.test.ts, LOCAL part               |- [GAP] through road armed by default
+  |   |- [GAP] the CATALOGUE row, not a local one     |     is arbitrary, nothing asserts it
+  |   |- [GAP] modelledErrorMm recorded               [+] Verdict with a switch
+  |- branching layout solves                          |- [GAP] disclosure is unconditional
+  |   |- [★★★ TESTED] rank 1, 9 pieces/9 welds        |- [GAP] cycle refused when err > ceiling
+[+] app/src/editorReducer.ts (new, E2)
+  |- add x8 -> ONE run      [GAP] the 10-13 defect, now directly testable
+  |- clickPort weld/disarm  [GAP]
+  |- undo / clear / preset  [GAP]
+[+] app/src/verdictView.ts (P6-3)
+  |- IMPOSSIBLE > NO_CYCLE  [GAP] and the free-free exclusion that fixed it
+  |- rank-0 gap suppression [GAP]
+[+] app/src/layoutStore.ts (P6-3)
+  |- legacy chain blob      [GAP]
+  |- weld naming a missing piece  [GAP]
+  |- non-integer anchor dropped   [GAP]
+[+] REGRESSION, mandatory
+  |- 16xE and 8L+8R still IMPOSSIBLE after the switch row lands
+  |   |- [★★★ TESTED] graphFeasible.test.ts — must be RE-RUN, not rewritten
+
+COVERAGE: 3/15 paths tested (20%)  |  Code paths 3/12  |  User flows 0/3
+QUALITY: ★★★:3  |  GAPS: 12 (1 E2E, 0 eval)
+```
+
+Legend: ★★★ behavior + edge + error | ★★ happy path | ★ smoke
+[->E2E] = needs the real browser
+
+**REGRESSION RULE applies and is already satisfied in contract.** Adding a
+catalogue row puts the two known false passes at risk, because the palette maps
+every part with no filter and `presets.ts` is pinned by a real-solver test.
+Behavior to preserve: 16xE and 8L+8R report IMPOSSIBLE; the 8-curve circle and
+the stadium stay EXACT. No new approval needed: these assertions exist in
+`graphFeasible.test.ts` and `presets.test.ts`. The requirement is that P6-2
+RE-RUNS them, not that it writes new ones.
+
+Value cards for the proposed tests:
+- `Value: protects=eight add actions build one run; fails_when=the reducer reads selection from outside its state argument; why_new=no test imports any editor state transition today; seam=none`
+- `Value: protects=IMPOSSIBLE outranks NO_CYCLE while two FREE ends meeting is not a clash; fails_when=either half of the 10-13 fix is reverted; why_new=verdictView.ts has no test file; seam=none`
+- `Value: protects=a saved layout naming a missing piece is discarded whole and reported; fails_when=the loader repairs instead of discarding; why_new=layoutStore.ts has no test file; seam=none`
+- `Value: protects=a cycle is refused when its switch error exceeds its own give; fails_when=the ceiling is removed or compared against the wrong cycle; why_new=no ceiling exists yet; seam=none`
+
+**Tests made obsolete:** none. `switches.test.ts` keeps its locally declared
+part; when the catalogue row lands it gains a case rather than replacing one,
+because the local part documents the model independently of the real figures.
+
+LLM/eval scope: none. No prompts, no model calls in this repo.
+
+Dispositions: 12 gaps, all folded into the tasks below. No new decision needed;
+every gap is required proof of behavior already approved at D2 and D3.
+
+### 4. Performance review
+
+No database, no network, no jobs, no caches. Two paths worth numbers.
+
+**[P3] (confidence: 8/10)** All-pairs clash scan is O(n^2) in PORTS. A 2-port
+layout of n pieces has 2n ports; an all-switch layout has 3n, so pairs grow
+about **2.25x** for the same piece count. The measured ceiling in the existing
+`gstack-shortcut(dec-f333f98f)` marker is 25,359 pairs, so a 2.25x rise stays
+in milliseconds. No action; the marker already names the upgrade trigger.
+
+**[P3] (confidence: 9/10)** Cycle enumeration is 2^rank, bounded by a ceiling
+of 20 checked before enumeration. Switches reach that ceiling 2x faster (see
+Architecture #2). Still a bound on input, so it refuses rather than hangs.
+
+Dispositions: both recorded, no remedy proposed.
+
+### NOT in scope (eng review)
+
+- **A DOM test environment and component tests.** Replaced by the reducer
+  extraction at D3/E2: two of the three motivating defects were pure-module
+  failures, and the updaters were already pure. Avoids 3 or 4 devDependencies.
+- **The rest of the `App.tsx` split.** Recorded P3 in TODOS.md (D4). E2 moves
+  only the four updaters.
+- **Extracting `portsOf(resolve(...))`.** Rejected by the shared-code rubric:
+  6 callers but 5 are tests, and the saving is 0 to 2 lines.
+- **The crossing.** Unchanged from R22; only the switch's blocker has cleared.
+
+### What already exists (eng review)
+
+| Sub-problem | Existing code | Reuse or rebuild |
+|---|---|---|
+| 3-port geometry and heel rules | `portsOf`, `weldGiveMm`, `weldHasPolarity` | reuse unchanged |
+| per-cycle give, never pooled | `cycles.ts:204` | reuse; E1's ceiling attaches here |
+| the two false-pass regressions | `graphFeasible.test.ts`, `presets.test.ts` | reuse; P6-2 RE-RUNS them |
+| editor state transitions | `App.tsx:227-250`, already pure | MOVE, not rewrite (E2) |
+| citation pinning | K2's mechanism | reuse; P6-2 depends on it |
+| storage keys | `storageKeys.ts` | reuse; eases the TODO'd split |
+
+### Failure modes (eng review)
+
+```
+  PATH                        | FAILURE                  | TEST? | USER SEES        | CRITICAL?
+  ----------------------------|--------------------------|-------|------------------|----------
+  switch row -> palette       | unknown id               | Y     | crash + repro    | no
+  switch in a cycle           | modelled err > give      | P6-2  | refused cycle    | WAS critical,
+                              |                          |       |                  | closed by E1
+  editor add x8               | stale selection          | E2    | 8 runs not 1     | no, now tested
+  verdict ranking             | clash outranks NO_CYCLE  | P6-3  | wrong verdict    | no, now tested
+  loader, missing piece       | repair instead of discard| P6-3  | silent wrong shape| no, now tested
+  rank ceiling, ~10 switches  | 2^rank enumeration       | Y     | "too many loops" | no
+```
+
+**0 critical gaps remain.** The one the CEO review flagged is closed by E1.
+
+### Worktree parallelization strategy
+
+| Step | Modules touched | Depends on |
+|---|---|---|
+| S1 research | `CALIBRATION.md`, `engine/data/` | — |
+| S2 switch row + ceiling | `engine/data/`, `engine/src/graph/`, `engine/test/` | S1 |
+| S3 verdict layer | `app/src/` (verdictView, VerdictLine + tests) | — |
+| S4 editor reducer | `app/src/` (App.tsx, editorReducer + tests) | — |
+
+**Parallel lanes:** `Lane A: S1 -> S2 (engine)` / `Lane B: S3 -> S4 (app/src)`.
+S3 and S4 both touch `app/src` but disjoint files, so they are sequential
+within the lane. **Execution order:** launch A and B together; merge both;
+S2's regression re-run happens after the merge, because it asserts against the
+whole catalogue.
+**Conflict flag:** S2 and S4 both reach `App.tsx` if the palette needs a filter;
+sequence S4 first so the reducer is out before the switch row lands.
+
+## Implementation Tasks
+Synthesized from this review's findings. Each task derives from a specific
+finding above. Run with Claude Code or Codex; checkbox as you ship.
+
+- [x] **T1 (P1, human: ~2h / CC: ~40min)** — research/data — Source the switch geometry AND record its rounding residual as a number
+  - Surfaced by: Architecture #1 and E1 — the ceiling needs a residual to compare
+  - Files: `CALIBRATION.md`, `engine/data/sources.ts`
+  - Verify: an enumerated source list with per-source outcome; one of the three P6-1 outcomes chosen explicitly; if approximate, `modelledErrorMm` is a recorded number, not a guess
+  - **DONE 2026-10-13. Outcome (c): NO CITABLE FIGURE EXISTS.** Four source classes searched and enumerated in `CALIBRATION.md` Q6: manufacturer pages for 33344 and 33346, retailer specifications, patent and dimensioned drawings, and woodenrailway.info's track guide, which is the citation behind every other dimension in the catalogue. None publishes the diverging-leg arc, its radius or the heel offset; retail listings give packaging size only. Community 3D-print reproductions exist and several say 45 degrees, but a reproduction is not a manufacturer figure and ranks `unverified` like the IKEA and Playtive seeds.
+  - **Consequence: T2 is BLOCKED, NOT SCHEDULED.** Recorded in `engine/data/sources.ts` as `SWITCH_GEOMETRY_ABSENT`, and the physical measurement is filed in TODOS.md under the EXISTING calibration deferral rather than as new scope.
+- [ ] **T2 (P1, BLOCKED on a measurement, human: ~4h / CC: ~50min)** — engine — The switch catalogue row, with E1's per-cycle ceiling
+  - Surfaced by: E1 (D2); Architecture #1 places the check in `analyseCycles`, not in catalogue validation
+  - Files: `engine/data/brio.ts`, `engine/data/sources.ts`, `engine/src/graph/cycles.ts`, `engine/test/switches.test.ts`
+  - Verify: a cycle whose summed switch residual exceeds the stated fraction of ITS OWN give is refused with a distinct state, while another cycle in the same layout is still checked; `bun x vitest run` re-runs `graphFeasible.test.ts` and `presets.test.ts` green, so 16xE and 8L+8R still report IMPOSSIBLE
+- [ ] **T3 (P1, human: ~3h / CC: ~35min)** — app — Verdict layer: tests for `verdictView.ts` plus the unconditional switch disclosure
+  - Surfaced by: Test review (12 gaps); merged from P6-3 and P6-5 by D1's smaller arrangement
+  - Files: `app/src/verdictView.ts`, `app/src/VerdictLine.tsx`, `app/src/verdictView.test.ts`
+  - Verify: the full verdict order is asserted, including that IMPOSSIBLE outranks NO_CYCLE AND that two free ends meeting is not a clash; a layout containing a switch never renders an unconditional exactness claim
+- [ ] **T4 (P1, human: ~3h / CC: ~35min)** — app — Extract `editorReducer.ts` and test the transitions
+  - Surfaced by: E2 (D3) — `App.tsx:227-250`, updaters already pure but untestable in place
+  - Files: `app/src/App.tsx`, `app/src/editorReducer.ts`, `app/src/editorReducer.test.ts`
+  - Verify: applying `add` eight times to one state value yields ONE run; reverting the reducer to read selection from outside its state argument fails that test; no new devDependency appears in `package.json`
+- [ ] **T5 (P2, human: ~2h / CC: ~30min)** — app — Tests for `layoutStore.ts`
+  - Surfaced by: Test review — the loader that decides whether to discard a saved layout has no test
+  - Files: `app/src/layoutStore.test.ts`
+  - Verify: the legacy `brio.chain.v0` blob, a weld naming a missing piece, and a non-integer anchor each take their stated path, and every discard is reported rather than silent
+- [ ] **T6 (P3, human: ~30min / CC: ~10min)** — docs — State the rank cost of a switch
+  - Surfaced by: Architecture #2 — a switch adds rank +2, so ~10 switches exhaust the ceiling of 20
+  - Files: `engine/src/graph/cycles.ts`, `engine/data/brio.ts`
+  - Verify: the ceiling's docblock names the switch cost, so "too many loops to rank" is a documented limit rather than a surprise
+
+Effort assumption: tests ~50x and features ~30x human-to-CC, adjusted down for
+T1 because research does not compress.
+
+### Unresolved decisions that may bite you later
+
+None from this eng review. E1 and E2 are both answered; the arrangement is
+settled; the TODO is recorded. The twelve open items carried from the sixth CEO
+review remain open and are listed in its own section; they are strategy and
+product questions, not engineering blockers for T1 to T6.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
-| CEO Review | `/plan-ceo-review` | Scope & strategy | 6 | ISSUES OPEN | mode: SCOPE_REDUCTION, 3 critical gaps; 4 cuts proposed, 3 accepted, 1 reversed into an addition |
-| Outside Review | native fallback not dispatched (codex `not_installed`) | Independent 2nd opinion | 12 | unavailable | no completed external review; `TaskOutput` absent from the tool roster |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 5 | ISSUES OPEN | 33 issues, 3 critical gaps; mode FULL_REVIEW, 13 tasks, 7 decisions |
-| Design Review | `/plan-design-review` | UI/UX gaps | 3 | ISSUES OPEN | 7 passes; 1→10, 2→9, 3=7, 4=8, 5=4, 6→9; 8 decisions, 8 tasks U1-U8 |
-| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | not run |
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 3 | ISSUES OPEN | 3 proposals, 2 accepted, 2 deferred |
+| Outside Review | codex (`codex-plan-review`) | Independent 2nd opinion | 7 | unavailable | no completed external review |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 3 | ISSUES OPEN | 7 issues, 0 critical gaps |
+| Design Review | `/plan-design-review` | UI/UX gaps | 1 | ISSUES OPEN | score: 3/10 → 10/10 p1, 8 decisions |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | never run |
 
-- **OUTSIDE COVERAGE:** `unavailable`, for the **ninth consecutive review**. Codex preflight returned `CODEX_MODE: not_installed`, so no external provider has ever run on this project. The native fallback was **not dispatched**, for the second review running: the skill requires `TaskOutput` and `TaskStop` before dispatch, and `TaskOutput` resolves to nothing in this session's tool roster, so no bounded result could be collected. Launching an agent whose output cannot be retrieved would have spent five minutes to reproduce the two empty results from earlier passes. No late-result credit, no cross-model comparison, not a clean review. `npm install -g @openai/codex` fixes the provider; the `No OpenAI API key found` failure blocking design mockups is a separate missing credential. **What stood in for it was the audit and execution.** Reading the task artifacts produced the central finding (M4's catalogue scoped two days ago with its prerequisites shipped since), and one probe falsified shipped code: the non-finite inventory count destroying the whole inventory was found by executing the round trip, not by reading it.
-- **VERDICT:** No review is CLEAR, and **eng review required** stands: the fourth eng review is ISSUES OPEN with 3 critical gaps of its own. This review is ISSUES OPEN with 3 critical gaps, all silent and all untested: a non-finite inventory count discarding the whole blob (remedy approved at CR6, unbuilt), a wrong absolute catalogue dimension being undetectable (**no remedy existed; K2 creates one**), and two tabs clobbering each other (deferred at D10, with CR6 removing the silence). **The scope is now 18 items, not 294 records**, and it is split into three releases. **Release one is tasks K1 to K8 and answers the question that opened this review**: it includes the part library, which never needed the graph rewrite, and it ships before item 6 starts. Four cuts were proposed and three accepted; the fourth, real BRIO set manifests, was reversed into an addition against the reviewer's recommendation and is the one item gated on counsel rather than engineering, with five of its six interaction states still undesigned. Reversibility is 2/5 overall, set by the graph rewrite and unchanged by this review.
+- **OUTSIDE COVERAGE:** codex, plan-review phase, **unavailable** on all 7
+  attempts. This run: `codex` is not installed and the native fallback needs
+  `TaskOutput`, which is undeclared in this session, so neither path could run.
+  No completed external review, so no cross-model comparison and no clean-review
+  credit.
+- **VERDICT:** No review is CLEAR. This eng review is ISSUES OPEN with **0
+  critical gaps**: the one the sixth CEO review flagged, an unbounded
+  per-switch modelled error, is closed by E1, which puts the ceiling where the
+  give actually lives. Two decisions changed previously accepted scope, both
+  with the user's answer: E2 replaces P6-4's DOM environment with a reducer
+  extraction, because the updaters at `App.tsx:227-250` were already pure and
+  two of the three motivating defects were not DOM defects; and D1 regroups 14
+  file touches into 10 across 3 tasks. Design Review is 28 commits stale and
+  predates both the graph rewrite and free-end clicking, so it should be re-run
+  before the switch reaches the canvas. **eng review required** is satisfied by
+  this run for the reviewed scope, but the status stays ISSUES OPEN because the
+  twelve strategy items from the CEO review are unresolved.
 
 **UNRESOLVED DECISIONS:**
-- None from this review. All ten questions, D1 through D10, were answered
-- + 3 unresolved from prior reviews: a path forward from a near miss, `PartBase.heightMm` versus an integer level index, and the product name, which stays blocked on counsel. The fourth eng review closed its own one at D9, and the design review's set-manifest item was resolved at its D6
+- + 15 unresolved from prior reviews

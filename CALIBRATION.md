@@ -158,6 +158,58 @@ would be two levels up, which the two-layer model does not have.
 
 ---
 
+## Q6 — The switch: nobody has published its geometry
+
+**Added 2026-10-13 by task T1 of the fifth eng review.** This file previously
+asked nothing about switches, which is what decision D9 and finding C1 both
+flagged. T1 searched for a citable figure and did not find one; the enumerated
+search is below so nobody repeats it.
+
+### What we need
+
+| Field | Why it matters |
+|---|---|
+| diverging-leg arc, in 22.5-degree steps | decides whether a switch is expressible in Z[zeta16] at all |
+| diverging-leg radius, to the inner edge | the centreline radius derives from it, like every curve |
+| through-road length, heel to straight end | the straight road's displacement |
+| lateral offset at the heel, if any | whether the two roads share an origin or are offset |
+
+### The search, 2026-10-13, all four source classes
+
+| # | Source class | What was checked | Outcome |
+|---|---|---|---|
+| 1 | Manufacturer | `brio.com` product pages for 33344 (Mechanical Switches) and 33346 (Curved Switching Tracks), via retail mirrors | **Nothing.** Marketing copy, age rating, FSC beech. No dimensioned figure |
+| 2 | Retailer specs | walmart.com/ip/127085366, aio.lv BRIO 33344, desertcart, toottoottoys | **Packaging only.** "approximately 19 x 3 x 9 cm, 144 g" is box size, not track geometry |
+| 3 | Dimensioned drawings / patents | patent search returned US6371418B1, a real-railway switch curve patent | **Wrong domain.** No BRIO toy-track drawing found |
+| 4 | woodenrailway.info | the BRIO track guide, our existing citation for plank, grooves, gauge and the 45-degree curve | **Silent on switches.** Covers straights, curves and connectors only |
+
+Community 3D-print reproductions DO exist (Printables "Short Curved Switching
+Track - O1" and "- P", MakerWorld track customizers, several "45deg switch"
+models). Those are reproductions, not manufacturer figures, so they sit at the
+same `unverified` tier as the IKEA and Playtive seeds and cannot carry a switch
+into the catalogue on their own.
+
+### Conclusion: outcome (c)
+
+**No citable switch geometry exists.** Per the plan's own disposition for this
+outcome, task T2 (the switch catalogue row) is **BLOCKED, NOT SCHEDULED**, and
+the physical measurement goes to TODOS.md under the existing calibration
+deferral rather than becoming new scope.
+
+### What to measure, when someone has a switch and calipers
+
+1. Lay the switch's through road against a known straight. Is the through
+   length one of 54, 72, 108, 144 or 216mm, or something else?
+2. Lay the diverging road against an E (r202 centreline, 2 steps) and an E1
+   (r110, 2 steps). Does either match? If neither, measure the chord between
+   the heel and the diverging end, and the perpendicular offset.
+3. Compute the arc from chord and offset, then check whether it lands on a
+   multiple of 22.5 degrees. **Record the rounding residual in millimetres**,
+   because E1 of the eng review makes that number the thing a verdict is
+   checked against.
+4. If the residual exceeds the ceiling E1 sets, the switch is not modellable
+   on this lattice and that is a real answer, not a failure.
+
 ## Contingency: what each bad answer changes
 
 Write the answer in, then follow the row. These are decided in advance so a

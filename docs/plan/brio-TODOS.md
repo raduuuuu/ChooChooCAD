@@ -699,3 +699,114 @@ and it was taken with the consequences stated. What follows from it:
 **Effort:** human ~1 afternoon / CC ~0 (this one does not compress)
 **Priority:** P1
 **Depends on:** real track and floor space
+
+# Deferred by /plan-ceo-review 2026-10-13 (SELECTIVE EXPANSION)
+
+## P2 — Offer only polarity-compatible free ends in the editor
+
+**What:** When one free end is armed, grey out or ignore the free ends that
+cannot physically mate with it, so the editor stops inviting a join it will
+then refuse. Keep the verdict-level check as a backstop for layouts restored
+from storage, which bypass the click path entirely.
+
+**Why deferred (D4, 2026-10-13):** The failure is already caught and reported,
+not silent: `findWeldPolarityViolations` is tested and IMPOSSIBLE outranks an
+exact closure. And the editor is about to change shape when switches land, at
+which point a heel is exempt from polarity altogether and the rule would be
+rewritten. Doing it now is doing it twice.
+
+**Upgrade trigger:** after the switch catalogue row (S2) ships and the set of
+port kinds has settled.
+
+**Origin:** task C2 of the fourth eng review, second half. The first half,
+polarity in the schema, already shipped.
+
+## P1 — No remote, no backup, no CI
+
+**What:** Create a remote for this repository, or otherwise guarantee a second
+copy exists. A PRIVATE remote is the obvious first move.
+
+**Why:** `git remote -v` is empty and `lane-b-tokens-persistence` is 30 commits
+ahead of `main`. The engine, 199 tests, the 11,900-line plan and every review
+artifact exist on exactly one disk. A failure or a mistaken delete ends the
+project. Nothing else in the plan records this.
+
+**Pros:** Removes a total-loss risk for about ten minutes of work. Unlocks CI,
+which task P6-4 explicitly cannot have today: its revert check ("fails against
+the pre-fix stale-closure code") is manual and one-time precisely because
+nothing re-runs it.
+
+**Cons:** A PUBLIC remote touches the P1 data-provenance question already
+flagged for counsel, since part dimensions are transcribed from
+woodenrailway.info. A private remote carries none of that exposure, so the two
+should not be conflated.
+
+**Context:** Raised by Section 9 of the sixth CEO review (2026-10-13), which
+found no deployment posture at all: no remote, no CI, no second copy. It is
+outside that review's accepted scope and was recorded rather than acted on,
+because creating a remote is an outward-facing act and the repository's
+ownership mode was unknown to the reviewer.
+
+**Effort:** human S / CC S. **Priority:** P1.
+**Depends on:** nothing technical. The provenance question gates a PUBLIC
+remote only.
+
+## P3 — Finish splitting App.tsx
+
+**What:** Extract persistence, palette rendering and the inventory/submission
+wiring out of `App.tsx` into their own modules, following the pattern that
+already produced `layoutModel.ts` and `trackPath.ts`.
+
+**Why:** 584 lines owning six responsibilities: editor state, persistence,
+palette, presets, inventory and the part-submission form. Both React defects of
+2026-10-13 lived in this file.
+
+**Pros:** Each extracted piece becomes testable with no DOM, which is how
+`layoutModel.ts` and `trackPath.ts` are already covered. Smaller diffs on the
+file that three separate tasks want to touch.
+
+**Cons:** A pure refactor with no user-visible change. It touches the same file
+as P6-2's palette work and K7's base-level control, so doing it mid-flight
+would conflict.
+
+**Context:** E2 of the fifth eng review (2026-10-13) extracts ONLY the four
+state updaters into `editorReducer.ts`, because that is the smallest change
+that makes the eight-clicks defect testable. The rest of the split was scoped
+out deliberately, not forgotten. Start by moving persistence, which has the
+clearest boundary and already has its key constants in `storageKeys.ts`.
+
+**Effort:** human M / CC S. **Priority:** P3.
+**Depends on / blocked by:** E2 landing first. Best done when no switch work is
+in flight.
+
+## P2 — Measure a real BRIO switch (filed by T1, under the calibration deferral)
+
+**What:** With a physical BRIO switch and calipers, record its through-road
+length, diverging-leg radius and arc, and the heel offset. Then compute the
+rounding residual against the 22.5-degree lattice.
+
+**Why:** Task T1 (2026-10-13) searched four source classes and found no citable
+figure: manufacturer pages for 33344 and 33346, retailer specs, patent and
+dimensioned drawings, and woodenrailway.info's track guide, which is the
+citation behind every other dimension in the catalogue. The full enumeration is
+in `CALIBRATION.md` Q6. Without a number, the switch catalogue row cannot ship
+and the engine's switch support stays reachable only from tests.
+
+**Pros:** Unblocks the one feature the graph rewrite was built for. The engine,
+the heel semantics, the editor and the per-cycle machinery are all finished and
+tested; this is the only missing input.
+
+**Cons:** Needs a physical part and calipers, so it cannot be done from a
+keyboard. The residual may turn out to exceed E1's ceiling, in which case the
+honest answer is that a BRIO switch is not modellable on this lattice.
+
+**Context:** Filed under the EXISTING calibration deferral rather than as new
+scope, because the user deferred measurement work on 2026-10-07 and the fifth
+CEO review retired four elevation tasks for following it. `CALIBRATION.md` Q6
+lists the four measurements and the method. E1 of the fifth eng review makes
+the residual the number a verdict gets checked against, so recording it is the
+point, not an extra.
+
+**Effort:** human S (one afternoon with the part) / CC: cannot be done by CC.
+**Priority:** P2.
+**Depends on / blocked by:** owning a BRIO switch. Blocks task T2 entirely.

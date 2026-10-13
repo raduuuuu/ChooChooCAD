@@ -161,6 +161,44 @@ export const KNOWN_ABSENT = [
 ] as const;
 
 /**
+ * THE SWITCH: searched for, not found. Task T1, 2026-10-13.
+ *
+ * Decision D9 approved shipping approximate switches with a stated per-switch
+ * modelled error, and E1 of the fifth eng review set that error's ceiling. Both
+ * need a number to start from, and there isn't one.
+ *
+ * Four source classes were searched and enumerated in `CALIBRATION.md` Q6:
+ * the manufacturer's own pages for 33344 and 33346, retailer specifications,
+ * patent and dimensioned drawings, and woodenrailway.info's track guide, which
+ * is the citation behind every other figure in this file. None publishes the
+ * diverging-leg arc, its radius, or the heel offset. Retail listings give
+ * packaging size (about 19 x 3 x 9 cm), which is a box, not a track.
+ *
+ * Community 3D-print reproductions exist and several describe a 45-degree
+ * diverging leg. They are reproductions of the part, not figures from its
+ * maker, so they rank `unverified` exactly like the IKEA and Playtive seeds and
+ * cannot carry a switch into the catalogue by themselves.
+ *
+ * CONSEQUENCE: the switch catalogue row is BLOCKED, not scheduled. `SwitchPart`
+ * exists in the schema and `portsOf` returns its three ports, both proven by
+ * `switches.test.ts` against a locally declared part. That part documents the
+ * MODEL and claims nothing about real track. Measuring a real switch is the
+ * only way forward, and `CALIBRATION.md` Q6 says exactly what to measure.
+ */
+export const SWITCH_GEOMETRY_ABSENT = {
+  searchedOn: '2026-10-13',
+  sourceClasses: [
+    'manufacturer product pages (BRIO 33344, 33346)',
+    'retailer specifications',
+    'patent and dimensioned drawings',
+    'woodenrailway.info track guide',
+  ],
+  outcome: 'no citable figure; measurement required',
+  blocks: 'the switch catalogue row',
+  seeAlso: 'CALIBRATION.md Q6',
+} as const;
+
+/**
  * THE COMPLETE BRIO PIECE TABLE, and what blocks each one.
  *
  * All 28 pieces from woodenrailway.info/track/brio-track-guide, read 2026-10-09.
