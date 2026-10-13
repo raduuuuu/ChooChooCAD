@@ -19,7 +19,7 @@ import { getPart } from '../../engine/data/brio.js';
 import { walkFloat, type Segment } from '../../engine/src/geom/fk.js';
 import { centrelineRadiusMm } from '../../engine/src/parts/schema.js';
 import type { Layout, Part } from '../../engine/src/parts/schema.js';
-import { segmentPath } from './trackPath.js';
+import { clashMarkers, segmentPath } from './trackPath.js';
 
 /** SVG F.6.5 endpoint-to-centre conversion, for rx = ry = r and phi = 0. */
 function svgArcCentre(
@@ -114,5 +114,37 @@ describe('the rendered arc convention', () => {
     const d = segmentPath(segments[0]!);
     expect(d).toMatch(/^M [\d.e+-]+ [\d.e+-]+ L [\d.e+-]+ [\d.e+-]+$/);
     expect(() => parseArc(d)).toThrow();
+  });
+});
+
+describe('clashMarkers', () => {
+  const at = (x: number, y: number) => ({ at: [x, y] as const });
+
+  it('draws one marker per distinct place', () => {
+    expect(clashMarkers([at(10, 20), at(30, 40)])).toHaveLength(2);
+  });
+
+  /*
+   * T12's invariant, stated as a property rather than a count: every
+   * reported clash's position is marked, and no position is marked twice.
+   * Four joins meeting at one spot is six reported pairs and ONE problem.
+   */
+  it('every reported position is marked exactly once', () => {
+    const clashes = [at(0, 0), at(0, 0), at(0, 0), at(0, 0), at(0, 0), at(0, 0), at(7, 9)];
+    const markers = clashMarkers(clashes);
+    const wanted = new Set(clashes.map((c) => `${c.at[0]},${c.at[1]}`));
+    const drawn = markers.map((m) => `${m[0]},${m[1]}`);
+    expect(new Set(drawn)).toEqual(wanted);
+    expect(drawn).toHaveLength(wanted.size);
+  });
+
+  it('distinguishes places that differ by a fraction of a millimetre', () => {
+    // The engine decides coincidence exactly, in the lattice. Nothing here
+    // may round two separate places into one.
+    expect(clashMarkers([at(10, 20), at(10.000001, 20)])).toHaveLength(2);
+  });
+
+  it('nothing reported means nothing drawn', () => {
+    expect(clashMarkers([])).toEqual([]);
   });
 });

@@ -45,3 +45,29 @@ export function segmentPath(s: Segment): string {
   const r = s.centrelineRadiusMm ?? 0;
   return `M ${from.x} ${from.y} A ${r} ${r} 0 0 ${svgSweepFlag(s.sweep)} ${to.x} ${to.y}`;
 }
+
+/**
+ * Where to draw clash markers (task T12).
+ *
+ * Decision A4 approved REPORTING coincident ends and owed a drawing half
+ * that was never written, so for three reviews the verdict said "8 pairs of
+ * track ends land in exactly the same spot" and the canvas gave no clue
+ * which. A count you cannot locate is not actionable.
+ *
+ * One marker per PLACE, not per pair. A spot where four separate joins
+ * coincide is six reported pairs and one problem; drawing it six times over
+ * would stack six rings at full opacity and read as something worse than it
+ * is. The invariant that matters, and the one `trackPath.test.ts` pins, is
+ * that every reported clash's position appears exactly once.
+ *
+ * Keyed on the exact millimetres the engine reported. Nothing is rounded
+ * into or out of a match here; the engine already decided what coincides,
+ * exactly, in Z[zeta16].
+ */
+export function clashMarkers(
+  clashes: readonly { readonly at: readonly [number, number] }[],
+): ReadonlyArray<readonly [number, number]> {
+  const seen = new Map<string, readonly [number, number]>();
+  for (const c of clashes) seen.set(`${c.at[0]},${c.at[1]}`, c.at);
+  return [...seen.values()];
+}

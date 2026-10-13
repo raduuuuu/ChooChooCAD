@@ -61,9 +61,19 @@ describe('the known false passes still FAIL', () => {
    * position. The loop closes exactly, which is what made this a false pass:
    * geometry says yes and physics says the track is on top of itself.
    */
-  it('16xE double circle: distinct vertices share positions', () => {
+  it('16xE double circle: eight spots, one clash each', () => {
     const found = clashes(graphFromChain(chain(Array(16).fill('E'), true)));
-    expect(found.length).toBeGreaterThan(0);
+    /*
+     * EIGHT, not 32. Sixteen curves are two laps of an eight-position
+     * circle, so eight places each hold two separate joins. Counting PORT
+     * pairs instead gave 32, because each place has two vertices of two
+     * ports, and the verdict then said "32 pairs" while the canvas drew
+     * eight markers. The number a user reads has to be the number of
+     * problems they have to fix.
+     */
+    expect(found).toHaveLength(8);
+    const places = new Set(found.map((c) => `${c.at[0]},${c.at[1]}`));
+    expect(places.size).toBe(found.length);
     for (const c of found) {
       expect(`${c.a.pieceId}#${c.a.port}`).not.toBe(`${c.b.pieceId}#${c.b.port}`);
     }

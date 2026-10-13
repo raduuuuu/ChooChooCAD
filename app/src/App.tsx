@@ -349,6 +349,7 @@ export function App() {
         <TrackCanvas
           layout={layout}
           resolve={resolve}
+          clashes={result?.ok ? result.clashes : []}
           emptyAction={
             <>
               <button

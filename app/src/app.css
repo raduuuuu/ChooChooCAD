@@ -128,7 +128,16 @@
    * natural width and the action follows immediately, with the slack trailing
    * off to the right where it costs nothing.
    */
-  grid-template-columns: auto minmax(0, auto) 1fr;
+  /*
+   * The action column has a FLOOR.
+   *
+   * `auto minmax(0,auto) 1fr` reads well until the verdict text is long: the
+   * IMPOSSIBLE copy is three sentences, and it squeezed the action down to a
+   * strip one word wide, "Move / one / of / the / pieces". A column that can
+   * be crushed to a word is not a column. 22ch is about four words a line,
+   * which is the narrowest that still reads as a sentence.
+   */
+  grid-template-columns: auto minmax(0, auto) minmax(22ch, 1fr);
   column-gap: var(--s4);
   row-gap: var(--s1);
   align-items: baseline;

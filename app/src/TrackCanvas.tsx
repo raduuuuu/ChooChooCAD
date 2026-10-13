@@ -18,7 +18,7 @@
 import { useMemo, type ReactNode } from 'react';
 import { bounds, walkFloat } from '../../engine/src/geom/fk.js';
 import type { Layout, Part } from '../../engine/src/parts/schema.js';
-import { segmentPath } from './trackPath.js';
+import { clashMarkers, segmentPath } from './trackPath.js';
 
 export interface TrackCanvasProps {
   readonly layout: Layout;
@@ -33,9 +33,18 @@ export interface TrackCanvasProps {
    * how to apply one. App owns the piece list, so App owns the button.
    */
   readonly emptyAction?: ReactNode;
+  /**
+   * Where two separate pieces were asked to occupy one spot (task T12).
+   *
+   * Decision A4 approved reporting these and owed a DRAW half that was never
+   * written, so for three reviews the verdict said "2 pairs of track ends
+   * land in exactly the same spot" and the canvas gave no clue which two. A
+   * count you cannot locate is not actionable.
+   */
+  readonly clashes?: readonly { readonly at: readonly [number, number] }[];
 }
 
-export function TrackCanvas({ layout, resolve, emptyAction }: TrackCanvasProps) {
+export function TrackCanvas({ layout, resolve, emptyAction, clashes = [] }: TrackCanvasProps) {
   const { poses, segments } = useMemo(() => walkFloat(layout, resolve), [layout, resolve]);
 
   const box = useMemo(() => bounds(poses), [poses]);
@@ -97,6 +106,8 @@ export function TrackCanvas({ layout, resolve, emptyAction }: TrackCanvasProps) 
    */
   const maxLayers = Math.max(...segments.map((s) => layers(s.partId).length));
 
+  const dedupedClashes = useMemo(() => clashMarkers(clashes), [clashes]);
+
   /*
    * The empty state leads with ONE action (design D10).
    *
@@ -149,6 +160,34 @@ export function TrackCanvas({ layout, resolve, emptyAction }: TrackCanvasProps) 
             );
           }),
         )}
+        {/*
+          * THE CLASH MARKERS.
+          *
+          * Deduplicated by position, because a clash is reported per PAIR and
+          * a point where three ends meet would otherwise be drawn three times
+          * at full opacity, reading as something worse than it is.
+          *
+          * Drawn inside the flipped group so the coordinates are the model's
+          * own millimetres, the same ones the verdict counted. Radius is in
+          * millimetres too, so the marker stays the size of the track rather
+          * than growing with the layout.
+          */}
+        {dedupedClashes.map(([x, y], i) => (
+          <g key={`clash-${i}`}>
+            <circle
+              cx={x}
+              cy={y}
+              r={28}
+              fill="none"
+              stroke="var(--fail)"
+              strokeWidth={4}
+            />
+            <line x1={x - 14} y1={y - 14} x2={x + 14} y2={y + 14}
+              stroke="var(--fail)" strokeWidth={4} />
+            <line x1={x - 14} y1={y + 14} x2={x + 14} y2={y - 14}
+              stroke="var(--fail)" strokeWidth={4} />
+          </g>
+        ))}
       </g>
     </svg>
   );

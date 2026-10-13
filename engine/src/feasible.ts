@@ -68,6 +68,16 @@ export interface ConnectorClash {
  * pair is reported rather than deduplicated to one per location, so the caller
  * can draw each one.
  */
+/*
+ * gstack-shortcut(dec-f333f98f): all-pairs comparison, O(n^2) in connectors.
+ * Ceiling: 25,359 pairs at the measured worst case, which is milliseconds.
+ * Upgrade when a layout exceeds roughly 500 connectors, or when profiling
+ * puts this above 16ms in a frame; the replacement is a spatial grid keyed
+ * on the exact lattice position, not a tolerance.
+ *
+ * Decision f333f98f SUPERSEDES cae368ab, whose "204,480 conflicting pairs"
+ * was C(640,2), the number of pairs COMPARED, not conflicts found.
+ */
 export function findCoincidentConnectors(
   poses: readonly Pose[],
   closed: boolean,

@@ -93,12 +93,30 @@ export function findVertexClashes(
   }
 
   /*
-   * All pairs. Decision f333f98f accepted this as a shortcut with a stated
-   * ceiling; the real worst case it was measured against is 25,359 pairs,
-   * not the 204,480 an earlier note claimed. A spatial grid is the upgrade
-   * and T12 carries the marker.
+   * gstack-shortcut(dec-f333f98f): all-pairs comparison, O(n^2) in ports.
+   * Ceiling: 25,359 pairs at the measured worst case, which is milliseconds.
+   * Upgrade when a layout exceeds roughly 500 ports, or when profiling puts
+   * this above 16ms in a frame; the replacement is a spatial grid keyed on
+   * the exact lattice position, never a tolerance.
+   *
+   * Decision f333f98f SUPERSEDES cae368ab, whose "204,480 conflicting pairs"
+   * was C(640,2), the number of pairs COMPARED, not conflicts found.
+   */
+  /*
+   * ONE CLASH PER PAIR OF VERTICES, not per pair of ports.
+   *
+   * The first version counted ports and the number it produced was wrong in
+   * the way that matters: the 16xE double circle reported "32 pairs of track
+   * ends land in exactly the same spot" when there are EIGHT such spots. At
+   * each one sit two vertices of two ports each, which is four port-pairs,
+   * so the count was inflated fourfold while the canvas drew eight markers.
+   * The verdict and the picture disagreed, and the verdict was the wrong one.
+   *
+   * A vertex is the thing a user sees as "a join". Two of them in one place
+   * is one problem to fix, however many connectors that involves.
    */
   const clashes: VertexClash[] = [];
+  const reported = new Set<string>();
   for (let i = 0; i < placed.length; i++) {
     for (let j = i + 1; j < placed.length; j++) {
       const a = placed[i]!;
@@ -108,6 +126,9 @@ export function findVertexClashes(
       // exclusions could go.
       if (a.vertex === b.vertex) continue;
       if (!equals(a.pos, b.pos)) continue;
+      const key = a.vertex < b.vertex ? `${a.vertex}|${b.vertex}` : `${b.vertex}|${a.vertex}`;
+      if (reported.has(key)) continue;
+      reported.add(key);
       const [x, y] = toXY(a.pos);
       clashes.push({
         a: { pieceId: a.pieceId, port: a.port },
