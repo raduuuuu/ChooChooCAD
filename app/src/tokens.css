@@ -1,11 +1,22 @@
 /*
- * PROVISIONAL TOKENS.
+ * THE DESIGN SYSTEM. This file is it.
  *
- * There is no design system for this product yet; a real one (researched
- * aesthetic, typography, colour, spacing, motion, with previews) is a separate
- * piece of work. These values exist so the first screen is not assembled from
- * browser defaults, which is the "nobody chose this" signal. Replace wholesale
- * when the real system lands; nothing outside this file hardcodes a colour.
+ * It holds every value: colour, type role, spacing step, motion. Nothing
+ * outside it hardcodes a colour. The rules that are NOT values live in
+ * DESIGN.md at the repo root: colour is spent only on verdicts, no verdict is
+ * ever colour-only, every number is a measurement, contrast is measured
+ * against the surface the thing actually sits on. Read that file before adding
+ * a colour here.
+ *
+ * This header used to say "PROVISIONAL TOKENS. There is no design system for
+ * this product yet... Replace wholesale when the real system lands." That
+ * stopped being true somewhere around the third contrast correction. The file
+ * assigns typeface roles, self-hosts both faces with licence provenance,
+ * carries a measured ratio for every colour against its own ground, and spends
+ * colour in exactly one place. Telling the next contributor to throw that away
+ * was the opposite of what the comment was for. A researched aesthetic with
+ * previews is still separate work; it will be a revision of this system, not a
+ * replacement for the nothing that was claimed to be here (task W5).
  *
  * Direction being served: warm toy crossed with precision instrument. The paper
  * ground and the beech track supply the warmth; everything else reads as a
