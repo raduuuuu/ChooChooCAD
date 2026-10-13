@@ -18,8 +18,24 @@
  * must not import from the app.
  */
 
-/** The placed chain. A list of `{ partId, turn }`. */
+/**
+ * The placed chain. A list of `{ partId, turn }`.
+ *
+ * SUPERSEDED by GRAPH_STORAGE_KEY. Kept only so the loader can notice an old
+ * blob and say the layout could not be carried over, rather than starting
+ * empty with no explanation. Nothing writes it any more.
+ */
 export const CHAIN_STORAGE_KEY = 'brio.chain.v0';
+
+/**
+ * The layout, as a graph: pieces, declared welds, and captured anchors.
+ *
+ * A NEW KEY, not a bumped version of the chain one. The shapes have nothing
+ * in common and `closed: boolean` is gone, so there is no migration to write
+ * and no blob that could be half-read as either. T3's owed storage bump,
+ * settled here because this is the first time anchors are persisted at all.
+ */
+export const GRAPH_STORAGE_KEY = 'brio.graph.v1';
 
 /** What the user says they own. A map of part id to count. */
 export const INVENTORY_STORAGE_KEY = 'brio.inventory.v0';

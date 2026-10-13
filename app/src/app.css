@@ -802,6 +802,34 @@
 }
 
 /*
+ * FREE ENDS: the editing surface (decision D5).
+ *
+ * Drawn only where no weld claims a port. The visible dot is small and in
+ * millimetres so it stays the size of the track, but the hit target is a much
+ * larger invisible circle: a 16mm dot in a viewBox scaled to fit is an unfair
+ * thing to ask anyone to click, and its on-screen size changes with the
+ * layout, which a fixed pixel target could not follow.
+ *
+ * --ink-soft at rest rather than an accent colour. A free end is not a
+ * problem and must not read like one; the only red on this canvas is a clash.
+ */
+.port { cursor: pointer; }
+.port-hit { fill: transparent; }
+.port-dot {
+  fill: var(--paper);
+  stroke: var(--ink-soft);
+  stroke-width: 4;
+  transition: none;
+}
+.port:hover .port-dot { stroke: var(--ink); }
+.port.is-armed .port-dot {
+  fill: var(--ink);
+  stroke: var(--ink);
+}
+.port:focus { outline: none; }
+.port:focus-visible .port-dot { stroke: var(--ink); stroke-width: 7; }
+
+/*
  * THE CRASH SCREEN (task K5).
  *
  * Styled at all, rather than left as browser defaults, because this is the

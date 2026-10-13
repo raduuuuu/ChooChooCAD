@@ -27,10 +27,10 @@
  * guidance attached.
  */
 
-import type { LayoutVerdict } from '../../engine/src/joints/evaluate.js';
-import type { SolveFailure } from '../../engine/src/solver/result.js';
+import type { VerdictKind } from './verdictView.js';
 
-export const ACTION_FOR_VERDICT: Record<LayoutVerdict, string> = {
+type OutcomeKind = Extract<VerdictKind, 'IMPOSSIBLE' | 'EXACT' | 'NEEDS_GIVE' | 'EXCEEDS'>;
+export const ACTION_FOR_VERDICT: Record<OutcomeKind, string> = {
   IMPOSSIBLE:
     'Move one of the pieces that share a spot. Closing the loop will not fix this.',
   EXACT: 'Nothing to fix. Build it.',
@@ -38,11 +38,15 @@ export const ACTION_FOR_VERDICT: Record<LayoutVerdict, string> = {
     'Seat each triangle firmly as you go. If the last piece fights you, the gap is real.',
   EXCEEDS:
     'Change a straight for a different length, or rearrange the curves. The gap is larger than the joints can take up.',
-  UNKNOWN: 'Nothing to act on until the check completes.',
 };
 
-export const ACTION_FOR_FAILURE: Record<SolveFailure, string> = {
-  NO_CYCLE: 'Tick Closed loop to check whether it joins up.',
+type FailureKind = Extract<
+  VerdictKind,
+  'NO_CYCLE' | 'HEADING_MISMATCH' | 'TOO_MANY_LOOPS' | 'NUMERIC'
+>;
+export const ACTION_FOR_FAILURE: Record<FailureKind, string> = {
+  NO_CYCLE: 'Click the two free ends you want joined.',
+  TOO_MANY_LOOPS: 'Break this into fewer loops, or check them a few at a time.',
   HEADING_MISMATCH:
     'The curves need to add up to a whole turn. Add one, remove one, or mirror one.',
   NUMERIC: 'Nothing to act on until the check completes.',

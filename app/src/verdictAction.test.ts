@@ -23,7 +23,9 @@ describe('the action register', () => {
       byAction.set(action, [...(byAction.get(action) ?? []), state]);
     }
     const shared = [...byAction.entries()].filter(([, s]) => s.length > 1);
-    expect(shared.map(([, s]) => s.sort())).toEqual([['NUMERIC', 'UNKNOWN']]);
+    // No duplicates at all now: UNKNOWN folded into the failure kinds, so the
+    // one deliberate pair this previously exempted no longer exists.
+    expect(shared.map(([, s]) => s.sort())).toEqual([]);
   });
 
   /*
@@ -53,7 +55,7 @@ describe('the action register', () => {
   it('the two states that used to go unadvised now advise', () => {
     expect(ACTION_FOR_VERDICT.EXCEEDS).toMatch(/\w/);
     expect(ACTION_FOR_VERDICT.IMPOSSIBLE).toMatch(/\w/);
-    expect(ACTION_FOR_VERDICT.EXCEEDS).not.toBe(ACTION_FOR_VERDICT.UNKNOWN);
-    expect(ACTION_FOR_VERDICT.IMPOSSIBLE).not.toBe(ACTION_FOR_VERDICT.UNKNOWN);
+    expect(ACTION_FOR_VERDICT.EXCEEDS).not.toBe(ACTION_FOR_VERDICT.EXACT);
+    expect(ACTION_FOR_VERDICT.IMPOSSIBLE).not.toBe(ACTION_FOR_VERDICT.EXACT);
   });
 });

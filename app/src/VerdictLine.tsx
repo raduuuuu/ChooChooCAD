@@ -21,18 +21,27 @@
  * every measured defect in the engine lived in it.
  */
 
-import { evaluateLayout, type LayoutEvaluation } from '../../engine/src/joints/evaluate.js';
-import type { SolveFailure, SolveResult } from '../../engine/src/solver/result.js';
 import type { TrustIssue } from '../../engine/src/joints/trust.js';
+import type { VerdictKind, VerdictView } from './verdictView.js';
 import { ACTION_FOR_FAILURE, ACTION_FOR_VERDICT } from './verdictAction.js';
 
-// Keyed by SolveFailure, not by string: a new failure reason is then a compile
-// error here rather than a silent fall-through to the generic copy below.
-const FAILURE_COPY: Record<SolveFailure, string> = {
+/*
+ * Keyed by the kind, not by string: a new one is a compile error here rather
+ * than a silent fall-through to generic copy. Verified by deleting a key,
+ * which fails with TS2741.
+ */
+type FailureKind = Extract<
+  VerdictKind,
+  'NO_CYCLE' | 'HEADING_MISMATCH' | 'TOO_MANY_LOOPS' | 'NUMERIC'
+>;
+const FAILURE_COPY: Record<FailureKind, string> = {
   NO_CYCLE: 'Not a loop yet.',
   HEADING_MISMATCH: 'The track does not come back pointing the right way.',
+  TOO_MANY_LOOPS: 'Too many loops in this layout to rank them.',
   NUMERIC: 'Could not check this layout.',
 };
+const isFailure = (k: VerdictKind): k is FailureKind =>
+  k === 'NO_CYCLE' || k === 'HEADING_MISMATCH' || k === 'TOO_MANY_LOOPS' || k === 'NUMERIC';
 
 /**
  * The trust register.
@@ -68,14 +77,16 @@ function Action({ action }: { action: string | null }) {
 }
 
 export function VerdictLine({
-  result,
+  view,
   trust = [],
 }: {
-  result: SolveResult | null;
+  view: VerdictView;
   /** Why this verdict is worth less than it looks. See engine/joints/trust.ts. */
   trust?: readonly TrustIssue[];
 }) {
-  if (!result) {
+  const e = view;
+
+  if (e.kind === 'NOTHING') {
     return (
       <div className="verdict verdict-unknown">
         <span className="verdict-mark">?</span>
@@ -84,25 +95,41 @@ export function VerdictLine({
     );
   }
 
-  // Every non-ok result is GREY. Never green, never styled as a near-pass.
-  if (!result.ok) {
+  // Every failure is GREY. Never green, never styled as a near-pass.
+  if (isFailure(e.kind)) {
     return (
       <div className="verdict verdict-unknown">
         <span className="verdict-mark">?</span>
         <span className="verdict-text">
-          {FAILURE_COPY[result.reason] ?? 'Could not check this layout.'}{' '}
-          <span className="verdict-detail">{result.detail}</span>
+          {FAILURE_COPY[e.kind]}{' '}
+          <span className="verdict-detail">{e.detail}</span>
         </span>
-        <Action action={ACTION_FOR_FAILURE[result.reason] ?? null} />
+        <Action action={ACTION_FOR_FAILURE[e.kind] ?? null} />
       </div>
     );
   }
 
-  const e = evaluateLayout(result, 'estimated');
+  /*
+   * HOW MANY LOOPS FAILED, said only when there is more than one.
+   *
+   * A layout can now hold several independent loops, and give is never
+   * pooled between them, so "the gap" is one loop's gap and not the
+   * layout's. Saying "1 of 3 loops" keeps the number honest about what it
+   * describes. On a single-loop layout the phrase would be noise, so it is
+   * omitted rather than padded to a constant shape.
+   */
+  const loopNote =
+    e.rank > 1 ? (
+      <span className="verdict-detail">
+        {' '}
+        <span className="num">{e.failingLoops}</span> of{' '}
+        <span className="num">{e.rank}</span> loops.
+      </span>
+    ) : null;
 
   // The trust register rides with EVERY verdict, including EXACT. An exact
   // closure over unmeasured sizes is the case that most needs saying.
-  switch (e.verdict) {
+  switch (e.kind) {
     // Before EXACT, matching the engine. A double circle closes perfectly.
     // Two causes, and they need different sentences: an unjoinable END is about
     // the pieces themselves, a shared POSITION is about where they ended up.
@@ -110,16 +137,16 @@ export function VerdictLine({
       return (
         <div className="verdict verdict-fail">
           <span className="verdict-mark">X</span>
-          {e.polarityViolations.length > 0 ? (
+          {e.polarityCount > 0 ? (
             <span className="verdict-text">
-              Can&rsquo;t be built. <span className="num">{e.polarityViolations.length}</span>{' '}
-              {e.polarityViolations.length === 1 ? 'joint puts' : 'joints put'} two ends of
+              Can&rsquo;t be built. <span className="num">{e.polarityCount}</span>{' '}
+              {e.polarityCount === 1 ? 'joint puts' : 'joints put'} two ends of
               the same kind together, and those do not fit.
             </span>
           ) : (
             <span className="verdict-text">
-              Can&rsquo;t be built. <span className="num">{e.clashes.length}</span>{' '}
-              {e.clashes.length === 1 ? 'pair of track ends lands' : 'pairs of track ends land'}{' '}
+              Can&rsquo;t be built. <span className="num">{e.clashCount}</span>{' '}
+              {e.clashCount === 1 ? 'pair of track ends lands' : 'pairs of track ends land'}{' '}
               in exactly the same spot, so two pieces would have to share it.
               {e.gapMm === 0 && ' The loop does close; that does not help.'}
               <span className="verdict-detail">
@@ -138,7 +165,7 @@ export function VerdictLine({
           <span className="verdict-mark">O</span>
           <span className="verdict-text">This works. Closes exactly, no give needed at any joint.</span>
           <Trust trust={trust} />
-          <Action action={ACTION_FOR_VERDICT[e.verdict]} />
+          <Action action={ACTION_FOR_VERDICT[e.kind]} />
         </div>
       );
 
@@ -149,11 +176,11 @@ export function VerdictLine({
           <span className="verdict-text">
             Needs <span className="num">{e.gapMm.toFixed(0)}mm</span> absorbed across{' '}
             <span className="num">{e.jointCount}</span> joints, which give{' '}
-            <span className="num">{e.totalGiveMm.toFixed(0)}mm</span> between them. That
+            <span className="num">{e.giveMm.toFixed(0)}mm</span> between them. That
             means the gap could fit inside the total give, not that it will.
           </span>
           <Trust trust={trust} />
-          <Action action={ACTION_FOR_VERDICT[e.verdict]} />
+          <Action action={ACTION_FOR_VERDICT[e.kind]} />
         </div>
       );
 
@@ -164,24 +191,12 @@ export function VerdictLine({
           <span className="verdict-text">
             Won&rsquo;t fit. Needs <span className="num">{e.gapMm.toFixed(0)}mm</span>{' '}
             absorbed, but the joints give only{' '}
-            <span className="num">{e.totalGiveMm.toFixed(0)}mm</span> in total.
+            <span className="num">{e.giveMm.toFixed(0)}mm</span> in total.{loopNote}
           </span>
           <Trust trust={trust} />
-          <Action action={ACTION_FOR_VERDICT[e.verdict]} />
+          <Action action={ACTION_FOR_VERDICT[e.kind]} />
         </div>
       );
 
-    case 'UNKNOWN':
-      return (
-        <div className="verdict verdict-unknown">
-          <span className="verdict-mark">?</span>
-          <span className="verdict-text">
-            Could not check this layout.{' '}
-            <span className="verdict-detail">{e.reasons.join('; ')}</span>
-          </span>
-          <Trust trust={trust} />
-          <Action action={ACTION_FOR_VERDICT.UNKNOWN} />
-        </div>
-      );
   }
 }

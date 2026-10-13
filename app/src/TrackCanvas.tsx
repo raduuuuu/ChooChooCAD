@@ -2,7 +2,7 @@
  * The canvas. Dominant by design: it is the first thing the eye lands on, and
  * the track is the only texture on screen.
  *
- * SVG rather than a canvas library for this MVP. The layout is a single chain
+ * SVG rather than a canvas library for this MVP. There is no scene graph
  * and there is no drag yet, so nothing needs a scene graph; SVG gives exact
  * arcs and prints legibly in greyscale, which the build sheet will require.
  *
@@ -16,38 +16,41 @@
  */
 
 import { useMemo, type ReactNode } from 'react';
-import { bounds, walkFloat } from '../../engine/src/geom/fk.js';
-import type { Layout, Part } from '../../engine/src/parts/schema.js';
+import { renderBounds, type GraphRender, type RenderedPort } from '../../engine/src/graph/render.js';
+import type { PortRef } from '../../engine/src/graph/model.js';
+import type { Part } from '../../engine/src/parts/schema.js';
 import { clashMarkers, segmentPath } from './trackPath.js';
 
 export interface TrackCanvasProps {
-  readonly layout: Layout;
-  /**
-   * Library resolver. Passed in rather than imported, because the library now
-   * includes user-submitted parts and so cannot be a module constant.
-   */
+  /** Everything drawable, already placed exactly by the graph engine. */
+  readonly render: GraphRender;
   readonly resolve: (id: string) => Part;
-  /**
-   * The one primary action the blank canvas offers (design D10). A slot, not a
-   * preset id, because the canvas has no business knowing what a preset is or
-   * how to apply one. App owns the piece list, so App owns the button.
-   */
   readonly emptyAction?: ReactNode;
   /**
    * Where two separate pieces were asked to occupy one spot (task T12).
    *
    * Decision A4 approved reporting these and owed a DRAW half that was never
-   * written, so for three reviews the verdict said "2 pairs of track ends
+   * written, so for three reviews the verdict said "8 pairs of track ends
    * land in exactly the same spot" and the canvas gave no clue which two. A
    * count you cannot locate is not actionable.
    */
   readonly clashes?: readonly { readonly at: readonly [number, number] }[];
+  /** The free end currently armed, if any. */
+  readonly selected?: PortRef | null;
+  /** Clicking a free end. This is the whole editing interaction (D5). */
+  readonly onPortClick?: (ref: PortRef) => void;
 }
 
-export function TrackCanvas({ layout, resolve, emptyAction, clashes = [] }: TrackCanvasProps) {
-  const { poses, segments } = useMemo(() => walkFloat(layout, resolve), [layout, resolve]);
-
-  const box = useMemo(() => bounds(poses), [poses]);
+export function TrackCanvas({
+  render,
+  resolve,
+  emptyAction,
+  clashes = [],
+  selected = null,
+  onPortClick,
+}: TrackCanvasProps) {
+  const { segments, ports: renderedPorts } = render;
+  const box = useMemo(() => renderBounds(render), [render]);
   const pad = 90;
   const w = Math.max(box.maxX - box.minX, 1) + pad * 2;
   const h = Math.max(box.maxY - box.minY, 1) + pad * 2;
@@ -104,7 +107,8 @@ export function TrackCanvas({ layout, resolve, emptyAction, clashes = [] }: Trac
    * Per-segment `layers()` still decides what each piece gets; this only sets
    * how many passes to make.
    */
-  const maxLayers = Math.max(...segments.map((s) => layers(s.partId).length));
+  const maxLayers =
+    segments.length === 0 ? 0 : Math.max(...segments.map((s) => layers(s.partId).length));
 
   const dedupedClashes = useMemo(() => clashMarkers(clashes), [clashes]);
 
@@ -172,6 +176,46 @@ export function TrackCanvas({ layout, resolve, emptyAction, clashes = [] }: Trac
           * millimetres too, so the marker stays the size of the track rather
           * than growing with the layout.
           */}
+        {/*
+          * FREE ENDS: the editing surface (decision D5).
+          *
+          * Drawn only where a weld does not already claim a port, because a
+          * join is not somewhere you can attach anything. Clicking one arms
+          * it; clicking a second welds the two together, which is how a loop
+          * closes now that `closed: boolean` is gone.
+          *
+          * The visible dot is small, in millimetres so it stays the size of
+          * the track, but the hit target around it is much larger. A 6mm
+          * circle is an unfair thing to ask anyone to click, and the SVG is
+          * scaled to fit so its on-screen size changes with the layout.
+          */}
+        {renderedPorts
+          .filter((p) => p.free)
+          .map((p) => {
+            const armed =
+              selected !== null &&
+              selected.pieceId === p.pieceId &&
+              selected.port === p.port;
+            return (
+              <g
+                key={`${p.pieceId}#${p.port}`}
+                className={armed ? 'port is-armed' : 'port'}
+                onClick={() => onPortClick?.({ pieceId: p.pieceId, port: p.port })}
+                role="button"
+                tabIndex={0}
+                aria-label={armed ? 'Selected free end' : 'Free end'}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onPortClick?.({ pieceId: p.pieceId, port: p.port });
+                  }
+                }}
+              >
+                <circle cx={p.x} cy={p.y} r={26} className="port-hit" />
+                <circle cx={p.x} cy={p.y} r={armed ? 13 : 8} className="port-dot" />
+              </g>
+            );
+          })}
         {dedupedClashes.map(([x, y], i) => (
           <g key={`clash-${i}`}>
             <circle

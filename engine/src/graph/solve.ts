@@ -46,6 +46,16 @@ export type GraphResult =
       readonly reason: GraphFailure;
       readonly detail: string;
       readonly rank: number;
+      /**
+       * Reported even when there is no loop to check.
+       *
+       * These used to live only on the ok branch, so a layout with no cycle
+       * returned NO_CYCLE and said nothing about two runs lying on top of
+       * each other. Overlapping track is a fact about where the pieces ARE;
+       * it does not become true only once you close a loop.
+       */
+      readonly clashes: readonly VertexClash[];
+      readonly polarityViolations: readonly WeldPolarityViolation[];
     };
 
 export function solveGraph(
@@ -57,6 +67,10 @@ export function solveGraph(
   const placement = placeAll(graph, ports);
   const rs = residuals(graph, ports, placement);
   const rank = placement.forest.closing.length;
+
+  // Computed once, up front, because every branch below reports them.
+  const clashes = findVertexClashes(graph, ports, placement);
+  const polarityViolations = findWeldPolarityViolations(graph, resolve, ports);
 
   if (rank === 0) {
     /*
@@ -84,6 +98,8 @@ export function solveGraph(
           ? `${graph.pieces.length} ${graph.pieces.length === 1 ? 'piece' : 'pieces'}, open at both ends`
           : `${runs} separate runs of track, none of them a loop`,
       rank,
+      clashes,
+      polarityViolations,
     };
   }
 
@@ -97,6 +113,8 @@ export function solveGraph(
       reason: 'TOO_MANY_LOOPS',
       detail: `${rank} independent loops is more than this can rank`,
       rank,
+      clashes,
+      polarityViolations,
     };
   }
 
@@ -106,13 +124,22 @@ export function solveGraph(
       reason: 'HEADING_MISMATCH',
       detail: 'the track does not come back pointing the way it started',
       rank,
+      clashes,
+      polarityViolations,
     };
   }
 
   const gaps = space.cycles.map((c) => c.gapMm);
   const gives = space.cycles.map((c) => c.giveMm);
   if (![...gaps, ...gives].every((x) => Number.isFinite(x))) {
-    return { ok: false, reason: 'NUMERIC', detail: 'a figure came out non-finite', rank };
+    return {
+      ok: false,
+      reason: 'NUMERIC',
+      detail: 'a figure came out non-finite',
+      rank,
+      clashes,
+      polarityViolations,
+    };
   }
 
   return {
@@ -126,7 +153,7 @@ export function solveGraph(
     rank,
     cycles: space.cycles,
     worst: space.worst,
-    clashes: findVertexClashes(graph, ports, placement),
-    polarityViolations: findWeldPolarityViolations(graph, resolve, ports),
+    clashes,
+    polarityViolations,
   };
 }

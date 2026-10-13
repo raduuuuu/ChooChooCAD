@@ -15,13 +15,12 @@
  * its own captured anchor, and every independent loop is checked against its
  * own give. Switches are three-ported pieces the model already handles.
  *
- * The UI here is still a single ordered chain. Pieces append to the end and
- * remove from the end (X1b), so every graph this file can produce has a cycle
- * rank of 0 or 1 and no branch in it. That gap is the remaining work, not an
- * engine limitation: drag-and-drop, declaring a weld between two chosen ends,
- * deleting an interior piece, undo and keyboard parity are one body of
- * deferred work, and `solveViaGraph.ts` is the scaffolding that stands in
- * until they land.
+ * The UI edits that graph directly now, through FREE-END CLICKING (D5): click
+ * a free end to arm it, click a piece to attach there, click a second free
+ * end to weld the two together. `closed: boolean` is retired, because closing
+ * a loop is declaring a weld like any other. What is still missing is
+ * dragging a placed piece, undo, and keyboard parity beyond Enter and Space
+ * on a free end.
  *
  * This header used to claim a layout was ONE connected chain and that the
  * engine had no field for a per-component origin. Both were true when written
@@ -43,11 +42,22 @@ import {
 } from '../../engine/data/library.js';
 import { brandFit } from '../../engine/data/thirdParty.js';
 import { layoutTrust } from '../../engine/src/joints/trust.js';
-import { solveViaGraph } from './solveViaGraph.js';
+import { placeAll } from '../../engine/src/graph/frames.js';
+import { portsOf, type Graph, type Piece as GPiece, type Port, type PortRef } from '../../engine/src/graph/model.js';
+import { renderGraph } from '../../engine/src/graph/render.js';
+import { solveGraph } from '../../engine/src/graph/solve.js';
+import {
+  EMPTY_GRAPH,
+  addPiece,
+  deletePiece,
+  lastPieceId,
+  weldEnds,
+} from './layoutModel.js';
+import { loadGraph, saveGraph } from './layoutStore.js';
+import { viewOf } from './verdictView.js';
 import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
 import type { Brand, Layout, Part, Turn } from '../../engine/src/parts/schema.js';
 import { TrackCanvas } from './TrackCanvas.js';
-import { CHAIN_STORAGE_KEY } from './storageKeys.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
 import { VerdictLine } from './VerdictLine.js';
 import { InventoryPanel } from './Inventory.js';
@@ -70,70 +80,19 @@ interface Piece {
 }
 
 /*
- * Keeping the chain across a refresh.
+ * Keeping the layout across a refresh.
  *
- * This is deliberately NOT save/load. There is no file format here, no version
- * field and no semantics hash, because freezing a format while the schema is
- * still moving buys a migration you then owe forever. The shareable document
- * with its hash is a separate, deferred piece of work.
+ * The chain loader and saver that lived here are gone with the chain. Their
+ * replacement is `layoutStore.ts`, which keeps the same discipline: a blob
+ * that does not parse, or that names a part the library no longer has, is
+ * DISCARDED WHOLE and the user is told, because repairing it would change the
+ * layout's geometry without saying so.
  *
- * What this does cover is losing twenty minutes of placing track to a refresh,
- * a closed tab, or a hang. The error boundary cannot help with any of those: it
- * catches throws, and none of them is a throw.
- *
- * A blob that no longer parses, or that names a part the catalogue no longer
- * has, is DISCARDED rather than repaired or reinterpreted. With no hash there is
- * nothing that could detect a stale blob from an older build, so the only honest
- * response to anything unexpected is to drop it and start empty.
+ * It also recognises an old `brio.chain.v0` blob and says the layout could
+ * not be carried over, rather than starting empty with no explanation. A
+ * chain has no way to record which ends were joined, so there is nothing
+ * faithful to migrate.
  */
-// The key itself lives in storageKeys.ts; see that file for why.
-const STORAGE_KEY = CHAIN_STORAGE_KEY;
-
-function loadPieces(knownPartIds: ReadonlySet<string>): LoadResult<Piece[]> {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { value: [] };
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return { value: [], discarded: 'Your saved track could not be read, so the canvas started empty.' };
-    }
-    const pieces: Piece[] = [];
-    for (const item of parsed) {
-      if (typeof item !== 'object' || item === null) {
-        return { value: [], discarded: 'Your saved track could not be read, so the canvas started empty.' };
-      }
-      const { partId, turn } = item as Record<string, unknown>;
-      // An unknown part id means the catalogue moved under the blob. Discard the
-      // whole chain rather than silently dropping pieces out of the middle of it,
-      // which would change the layout's geometry without saying so.
-      if (typeof partId !== 'string' || !knownPartIds.has(partId)) {
-        return {
-          value: [],
-          discarded:
-            `Your saved track used a part the library no longer has (${String(partId)}), ` +
-            'so the whole layout was cleared. Dropping one piece would have changed its shape.',
-        };
-      }
-      if (turn !== 'left' && turn !== 'right') {
-        return { value: [], discarded: 'Your saved track could not be read, so the canvas started empty.' };
-      }
-      pieces.push({ partId, turn });
-    }
-    return { value: pieces };
-  } catch {
-    // Unavailable storage, a quota error, or malformed JSON.
-    return { value: [], discarded: 'Your saved track could not be read, so the canvas started empty.' };
-  }
-}
-
-function savePieces(pieces: readonly Piece[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(pieces));
-  } catch {
-    // Private browsing and full quotas both throw here. Losing persistence is
-    // not worth losing the session over, so this is deliberately silent.
-  }
-}
 
 /** BRIO first, because it is the only brand whose dimensions are published. */
 const BRAND_ORDER: readonly Brand[] = ['BRIO', 'IKEA', 'PLAYTIVE', 'HAPE', 'THOMAS', 'MELISSA_DOUG'];
@@ -191,15 +150,31 @@ export function App() {
    * and an empty one were indistinguishable and the user watched their work
    * vanish in silence.
    */
-  const [chainLoad] = useState(() => loadPieces(libraryIds));
+  const [graphLoad] = useState(() => loadGraph(libraryIds));
   const [inventoryLoad] = useState(() => loadInventory(libraryIds));
   const [dismissed, setDismissed] = useState(false);
-  const notices = [chainLoad.discarded, inventoryLoad.discarded].filter(
+  const notices = [graphLoad.discarded, inventoryLoad.discarded].filter(
     (x): x is string => typeof x === 'string',
   );
 
-  const [pieces, setPieces] = useState<Piece[]>(chainLoad.value);
-  const [closed, setClosed] = useState(true);
+  /*
+   * THE GRAPH AND THE SELECTION ARE ONE PIECE OF STATE, and that is not
+   * tidiness.
+   *
+   * They were two `useState`s and every handler read `selected` from the
+   * render closure. Clicking the palette eight times in a row then produced
+   * EIGHT SEPARATE RUNS instead of one run of eight: React batches the
+   * updates, so all eight handlers saw the same stale `selected` of null and
+   * each started a new run. The pure model was correct throughout; the
+   * wiring was not, which is why the unit tests passed and the browser did
+   * not. Attaching a piece MOVES the selection to its far end, so the two
+   * values change together and must be computed together.
+   */
+  const [editor, setEditor] = useState<{ graph: Graph; selected: PortRef | null }>(() => ({
+    graph: graphLoad.value,
+    selected: null,
+  }));
+  const { graph, selected } = editor;
   // `null` is UNDECLARED, which is not the same as owning none. See inventoryModel.ts.
   const [inventory, setInventory] = useState<Inventory>(inventoryLoad.value);
   const [inventoryOpen, setInventoryOpen] = useState(false);
@@ -209,45 +184,112 @@ export function App() {
     saveSubmissions(submissions);
   }, [submissions]);
 
-  // Only the chain is persisted. `closed` is a one-bit view toggle, not work.
   useEffect(() => {
-    savePieces(pieces);
-  }, [pieces]);
+    saveGraph(graph);
+  }, [graph]);
 
   useEffect(() => {
     saveInventory(inventory);
   }, [inventory]);
 
-  const layout: Layout = useMemo(
-    () => ({ placements: pieces.map((p) => ({ partId: p.partId, turn: p.turn })), closed }),
-    [pieces, closed],
+  const ports = useMemo(
+    () => (piece: GPiece): readonly Port[] => portsOf(resolve(piece.partId), piece.turn),
+    [resolve],
   );
 
-  // One solve per layout change. Synchronous and inside render on purpose: it
-  // keeps a React error boundary able to catch a throw from the engine, which
-  // an event-handler trigger would not. See the eng review's finding on the
-  // blank-page rescue.
+  // One placement per edit, shared by the verdict and the drawing. The whole
+  // point of T4's single forest is that these cannot disagree about where a
+  // piece is, so they are computed once here and passed down.
+  const placement = useMemo(() => placeAll(graph, ports), [graph, ports]);
+  const render = useMemo(
+    () => renderGraph(graph, ports, resolve, placement),
+    [graph, ports, resolve, placement],
+  );
+
+  // Synchronous and inside render on purpose: it keeps a React error boundary
+  // able to catch a throw from the engine, which an event-handler trigger
+  // would not. See the eng review's finding on the blank-page rescue.
   const result = useMemo(
-    () => (pieces.length === 0 ? null : solveViaGraph(layout, resolve)),
-    [layout, pieces.length, resolve],
+    () =>
+      graph.pieces.length === 0
+        ? null
+        : solveGraph(graph, ports, resolve, (pieceId: string) => {
+            const piece = graph.pieces.find((x: GPiece) => x.pieceId === pieceId);
+            return piece ? resolve(piece.partId).slop.axialMm : 0;
+          }),
+    [graph, ports, resolve],
   );
 
-  const add = (partId: string, turn: Turn) => setPieces((p) => [...p, { partId, turn }]);
-  const undo = () => setPieces((p) => p.slice(0, -1));
-  const clear = () => setPieces([]);
+  const add = (partId: string, turn: Turn) => {
+    const count = portsOf(resolve(partId), turn).length;
+    // The updater is PURE and reads the selection it is handed, never the one
+    // in scope, which is what makes eight rapid clicks build one run.
+    setEditor((e) => {
+      const next = addPiece(e.graph, partId, turn, count, e.selected, ports);
+      return { graph: next.graph, selected: next.select };
+    });
+  };
+
+  /**
+   * Clicking a free end. One click arms it; a second click on a DIFFERENT
+   * free end welds the two together, which is what closing a loop is now.
+   * Clicking the armed end again disarms it.
+   */
+  const clickPort = (ref: PortRef) => {
+    setEditor((e) => {
+      const armed = e.selected;
+      if (armed && armed.pieceId === ref.pieceId && armed.port === ref.port) {
+        return { ...e, selected: null };
+      }
+      if (armed) return { graph: weldEnds(e.graph, armed, ref), selected: null };
+      return { ...e, selected: ref };
+    });
+  };
+
+  const undo = () =>
+    setEditor((e) => {
+      const last = lastPieceId(e.graph);
+      return last ? { graph: deletePiece(e.graph, ports, last), selected: null } : e;
+    });
+  const clear = () => setEditor({ graph: EMPTY_GRAPH, selected: null });
+
+  /**
+   * A preset builds a run and then welds its two ends, exactly as a user
+   * would: there is no "closed" flag left to set.
+   */
   const preset = (ids: readonly string[]) => {
-    setPieces(ids.map((partId) => ({ partId, turn: 'left' as Turn })));
-    setClosed(true);
+    let next = EMPTY_GRAPH;
+    let at: PortRef | null = null;
+    for (const partId of ids) {
+      const count = portsOf(resolve(partId), 'left').length;
+      const step = addPiece(next, partId, 'left', count, at);
+      next = step.graph;
+      at = step.select;
+    }
+    if (next.pieces.length > 1 && at) {
+      next = weldEnds(next, at, { pieceId: next.pieces[0]!.pieceId, port: 0 });
+    }
+    setEditor({ graph: next, selected: null });
   };
 
   // The trust register. Computed from the library, so it knows what the solver
-  // cannot: how good the numbers under the verdict actually are.
+  // cannot: how good the numbers under the verdict actually are. It reads only
+  // the parts in play, so a flat list of them is the honest input.
   const trust = useMemo(
-    () => (pieces.length === 0 ? [] : layoutTrust(layout, resolve, brandFit)),
-    [layout, resolve, pieces.length],
+    () =>
+      graph.pieces.length === 0
+        ? []
+        : layoutTrust(
+            { placements: graph.pieces.map((p) => ({ partId: p.partId, turn: p.turn })), closed: false },
+            resolve,
+            brandFit,
+          ),
+    [graph, resolve],
   );
 
-  const counts = usedCounts(pieces.map((p) => p.partId));
+  const verdictView = useMemo(() => viewOf(result), [result]);
+
+  const counts = usedCounts(graph.pieces.map((p) => p.partId));
   const shortfalls = computeShortfalls(inventory, counts);
 
   /* One brand's shelf. Used twice: BRIO inside the scrolling region, the
@@ -361,8 +403,10 @@ export function App() {
     <div className="shell">
       <main className="stage">
         <TrackCanvas
-          layout={layout}
+          render={render}
           resolve={resolve}
+          selected={selected}
+          onPortClick={clickPort}
           clashes={result?.ok ? result.clashes : []}
           emptyAction={
             <>
@@ -393,7 +437,7 @@ export function App() {
         </div>
       )}
 
-      <VerdictLine result={result} trust={trust} />
+      <VerdictLine view={verdictView} trust={trust} />
 
       {/*
         * The shortfall line sits with the verdict, not in the palette, because it
@@ -456,14 +500,17 @@ export function App() {
         </div>
 
         <div className="palette-row palette-controls">
-          <label className="toggle">
-            <input type="checkbox" checked={closed} onChange={(e) => setClosed(e.target.checked)} />
-            Closed loop
-          </label>
-          <button onClick={undo} disabled={pieces.length === 0}>
+          {/*
+            * `Closed loop` is GONE. It was a property of a list, answering
+            * "does the last piece join the first?", and that question has no
+            * meaning once a layout can be a tree, a forest, or two loops
+            * sharing a switch. Closing a loop is now clicking the two free
+            * ends you want joined, which is also what you do with real track.
+            */}
+          <button onClick={undo} disabled={graph.pieces.length === 0}>
             Remove last
           </button>
-          <button onClick={clear} disabled={pieces.length === 0}>
+          <button onClick={clear} disabled={graph.pieces.length === 0}>
             Clear
           </button>
           <span className="spacer" />
@@ -486,7 +533,7 @@ export function App() {
           * presets and this. One click to a working layout beats a data-entry
           * chore whose payoff arrives several steps later.
           */}
-        {pieces.length > 0 && !inventoryOpen && (
+        {graph.pieces.length > 0 && !inventoryOpen && (
           <div className="palette-row palette-controls">
             <button onClick={() => setInventoryOpen(true)}>
               {inventory === null ? 'Your box' : 'Your box'}
