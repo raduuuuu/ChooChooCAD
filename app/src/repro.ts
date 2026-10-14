@@ -56,13 +56,30 @@ function literal(raw: string | null, fallback: string): string {
   }
 }
 
+/**
+ * One line, no escapes. Everything interpolated into the header goes through it.
+ *
+ * The header is a run of `//` comments, and a `//` comment ends at a newline.
+ * `error.message` is attacker-influenced: `loadGraph` accepts any string as a
+ * `pieceId`, and `frames.ts` throws ``piece ${id} was never placed``, so a
+ * stored id of `p1\nconsole.log(1)//` put live code on its own line in a file
+ * the crash screen tells the user to run with `bun run crash-repro.ts`.
+ * Reproduced before the fix. The payoff is on the maintainer's machine, outside
+ * the browser sandbox, which is what makes it worse than an ordinary
+ * same-origin bug rather than better.
+ *
+ * `literal()` below already protected the three stored blobs; it was the
+ * human-readable header nobody treated as data.
+ */
+const oneLine = (s: string) => s.replace(/[\r\n\u2028\u2029]+/g, ' ').slice(0, 300);
+
 export function reproText(input: ReproInput): string {
   return `// brio-designer crash repro
 // Save as crash-repro.ts in the repo root, then: bun run crash-repro.ts
 //
-// version   ${input.version}
-// browser   ${input.userAgent}
-// error     ${input.error.name}: ${input.error.message}
+// version   ${oneLine(input.version)}
+// browser   ${oneLine(input.userAgent)}
+// error     ${oneLine(input.error.name)}: ${oneLine(input.error.message)}
 //
 // NOTE: \`closed\` is not persisted (it is a view toggle), so it is set to the
 // app's default of true here. If the crash needed an open chain, set it false.

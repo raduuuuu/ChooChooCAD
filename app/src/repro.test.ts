@@ -146,3 +146,73 @@ describe('the generated repro runs', () => {
     }
   });
 });
+
+/**
+ * The generated file's HEADER is data too.
+ *
+ * Value: protects=every line of the repro header stays a `//` comment, so a
+ * stored value cannot become executable code in a file the crash screen tells
+ * the user to run
+ * Value: fails_when=an interpolated header field stops being passed through
+ * oneLine(), or a new raw ${...} is added to the header
+ * Value: why_new=the existing "cannot break out of its literal" test covers
+ * only literal()'s three blobs; the human-readable header was never treated as
+ * untrusted, and its green masked the gap
+ * Value: seam=none
+ * Value: no_claim=nothing about what the generated program then does when run,
+ * and nothing about the blobs themselves, which literal() already owns
+ *
+ * REPRODUCED BEFORE THE FIX. A stored pieceId of `p1\nconsole.log(...)//`
+ * survives loadGraph verbatim, reaches frames.ts's `piece ${id} was never
+ * placed` throw, and landed on its own line in crash-repro.ts.
+ */
+describe('the repro header cannot be escaped', () => {
+  const base = {
+    chain: null,
+    inventory: null,
+    submissions: null,
+    version: 'abc123',
+    userAgent: 'UA',
+    error: { name: 'Error', message: 'boom' },
+  };
+
+  it('a newline in the error message does not start a new line of code', () => {
+    const t = reproText({
+      ...base,
+      error: { name: 'Error', message: 'piece p1\nconsole.log("PWNED")//' },
+    });
+    const header = t.slice(0, t.indexOf('\nimport '));
+    for (const l of header.split('\n')) {
+      expect(l === '' || l.startsWith('//'), `escaped the comment: ${l}`).toBe(true);
+    }
+    expect(t).not.toContain('\nconsole.log("PWNED")');
+  });
+
+  it('every interpolated header field is sanitised, not just the message', () => {
+    for (const field of ['version', 'userAgent'] as const) {
+      const t = reproText({ ...base, [field]: 'x\nprocess.exit(1)' });
+      const header = t.slice(0, t.indexOf('\nimport '));
+      for (const l of header.split('\n')) {
+        expect(l === '' || l.startsWith('//'), `${field} escaped: ${l}`).toBe(true);
+      }
+    }
+    const named = reproText({ ...base, error: { name: 'E\nprocess.exit(1)', message: 'm' } });
+    const header = named.slice(0, named.indexOf('\nimport '));
+    for (const l of header.split('\n')) expect(l === '' || l.startsWith('//')).toBe(true);
+  });
+
+  it('carriage returns and the unicode line separators are covered too', () => {
+    for (const nl of ['\r', '\u2028', '\u2029']) {
+      const t = reproText({ ...base, error: { name: 'Error', message: `a${nl}process.exit(1)` } });
+      const header = t.slice(0, t.indexOf('\nimport '));
+      for (const l of header.split(/[\n\r\u2028\u2029]/)) {
+        expect(l === '' || l.startsWith('//'), `${JSON.stringify(nl)} escaped: ${l}`).toBe(true);
+      }
+    }
+  });
+
+  it('a long message is truncated rather than filling the file', () => {
+    const t = reproText({ ...base, error: { name: 'Error', message: 'x'.repeat(5000) } });
+    expect(t.slice(0, t.indexOf('\nimport ')).length).toBeLessThan(1000);
+  });
+});

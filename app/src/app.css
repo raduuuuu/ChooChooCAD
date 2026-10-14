@@ -840,7 +840,14 @@
  */
 @media (max-width: 620px) {
   .shell { display: block; padding: var(--s5) var(--s4); }
-  .stage, .verdict, .palette, .inventory, .submit, .shortfall, .notice { display: none; }
+  /*
+   * `.verdict-notes` is in this list because X2a made it a SIBLING of
+   * `.verdict` rather than a child. Hiding `.verdict` no longer hides it, so
+   * without this line the sunk notes panel -- trust bullets, the truncation
+   * sentence, the arrowed action -- renders on a phone as the only product
+   * chrome under a message that just said the editor needs a larger screen.
+   */
+  .stage, .verdict, .verdict-notes, .palette, .inventory, .submit, .shortfall, .notice { display: none; }
   .shell::before {
     content: 'The track editor needs a larger screen. Open it on a desktop or tablet.';
     display: block;

@@ -66,7 +66,17 @@ export const DIMENSION_TRUST: readonly DimensionStatus[] = [
 
 /** Lower is better. A part with a better source overrides a worse one. */
 export function trustRank(status: DimensionStatus): number {
-  return DIMENSION_TRUST.indexOf(status);
+  /*
+   * FAIL CLOSED. `indexOf` returns -1 for an unknown status, and -1 is LOWER
+   * than every legitimate rank, so an unrecognised status outranked every
+   * figure in the catalogue including a published one. Reproduced before the
+   * fix: a stored submission with `dimensions: {}` replaced published curve E,
+   * radius 182 -> 1, and `isUnverified` could not see it because the status was
+   * absent rather than wrong. An unknown provenance must be the LEAST trusted
+   * thing there is, never the most.
+   */
+  const i = DIMENSION_TRUST.indexOf(status);
+  return i < 0 ? Number.POSITIVE_INFINITY : i;
 }
 
 export interface DimensionSource {

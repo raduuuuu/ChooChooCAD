@@ -34,7 +34,7 @@
  */
 
 import type { DimensionSource, Part } from '../src/parts/schema.js';
-import { trustRank } from '../src/parts/schema.js';
+import { DIMENSION_TRUST, trustRank, type DimensionStatus } from '../src/parts/schema.js';
 import { BRIO_PARTS } from './brio.js';
 import { THIRD_PARTY_SEEDS } from './thirdParty.js';
 
@@ -138,6 +138,28 @@ function looksLikePart(v: unknown): v is Part {
   if (typeof p.brand !== 'string') return false;
   if (p.kind !== 'straight' && p.kind !== 'curve') return false;
   if (typeof p.dimensions !== 'object' || p.dimensions === null) return false;
+  /*
+   * THE PROVENANCE IS VALIDATED, not just the shape. Without this a stored
+   * submission with `dimensions: {}` reached `trustRank`, which returned -1 and
+   * outranked every published figure in the catalogue. The two halves are
+   * independent on purpose: this rejects the row, and `trustRank` failing
+   * closed means a second caller cannot reintroduce the inversion.
+   */
+  const dims = p.dimensions as Record<string, unknown>;
+  if (!DIMENSION_TRUST.includes(dims.status as DimensionStatus)) return false;
+  if (typeof dims.source !== 'string') return false;
+  /*
+   * `ends` and `slop` are dereferenced unconditionally by the engine
+   * (`portPolarity` reads part.ends.start; the solver reads part.slop.axialMm),
+   * so a row missing either is an app-wide crash on load rather than a dropped
+   * row -- the opposite of what this file promises.
+   */
+  const ends = p.ends as Record<string, unknown> | undefined;
+  if (!ends || (ends.start !== 'peg' && ends.start !== 'socket')) return false;
+  if (ends.end !== 'peg' && ends.end !== 'socket') return false;
+  const slop = p.slop as Record<string, unknown> | undefined;
+  const nonNeg = (x: unknown) => typeof x === 'number' && Number.isFinite(x) && x >= 0;
+  if (!slop || !nonNeg(slop.axialMm) || !nonNeg(slop.angularDeg)) return false;
   const finite = (x: unknown) => typeof x === 'number' && Number.isFinite(x) && x > 0;
   if (!finite(p.gaugeWidthMm) || !finite(p.plankWidthMm) || !finite(p.plankThicknessMm)) return false;
   if (p.kind === 'straight') return finite(p.lengthMm);

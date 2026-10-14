@@ -45,6 +45,13 @@ import { EMPTY_GRAPH } from './layoutModel.js';
 /** The grid runs are spaced on, matching `layoutModel`'s. One long straight. */
 const RUN_SPACING_MM = 216;
 
+/**
+ * Where `placeAll` puts a root with no anchor, so it is a lane already in use.
+ * An orphan re-anchored here would collide with the component that legitimately
+ * sits at the origin.
+ */
+const IDENTITY_POS = [0, 0, 0, 0, 0, 0, 0, 0] as const;
+
 const DISCARDED = 'Your saved track could not be read, so the canvas started empty.';
 
 /**
@@ -232,13 +239,36 @@ export function loadGraph(knownPartIds: ReadonlySet<string>): GraphLoadResult {
     }
 
     /*
-     * Re-anchor the orphans into free lanes past everything that survived, so
-     * no two components start at the same frame. `heading: 0` because a lost
-     * heading is not recoverable either and zero is the only non-claim.
+     * Re-anchor the orphans into FREE lanes, so no two components start at the
+     * same frame. `heading: 0` because a lost heading is not recoverable either
+     * and zero is the only non-claim.
+     *
+     * THE LANE IS SEARCHED, NOT COMPUTED, and the first version of this got it
+     * wrong in exactly the way the surrounding comment promises it does not.
+     * It used `anchorMap.size + k + 1`, a COUNT of survivors rather than the
+     * highest lane in use. `nextRunAnchor` hands out lanes 1, 2, 3..., so one
+     * survivor sitting at lane 2 gives size 1, k 0, steps 2 -- the orphan lands
+     * on the survivor's exact frame, `placeAll` stacks them, and
+     * `findVertexClashes` reports the manufactured "can't be built" this whole
+     * passage exists to prevent. Reproduced before fixing: two clashes.
+     *
+     * A survivor's anchor is an arbitrary lattice point (captureAnchors records
+     * wherever a component actually was), so there is no arithmetic that
+     * reliably steps "past" them. Checking occupancy is correct by construction
+     * and costs nothing at these sizes.
      */
-    for (let k = 0; k < orphans.length; k++) {
-      const steps = anchorMap.size + k + 1;
-      anchorMap.set(orphans[k]!, { pos: scale(zetaPow(4), RUN_SPACING_MM * steps), heading: 0 });
+    const taken = new Set<string>([IDENTITY_POS.join(',')]);
+    for (const f of anchorMap.values()) taken.add(f.pos.join(','));
+    let lane = 1;
+    for (const id of orphans) {
+      let pos = scale(zetaPow(4), RUN_SPACING_MM * lane);
+      while (taken.has(pos.join(','))) {
+        lane++;
+        pos = scale(zetaPow(4), RUN_SPACING_MM * lane);
+      }
+      taken.add(pos.join(','));
+      anchorMap.set(id, { pos, heading: 0 });
+      lane++;
     }
 
     return {

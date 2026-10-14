@@ -259,6 +259,58 @@ describe('E2: a dropped anchor keeps the layout and never manufactures a clash',
     });
   });
 
+  /*
+   * THE LANE COLLISION, which the first version of this fix had.
+   *
+   * MUTATION PROOF, run: restore `const steps = anchorMap.size + k + 1` and
+   * this fails with two clashes. A survivor at lane 2 gives size 1, k 0,
+   * steps 2 -- the orphan lands on the survivor's exact frame and the loader
+   * manufactures the "can't be built" verdict E2 exists to prevent. Found by
+   * the ship review, not by me.
+   */
+  it('an orphan never lands on a lane a SURVIVING anchor already holds', () => {
+    const r = load(
+      blob({
+        pieces: [
+          { pieceId: 'p1', partId: 'E', turn: 'left' },
+          { pieceId: 'p2', partId: 'E', turn: 'left' },
+          { pieceId: 'p3', partId: 'E', turn: 'left' },
+        ],
+        welds: [],
+        anchors: [
+          // p2 sits where nextRunAnchor would have put a second run.
+          ['p2', { pos: [0, 0, 0, 0, 432, 0, 0, 0], heading: 0 }],
+          ['p3', { pos: 'rubbish', heading: 0 }],
+        ],
+      }),
+    );
+    expect(r.droppedAnchors).toBe(1);
+
+    const placement = placeAll(r.value, ports);
+    const frames = placement.forest.roots.map((id) => placement.frames.get(id)!);
+    const distinct = new Set(frames.map((f) => f.pos.join(',')));
+    expect(distinct.size).toBe(frames.length);
+    expect(findVertexClashes(r.value, ports, placement)).toHaveLength(0);
+  });
+
+  it('the identity counts as occupied, because an unanchored root is placed there', () => {
+    // p1 has no anchor and lands at the identity. An orphan re-anchored to the
+    // identity would collide with it just as surely as with a stored anchor.
+    const r = load(
+      blob({
+        pieces: [
+          { pieceId: 'p1', partId: 'E', turn: 'left' },
+          { pieceId: 'p2', partId: 'E', turn: 'left' },
+        ],
+        welds: [],
+        anchors: [['p2', { pos: 'rubbish', heading: 0 }]],
+      }),
+    );
+    const placement = placeAll(r.value, ports);
+    const frames = placement.forest.roots.map((id) => placement.frames.get(id)!);
+    expect(new Set(frames.map((f) => f.pos.join(','))).size).toBe(frames.length);
+  });
+
   it('re-anchoring stays on the lattice, so closure is still exact', () => {
     const r = load(blob(twoRuns({ pos: 'rubbish', heading: 0 })));
     const anchor = r.value.anchors?.get('p2')!;
