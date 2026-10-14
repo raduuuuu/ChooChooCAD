@@ -810,3 +810,71 @@ point, not an extra.
 **Effort:** human S (one afternoon with the part) / CC: cannot be done by CC.
 **Priority:** P2.
 **Depends on / blocked by:** owning a BRIO switch. Blocks task T2 entirely.
+
+## P2 — Deploy the app to a URL (filed by the CEO review, 2026-10-13)
+
+**What:** Put the current app on a public URL. One hour, after a remote exists.
+
+**Why:** Nothing this project has built in three weeks is visible to anyone
+outside one machine. The moat is real (exact Z[zeta16] closure plus sourced
+dimensions is hard to copy and hard to do in floating-point CAD) and it is
+undemonstrated and undated. The competitive risk is not that someone builds a
+better cyclotomic solver; it is that a generic generative tool plus a photo of
+someone's pieces becomes good enough at the user's actual question first.
+
+**Pros:** Forces the font OFL distribution question this file already says is
+owed. Makes the thing shareable, which is a precondition for any user contact.
+
+**Cons:** Touches the P1 data-provenance question: a public deploy publishes the
+transcribed dimensions, exactly as a public remote would. Gated on the same
+counsel, or on X3 converting the catalogue to self-measured figures.
+
+**Context:** Raised as M2 by the CEO voice in the /autoplan run of 2026-10-13,
+which noted deployment has gone untouched across six reviews.
+
+**Effort:** human S / CC S. **Priority:** P2.
+**Depends on / blocked by:** X1 (a remote), and either counsel or X3.
+
+## P3 — A direct `solveGraph` suite (filed by the eng review, 2026-10-14)
+
+**What:** `engine/src/graph/solve.ts` has exactly one importer among the 15 test
+files: `engine/test/differential.test.ts`. So the verdict union's five return
+sites are exercised only where the chain engine can follow, and `TOO_MANY_LOOPS`
+by construction cannot be: the chain model has no concept of rank above 1.
+
+**Why deferred rather than scheduled:** the branch is guarded by
+`CYCLE_RANK_CEILING = 20`, which is tested directly in `engine/test/cycles.test.ts`
+one layer down, and no defect points at it. The principle this project has been
+applying holds: a test earns its place by catching something the existing layers
+cannot. Pick this up with K1, when nine more parts widen the union's input space.
+
+**Effort:** human M / CC S. **Priority:** P3.
+**Depends on / blocked by:** nothing. Scheduled with K1's wave by preference.
+
+## P2 — The success state's payoff beat (filed by the design review, 2026-10-13)
+
+**What:** For a validator whose entire purpose is telling you the loop closes,
+the reward for closing it is currently one CSS class. The interaction state
+table written into `docs/plan/2026-10-13-open-work.md` has five states across
+three surfaces, and Success is the thinnest cell in it: no reinforcement, no
+motion, no change of weight. Every other cell got work this phase.
+
+**Why:** the phase that just ran is a hardening phase, and four of its five
+states are about things going wrong. The one state the product exists to produce
+is the one nobody designed.
+
+**Effort:** human S / CC S. **Priority:** P2.
+**Depends on / blocked by:** nothing. Named here so the next design pass starts
+from it rather than rediscovering it.
+
+## P3 — CONTRIBUTING.md (filed by the DX review, 2026-10-14)
+
+**What:** no contributor documentation exists.
+
+**Why deferred rather than scheduled:** there is no remote, so there is nobody to
+contribute. The project's own value test — an artifact written before its
+consumer exists is waste — rejects it today. The DX phase recorded this as a
+deliberate deferral rather than a gap.
+
+**Effort:** human S / CC S. **Priority:** P3.
+**Depends on / blocked by:** X1 (a remote), and a second person.
