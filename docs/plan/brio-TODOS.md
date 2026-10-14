@@ -1252,3 +1252,44 @@ screen, no repro. Pre-existing and unchanged by this ship; the comment in
 
 **Effort:** human ~2h / CC ~25m for both. **Priority:** P2.
 **Depends on / blocked by:** nothing.
+
+## P1 — The give bound ignores angular slop entirely, which can make a definite "will not fit" false (filed by /ship's docs audit, 2026-10-14)
+
+**What:** `totalGiveMm` (`engine/src/solver/residual.ts:135`) sums
+`axialMaxMm` across joints and nothing else. `angularMaxDeg` is recorded on
+every `Joint` by the schema and is **read nowhere** in `engine/src` or
+`app/src`. Verified by grep: every occurrence is an assignment.
+
+**Why it matters, in the engine's own terms.** The docblock twelve lines above
+that function states the rule: `totalGiveMm` backs a NECESSARY condition, "gap
+exceeds give, therefore this definitely will not fit", and that is "only sound
+if the give figure is an upper bound on the give really available", because
+understating give "would turn the one definite verdict this engine makes into a
+false one, which is the worst failure mode here."
+
+If a joint's angular play contributes real give, then omitting it understates
+the total, `gap > give` fires on layouts that would actually seat, and the
+engine reports IMPOSSIBLE about track that fits. That is the third invariant,
+from the other side: a passing layout styled as a failure.
+
+**Is the contribution real?** Unknown, and that is the point.
+`CALIBRATION.md`'s opening argues the lever arms are on the order of 300mm
+against axial budgets around 1mm, so a small rotation moves a layout's far end
+much further than a pull-apart does. If that holds, the engine is ignoring the
+larger of the two effects. Nobody has measured it; the evidence is "a few
+degrees".
+
+**History:** the minimax LP deleted at decision R21 did model the angular
+budget. Dropping it left `angularMaxDeg` in the schema as a vestige and left
+`CALIBRATION.md` asserting an angular-dominated verdict for a release that had
+stopped computing one. The sheet is corrected; the engine gap is this entry.
+
+**Fix:** either model angular give in the bound (needs the measurement, so it
+is gated on the calibration afternoon), or state in the schema and the verdict
+copy that the bound is axial-only and argue why that is still an upper bound.
+Deleting `angularMaxDeg` is the third option and the worst: it would erase the
+evidence that the question exists.
+
+**Effort:** human ~half a day plus the measurement / CC ~1h once a number
+exists. **Priority:** P1.
+**Depends on / blocked by:** the calibration afternoon (`CALIBRATION.md` Q2).

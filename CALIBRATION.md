@@ -7,12 +7,28 @@ the plan needs doing first.
 Record answers directly in this file. Then `engine/data/brio.ts` gets the real
 numbers and `calibrationStatus` can finally move off `estimated`.
 
-Why this comes first: the engine's verdict is dominated by the ANGULAR budget,
-not the axial one. The lever arms are on the order of 300mm while axial budgets
-are around 1mm, so a joint's small rotation moves the far end of a layout far
-more than its pull-apart does. The angular figure is also the vaguest thing in
-evidence ("a few degrees"). Measuring it is the single highest-information act
-available on this project.
+Why this comes first, corrected 2026-10-14: **the engine does not currently use
+the angular budget at all.** `totalGiveMm` (`engine/src/solver/residual.ts:135`)
+sums `axialMaxMm` alone, and `angularMaxDeg` is recorded on every `Joint` and
+read nowhere. This paragraph used to assert that the verdict was "dominated by
+the ANGULAR budget, not the axial one", which was true of the minimax LP deleted
+at decision R21 and has been false of the shipped engine ever since.
+
+Measuring the angular figure is still the highest-information act available, and
+now for a sharper reason. The lever arms are on the order of 300mm against axial
+budgets around 1mm, so a joint's small rotation moves the far end of a layout
+much further than its pull-apart does. If that is right, the engine is currently
+ignoring the larger of the two effects. It is also the vaguest thing in evidence
+("a few degrees"), which is exactly why nobody has modelled it: there is no
+number to model with. Measuring it is what would let the engine use it.
+
+**OPEN, and the thing this afternoon decides:** whether the axial-only bound is
+sound in the meantime. `totalGiveMm` backs a NECESSARY condition -- "the gap
+exceeds the give, therefore this definitely will not fit" -- and that claim is
+only valid if the give figure is an upper bound on the give really available.
+Ignoring a real angular contribution makes the figure too SMALL, which makes the
+engine claim "will not fit" about layouts that would. Filed in
+`docs/plan/brio-TODOS.md`.
 
 ---
 
@@ -57,8 +73,9 @@ published "2 to 3mm" figure is almost certainly TOTAL. That factor of two is
 unresolved and it is the difference between the current numbers being 1.5x
 wrong and 3x wrong. Q2 settles it directly. The push-together answer also
 settles whether the budget is symmetric: if there is a hard stop, wood cannot
-compress past contact and the budget is one-sided POSITIVE, which the LP
-currently does not model.
+compress past contact and the budget is one-sided POSITIVE, which the engine
+does not model either way (it sums a single `axialMaxMm` per joint, with no
+sign). The LP this sentence used to name was deleted at R21.
 
 ## Q3 — What datum is the printed length?
 
@@ -155,8 +172,10 @@ Then compute:
   clearance margin       = air        -  vehicle height    = ______ mm
 ```
 
-**Why this is the whole feature:** with the numbers currently guessed in the code
-(64mm rise, 12mm plank, 44mm vehicle) the margin is **8mm**. None of those three
+**Why this is the whole feature:** with the numbers currently in the code the
+margin is **8mm**. Two of the three are guesses (a 64mm rise that exists only in
+a docblock, with no constant and no N part in the catalogue, and a 44mm vehicle
+height); the 12mm plank is PUBLISHED, per Q3 and Q5 above. None of those three
 has been measured. A vehicle 6mm taller, or a plank 4mm thicker, and the margin
 is gone: every single-level bridge becomes illegal, and the only legal bridging
 would be two levels up, which the two-layer model does not have.
