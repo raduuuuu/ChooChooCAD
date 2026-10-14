@@ -2323,7 +2323,7 @@ it simply has no API key.
 
 | Fact | Value |
 |---|---|
-| Repo | /Users/radudiaconescu/Developer/brio-designer, git init only, **0 commits**, everything untracked |
+| Repo | ~/Developer/brio-designer, git init only, **0 commits**, everything untracked |
 | Engine + app | 1,820 lines across engine/ and app/ |
 | Tests | 21 passing (17 analytic, 4 render), clean typecheck, clean production build |
 | Parts in DB | **6** (A2, A1, A, D, E, E1). No switches, no ascending track, no bridge, no crossing |
@@ -6649,7 +6649,7 @@ since the original design review, and it interacts with the verdict channel."*
 
 | Fact | Value |
 |---|---|
-| Repo | /Users/radudiaconescu/Developer/brio-designer, 3 commits, clean tree, HEAD `826008e` |
+| Repo | ~/Developer/brio-designer, 3 commits, clean tree, HEAD `826008e` |
 | App source | 613 lines across `app/src` (App 137, TrackCanvas 86, VerdictLine 114, app.css 176, tokens.css 91, main 9) |
 | DESIGN.md | **absent** |
 | TODOS.md in repo | absent; the project's TODO file is `~/.gstack/projects/radudiaconescu/brio-TODOS.md` |
