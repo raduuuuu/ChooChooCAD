@@ -181,9 +181,13 @@
    *
    * It is deliberately NOT a fifth verdict colour, and that is the point
    * rather than a shortcut: the empty state is the absence of a verdict, so
-   * giving it a hue would claim something. It takes --ink-soft's measured
-   * 5.21:1 on --paper, carries no glyph at all, and is the one verdict class
-   * with no `.verdict-mark` rule. UNKNOWN keeps its own value for the four
+   * giving it a hue would claim something. It takes --ink-soft's value, which
+   * measures 4.77:1 against --paper-sunk -- the ground the verdict band
+   * actually sets, NOT --paper's 5.21:1, which an earlier version of this
+   * comment quoted. Clear of the 4.5:1 text floor either way, but the margin
+   * is 0.27 rather than 0.71, and this file's whole claim is that every colour
+   * carries its ratio against the surface it sits on. It carries no glyph at
+   * all and is the one verdict class with no `.verdict-mark` rule. UNKNOWN keeps its own value for the four
    * FailureKinds, where "could not check" IS a verdict.
    */
   --empty: var(--ink-soft);

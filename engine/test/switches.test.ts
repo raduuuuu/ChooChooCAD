@@ -16,7 +16,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../data/library.js';
 import { spanningForest } from '../src/graph/forest.js';
-import { placeAll, portFrame, residuals, closesExactly } from '../src/graph/frames.js';
+import { placeAll, portFrame, residuals } from '../src/graph/frames.js';
 import {
   portsOf,
   weldGiveMm,

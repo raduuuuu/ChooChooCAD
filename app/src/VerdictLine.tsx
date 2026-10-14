@@ -75,13 +75,24 @@ function Trust({ trust }: { trust: readonly TrustIssue[] }) {
   );
   const shown = ordered.slice(0, TRUST_INLINE_LIMIT);
   const hidden = ordered.length - shown.length;
-  const serious = shown.some(isSerious);
 
   return (
     <>
-      <ul className={serious ? 'verdict-trust is-serious' : 'verdict-trust'}>
+      {/*
+        * SERIOUS IS PER ITEM, not per list, and the first version got that
+        * wrong. The flag was computed with `shown.some(isSerious)` and consumed
+        * by `.verdict-trust.is-serious li::before`, which repaints EVERY
+        * marker. Since the sort puts serious kinds first and the limit is two,
+        * the ordinary multi-brand case shows [unverified-size, estimated-give]
+        * and the benign standing "give is estimated" note got a red
+        * exclamation claiming the verdict is actively misleading. That is the
+        * colour-plus-glyph channel over-claiming, against DESIGN.md rule 3.
+        */}
+      <ul className="verdict-trust">
         {shown.map((t) => (
-          <li key={t.kind + t.detail}>{t.detail}</li>
+          <li key={t.kind + t.detail} className={isSerious(t) ? 'is-serious' : undefined}>
+            {t.detail}
+          </li>
         ))}
       </ul>
       {/*
@@ -120,8 +131,11 @@ function Action({ action }: { action: string | null }) {
  * Every branch below renders through this one wrapper, so a new verdict state
  * cannot ship unannounced: there is no second place to forget. The element is
  * the same `div.verdict` it always was, carrying the same classes, because at
- * 1000px and up `.verdict` is a grid child of `.shell` (app.css:930) and an
- * extra wrapper would have taken its placement.
+ * 1000px and up `.verdict` is a grid child of `.shell` (see the
+ * `@media (min-width: 1000px)` block in app.css) and an extra wrapper would
+ * have taken its placement. Cited by selector, not by line: a line number in a
+ * cross-file comment goes stale on every edit above it, and this one already
+ * did.
  *
  * `role="status"` already implies polite, and both are written anyway: the
  * implication is exactly what a future edit drops without noticing.

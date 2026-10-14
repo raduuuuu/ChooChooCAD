@@ -226,7 +226,7 @@ describe('both engines reach the same verdict', () => {
   /** The conclusion a user would act on, reduced to something comparable. */
   function verdictOfChain(layout: Layout) {
     const r = solveLayout(layout, resolve);
-    if (!r.ok) return { kind: r.reason === 'NO_CYCLE' ? 'NO_CYCLE' : r.reason };
+    if (!r.ok) return { kind: r.reason };
     if (r.clashes.length > 0) return { kind: 'IMPOSSIBLE' };
     if (r.polarityViolations.length > 0) return { kind: 'IMPOSSIBLE' };
     if (r.closesExactly) return { kind: 'EXACT' };

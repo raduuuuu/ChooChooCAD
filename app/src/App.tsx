@@ -32,7 +32,6 @@
  */
 
 import { useEffect, useMemo, useState , type ReactNode } from 'react';
-import { BRIO_PARTS } from '../../engine/data/brio.js';
 import {
   loadSubmissions,
   makeResolver,
@@ -50,14 +49,13 @@ import { reduce, type EditorAction } from './editorReducer.js';
 import { loadGraph, partialLoadNotice, saveGraph } from './layoutStore.js';
 import { viewOf } from './verdictView.js';
 import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
-import type { Brand, Layout, Part, Turn } from '../../engine/src/parts/schema.js';
+import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
 import { TrackCanvas } from './TrackCanvas.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
 import { VerdictLine } from './VerdictLine.js';
 import { InventoryPanel } from './Inventory.js';
 import { SubmitPart } from './SubmitPart.js';
 import {
-  type LoadResult,
   loadInventory,
   saveInventory,
   shortfalls as computeShortfalls,
@@ -68,10 +66,6 @@ import {
 import './tokens.css';
 import './app.css';
 
-interface Piece {
-  partId: string;
-  turn: Turn;
-}
 
 /*
  * Keeping the layout across a refresh.
@@ -579,7 +573,7 @@ export function App() {
         {graph.pieces.length > 0 && !inventoryOpen && (
           <div className="palette-row palette-controls">
             <button onClick={() => setInventoryOpen(true)}>
-              {inventory === null ? 'Your box' : 'Your box'}
+              Your box
             </button>
             <button onClick={() => setSubmitOpen(true)}>Add a part</button>
             {inventory === null && (

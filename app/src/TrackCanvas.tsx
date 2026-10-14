@@ -16,7 +16,7 @@
  */
 
 import { useMemo, type ReactNode } from 'react';
-import { renderBounds, type GraphRender, type RenderedPort } from '../../engine/src/graph/render.js';
+import { renderBounds, type GraphRender } from '../../engine/src/graph/render.js';
 import type { PortRef } from '../../engine/src/graph/model.js';
 import type { Part } from '../../engine/src/parts/schema.js';
 import { clashMarkers, gapAnnotations, segmentPath, type GapMark } from './trackPath.js';
@@ -143,7 +143,7 @@ export function TrackCanvas({
    *
    * The hint names NO DIRECTION (task W4). It used to say "from the palette
    * below", which was written for a bottom strip and went silently wrong when
-   * the 1000px layout (app.css:924) moved the palette to a right-hand rail:
+   * the 1000px layout (the `@media (min-width: 1000px)` block in app.css) moved the palette to a right-hand rail:
    * the one sentence whose whole job is orientation pointed the wrong way, on
    * the layout most people see. Copy that names a position depends on a
    * breakpoint and nothing asserts that dependency, so the position is left

@@ -219,7 +219,7 @@ describe('CR6: a non-finite count can never reach storage', () => {
  * loss actually happened.
  */
 function loadInventoryFrom(blob: Record<string, number>, ids: ReadonlySet<string>) {
-  const store = new Map<string, string>([['brio.inventory.v0', JSON.stringify(blob)]]);
+  const store = new Map<string, string>([[INVENTORY_STORAGE_KEY, JSON.stringify(blob)]]);
   const g = globalThis as { localStorage?: unknown };
   const had = 'localStorage' in g;
   const prev = g.localStorage;

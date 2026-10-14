@@ -51,8 +51,16 @@ export function isFree(graph: Graph, ref: PortRef): boolean {
  * road is the one offered, because continuing straight is the common case
  * and the diverging road is one more click away rather than a guess.
  */
-/** The grid new runs are spaced on. One long straight. */
-const RUN_SPACING_MM = 216;
+/**
+ * The grid new runs are spaced on. One long straight.
+ *
+ * EXPORTED because `layoutStore` re-anchors orphaned components onto the same
+ * lanes. It was declared privately in both files, with layoutStore's copy
+ * commenting "matching layoutModel's" and nothing enforcing it -- the
+ * retyped-constant pattern `storageKeys.ts` was created to end. This module
+ * owns lane assignment, so it owns the number.
+ */
+export const RUN_SPACING_MM = 216;
 
 /**
  * Where to start a run so it does not land on the track already there.

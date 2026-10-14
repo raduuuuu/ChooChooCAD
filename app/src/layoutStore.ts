@@ -40,10 +40,9 @@
 import type { Frame, Graph, Piece, Weld } from '../../engine/src/graph/model.js';
 import { scale, zetaPow, type Cyc } from '../../engine/src/geom/cyclotomic.js';
 import { CHAIN_STORAGE_KEY, GRAPH_RESCUE_KEY, GRAPH_STORAGE_KEY } from './storageKeys.js';
-import { EMPTY_GRAPH } from './layoutModel.js';
+import { EMPTY_GRAPH, RUN_SPACING_MM } from './layoutModel.js';
 
-/** The grid runs are spaced on, matching `layoutModel`'s. One long straight. */
-const RUN_SPACING_MM = 216;
+
 
 /**
  * Where `placeAll` puts a root with no anchor, so it is a lane already in use.

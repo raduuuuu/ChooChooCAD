@@ -152,11 +152,20 @@
   align-items: baseline;
   padding: var(--s3) var(--s4);
   border-top: 1px solid var(--rule);
-  border-bottom: 1px solid var(--rule);
+  /*
+   * The bottom rule belongs to whatever CLOSES the band. With notes present it
+   * is `.verdict-notes`; without them it is this element. Keeping it on both
+   * drew a divider through the middle of the status band, between the claim
+   * and the notes that describe it.
+   */
   background: var(--paper-sunk);
   font-size: 16px;
   line-height: 1.45;
+  border-bottom: 1px solid var(--rule);
 }
+/* With notes, THEY close the band, so the sentence does not draw a rule. */
+.verdict:has(+ .verdict-notes) { border-bottom: none; }
+.verdict-notes { border-bottom: 1px solid var(--rule); }
 .verdict-mark { grid-column: 1; grid-row: 1; }
 .verdict-text { grid-column: 2; grid-row: 1; }
 .verdict-mark {
@@ -172,13 +181,14 @@
  *
  * Its own block under the verdict, not a trailing clause, because it now
  * carries several independent reasons rather than one fixed disclaimer. Quiet
- * by default at --ink-soft 5.21:1; `is-serious` raises the marker to --fail
+ * by default at --ink-soft, 4.77:1 against --paper-sunk (not --paper's 5.21:1,
+ * which this comment used to quote); `is-serious` raises the marker to --fail
  * when a size is unmeasured or brands do not physically join, which are the two
  * cases where the verdict above is actively misleading.
  */
 .verdict-trust {
   margin: var(--s1) 0 0;
-  padding: 0 0 0 var(--s4);
+  padding: 0;
   list-style: none;
   font-size: 14px;
   line-height: 1.5;
@@ -192,7 +202,7 @@
   left: calc(var(--s3) * -1);
   font-weight: 600;
 }
-.verdict-trust.is-serious li::before { content: '!'; color: var(--fail); }
+.verdict-trust li.is-serious::before { content: '!'; color: var(--fail); }
 
 /*
  * The truncation count (finding E7). A SENTENCE, not a control.
@@ -202,8 +212,8 @@
  * plain text. The full list is reachable through task U7a's graph listing.
  */
 .verdict-more {
-  margin: var(--s1) 0 0;
-  padding: 0 0 0 var(--s4);
+  margin: var(--s2) 0 0;
+  padding: 0;
   font-size: 14px;
   line-height: 1.5;
   color: var(--ink-soft);
@@ -229,11 +239,15 @@
  * verdict outright.
  */
 .verdict-notes {
-  padding: 0 var(--s4) var(--s3);
-  border-bottom: 1px solid var(--rule);
+  /*
+   * The text origin matches the verdict SENTENCE, not the panel edge. The mark
+   * occupies 2.2ch plus a column gap in `.verdict`'s grid, so notes padded to
+   * the panel edge started 20px left of the claim they annotate, with the trust
+   * markers landing under the verdict glyph.
+   */
+  padding: 0 var(--s4) var(--s3) calc(var(--s4) + 2.2ch + var(--s4));
   background: var(--paper-sunk);
 }
-.verdict-notes:empty { display: none; }
 
 /*
  * The ACTION register, third and quietest (task K4).
@@ -243,7 +257,9 @@
  * a middot, or an exclamation when serious; the action carries an arrow,
  * which reads as "do this" rather than "note this".
  *
- * --ink-soft on --paper is 5.21:1, clear of the 4.5:1 text floor.
+ * --ink-soft measures 4.77:1 against --paper-sunk, the ground .verdict-notes
+ * sets. Clear of the 4.5:1 text floor. (--paper's 5.21:1 is the wrong ground
+ * for anything inside the verdict band.)
  */
 .verdict-action {
   position: relative;
@@ -518,7 +534,7 @@
 /*
  * A REFUSED KEYSTROKE, and a DISCARDED LOAD.
  *
- * Both are correctness messages, so both get --fail at 5.58:1 on --paper and a
+ * Both are correctness messages, so both get --fail at 6.09:1 on --paper and a
  * solid border rather than a pattern: these are not "you might want to know"
  * states like the dashed not-owned border or the dotted unverified one, they are
  * "the app just refused something you did" and "the app just threw data away".
@@ -633,7 +649,7 @@
 .brand-name { font-weight: 600; color: var(--ink); }
 /*
  * --fail, not a new colour. This IS a correctness warning: the sizes are not
- * backed by any publisher. It sits on --paper at 5.58:1, above the 4.5:1 floor
+ * backed by any publisher. It sits on --paper at 6.09:1, above the 4.5:1 floor
  * 14px text owes.
  */
 .brand-warn { color: var(--fail); font-weight: 600; }
