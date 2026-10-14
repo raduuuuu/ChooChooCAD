@@ -105,6 +105,8 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
        * old blob is not lost, but it is no longer the only thing sent.
        */
       graph: read(GRAPH_STORAGE_KEY),
+      // Sent BEFORE the clear button below can delete it.
+      rescue: read(GRAPH_RESCUE_KEY),
       chain: read(CHAIN_STORAGE_KEY),
       inventory: read(INVENTORY_STORAGE_KEY),
       submissions: read(SUBMISSIONS_STORAGE_KEY),

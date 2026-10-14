@@ -165,6 +165,42 @@ export function App() {
   const [inventoryDismissed, setInventoryDismissed] = useState(false);
 
   /*
+   * NOTHING IS PERSISTED WHILE AN UNREAD LOSS NOTICE IS ON SCREEN
+   * (finding E1, extended by finding B4).
+   *
+   * E1 fixed the graph effect and left the inventory and the submissions
+   * unguarded, which got the priority backwards. A lost layout is a minute of
+   * clicking; `library.ts` says of the submissions that a bad blob "costs you
+   * measurements you took with calipers, which you cannot" recreate.
+   *
+   * The reachable case needs no adversary and this branch created it. This
+   * release tightened `looksLikePart` to require `ends`, a bounded `slop` with
+   * a known `calibrationStatus`, and a known `dimensions.status`. A submission
+   * written by a pre-tightening build can fail that. On the first load after
+   * the upgrade it is dropped, the unguarded effect wrote the survivors back
+   * over the stored bytes on mount, and the inventory counts keyed to its id
+   * were pruned and persisted in the same tick -- all before the user could
+   * read the notice describing it. `saveInventory(null)` is a `removeItem`, so
+   * the whole-refusal case deleted the very evidence its notice calls a bug.
+   *
+   * ONE acknowledgement covers all three. Tying each save to only its own
+   * notice would be more precise and is not worth the surface: the user reads
+   * one banner either way, and the conservative direction is to hold every
+   * write until they have.
+   *
+   * IT IS A CONDITION, NOT A ONE-SHOT FLAG, and that distinction is the whole
+   * of E1. The first version used a `useRef` the first effect run cleared.
+   * React 19 StrictMode double-invokes mount effects (mount, cleanup, mount),
+   * so the second invocation found the flag spent and saved anyway: verified
+   * in the browser, where the stored blob came back as
+   * `{"pieces":[],"welds":[],"anchors":[]}` with the fix supposedly in place.
+   * No unit test here could catch it -- there is no DOM, so no StrictMode.
+   */
+  const lossUnacknowledged =
+    (layoutNotice !== undefined && !layoutDismissed) ||
+    (inventoryLoad.discarded !== undefined && !inventoryDismissed);
+
+  /*
    * THE GRAPH AND THE SELECTION ARE ONE PIECE OF STATE, and that is not
    * tidiness.
    *
@@ -188,49 +224,50 @@ export function App() {
   const [submitOpen, setSubmitOpen] = useState(false);
 
   useEffect(() => {
+    if (lossUnacknowledged) return;
     saveSubmissions(submissions);
-  }, [submissions]);
+  }, [submissions, lossUnacknowledged]);
 
   /*
-   * THE FIRST SAVE IS SKIPPED WHEN THE LOAD LOST SOMETHING (finding E1).
-   *
-   * This effect ran on mount with no guard, so React wrote the sanitized
-   * graph straight back over the stored bytes after the first paint: on a
-   * whole-layout refusal that meant `EMPTY_GRAPH` overwriting an
-   * unreadable-but-present blob, and on a dropped anchor it meant the
-   * anchor-stripped graph replacing the one that still had them. The loss was
-   * permanent before the user had done anything at all, and the notice was a
-   * eulogy. `loadGraph` also rescues the raw bytes, so this is belt AND
-   * braces.
-   *
-   * IT IS A CONDITION, NOT A ONE-SHOT FLAG, and that distinction is the whole
-   * fix. The first version used a `useRef` that the first effect run cleared.
-   * React 19 StrictMode double-invokes mount effects (mount, cleanup, mount),
-   * so the second invocation found the flag already spent and saved anyway:
-   * verified in the browser, where the stored blob came back as
-   * `{"pieces":[],"welds":[],"anchors":[]}` with the fix supposedly in place.
-   * No unit test in this suite could have caught it, because there is no DOM
-   * and therefore no StrictMode. Suppression now lasts until the user
-   * acknowledges the loss, which is also what Y1 decision 3 says in words.
+   * On a whole-layout refusal an unguarded save wrote `EMPTY_GRAPH` over an
+   * unreadable-but-present blob; on a dropped anchor it wrote the
+   * anchor-stripped graph over the one that still had them. `loadGraph` also
+   * rescues the raw bytes, so this is belt and braces.
    */
-  const lossUnacknowledged = layoutNotice !== undefined && !layoutDismissed;
   useEffect(() => {
     if (lossUnacknowledged) return;
     saveGraph(graph);
   }, [graph, lossUnacknowledged]);
 
   useEffect(() => {
+    if (lossUnacknowledged) return;
     saveInventory(inventory);
-  }, [inventory]);
+  }, [inventory, lossUnacknowledged]);
 
   const ports = useMemo(
     () => (piece: GPiece): readonly Port[] => portsOf(resolve(piece.partId), piece.turn),
     [resolve],
   );
 
-  // One placement per edit, shared by the verdict and the drawing. The whole
-  // point of T4's single forest is that these cannot disagree about where a
-  // piece is, so they are computed once here and passed down.
+  /*
+   * One placement per edit, shared by the DRAWING. Not yet by the verdict.
+   *
+   * This comment used to claim both were computed once here and passed down,
+   * and that was false: `solveGraph` calls `placeAll(graph, ports)` itself
+   * (`solve.ts:85`), so the canvas draws from this placement and the verdict
+   * -- including `findVertexClashes`, whose `at` coordinates `TrackCanvas`
+   * puts markers at -- is computed from a second one.
+   *
+   * They agree today only because `placeAll` is pure and deterministic.
+   * Nothing enforces it, and `placeAll` takes an `anchors` third parameter
+   * defaulting to `graph.anchors`: the moment any caller passes explicit
+   * anchors to one and not the other, the clash markers land somewhere the
+   * drawing never drew. It also does the forest and placement work twice per
+   * edit. The fix is for `solveGraph` to ACCEPT a placement rather than
+   * derive one, which makes the original claim true by construction; filed as
+   * a P1 rather than changed here, because it is an engine signature change
+   * and this ship is already carrying nine fixes.
+   */
   const placement = useMemo(() => placeAll(graph, ports), [graph, ports]);
   const render = useMemo(
     () => renderGraph(graph, ports, resolve, placement),

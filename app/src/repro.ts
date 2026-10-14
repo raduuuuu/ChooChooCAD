@@ -32,6 +32,20 @@ export interface ReproInput {
   readonly graph: string | null;
   /** The retired pre-graph chain. Kept so an old blob is still sent, never the only one. */
   readonly chain: string | null;
+  /**
+   * The refused bytes `loadGraph` copied aside (`brio.graph.v1.rejected`).
+   *
+   * It carries the ONE blob that is already known to have broken something,
+   * and `ErrorBoundary`'s clear button deletes it. Before this field, the
+   * sequence was: the loader refuses a damaged blob and rescues it, the save
+   * effect later writes a sanitized graph over the live key, the app crashes,
+   * the dump the user is told to send carries graph/chain/inventory/
+   * submissions but NOT the rescue copy, and then the user clicks "delete my
+   * track" and the only surviving copy of the bytes that broke is gone.
+   * `storageKeys.ts` says the key "exists so a user who loses a layout has
+   * something to send"; it now actually leaves with the dump.
+   */
+  readonly rescue: string | null;
   readonly inventory: string | null;
   readonly submissions: string | null;
   /** Build identifier, injected at build time. */
@@ -98,6 +112,10 @@ import { brandFit } from './engine/data/thirdParty.js';
 // The layout the app actually had when it crashed.
 const graph = ${literal(input.graph, 'null')};
 
+// The bytes a previous load REFUSED, if any. Usually the real culprit: the
+// live graph above may be a sanitized rewrite of this.
+const rescued = ${literal(input.rescue, 'null')};
+
 const submissions = ${literal(input.submissions, '[]')};
 const chain = ${literal(input.chain, '[]')};
 const inventory = ${literal(input.inventory, 'null')};
@@ -106,6 +124,7 @@ const library = resolveLibrary(submissions as never);
 const resolve = makeResolver(library);
 
 console.log('inventory', inventory);
+console.log('refused bytes from an earlier load', rescued);
 
 if (graph) {
   // THE LAYOUT THE APP ACTUALLY HAD. anchors serialize as [id, frame] pairs.

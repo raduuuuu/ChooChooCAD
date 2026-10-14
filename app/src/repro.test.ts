@@ -13,6 +13,7 @@ import {
 
 const base: ReproInput = {
   graph: null,
+  rescue: null,
   chain: '[{"partId":"E","turn":"left"}]',
   inventory: '{"E":8}',
   submissions: '[]',
@@ -273,6 +274,7 @@ describe('the generated repro runs', () => {
 describe('the repro header cannot be escaped', () => {
   const base = {
     graph: null,
+    rescue: null,
     chain: null,
     inventory: null,
     submissions: null,
@@ -365,6 +367,29 @@ describe('the crash screen knows every key the app writes', () => {
     expect(clearBlock).toContain('GRAPH_STORAGE_KEY');
   });
 
+  /*
+   * SYMMETRIC, and it was not. This describe's stated value is that the clear
+   * list AND the repro both cover every key, but only the clear list was
+   * enforced by name while the repro side asserted the single `graph` line.
+   * GRAPH_RESCUE_KEY was therefore required to be DELETED and not required to
+   * be sent, so the test actively blessed the delete-without-sending path that
+   * finding R4 found. Every owned key must now appear on both sides.
+   *
+   * MUTATION PROOF, run: delete the `rescue: read(GRAPH_RESCUE_KEY)` line from
+   * ErrorBoundary and this fails; before the change it passed.
+   */
+  it('sends every key it is willing to delete', () => {
+    const owned = [
+      'GRAPH_STORAGE_KEY',
+      'GRAPH_RESCUE_KEY',
+      'CHAIN_STORAGE_KEY',
+      'INVENTORY_STORAGE_KEY',
+      'SUBMISSIONS_STORAGE_KEY',
+    ];
+    const unsent = owned.filter((name) => !source.includes(`read(${name})`));
+    expect(unsent, `the repro does not send: ${unsent.join(', ')}`).toEqual([]);
+  });
+
   it('sends the live layout in the repro, not only the retired chain', () => {
     expect(source).toContain('graph: read(GRAPH_STORAGE_KEY)');
   });
@@ -374,6 +399,7 @@ describe('the repro carries the layout the app actually saved', () => {
   it('emits the graph blob rather than reporting an empty layout', () => {
     const t = reproText({
       graph: '{"pieces":[{"pieceId":"p0","partId":"E","turn":"left"}],"welds":[],"anchors":[]}',
+      rescue: null,
       chain: null,
       inventory: null,
       submissions: null,
@@ -388,6 +414,7 @@ describe('the repro carries the layout the app actually saved', () => {
   it('a missing graph emits null rather than a silent empty default', () => {
     const t = reproText({
       graph: null,
+      rescue: null,
       chain: null,
       inventory: null,
       submissions: null,

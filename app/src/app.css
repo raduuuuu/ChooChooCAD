@@ -168,6 +168,18 @@
 .verdict-notes { border-bottom: 1px solid var(--rule); }
 .verdict-mark { grid-column: 1; grid-row: 1; }
 .verdict-text { grid-column: 2; grid-row: 1; }
+/*
+ * THE EMPTY STATE RENDERS NO MARK, so it must not reserve the mark's column.
+ *
+ * `.verdict-text` is pinned to column 2 and the NOTHING branch of
+ * `VerdictLine` deliberately emits no `.verdict-mark` (every glyph on that
+ * line means a verdict was reached). The `auto` first column therefore
+ * collapsed to 0 while the column gap still applied, so the sentence began at
+ * --s4 + 20px while every other verdict begins at --s4 + 2.2ch + --s4. The
+ * band's left text edge jumped about 21px the moment a user placed their
+ * first piece, which is the one transition they are guaranteed to see.
+ */
+.verdict-empty .verdict-text { grid-column: 1 / -1; }
 .verdict-mark {
   font-family: var(--font-data);
   font-weight: 600;

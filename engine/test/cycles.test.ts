@@ -196,10 +196,13 @@ describe('rotation', () => {
  * numbers and Chrome is within about 2x
  *
  * SKIPPED ON PURPOSE, and it fails when un-skipped: 12179ms measured against a
- * 100ms budget. Owner decision D5 on 2026-10-14 deferred the fix so a core
- * engine change would not ride along in a ship already carrying six critical
- * fixes. Un-skip this to start the work; do not delete it to make the suite
- * look green.
+ * 100ms budget. The owner deferred the fix on 2026-10-14 so a core engine
+ * change would not ride along in a ship already carrying six critical fixes;
+ * the record is the P0 in `docs/plan/brio-TODOS.md`, which carries the
+ * measured 48/569/2563/12179ms table. Cited by date and file rather than by
+ * a bare "D5", which already names three other decisions in the plan corpus.
+ * Un-skip this to start the work; do not delete it to make the suite look
+ * green.
  */
 describe.skip('enumeration cost at the accepted ceiling', () => {
   const loops = (n: number, k = 8): Graph => {
