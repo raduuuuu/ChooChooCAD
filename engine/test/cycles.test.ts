@@ -11,7 +11,7 @@ import { BUILT_IN, makeResolver } from '../data/library.js';
 import { CYCLE_RANK_CEILING, analyseCycles } from '../src/graph/cycles.js';
 import { placeAll, residuals } from '../src/graph/frames.js';
 import { graphFromChain } from '../src/graph/fromChain.js';
-import { portsOf, type Graph, type Piece, type Port } from '../src/graph/model.js';
+import { portsOf, type Graph, type Piece, type Port, type Weld } from '../src/graph/model.js';
 import type { Layout } from '../src/parts/schema.js';
 
 const base = makeResolver(BUILT_IN);
@@ -179,5 +179,54 @@ describe('rotation', () => {
     const a = analyse(graphFromChain(chain(Array(7).fill('E'), true)));
     expect(a.rotationBroken).toBe(true);
     expect(a.worst!.withinGive).toBe(false);
+  });
+});
+
+/**
+ * THE ENUMERATION COST, pinned as a SKIPPED spec (P0 in brio-TODOS.md).
+ *
+ * Value: protects=solveGraph stays inside a frame budget at the accepted rank
+ * ceiling, so an ordinary layout cannot freeze the tab
+ * Value: fails_when=the enumeration walks all 2^rank subsets rather than only
+ * the connected ones, which is what it does today
+ * Value: why_new=nothing in the suite times anything, so the 26x gap between
+ * the recorded figures and the measured ones was undetectable
+ * Value: seam=none
+ * Value: no_claim=nothing about the browser's own scheduling; these are bun
+ * numbers and Chrome is within about 2x
+ *
+ * SKIPPED ON PURPOSE, and it fails when un-skipped: 12179ms measured against a
+ * 100ms budget. Owner decision D5 on 2026-10-14 deferred the fix so a core
+ * engine change would not ride along in a ship already carrying six critical
+ * fixes. Un-skip this to start the work; do not delete it to make the suite
+ * look green.
+ */
+describe.skip('enumeration cost at the accepted ceiling', () => {
+  const loops = (n: number, k = 8): Graph => {
+    const pieces: Piece[] = [];
+    const welds: Weld[] = [];
+    for (let c = 0; c < n; c++) {
+      for (let i = 0; i < k; i++) pieces.push({ pieceId: `c${c}p${i}`, partId: 'E', turn: 'left' });
+      for (let i = 0; i < k; i++)
+        welds.push({ a: { pieceId: `c${c}p${i}`, port: 1 }, b: { pieceId: `c${c}p${(i + 1) % k}`, port: 0 } });
+    }
+    return { pieces, welds, anchors: new Map() };
+  };
+
+  it('solves a rank-20 layout of 160 pieces inside one frame budget', () => {
+    const g = loops(20);
+    const t0 = performance.now();
+    analyse(g);
+    expect(performance.now() - t0).toBeLessThan(100);
+  });
+
+  it('does not grow exponentially in rank', () => {
+    const ms = (n: number) => {
+      const t0 = performance.now();
+      analyse(loops(n));
+      return performance.now() - t0;
+    };
+    const small = Math.max(ms(10), 0.5);
+    expect(ms(20)).toBeLessThan(small * 20);
   });
 });

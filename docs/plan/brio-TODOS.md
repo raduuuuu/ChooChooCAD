@@ -890,3 +890,54 @@ finding E13 in `docs/plan/2026-10-13-open-work.md`.
 
 The distribution and font-licence half of the old entry is NOT done and stays
 open above.
+
+## P0 — The cycle enumeration freezes the tab for 12 seconds (filed by /ship, 2026-10-14)
+
+**What:** `engine/src/graph/cycles.ts:186` walks `for (let mask = 1; mask < 1 << rank; mask++)`
+with per-subset work proportional to the selected fundamentals' total length. Every
+edit re-solves synchronously inside render, so the cost lands on the main thread with
+no timeout, no cancel and no worker. A freeze is not a throw, so `ErrorBoundary`
+cannot catch it.
+
+**Measured on the committed tree, twice, by two independent probes** (the second was
+this session re-deriving the first rather than trusting it):
+
+```
+  rank 12 /  96 pieces      48ms     cycles kept 12
+  rank 16 / 128 pieces     569ms     cycles kept 16
+  rank 18 / 144 pieces    2563ms     cycles kept 18
+  rank 20 / 160 pieces   12179ms     cycles kept 20
+```
+
+The recorded figures the rank-20 ceiling was chosen against (2ms@12, 15ms@16,
+471ms@20) understate the shipped worst case by up to 26x, because rank alone does
+not determine cost: piece count does, and nothing caps pieces or welds. The same
+rank 20 costs about 1.1s at 20 pieces and 12.2s at 160.
+
+**Why the work is provably wasted, which is what makes this cheap to fix:** every
+part in the catalogue has exactly 2 ports, and both `weldEnds` and `addPiece` only
+weld FREE ports, so no piece can carry a third weld. Every fundamental cycle is
+therefore vertex-disjoint from every other, `traceSimpleCycle`'s degree-2 filter
+rejects every mask of popcount >= 2, and `cycles kept == rank` in every topology
+probed. At rank 20 that is 1,048,555 subsets of pure waste out of 1,048,575.
+
+**Fix:** build the fundamental-sharing graph once (fundamental i adjacent to j when
+their piece sets intersect) and enumerate only its CONNECTED subsets. On today's
+catalogue that collapses to `rank` iterations and costs nothing. The full cycle space
+is still covered the moment a 3-port switch lands, so T6's no-pooling guarantee is
+unchanged — which matters, because "give is never pooled across cycles" is one of the
+three invariants no task may weaken.
+
+Separately worth doing: move `solveGraph` off the synchronous render path, and give
+it the placement `App.tsx` already memoized (`solve.ts:85` recomputes `placeAll`, so
+the drawing and the verdict build two separate forests and rely on determinism rather
+than construction to agree).
+
+**A failing timing test is already written and SKIPPED** at
+`engine/test/cycles.test.ts`, so the spec is in the repo rather than in this entry.
+Un-skip it to start.
+
+**Effort:** human ~1d / CC ~1h. **Priority:** P0.
+**Depends on / blocked by:** nothing. Deferred from the 2026-10-14 ship by owner
+decision D5, to keep a core-engine algorithm change out of a PR already carrying six
+critical fixes.
