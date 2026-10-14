@@ -1293,3 +1293,78 @@ evidence that the question exists.
 **Effort:** human ~half a day plus the measurement / CC ~1h once a number
 exists. **Priority:** P1.
 **Depends on / blocked by:** the calibration afternoon (`CALIBRATION.md` Q2).
+
+## P1 — `loadGraph` reports a rescue for bytes that were never at risk, on the legacy-chain path (filed by /ship, 2026-10-14)
+
+**What:** `loadGraph`'s legacy-blob path returns `rescued: rescue(legacy)`
+while `raw` is null, i.e. `GRAPH_STORAGE_KEY` held nothing. `App.tsx` turns
+that into `noRescueCopy: !graphLoad.rescued`, which gates the graph save.
+
+**The failure:** a user upgrading from the old `brio.chain.v0` format with a
+full quota. The rescue write fails, `noRescueCopy` is true, and graph saves
+are held until an explicit Dismiss -- protecting bytes that do not exist,
+because `saveGraph` writes `GRAPH_STORAGE_KEY` and never touches the chain
+key. They build a track and nothing is saved, behind a banner that only says
+the canvas started empty. That is verbatim the failure `layoutStore.ts`'s own
+docstring calls worse than the bug the gate fixes, now on a third path.
+
+Two of the five return paths (`nothing stored`, and `droppedAnchors === 0`)
+also return `rescued: false` and so set `noRescueCopy` true, but `layoutNotice`
+is undefined on both, so `savesSuppressed` short-circuits first. They are safe
+by accident rather than by construction, which is worth fixing in the same
+pass.
+
+**Fix:** make the flag mean "there were live bytes and we failed to copy them
+aside". Either have `loadGraph` return `rescued: true` on the legacy path's
+success and false only when live bytes could not be copied, or add a
+`hadLiveBytes` field and gate on `discarded !== undefined && !rescued &&
+hadLiveBytes`.
+
+**Effort:** human ~1h / CC ~15m. **Priority:** P1.
+**Depends on / blocked by:** nothing.
+
+## P2 — The crash repro can report a failure the app cannot produce (filed by /ship, 2026-10-14)
+
+**What:** `repro.ts` wraps `resolveLibrary` in a try/catch that falls back
+wholesale to `BUILT_IN`. Reproduced: a stored graph using a user-submitted part
+`MINE`, plus a submissions blob holding the valid `MINE` row and one junk row.
+`resolveLibrary` throws on the junk row, the catch discards the whole set,
+`MINE` disappears, and the generated file dies at `makeResolver` with
+`unknown part id: MINE`.
+
+The real app never sees this: `App.tsx` resolves from
+`loadSubmissionsResult`'s `looksLikePart`-filtered rows, which drop the junk
+row and keep `MINE`. So the maintainer reading the dump chases a fabricated
+error instead of the user's.
+
+Not a regression -- before the guard the same input exited 1 having printed
+nothing, which was worse -- but an incomplete fix.
+
+**Fix:** have the repro mirror the app and run the parsed submissions through
+the same per-row filter, keeping the good rows. Falling back to `BUILT_IN`
+should be the last resort, and the dump should name the rows it dropped.
+
+**Effort:** human ~1h / CC ~15m. **Priority:** P2.
+**Depends on / blocked by:** nothing.
+
+## P3 — The 24-state suppression table restates the implementation (filed by /ship, 2026-10-14)
+
+**What:** `layoutStore.test.ts`'s exhaustive table checks each state against an
+"independently written" rule, `lost && (noRescueCopy === true ||
+!userHasActed)`. That is a De Morgan transliteration of the function's three
+early returns, in the same order. It is exhaustive over the declared domain and
+does kill every behaviour-changing mutation run against it, so it earns its
+place -- but it cannot catch a wrong POLICY, because both sides encode the same
+policy.
+
+Concretely, it was blind to the one-flag-three-gates bug fixed on 2026-10-14:
+`userHasActed` is a free variable in the table, so nothing there could see that
+one flag fed three gates. That is now pinned separately, by a test asserting
+the three gate calls use three distinct flags.
+
+**Fix:** derive the oracle from the UI instead of the function -- assert that
+each gate's hold state matches its banner's render condition. Then the table
+tests a claim about the product rather than a restatement of the code.
+
+**Effort:** human ~2h / CC ~25m. **Priority:** P3.
+**Depends on / blocked by:** nothing.

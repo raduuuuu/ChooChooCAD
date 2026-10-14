@@ -21,7 +21,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { BUILT_IN, loadSubmissions, resolveLibrary, type Submission } from '../data/library.js';
+import {
+  BUILT_IN,
+  loadSubmissions,
+  loadSubmissionsResult,
+  resolveLibrary,
+  type Submission,
+} from '../data/library.js';
 import { DIMENSION_TRUST, trustRank, type Part } from '../src/parts/schema.js';
 import { layoutTrust } from '../src/joints/trust.js';
 import { graphFromChain } from '../src/graph/fromChain.js';
@@ -129,8 +135,36 @@ describe('loadSubmissions drops rows the engine would crash on', () => {
     ['no ends', { ...base, part: { ...base.part, ends: undefined } }],
     ['a bad end polarity', { ...base, part: { ...base.part, ends: { start: 'magnet', end: 'peg' } } }],
     ['no slop', { ...base, part: { ...base.part, slop: undefined } }],
-    ['a negative slop', { ...base, part: { ...base.part, slop: { axialMm: -1, angularDeg: 1 } } }],
-    ['a non-finite slop', { ...base, part: { ...base.part, slop: { axialMm: NaN, angularDeg: 1 } } }],
+    /*
+     * ONE VARIABLE EACH, because the first version of this matrix changed two
+     * at a time and three guards went unpinned behind the others. MEASURED:
+     * deleting `typeof slop.calibrationStatus !== 'string'` or `if (!slop)
+     * return false;` from `looksLikePart` left all 377 tests green, while this
+     * describe's own header claims `fails_when=looksLikePart stops checking
+     * slop.calibrationStatus`. Half that sentence was unenforceable.
+     *
+     * The negative and non-finite rows below used to omit `calibrationStatus`
+     * as well, so the axial bound refused them whatever the status check did.
+     * Every slop row now carries a valid status and varies exactly one field.
+     */
+    [
+      'a negative slop',
+      { ...base, part: { ...base.part, slop: { axialMm: -1, angularDeg: 1, calibrationStatus: 'estimated' } } },
+    ],
+    [
+      'a non-finite slop',
+      { ...base, part: { ...base.part, slop: { axialMm: NaN, angularDeg: 1, calibrationStatus: 'estimated' } } },
+    ],
+    [
+      'a non-string calibrationStatus',
+      { ...base, part: { ...base.part, slop: { axialMm: 0.8, angularDeg: 1.5, calibrationStatus: 42 } } },
+    ],
+    [
+      'no calibrationStatus at all',
+      { ...base, part: { ...base.part, slop: { axialMm: 0.8, angularDeg: 1.5 } } },
+    ],
+    ['a non-string brand', { ...base, part: { ...base.part, brand: 42 } }],
+    ['an empty id', { ...base, part: { ...base.part, id: '' } }],
   ];
 
   for (const [name, row] of cases) {
@@ -155,6 +189,29 @@ describe('loadSubmissions drops rows the engine would crash on', () => {
       loadSubmissions(),
     );
     expect(got.map((s) => s.submissionId)).toEqual(['s1']);
+  });
+
+  /*
+   * THE SHAPE OF THE LOSS, not just its size.
+   *
+   * `toHaveLength(0)` cannot tell a dropped ROW from a refused BLOB. Without
+   * the `if (!slop)` guard, `slop.axialMm` throws, `loadSubmissionsResult`'s
+   * outer catch returns `{value: [], dropped: 0, discarded: <sentence>}`, and
+   * a one-bad-row blob silently becomes a whole-blob refusal that reports
+   * nothing dropped. The user is then told every measurement failed to load
+   * when one did. This asserts the per-row path specifically: a good row
+   * survives, the count is 1, and `discarded` stays undefined.
+   *
+   * MUTATION PROOF, run: delete `if (!slop) return false;` and this fails.
+   */
+  it('a row with no slop is dropped as a ROW, leaving the others loaded', () => {
+    const bad = { ...base, submissionId: 's2', part: { ...base.part, slop: undefined } };
+    const got = withStore({ [SUBMISSIONS_STORAGE_KEY]: JSON.stringify([base, bad]) }, () =>
+      loadSubmissionsResult(),
+    );
+    expect(got.value.map((x) => x.submissionId)).toEqual(['s1']);
+    expect(got.dropped).toBe(1);
+    expect(got.discarded).toBeUndefined();
   });
 });
 
