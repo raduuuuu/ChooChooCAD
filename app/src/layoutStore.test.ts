@@ -22,7 +22,7 @@ import { findVertexClashes } from '../../engine/src/graph/feasible.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Piece, type Port } from '../../engine/src/graph/model.js';
 import { CHAIN_STORAGE_KEY, GRAPH_RESCUE_KEY, GRAPH_STORAGE_KEY } from './storageKeys.js';
-import { loadGraph, partialLoadNotice, saveGraph } from './layoutStore.js';
+import { loadGraph, partialLoadNotice, saveGraph, savesSuppressed } from './layoutStore.js';
 
 const resolve = makeResolver(BUILT_IN);
 const ports = (piece: Piece): readonly Port[] => portsOf(resolve(piece.partId), piece.turn);
@@ -621,5 +621,85 @@ describe.skip('an orphan lane clears a survivor RUN, not just its anchor', () =>
     const r = load(runAlongTheLaneAxis());
     // p1's far end is at lane 2, so the first free lane is 3.
     expect(r.value.anchors?.get('q0')?.pos.join(',')).toBe('0,0,0,0,648,0,0,0');
+  });
+});
+
+/**
+ * When persistence stays suppressed, and when it must resume.
+ *
+ * Value: protects=nothing is written over stored bytes before the user has
+ * seen what the load lost, AND suppression does not outlive their first
+ * deliberate action
+ * Value: fails_when=`savesSuppressed` stops consulting `userHasActed`, stops
+ * consulting either dismissal, or starts ignoring the inventory notice
+ * Value: why_new=the condition lived inline in App.tsx where no test in this
+ * suite can reach it; both StrictMode bugs this logic has produced were in
+ * the condition rather than the wiring
+ * Value: seam=none, this is a pure function by construction
+ * Value: no_claim=nothing about the effects themselves firing, which needs a
+ * DOM and StrictMode; that is task E11
+ */
+describe('savesSuppressed', () => {
+  const clean = {
+    layoutNotice: undefined,
+    layoutDismissed: false,
+    inventoryNotice: undefined,
+    inventoryDismissed: false,
+    userHasActed: false,
+  } as const;
+
+  it('a clean load saves immediately', () => {
+    expect(savesSuppressed(clean)).toBe(false);
+  });
+
+  /*
+   * MUTATION PROOF, run: drop the `layoutNotice` clause and 2 tests fail
+   * (this one and the dismiss-the-other case); drop the `inventoryNotice`
+   * clause and 2 fail (the inventory one below and dismiss-the-other).
+   */
+  it('an unread layout notice suppresses', () => {
+    expect(savesSuppressed({ ...clean, layoutNotice: 'lost' })).toBe(true);
+  });
+
+  it('an unread inventory notice suppresses, which E1 originally missed', () => {
+    expect(savesSuppressed({ ...clean, inventoryNotice: 'lost' })).toBe(true);
+  });
+
+  it('dismissing the one that fired releases it', () => {
+    expect(
+      savesSuppressed({ ...clean, layoutNotice: 'lost', layoutDismissed: true }),
+    ).toBe(false);
+    expect(
+      savesSuppressed({ ...clean, inventoryNotice: 'lost', inventoryDismissed: true }),
+    ).toBe(false);
+  });
+
+  it('dismissing the OTHER one does not release it, which is task T5', () => {
+    expect(
+      savesSuppressed({ ...clean, layoutNotice: 'lost', inventoryDismissed: true }),
+    ).toBe(true);
+    expect(
+      savesSuppressed({ ...clean, inventoryNotice: 'lost', layoutDismissed: true }),
+    ).toBe(true);
+  });
+
+  /*
+   * THE BOUND. An unbounded suppression is a worse bug than the one the gate
+   * fixes: the user builds for an hour with nothing saved and no notice says
+   * so. For a submission it is worse again -- a measurement just typed is NEW
+   * data, so blocking it loses the calipers figure the gate exists to protect.
+   *
+   * MUTATION PROOF, run: delete the `if (state.userHasActed) return false;`
+   * line and 1 test fails -- this one. The three lost-state combinations are
+   * loop cases inside it, not separate tests.
+   */
+  it('the first deliberate action resumes saving, banner still up', () => {
+    for (const lost of [
+      { layoutNotice: 'lost' },
+      { inventoryNotice: 'lost' },
+      { layoutNotice: 'lost', inventoryNotice: 'lost' },
+    ]) {
+      expect(savesSuppressed({ ...clean, ...lost, userHasActed: true })).toBe(false);
+    }
   });
 });

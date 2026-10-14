@@ -364,3 +364,29 @@ export function saveGraph(graph: Graph): void {
     // worth losing the session over.
   }
 }
+
+/**
+ * Whether persistence must stay suppressed, given what the load lost and what
+ * the user has done since.
+ *
+ * Extracted from `App.tsx` so it can be TESTED. The effects it gates need a
+ * DOM and StrictMode to exercise, which `vitest.config.ts` deliberately does
+ * not provide, but the decision itself is a pure boolean and belongs where a
+ * test can reach it. The two StrictMode bugs this logic has already produced
+ * were both in the condition, not in the wiring.
+ *
+ * Suppression ends on EITHER a dismissal or the user's first deliberate
+ * action. An unbounded version is a worse bug than the one it fixes: the user
+ * builds for an hour with nothing saved and the notice never says so.
+ */
+export function savesSuppressed(state: {
+  readonly layoutNotice: string | undefined;
+  readonly layoutDismissed: boolean;
+  readonly inventoryNotice: string | undefined;
+  readonly inventoryDismissed: boolean;
+  readonly userHasActed: boolean;
+}): boolean {
+  if (state.userHasActed) return false;
+  if (state.layoutNotice !== undefined && !state.layoutDismissed) return true;
+  return state.inventoryNotice !== undefined && !state.inventoryDismissed;
+}

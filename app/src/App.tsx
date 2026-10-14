@@ -46,7 +46,7 @@ import { portsOf, type Graph, type Piece as GPiece, type Port, type PortRef } fr
 import { renderGraph } from '../../engine/src/graph/render.js';
 import { solveGraph } from '../../engine/src/graph/solve.js';
 import { reduce, type EditorAction } from './editorReducer.js';
-import { loadGraph, partialLoadNotice, saveGraph } from './layoutStore.js';
+import { loadGraph, partialLoadNotice, saveGraph, savesSuppressed } from './layoutStore.js';
 import { viewOf } from './verdictView.js';
 import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
 import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
@@ -196,9 +196,38 @@ export function App() {
    * `{"pieces":[],"welds":[],"anchors":[]}` with the fix supposedly in place.
    * No unit test here could catch it -- there is no DOM, so no StrictMode.
    */
-  const lossUnacknowledged =
-    (layoutNotice !== undefined && !layoutDismissed) ||
-    (inventoryLoad.discarded !== undefined && !inventoryDismissed);
+  /*
+   * A DELIBERATE EDIT COUNTS AS ACKNOWLEDGEMENT, and that bound matters as
+   * much as the suppression itself.
+   *
+   * Without it the suppression lasts the whole session: after any refused or
+   * partial load the user could build for an hour with nothing saved, refresh,
+   * and lose all of it, because only the Dismiss button cleared the condition.
+   * The notice says the canvas started empty; it never says nothing is being
+   * saved. That is a worse bug than the one the gate fixes.
+   *
+   * It is worse again for the submissions. A measurement the user has just
+   * typed is NEW data, not a pruned rewrite of old data, so blocking it loses
+   * the calipers figure this gate exists to protect -- exactly backwards. This
+   * was my own error in the first version of the extension.
+   *
+   * The first deliberate action is the acknowledgement: the banner is on
+   * screen by then, and `loadGraph` has already copied the refused bytes to
+   * `GRAPH_RESCUE_KEY`, which is the thing the suppression was buying time
+   * for. The banner stays up until it is dismissed; only persistence resumes.
+   *
+   * This is a CONDITION over state, not a one-shot ref, for the same reason
+   * E1's is: React 19 StrictMode double-invokes mount effects and spends a
+   * ref before the second invocation reads it.
+   */
+  const [userHasActed, setUserHasActed] = useState(false);
+  const lossUnacknowledged = savesSuppressed({
+    layoutNotice,
+    layoutDismissed,
+    inventoryNotice: inventoryLoad.discarded,
+    inventoryDismissed,
+    userHasActed,
+  });
 
   /*
    * THE GRAPH AND THE SELECTION ARE ONE PIECE OF STATE, and that is not
@@ -298,7 +327,10 @@ export function App() {
    * instead of eight: a handler that read `selected` from its render closure
    * saw the same stale `null` eight times.
    */
-  const dispatch = (action: EditorAction) => setEditor((e) => reduce(e, action, ports));
+  const dispatch = (action: EditorAction) => {
+    setUserHasActed(true);
+    setEditor((e) => reduce(e, action, ports));
+  };
 
   const add = (partId: string, turn: Turn) => dispatch({ kind: 'add', partId, turn });
   const clickPort = (ref: PortRef) => dispatch({ kind: 'clickPort', ref });
@@ -632,6 +664,7 @@ export function App() {
           <SubmitPart
             existingIds={libraryIds}
             onSubmit={(sub) => {
+              setUserHasActed(true);
               setSubmissions((prev) => [...prev, sub]);
               setSubmitOpen(false);
             }}
@@ -645,7 +678,10 @@ export function App() {
             inventory={inventory}
             used={counts}
             shortfalls={shortfalls}
-            onChange={setInventory}
+            onChange={(next) => {
+              setUserHasActed(true);
+              setInventory(next);
+            }}
             onClose={() => setInventoryOpen(false)}
           />
         )}
