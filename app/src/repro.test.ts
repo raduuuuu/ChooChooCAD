@@ -249,6 +249,29 @@ describe('the generated repro runs', () => {
   }
 
   /*
+   * A BLOB THAT PARSES INTO THE WRONG SHAPE still has to let the file print.
+   * The guarded parses only catch a throw FROM JSON.parse; `resolveLibrary`
+   * on a submissions value of `7` threw afterwards, and the file exited 1
+   * having printed nothing -- the same failure, one line later.
+   *
+   * MUTATION PROOF, run: move the two console.log lines back below
+   * `resolveLibrary` and drop its try/catch -- 5 tests fail, all five cases
+   * here.
+   */
+  for (const submissions of ['7', '"abc"', '{}', '[null]', '[{}]']) {
+    it(`prints the payload even when submissions parses to ${submissions}`, () => {
+      const out = run({
+        ...base,
+        graph: '{"pieces":[{"pieceId":"p0","partId":"E","turn":"left"}],"welds":[],"anchors":[]}',
+        chain: '[{"partId":"E","turn":"left"}]',
+        submissions,
+      });
+      expect(out).toContain('inventory');
+      expect(out).toContain('refused bytes from an earlier load');
+    });
+  }
+
+  /*
    * The rescue bytes actually leave with the dump. Before this, every fixture
    * in this file passed `rescue: null`, so the field's VALUE was never
    * exercised and the bug above shipped green.

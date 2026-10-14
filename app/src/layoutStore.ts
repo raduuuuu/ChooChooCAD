@@ -386,44 +386,61 @@ export function saveGraph(graph: Graph): void {
 }
 
 /**
- * Whether persistence must stay suppressed, given what the load lost and what
- * the user has done since.
+ * Whether ONE store's save must stay suppressed.
  *
  * Extracted from `App.tsx` so it can be TESTED. The effects it gates need a
- * DOM and StrictMode to exercise, which `vitest.config.ts` deliberately does
- * not provide, but the decision itself is a pure boolean and belongs where a
- * test can reach it. The two StrictMode bugs this logic has already produced
- * were both in the condition, not in the wiring.
+ * DOM and StrictMode, which `vitest.config.ts` deliberately does not provide,
+ * but the decision itself is a pure boolean and belongs where a test can reach
+ * it. Every bug this logic has produced -- three now -- was in the condition
+ * rather than the wiring.
  *
- * Suppression ends on EITHER a dismissal or the user's first deliberate
- * action. An unbounded version is a worse bug than the one it fixes: the user
- * builds for an hour with nothing saved and the notice never says so.
+ * PER STORE, NOT GLOBAL, and that is the third fix to this function.
+ *
+ * The first version gated only the graph. The second gated all three saves on
+ * any unread notice, which had no bound and left persistence off for the whole
+ * session. The third added `rescued` globally, and that was worse: `rescue()`
+ * writes only `GRAPH_RESCUE_KEY`, so there is no rescue copy for the inventory
+ * or the submissions and `rescued` is false on every clean graph load.
+ * MEASURED: with a clean layout and one dropped submission row, suppression
+ * stayed on after the user built a track AND after they typed a new caliper
+ * measurement -- `userHasActed` was inert in every row where `rescued` was
+ * false. Only Dismiss released it. That is verbatim the failure this file's
+ * own comments call worse than the bug the gate fixes.
+ *
+ * So each store answers for its own loss:
+ *
+ * - Nothing lost, or the notice was dismissed: save.
+ * - Lost and unread, and the user has done nothing yet: hold. This is the
+ *   case E1 exists for -- the mount-time write that overwrote stored bytes
+ *   before anybody had seen the notice.
+ * - Lost and unread, and the user has deliberately acted: save. The banner is
+ *   on screen, and their action is about the thing it names. Refusing here
+ *   loses the data they just typed to protect data they have already been
+ *   told about, which is the wrong way round.
+ *
+ * `noRescueCopy` is the one exception, and it applies only to the graph. A
+ * whole-layout refusal means the stored bytes are the only record of what may
+ * be hours of work, and `rescue()` swallows a quota or private-browsing
+ * failure and returns false. When that copy does not exist the user is the
+ * only backup, so a stray click is not enough and a dismissal is required.
+ * The inventory and the submissions have no rescue mechanism at all, so
+ * passing `noRescueCopy` for them would suppress forever rather than protect
+ * anything -- which is exactly the bug above.
  */
 export function savesSuppressed(state: {
-  readonly layoutNotice: string | undefined;
-  readonly layoutDismissed: boolean;
-  readonly inventoryNotice: string | undefined;
-  readonly inventoryDismissed: boolean;
-  readonly submissionsNotice: string | undefined;
-  readonly submissionsDismissed: boolean;
-  /**
-   * Whether `loadGraph` managed to copy the refused bytes aside.
-   *
-   * `rescue()` swallows a quota-exceeded or private-browsing failure and
-   * returns false, and this field was computed, returned and then read
-   * NOWHERE -- the whole justification for releasing suppression on the first
-   * click was "the rescue copy exists", which is the one thing nobody
-   * checked. When the rescue failed the user is the only backup, so a click
-   * is not enough: the notice has to be dismissed deliberately.
-   */
-  readonly rescued: boolean;
+  /** This store's loss notice, or undefined when it loaded cleanly. */
+  readonly notice: string | undefined;
+  readonly dismissed: boolean;
+  /** Any deliberate user action this session. */
   readonly userHasActed: boolean;
+  /**
+   * Graph only: the refused bytes could NOT be copied aside, so overwriting
+   * the live key destroys the only copy. Always false for stores that have no
+   * rescue key.
+   */
+  readonly noRescueCopy?: boolean;
 }): boolean {
-  const unread =
-    (state.layoutNotice !== undefined && !state.layoutDismissed) ||
-    (state.inventoryNotice !== undefined && !state.inventoryDismissed) ||
-    (state.submissionsNotice !== undefined && !state.submissionsDismissed);
-  if (!unread) return false;
-  // An action acknowledges the loss only when a rescue copy was actually made.
-  return state.rescued ? !state.userHasActed : true;
+  if (state.notice === undefined || state.dismissed) return false;
+  if (state.noRescueCopy === true) return true;
+  return !state.userHasActed;
 }

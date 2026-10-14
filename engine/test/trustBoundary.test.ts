@@ -323,56 +323,62 @@ describe('a stored row cannot inflate the give into a softer verdict', () => {
     expect(v.withinBound).toBe(false);
   });
 
-  /*
-   * MUTATION PROOF, run: set SLOP_CEILING_MM back to 50 and this fails --
-   * the rows are accepted, the give reaches 450mm and withinBound flips true.
-   */
-  it('a row at ten times the ceiling is refused, so the verdict holds', () => {
-    const rows = ['E', 'D'].map((id, i) => {
-      const real = BUILT_IN.find((p) => p.id === id)!;
-      return submissionWith({
-        id,
-        kind: real.kind,
-        ...(real.kind === 'straight'
-          ? { lengthMm: (real as { lengthMm?: number }).lengthMm }
-          : {
-              innerRadiusMm: (real as { innerRadiusMm?: number }).innerRadiusMm,
-              arcSteps: (real as { arcSteps?: number }).arcSteps,
-            }),
-        submissionId: `s${i}`,
-        slop: { axialMm: 50, angularDeg: 45, calibrationStatus: 'published' },
-        dimensions: { status: 'published', source: 'x' },
-      });
+  /** One submission for a real part, with the slop overridden. */
+  const rowFor = (id: string, slop: Record<string, unknown>, n: number) => {
+    const real = BUILT_IN.find((p) => p.id === id)!;
+    return submissionWith({
+      id,
+      kind: real.kind,
+      ...(real.kind === 'straight'
+        ? { lengthMm: (real as { lengthMm?: number }).lengthMm }
+        : {
+            innerRadiusMm: (real as { innerRadiusMm?: number }).innerRadiusMm,
+            arcSteps: (real as { arcSteps?: number }).arcSteps,
+          }),
+      submissionId: `s${n}`,
+      slop,
+      dimensions: { status: 'published', source: 'x' },
     });
-    const kept = withStore({ [SUBMISSIONS_STORAGE_KEY]: JSON.stringify(rows) }, () =>
-      loadSubmissions(),
+  };
+  const keptWith = (slop: Record<string, unknown>) =>
+    withStore(
+      {
+        [SUBMISSIONS_STORAGE_KEY]: JSON.stringify(
+          ['E', 'D'].map((id, i) => rowFor(id, slop, i)),
+        ),
+      },
+      () => loadSubmissions(),
     );
+
+  /*
+   * EACH CEILING IS PINNED ON ITS OWN, and the first version of this test was
+   * not. Both fixtures raised axialMm AND angularDeg together, so the angular
+   * ceiling alone refused them and the millimetre ceiling -- the number this
+   * whole finding is about -- was never exercised. MEASURED: SLOP_CEILING_MM
+   * could go from 5 to 50, to 500, to 998 with all 370 tests green, and at 998
+   * a stored row of {axialMm: 50, angularDeg: 1.5} was accepted, took the give
+   * to 450mm against the 216mm gap and flipped withinBound to true. The guard
+   * was decoration.
+   *
+   * MUTATION PROOF, run: raise SLOP_CEILING_MM alone and the millimetre case
+   * fails; raise SLOP_CEILING_DEG alone and the degree case fails.
+   */
+  it('refuses a row over the millimetre ceiling, angle untouched', () => {
+    const kept = keptWith({ axialMm: 50, angularDeg: 1.5, calibrationStatus: 'published' });
     expect(kept).toHaveLength(0);
     const v = verdictFor(resolveLibrary(kept));
-    expect(v.withinBound).toBe(false);
+    // The harm, pinned directly: 50mm x 9 joints would be 450mm of give.
     expect(v.totalGiveMm).toBeLessThan(50);
+    expect(v.withinBound).toBe(false);
+  });
+
+  it('refuses a row over the degree ceiling, millimetres untouched', () => {
+    const kept = keptWith({ axialMm: 0.8, angularDeg: 45, calibrationStatus: 'published' });
+    expect(kept).toHaveLength(0);
   });
 
   it('a row AT the ceiling is accepted and still cannot flip it', () => {
-    const rows = ['E', 'D'].map((id, i) => {
-      const real = BUILT_IN.find((p) => p.id === id)!;
-      return submissionWith({
-        id,
-        kind: real.kind,
-        ...(real.kind === 'straight'
-          ? { lengthMm: (real as { lengthMm?: number }).lengthMm }
-          : {
-              innerRadiusMm: (real as { innerRadiusMm?: number }).innerRadiusMm,
-              arcSteps: (real as { arcSteps?: number }).arcSteps,
-            }),
-        submissionId: `s${i}`,
-        slop: { axialMm: 5, angularDeg: 5, calibrationStatus: 'published' },
-        dimensions: { status: 'published', source: 'x' },
-      });
-    });
-    const kept = withStore({ [SUBMISSIONS_STORAGE_KEY]: JSON.stringify(rows) }, () =>
-      loadSubmissions(),
-    );
+    const kept = keptWith({ axialMm: 5, angularDeg: 5, calibrationStatus: 'published' });
     expect(kept).toHaveLength(2);
     const v = verdictFor(resolveLibrary(kept));
     // 5mm x 9 joints = 45mm, nowhere near the 216mm gap.

@@ -116,7 +116,7 @@ export function reproText(input: ReproInput): string {
 // any more -- a loop is a weld between two free ends, not a flag -- so the
 // legacy branch is only reached when no graph was stored.
 
-import { resolveLibrary, makeResolver } from './engine/data/library.js';
+import { BUILT_IN, resolveLibrary, makeResolver } from './engine/data/library.js';
 import { solveGraph } from './engine/src/graph/solve.js';
 import { portsOf } from './engine/src/graph/model.js';
 import { solveLayout } from './engine/src/solver/result.js';
@@ -136,11 +136,28 @@ ${guardedBlob('submissions', input.submissions)}
 ${guardedBlob('chain', input.chain)}
 ${guardedBlob('inventory', input.inventory)}
 
-const library = resolveLibrary((submissions ?? []) as never);
-const resolve = makeResolver(library);
-
+// PRINTED FIRST, BEFORE ANYTHING CAN THROW. The guarded parses above stop an
+// unparseable blob from killing this file, but a blob that PARSES into the
+// wrong shape still throws: resolveLibrary on a submissions value of 7, or of
+// a list of empty objects, does. Measured: that exited 1 having printed
+// nothing, the same "printed nothing at all" failure the guards were added to
+// end. The payload is these two lines, so they go out first.
 console.log('inventory', inventory);
-console.log('refused bytes from an earlier load', rescued);
+console.log('refused bytes from an earlier load', rescuedRaw ?? rescued);
+
+// The submissions may parse and still be the wrong shape, and resolveLibrary
+// dereferences each row. A bad row must not stop this file solving the graph:
+// fall back to the built-in catalogue and say so.
+let library = BUILT_IN as never;
+try {
+  library = resolveLibrary(
+    (Array.isArray(submissions) ? submissions : []) as never,
+  ) as never;
+} catch (e) {
+  console.log('submissions: could not be resolved --', (e as Error).message);
+  console.log('submissions: falling back to the built-in catalogue');
+}
+const resolve = makeResolver(library as never);
 
 if (graph) {
   // THE LAYOUT THE APP ACTUALLY HAD. anchors serialize as [id, frame] pairs.

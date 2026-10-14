@@ -655,133 +655,78 @@ describe.skip('an orphan lane clears a survivor RUN, not just its anchor', () =>
  * Value: no_claim=nothing about the effects themselves firing, which needs a
  * DOM and StrictMode; that is task E11
  */
-describe('savesSuppressed', () => {
+describe('savesSuppressed, one store at a time', () => {
   const clean = {
-    layoutNotice: undefined,
-    layoutDismissed: false,
-    inventoryNotice: undefined,
-    inventoryDismissed: false,
-    submissionsNotice: undefined,
-    submissionsDismissed: false,
-    rescued: true,
+    notice: undefined,
+    dismissed: false,
     userHasActed: false,
   } as const;
 
-  it('a clean load saves immediately', () => {
+  it('nothing lost means save', () => {
     expect(savesSuppressed(clean)).toBe(false);
   });
 
   /*
-   * MUTATION PROOF, run: drop the `layoutNotice` clause and 2 tests fail
-   * (this one and the dismiss-the-other case); drop the `inventoryNotice`
-   * clause and 2 fail (the inventory one below and dismiss-the-other).
+   * MUTATION PROOF, run: delete the `state.notice === undefined` arm and this
+   * fails; delete the `state.dismissed` arm and the dismissal case fails.
    */
-  it('an unread layout notice suppresses', () => {
-    expect(savesSuppressed({ ...clean, layoutNotice: 'lost' })).toBe(true);
+  it('an unread notice holds the save, which is what E1 is for', () => {
+    expect(savesSuppressed({ ...clean, notice: 'lost' })).toBe(true);
   });
 
-  it('an unread inventory notice suppresses, which E1 originally missed', () => {
-    expect(savesSuppressed({ ...clean, inventoryNotice: 'lost' })).toBe(true);
-  });
-
-  it('dismissing the one that fired releases it', () => {
-    expect(
-      savesSuppressed({ ...clean, layoutNotice: 'lost', layoutDismissed: true }),
-    ).toBe(false);
-    expect(
-      savesSuppressed({ ...clean, inventoryNotice: 'lost', inventoryDismissed: true }),
-    ).toBe(false);
-  });
-
-  it('dismissing the OTHER one does not release it, which is task T5', () => {
-    expect(
-      savesSuppressed({ ...clean, layoutNotice: 'lost', inventoryDismissed: true }),
-    ).toBe(true);
-    expect(
-      savesSuppressed({ ...clean, inventoryNotice: 'lost', layoutDismissed: true }),
-    ).toBe(true);
+  it('a dismissal releases it', () => {
+    expect(savesSuppressed({ ...clean, notice: 'lost', dismissed: true })).toBe(false);
   });
 
   /*
-   * THE BOUND. An unbounded suppression is a worse bug than the one the gate
-   * fixes: the user builds for an hour with nothing saved and no notice says
-   * so. For a submission it is worse again -- a measurement just typed is NEW
-   * data, so blocking it loses the calipers figure the gate exists to protect.
+   * THE BOUND. Unbounded suppression is worse than the bug it fixes: the user
+   * builds for an hour with nothing saved and no notice says so. For a
+   * submission it is worse again, since a measurement just typed is NEW data.
    *
-   * MUTATION PROOF, run: delete the `if (state.userHasActed) return false;`
-   * line and 1 test fails -- this one. The three lost-state combinations are
-   * loop cases inside it, not separate tests.
+   * MUTATION PROOF, run: replace `!state.userHasActed` with `true` and this
+   * fails.
    */
-  it('the first deliberate action resumes saving, banner still up', () => {
-    for (const lost of [
-      { layoutNotice: 'lost' },
-      { inventoryNotice: 'lost' },
-      { submissionsNotice: 'lost' },
-      { layoutNotice: 'lost', inventoryNotice: 'lost', submissionsNotice: 'lost' },
-    ]) {
-      expect(savesSuppressed({ ...clean, ...lost, userHasActed: true })).toBe(false);
-    }
+  it('a deliberate action releases it, banner still up', () => {
+    expect(savesSuppressed({ ...clean, notice: 'lost', userHasActed: true })).toBe(false);
   });
 
   /*
-   * THE SUBMISSIONS NOTICE, which the gate was written for and could not see.
+   * THE GRAPH-ONLY EXCEPTION, and the reason it is per store.
    *
-   * `loadSubmissions` returned a bare array and skipped refused rows with a
-   * bare `continue`, so a measurement dropped by this release's stricter
-   * validation produced NO notice. `savesSuppressed` therefore saw no loss,
-   * the mount effect ran, and the survivors were written over the stored
-   * bytes. The one scenario the gate's own comment cites as needing no
-   * adversary was the one it did not cover.
+   * `rescue()` writes only `GRAPH_RESCUE_KEY` and swallows a quota or
+   * private-browsing failure. With no copy aside, the live bytes are the only
+   * record of a whole refused layout, so a stray click must not overwrite
+   * them. MEASURED when this flag was applied GLOBALLY instead: a clean graph
+   * load reports `rescued: false`, so an unread inventory or submissions
+   * notice became unreleasable by any action -- the user built a track, typed
+   * a new caliper measurement, and nothing was written.
    *
-   * MUTATION PROOF, run: drop the `submissionsNotice` clause and 1 test fails
-   * -- this one. The resumes-saving case below covers the submissions notice
-   * too but passes either way, since dropping the clause also makes it
-   * unsuppressed.
+   * MUTATION PROOF, run: delete the `noRescueCopy` arm and the first case
+   * here fails.
    */
-  it('an unread submissions notice suppresses', () => {
-    expect(savesSuppressed({ ...clean, submissionsNotice: 'lost' })).toBe(true);
+  it('with no rescue copy, only a dismissal releases, not an action', () => {
+    const noCopy = { ...clean, notice: 'lost', noRescueCopy: true };
+    expect(savesSuppressed({ ...noCopy, userHasActed: true })).toBe(true);
+    expect(savesSuppressed({ ...noCopy, dismissed: true })).toBe(false);
+  });
+
+  it('the exception is opt-in, so a store without a rescue key is not stuck', () => {
+    // Omitted entirely, which is how App.tsx calls it for inventory and
+    // submissions. An action must release.
+    expect(savesSuppressed({ notice: 'lost', dismissed: false, userHasActed: true })).toBe(
+      false,
+    );
     expect(
-      savesSuppressed({ ...clean, submissionsNotice: 'lost', submissionsDismissed: true }),
+      savesSuppressed({
+        notice: 'lost',
+        dismissed: false,
+        userHasActed: true,
+        noRescueCopy: false,
+      }),
     ).toBe(false);
-  });
-
-  /*
-   * A FAILED RESCUE MEANS A CLICK IS NOT ENOUGH.
-   *
-   * Releasing on the first action is justified by the refused bytes already
-   * being copied to `GRAPH_RESCUE_KEY`. `rescue()` swallows a quota or
-   * private-browsing failure and returns false, and `GraphLoadResult.rescued`
-   * was computed, returned, and read nowhere at all. When it is false the
-   * user is the only backup, so only a deliberate dismissal releases.
-   *
-   * MUTATION PROOF, run: ignore `rescued` and return `!userHasActed`, and
-   * this test fails.
-   */
-  it('without a rescue copy, only a dismissal releases, not an action', () => {
-    const noRescue = { ...clean, rescued: false, layoutNotice: 'lost' };
-    expect(savesSuppressed({ ...noRescue, userHasActed: true })).toBe(true);
-    expect(savesSuppressed({ ...noRescue, layoutDismissed: true })).toBe(false);
   });
 });
 
-/**
- * The WIRING that drives `savesSuppressed`, asserted from the source text.
- *
- * Value: protects=every path that mutates user data marks the loss as
- * acknowledged, and all three save effects consult the condition
- * Value: fails_when=`setUserHasActed` is removed from `dispatch` or either
- * panel callback, or a save effect stops checking `lossUnacknowledged`
- * Value: why_new=MEASURED, removing `setUserHasActed(true)` from `dispatch`
- * broke ZERO of 354 tests. The condition was pinned six ways and the one line
- * that drives it was pinned not at all, which restores the unbounded
- * suppression bug silently
- * Value: seam=reads App.tsx's source text, the way `repro.test.ts` already
- * reads ErrorBoundary's, because the effects need a DOM and StrictMode and
- * `vitest.config.ts` deliberately provides neither
- * Value: no_claim=nothing about the effects FIRING, about React's batching,
- * or about StrictMode's double invocation. Those need E11. This pins that the
- * calls are present and in the right places, not that React runs them.
- */
 describe('the suppression wiring is present in App.tsx', () => {
   const source = readFileSync(join(import.meta.dirname, 'App.tsx'), 'utf8');
 
@@ -799,21 +744,60 @@ describe('the suppression wiring is present in App.tsx', () => {
     expect(source).toContain('setUserHasActed(true);\n              setInventory(');
   });
 
-  it('all three saves consult the condition', () => {
-    for (const fn of ['saveGraph(graph)', 'saveInventory(inventory)', 'saveSubmissions(submissions)']) {
+  it('each save consults its OWN gate, and all three are gated', () => {
+    for (const [fn, gate] of [
+      ['saveGraph(graph)', 'graphSaveBlocked'],
+      ['saveInventory(inventory)', 'inventorySaveBlocked'],
+      ['saveSubmissions(submissions)', 'submissionsSaveBlocked'],
+    ] as const) {
       const at = source.indexOf(fn);
       expect(at, `${fn} is not called at all`).toBeGreaterThan(-1);
-      // The guard sits on the line above the call, inside the same effect.
-      const before = source.slice(Math.max(0, at - 220), at);
-      expect(before, `${fn} is not guarded`).toContain('if (lossUnacknowledged) return;');
+      const before = source.slice(Math.max(0, at - 120), at);
+      expect(before, `${fn} is not guarded by ${gate}`).toContain(`if (${gate}) return;`);
     }
   });
 
-  it('the condition comes from savesSuppressed, not re-derived inline', () => {
-    expect(source).toContain('savesSuppressed({');
-    // It is handed every input, including the two the first version omitted.
-    for (const field of ['submissionsNotice', 'rescued: graphLoad.rescued', 'userHasActed']) {
-      expect(source).toContain(field);
-    }
+  /*
+   * ASSERT THE VALUE, NOT THE NAME, which the first version of this test did
+   * not. It checked that the strings `submissionsNotice` and `userHasActed`
+   * appeared ANYWHERE in App.tsx. Both occur several times each, so MEASURED:
+   * rewriting the call to `submissionsNotice: undefined` -- making the gate
+   * blind to dropped submissions, the very wiring the commit added -- left all
+   * 370 tests green, and so did `userHasActed: false`, which is permanent
+   * suppression. Two of three assertions were inert, in the test whose own
+   * why_new says the wiring was pinned not at all.
+   *
+   * MUTATION PROOF, run: change any of the three gate calls below to pass a
+   * literal instead of the variable and the matching case fails.
+   */
+  it('each gate is handed the real variables, not literals', () => {
+    const callsFor = (name: string) => {
+      const at = source.indexOf(`const ${name} = savesSuppressed({`);
+      expect(at, `${name} is not computed by savesSuppressed`).toBeGreaterThan(-1);
+      return source.slice(at, source.indexOf('});', at));
+    };
+
+    const graph = callsFor('graphSaveBlocked');
+    expect(graph).toMatch(/^\s*notice: layoutNotice,$/m);
+    expect(graph).toMatch(/^\s*dismissed: layoutDismissed,$/m);
+    expect(graph).toMatch(/^\s*userHasActed,$/m);
+    expect(graph).toMatch(/^\s*noRescueCopy: !graphLoad\.rescued,$/m);
+
+    const inv = callsFor('inventorySaveBlocked');
+    expect(inv).toMatch(/^\s*notice: inventoryLoad\.discarded,$/m);
+    expect(inv).toMatch(/^\s*dismissed: inventoryDismissed,$/m);
+    expect(inv).toMatch(/^\s*userHasActed,$/m);
+
+    const subs = callsFor('submissionsSaveBlocked');
+    expect(subs).toMatch(/^\s*notice: submissionsNotice,$/m);
+    expect(subs).toMatch(/^\s*dismissed: submissionsDismissed,$/m);
+    expect(subs).toMatch(/^\s*userHasActed,$/m);
+
+    /*
+     * The graph-only exception stays graph-only. Passing `noRescueCopy` to a
+     * store with no rescue key is the measured bug above.
+     */
+    expect(inv).not.toContain('noRescueCopy');
+    expect(subs).not.toContain('noRescueCopy');
   });
 });

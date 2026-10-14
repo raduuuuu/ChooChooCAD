@@ -238,14 +238,27 @@ export function App() {
    * ref before the second invocation reads it.
    */
   const [userHasActed, setUserHasActed] = useState(false);
-  const lossUnacknowledged = savesSuppressed({
-    layoutNotice,
-    layoutDismissed,
-    inventoryNotice: inventoryLoad.discarded,
-    inventoryDismissed,
-    submissionsNotice,
-    submissionsDismissed,
-    rescued: graphLoad.rescued,
+  /*
+   * THREE INDEPENDENT GATES, one per store, because each store answers for
+   * its own loss. A single global condition made one notice hold back all
+   * three saves, and the `noRescueCopy` exception -- which only the graph has
+   * a rescue key for -- then made an unread inventory or submissions notice
+   * unreleasable by any user action.
+   */
+  const graphSaveBlocked = savesSuppressed({
+    notice: layoutNotice,
+    dismissed: layoutDismissed,
+    userHasActed,
+    noRescueCopy: !graphLoad.rescued,
+  });
+  const inventorySaveBlocked = savesSuppressed({
+    notice: inventoryLoad.discarded,
+    dismissed: inventoryDismissed,
+    userHasActed,
+  });
+  const submissionsSaveBlocked = savesSuppressed({
+    notice: submissionsNotice,
+    dismissed: submissionsDismissed,
     userHasActed,
   });
 
@@ -273,9 +286,9 @@ export function App() {
   const [submitOpen, setSubmitOpen] = useState(false);
 
   useEffect(() => {
-    if (lossUnacknowledged) return;
+    if (submissionsSaveBlocked) return;
     saveSubmissions(submissions);
-  }, [submissions, lossUnacknowledged]);
+  }, [submissions, submissionsSaveBlocked]);
 
   /*
    * On a whole-layout refusal an unguarded save wrote `EMPTY_GRAPH` over an
@@ -284,14 +297,14 @@ export function App() {
    * rescues the raw bytes, so this is belt and braces.
    */
   useEffect(() => {
-    if (lossUnacknowledged) return;
+    if (graphSaveBlocked) return;
     saveGraph(graph);
-  }, [graph, lossUnacknowledged]);
+  }, [graph, graphSaveBlocked]);
 
   useEffect(() => {
-    if (lossUnacknowledged) return;
+    if (inventorySaveBlocked) return;
     saveInventory(inventory);
-  }, [inventory, lossUnacknowledged]);
+  }, [inventory, inventorySaveBlocked]);
 
   const ports = useMemo(
     () => (piece: GPiece): readonly Port[] => portsOf(resolve(piece.partId), piece.turn),
