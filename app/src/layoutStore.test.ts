@@ -710,6 +710,57 @@ describe('savesSuppressed, one store at a time', () => {
     expect(savesSuppressed({ ...noCopy, dismissed: true })).toBe(false);
   });
 
+  /*
+   * THE WHOLE TABLE, because this function has now been wrong three times and
+   * each time the bug was a state nobody enumerated. 24 states: notice set or
+   * not, dismissed or not, acted or not, and `noRescueCopy` undefined / false
+   * / true.
+   *
+   * The two properties that matter are asserted directly rather than left to
+   * be read off the cases above:
+   *
+   * 1. NO STATE IS UNRELEASABLE. For every state that holds, dismissing
+   *    releases it. The second bug was a whole branch where no user action
+   *    released and only a dismissal did -- which was at least escapable; a
+   *    state where neither worked would strand the user's data for good.
+   * 2. `noRescueCopy` CHANGES EXACTLY ONE ROW: unread loss plus an action.
+   *    The second bug was this flag reaching stores that have no rescue key,
+   *    where it turned every acted row into a hold. If a future change makes
+   *    it matter anywhere else, this fails.
+   */
+  it('every one of the 24 states is escapable, and holds only where intended', () => {
+    const states = [];
+    for (const notice of [undefined, 'lost'] as const) {
+      for (const dismissed of [false, true]) {
+        for (const userHasActed of [false, true]) {
+          for (const noRescueCopy of [undefined, false, true]) {
+            states.push({ notice, dismissed, userHasActed, noRescueCopy });
+          }
+        }
+      }
+    }
+    expect(states).toHaveLength(24);
+
+    for (const st of states) {
+      const held = savesSuppressed(st);
+
+      // Intended rule, written out independently of the implementation.
+      const lost = st.notice !== undefined && !st.dismissed;
+      const expected = lost && (st.noRescueCopy === true || !st.userHasActed);
+      expect(held, JSON.stringify(st)).toBe(expected);
+
+      // Property 1: a dismissal always releases.
+      if (held) {
+        expect(savesSuppressed({ ...st, dismissed: true }), JSON.stringify(st)).toBe(false);
+      }
+
+      // Property 2: the flag only matters on unread-loss-plus-action.
+      const withoutFlag = savesSuppressed({ ...st, noRescueCopy: undefined });
+      const onlyRow = lost && st.userHasActed;
+      if (!onlyRow) expect(held, JSON.stringify(st)).toBe(withoutFlag);
+    }
+  });
+
   it('the exception is opt-in, so a store without a rescue key is not stuck', () => {
     // Omitted entirely, which is how App.tsx calls it for inventory and
     // submissions. An action must release.
