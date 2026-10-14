@@ -9,11 +9,17 @@
 //                     substitute for a real testing-library setup (task E11).
 //                     VerdictLine gets a renderToStaticMarkup harness in X2b;
 //                     the rest wait for E11.
-//   verdictView.ts    A KNOWN GAP, owned by task T3a, which is the next item in
-//                     the plan's sequence. The verdict the user reads is derived
-//                     by an untested pure function. Declared so it is visible,
-//                     not so it is excused.
+//   (verdictView.ts is no longer here: task T3a landed on 2026-10-14 and the
+//   lane now names app/src/verdictView.test.ts, 23 cases over both precedences.)
 //   main.tsx          The root mount. Three lines, nothing to assert.
 //   env.d.ts          Ambient type declarations.
 //   vite/vitest config, package.json, bun.lock, docs, css, html
 //                     Not code under test.
+//   .github/workflows/ci.yml
+//                     The workflow IS the test runner, so it has no unit lane.
+//                     It was verified the only way that means anything: two
+//                     deliberate breaks pushed to a throwaway branch on
+//                     2026-10-14. PLANK_WIDTH_MM 40 -> 41 went red at
+//                     analytic.test.ts:341. CYCLE_RANK_CEILING 20 -> 3 went
+//                     GREEN, which is how eng finding E13 got its value-pin
+//                     half.

@@ -2,9 +2,23 @@
   "$schema": "https://github.com/garrytan/gstack/docs/pregate.md#pregate-v1",
   "runner": "bun x vitest run --config vitest.config.ts {files}",
   "dependencies": {
+    "*.md": [],
+    ".github/workflows/ci.yml": [],
+    ".gitignore": [],
+    ".gstack-redact-allowlist": [],
+    ".gstack/**": [],
+    "app/index.html": [],
+    "app/src/*.css": [],
+    "app/src/App.tsx": [],
+    "app/src/ErrorBoundary.tsx": [],
+    "app/src/Inventory.tsx": [],
+    "app/src/SubmitPart.tsx": [],
+    "app/src/TrackCanvas.tsx": [],
+    "app/src/VerdictLine.tsx": [],
     "app/src/editorReducer.ts": [
       "app/src/editorReducer.test.ts"
     ],
+    "app/src/env.d.ts": [],
     "app/src/inventoryModel.ts": [
       "app/src/inventoryModel.test.ts"
     ],
@@ -15,6 +29,7 @@
     "app/src/layoutStore.ts": [
       "app/src/layoutStore.test.ts"
     ],
+    "app/src/main.tsx": [],
     "app/src/presets.ts": [
       "app/src/presets.test.ts"
     ],
@@ -22,6 +37,7 @@
       "app/src/repro.test.ts"
     ],
     "app/src/storageKeys.ts": [
+      "app/src/inventoryModel.test.ts",
       "app/src/layoutStore.test.ts",
       "app/src/repro.test.ts"
     ],
@@ -31,6 +47,11 @@
     "app/src/verdictAction.ts": [
       "app/src/verdictAction.test.ts"
     ],
+    "app/src/verdictView.ts": [
+      "app/src/verdictView.test.ts"
+    ],
+    "bun.lock": [],
+    "docs/**": [],
     "engine/data/brio.ts": [
       "app/src/inventoryModel.test.ts",
       "app/src/trackPath.test.ts",
@@ -50,6 +71,7 @@
       "engine/test/graphEdit.test.ts",
       "engine/test/graphFeasible.test.ts",
       "engine/test/graphModel.test.ts",
+      "engine/test/render.test.ts",
       "engine/test/shortCode.test.ts",
       "engine/test/switches.test.ts"
     ],
@@ -74,7 +96,8 @@
       "engine/test/switches.test.ts"
     ],
     "engine/src/graph/cycles.ts": [
-      "engine/test/cycles.test.ts"
+      "engine/test/cycles.test.ts",
+      "engine/test/differential.test.ts"
     ],
     "engine/src/graph/edit.ts": [
       "engine/test/graphEdit.test.ts"
@@ -98,6 +121,7 @@
       "engine/test/graphEdit.test.ts",
       "engine/test/graphFeasible.test.ts",
       "engine/test/graphModel.test.ts",
+      "engine/test/render.test.ts",
       "engine/test/switches.test.ts"
     ],
     "engine/src/graph/fromChain.ts": [
@@ -105,7 +129,8 @@
       "engine/test/differential.test.ts",
       "engine/test/graphEdit.test.ts",
       "engine/test/graphFeasible.test.ts",
-      "engine/test/graphModel.test.ts"
+      "engine/test/graphModel.test.ts",
+      "engine/test/render.test.ts"
     ],
     "engine/src/graph/model.ts": [
       "app/src/editorReducer.test.ts",
@@ -116,6 +141,7 @@
       "engine/test/graphEdit.test.ts",
       "engine/test/graphFeasible.test.ts",
       "engine/test/graphModel.test.ts",
+      "engine/test/render.test.ts",
       "engine/test/switches.test.ts"
     ],
     "engine/src/graph/render.ts": [
@@ -149,26 +175,9 @@
       "engine/test/analytic.test.ts",
       "engine/test/differential.test.ts"
     ],
-    "app/src/App.tsx": [],
-    "app/src/ErrorBoundary.tsx": [],
-    "app/src/Inventory.tsx": [],
-    "app/src/SubmitPart.tsx": [],
-    "app/src/TrackCanvas.tsx": [],
-    "app/src/VerdictLine.tsx": [],
-    "app/src/main.tsx": [],
-    "app/src/env.d.ts": [],
-    "app/src/verdictView.ts": [],
-    "vite.config.ts": [],
-    "vitest.config.ts": [],
     "package.json": [],
-    "bun.lock": [],
-    "docs/**": [],
-    "*.md": [],
-    "app/src/*.css": [],
-    "app/index.html": [],
-    ".gitignore": [],
-    ".gstack-redact-allowlist": [],
-    ".gstack/**": []
+    "vite.config.ts": [],
+    "vitest.config.ts": []
   },
   "selection": {},
   "warn": [],
