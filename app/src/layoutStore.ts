@@ -44,13 +44,6 @@ import { EMPTY_GRAPH, RUN_SPACING_MM } from './layoutModel.js';
 
 
 
-/**
- * Where `placeAll` puts a root with no anchor, so it is a lane already in use.
- * An orphan re-anchored here would collide with the component that legitimately
- * sits at the origin.
- */
-const IDENTITY_POS = [0, 0, 0, 0, 0, 0, 0, 0] as const;
-
 const DISCARDED = 'Your saved track could not be read, so the canvas started empty.';
 
 /**
@@ -303,8 +296,19 @@ export function loadGraph(
      * reliably steps "past" them. Checking occupancy is correct by construction
      * and costs nothing at these sizes.
      */
-    const taken = new Set<string>([IDENTITY_POS.join(',')]);
+    const taken = new Set<string>();
     for (const f of anchorMap.values()) taken.add(f.pos.join(','));
+    /*
+     * Lane 0 IS the identity, where `placeAll` puts an unanchored root, so the
+     * search starts at 1 and `lane` only ever increments. The identity is
+     * therefore unreachable by construction rather than by a Set entry.
+     *
+     * It used to be seeded into `taken` with a ten-line justification, and a
+     * test named the property. MEASURED: removing that seed left all 333 tests
+     * green, because `scale(zetaPow(4), 216 * lane)` is never the zero vector
+     * for lane >= 1. Dead code wearing a justification is worse than no code:
+     * it reads as a guard somebody can rely on.
+     */
     let lane = 1;
     for (const id of orphans) {
       let pos = scale(zetaPow(4), RUN_SPACING_MM * lane);

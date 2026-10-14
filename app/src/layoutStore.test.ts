@@ -278,13 +278,25 @@ describe('E2: a dropped anchor keeps the layout and never manufactures a clash',
         ],
         welds: [],
         anchors: [
-          // p2 sits where nextRunAnchor would have put a second run.
-          ['p2', { pos: [0, 0, 0, 0, 432, 0, 0, 0], heading: 0 }],
+          /*
+           * LANE 1, NOT LANE 2, and the difference is the whole test.
+           *
+           * With the survivor parked at lane 2 this case did not pin the
+           * mechanism it names: free lane 1 was handed straight to the orphan
+           * and the `while (taken.has(...))` branch never ran. MEASURED:
+           * deleting the entire occupancy search left all 333 tests green, and
+           * only `noUnusedLocals` noticed. At lane 1 -- exactly what
+           * `nextRunAnchor` returns for a second run over a short first one --
+           * the orphan must step over it.
+           */
+          ['p2', { pos: [0, 0, 0, 0, 216, 0, 0, 0], heading: 0 }],
           ['p3', { pos: 'rubbish', heading: 0 }],
         ],
       }),
     );
     expect(r.droppedAnchors).toBe(1);
+    // It stepped PAST the occupied lane, rather than onto it.
+    expect(r.value.anchors?.get('p3')?.pos.join(',')).toBe('0,0,0,0,432,0,0,0');
 
     const placement = placeAll(r.value, ports);
     const frames = placement.forest.roots.map((id) => placement.frames.get(id)!);
@@ -293,9 +305,19 @@ describe('E2: a dropped anchor keeps the layout and never manufactures a clash',
     expect(findVertexClashes(r.value, ports, placement)).toHaveLength(0);
   });
 
-  it('the identity counts as occupied, because an unanchored root is placed there', () => {
-    // p1 has no anchor and lands at the identity. An orphan re-anchored to the
-    // identity would collide with it just as surely as with a stored anchor.
+  /*
+   * The test that stood here claimed "the identity counts as occupied, because
+   * an unanchored root is placed there" and could not fail: MEASURED, removing
+   * `IDENTITY_POS.join(',')` from the `taken` seed left all 333 tests green.
+   * The seed was unreachable -- the search starts at lane 1 and only
+   * increments -- so the test named a property the line did not implement.
+   * Both the seed and the test are gone; `let lane = 1` carries the reason.
+   *
+   * This is the restating-the-constant defect class in its other form: a test
+   * that pins the absence of an old bug rather than the presence of the new
+   * mechanism. Five instances in this project now.
+   */
+  it('an unanchored root and an orphan still get different frames', () => {
     const r = load(
       blob({
         pieces: [
@@ -306,6 +328,8 @@ describe('E2: a dropped anchor keeps the layout and never manufactures a clash',
         anchors: [['p2', { pos: 'rubbish', heading: 0 }]],
       }),
     );
+    // p1 is unanchored, so it lands at the identity; p2 is the orphan.
+    expect(r.value.anchors?.get('p2')?.pos.join(',')).toBe('0,0,0,0,216,0,0,0');
     const placement = placeAll(r.value, ports);
     const frames = placement.forest.roots.map((id) => placement.frames.get(id)!);
     expect(new Set(frames.map((f) => f.pos.join(','))).size).toBe(frames.length);
@@ -527,5 +551,75 @@ describe('a stored weld cannot name a port the part does not have', () => {
       const r = load(blob(twoPieces(port)));
       expect(r.discarded).toBeTypeOf('string');
     }
+  });
+});
+
+/**
+ * THE ORPHAN LANE STILL COLLIDES WITH A SURVIVOR'S FOOTPRINT, pinned as a
+ * SKIPPED spec (P0 in brio-TODOS.md).
+ *
+ * Value: protects=a recovered layout never manufactures a "can't be built"
+ * verdict about track the user built correctly
+ * Value: fails_when=orphans are placed by stepping over OCCUPIED ROOT POINTS
+ * rather than past the bounding box of everything already placed, which is
+ * what the loader does today
+ * Value: why_new=the occupancy search de-duplicates root anchor points; a run
+ * marching along the lane axis occupies lanes its root does not name
+ * Value: seam=none
+ * Value: no_claim=nothing about pieces that cross mid-span, which
+ * findVertexClashes does not check and the verdict copy says so
+ *
+ * SKIPPED ON PURPOSE, and it fails when un-skipped. MEASURED at this commit:
+ * MANUFACTURED CLASHES = 1, at [1.3226185430791415e-14, 216].
+ *
+ * Two 216mm straights are welded into a run anchored at the identity pointing
+ * ALONG the lane axis (heading 4), so p0 spans lane 0 to lane 1 and p1 spans
+ * lane 1 to lane 2. p1's root sits at lane 1, but only ROOTS are anchored, so
+ * `taken` -- which holds anchor points -- does not contain it. The orphan is
+ * handed lane 1 and lands on p1's already-welded port 0. A welded end is
+ * spoken for, so `findVertexClashes` pushes it straight to `clashes` rather
+ * than excusing it as two free ends meeting, `viewOf` returns IMPOSSIBLE, and
+ * the verdict reads "can't be built" about a layout that is fine. The only
+ * notice says part of the track may be in the wrong place -- never that the
+ * verdict below it is wrong, which is the harm the lane comment argues it is
+ * trading away.
+ *
+ * `layoutModel.nextRunAnchor` already does this correctly for the in-app path:
+ * it computes real clearance from `maxY - minY`. The loader uses a strictly
+ * weaker rule for the same decision, because it has part ids but no port
+ * geometry. The fix is to give it the geometry, or to return the orphan ids
+ * and let App.tsx place them through `nextRunAnchor`. Deferred on 2026-10-14
+ * rather than patched a third time under ship pressure: this is the third
+ * attempt at this one bug and the first two both shipped wrong.
+ *
+ * Un-skip this to start the work; do not delete it to make the suite green.
+ */
+describe.skip('an orphan lane clears a survivor RUN, not just its anchor', () => {
+  const runAlongTheLaneAxis = () =>
+    blob({
+      pieces: [
+        { pieceId: 'p0', partId: 'D' },
+        { pieceId: 'p1', partId: 'D' },
+        { pieceId: 'q0', partId: 'D' },
+      ],
+      welds: [{ a: { pieceId: 'p0', port: 1 }, b: { pieceId: 'p1', port: 0 } }],
+      anchors: [
+        ['p0', { pos: [0, 0, 0, 0, 0, 0, 0, 0], heading: 4 }],
+        ['q0', { pos: 'rubbish', heading: 0 }],
+      ],
+    });
+
+  it('manufactures no clash when an orphan is re-anchored past a run', () => {
+    const r = load(runAlongTheLaneAxis());
+    expect(r.droppedAnchors).toBe(1);
+    expect(r.discarded).toBeUndefined();
+    const placement = placeAll(r.value, ports);
+    expect(findVertexClashes(r.value, ports, placement)).toHaveLength(0);
+  });
+
+  it('places the orphan beyond the run, not inside it', () => {
+    const r = load(runAlongTheLaneAxis());
+    // p1's far end is at lane 2, so the first free lane is 3.
+    expect(r.value.anchors?.get('q0')?.pos.join(',')).toBe('0,0,0,0,648,0,0,0');
   });
 });
