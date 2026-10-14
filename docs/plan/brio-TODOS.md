@@ -727,8 +727,10 @@ rather than implying the split is making the file smaller: so far it has not.
 **UPDATED 2026-10-14:** editor state is OUT, extracted by task T4 into
 `app/src/editorReducer.ts` with 15 tests. That was the piece the Context note
 below carved out, so this entry is correctly still open for the other four.
-Persistence is the next clearest boundary and `layoutStore.ts` now has 54 tests
-of its own, which makes moving its wiring out of `App.tsx` cheaper than it was.
+Persistence is the next clearest boundary, and `layoutStore.ts` now carries the
+largest suite in the app, which makes moving its wiring out of `App.tsx`
+cheaper than it was. (No count here on purpose: that figure drifted three times
+in two days, twice inside the commit that corrected it.)
 
 **Pros:** Each extracted piece becomes testable with no DOM, which is how
 `layoutModel.ts` and `trackPath.ts` are already covered. Smaller diffs on the

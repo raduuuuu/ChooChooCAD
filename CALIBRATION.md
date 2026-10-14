@@ -129,7 +129,7 @@ is the plank length, the horizontal run is sqrt(216² − 64²) ≈ **206.34mm**
 which is irrational and therefore OUTSIDE the exact lattice. Exact closure
 would silently die for any layout containing a ramp, and that exactness is the
 product's one novel claim. If 216 is the run, everything is fine. The code
-comment at `engine/data/brio.ts:11` asserts "216 run" but nobody has checked.
+comment at `engine/data/brio.ts:12` asserts "216 run" but nobody has checked.
 One tape measure settles it.
 
 ## Q5 — The three numbers that decide whether a bridge works
@@ -198,8 +198,8 @@ into the catalogue on their own.
 
 **No citable switch geometry exists.** Per the plan's own disposition for this
 outcome, task T2 (the switch catalogue row) is **BLOCKED, NOT SCHEDULED**, and
-the physical measurement goes to TODOS.md under the existing calibration
-deferral rather than becoming new scope.
+the physical measurement goes to `docs/plan/brio-TODOS.md` under the existing
+calibration deferral rather than becoming new scope.
 
 ### What to measure, when someone has a switch and calipers
 

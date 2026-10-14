@@ -11,24 +11,29 @@
 #
 # It was blocked on there being a remote at all, which X1 created the same day.
 #
-# BASELINES AT THE TIME OF WRITING (task E15), so a red run is distinguishable
-# from a pre-existing failure rather than being argued about:
+# WHAT GREEN LOOKS LIKE, and why there are no numbers here any more.
 #
-#   bun run test        19 files, 333 passed + 2 skipped, exit 0, about 0.8s
-#   bun run typecheck   exit 0, no diagnostics
-#   bun run build       vite build green, about 0.1s
-#                       app/dist/assets/index-*.js 270.81 kB (gzip 84.95 kB)
+# This header carried exact baselines so a red run was distinguishable from a
+# pre-existing failure. They went stale FOUR times in two days: 17 files / 261
+# tests, then 18 / 302, then 19 / 333, then 19 / 375, each one re-measured in
+# the same breath as a warning that a baseline nobody re-measures is worse than
+# none. The warning was right and the mechanism was wrong: a number pasted into
+# a comment has no gate, so it rots silently while everything around it is
+# pinned by a test.
 #
-# The 2 skipped are cycles.test.ts's solver-freeze timing spec, left skipped
-# deliberately: it is the regression pin for the P0 in docs/plan/brio-TODOS.md
-# and it fails on the current solver. Unskip it when that P0 is fixed.
+# So the numbers live where they can fail:
 #
-# RE-MEASURED 2026-10-14 at the end of the ship, after the trust-boundary and
-# verdict-view suites landed. This header has now gone stale twice inside a day:
-# it first said 17 files / 261 tests / ~267 kB, then 18 / 302 / 268.44 kB. A
-# baseline nobody re-measures is worse than none: it makes a red run look like a
-# known quantity. If you change what CI runs, change these numbers in the same
-# commit.
+#   bun run test        the suite pins itself. A storage-key rename, a slop
+#                       ceiling, a dropped guard -- each has a test that goes
+#                       red, which is what a baseline was trying to approximate.
+#   bun run typecheck   exit 0, no diagnostics, under noUnusedLocals.
+#   bun run build       vite build green.
+#
+# Four specs are skipped ON PURPOSE and all four FAIL when un-skipped. They pin
+# the two P0s in docs/plan/brio-TODOS.md: the cycle enumeration's cost at the
+# accepted rank ceiling (engine/test/cycles.test.ts) and an orphan lane landing
+# inside a surviving run (app/src/layoutStore.test.ts). A skip count that moves
+# without one of those P0s closing is the thing to look at.
 #
 # All three run as declared package scripts, never inlined here, so CI and a
 # person at a keyboard invoke the same command. That is E15's point: an inlined
