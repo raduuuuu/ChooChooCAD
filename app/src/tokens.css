@@ -171,6 +171,23 @@
   --fail: #a3362a;
   --unknown: #6b675f;
 
+  /*
+   * EMPTY IS NOT UNKNOWN (task X2a, Y1 decision 1, gate d5 = b).
+   *
+   * These were the same grey, so "I have not started" and "the solver looked
+   * and this is broken" rendered identically. Those are the two most different
+   * states this product has, and task X2b was about to freeze the collapse
+   * into an asserted invariant.
+   *
+   * It is deliberately NOT a fifth verdict colour, and that is the point
+   * rather than a shortcut: the empty state is the absence of a verdict, so
+   * giving it a hue would claim something. It takes --ink-soft's measured
+   * 5.21:1 on --paper, carries no glyph at all, and is the one verdict class
+   * with no `.verdict-mark` rule. UNKNOWN keeps its own value for the four
+   * FailureKinds, where "could not check" IS a verdict.
+   */
+  --empty: var(--ink-soft);
+
   /* Type. Roles assigned deliberately, per the universal font rule. */
   --font-ui: 'IBM Plex Sans', 'Inter', system-ui, sans-serif;
   --font-data: 'IBM Plex Mono', 'SF Mono', ui-monospace, monospace;

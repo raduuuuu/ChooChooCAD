@@ -137,7 +137,16 @@
    * be crushed to a word is not a column. 22ch is about four words a line,
    * which is the narrowest that still reads as a sentence.
    */
-  grid-template-columns: auto minmax(0, auto) minmax(22ch, 1fr);
+  /*
+   * TWO COLUMNS NOW, not three (task X2a, Y1 decision 2).
+   *
+   * The action used to sit in column 3 of this grid, which meant it lived
+   * INSIDE the `aria-atomic` live region and was re-read on every edit along
+   * with the verdict. The 22ch floor below was about keeping that column from
+   * being crushed to one word; with the action moved to `.verdict-notes` the
+   * column is gone and the floor with it.
+   */
+  grid-template-columns: auto minmax(0, 1fr);
   column-gap: var(--s4);
   row-gap: var(--s1);
   align-items: baseline;
@@ -150,7 +159,6 @@
 }
 .verdict-mark { grid-column: 1; grid-row: 1; }
 .verdict-text { grid-column: 2; grid-row: 1; }
-.verdict-trust { grid-column: 2 / -1; grid-row: 2; }
 .verdict-mark {
   font-family: var(--font-data);
   font-weight: 600;
@@ -187,6 +195,47 @@
 .verdict-trust.is-serious li::before { content: '!'; color: var(--fail); }
 
 /*
+ * The truncation count (finding E7). A SENTENCE, not a control.
+ *
+ * Deliberately styled as prose rather than as a link or button: nothing here
+ * is clickable, and anything that looks clickable and is not is worse than
+ * plain text. The full list is reachable through task U7a's graph listing.
+ */
+.verdict-more {
+  margin: var(--s1) 0 0;
+  padding: 0 0 0 var(--s4);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+/*
+ * THE NOTES BLOCK (task X2a, Y1 decision 2).
+ *
+ * A SIBLING of `.verdict`, not a child, and that is the whole a11y fix. Trust
+ * lines and the action used to render inside the `aria-atomic="true"` region,
+ * so a user placing a piece heard the verdict sentence plus every trust line,
+ * every time, and task T3b is about to add a fifth trust kind. That lands on
+ * exactly the user the a11y work exists for.
+ *
+ * It is referenced from the live region by `aria-describedby`, so it is
+ * reachable on demand and never re-read on an edit. It carries no role and no
+ * `aria-live`: it is not an announcement, it is context for one.
+ *
+ * Why a sibling rather than a wrapper inside `.verdict`: the role has to stay
+ * on an element that is NOT an ancestor of these notes, and `display: contents`
+ * on a live region is not a bet worth taking. Browsers have historically
+ * dropped such elements from the accessibility tree, which would silence the
+ * verdict outright.
+ */
+.verdict-notes {
+  padding: 0 var(--s4) var(--s3);
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-sunk);
+}
+.verdict-notes:empty { display: none; }
+
+/*
  * The ACTION register, third and quietest (task K4).
  *
  * It must not be mistaken for the trust list directly above it: both are
@@ -197,13 +246,10 @@
  * --ink-soft on --paper is 5.21:1, clear of the 4.5:1 text floor.
  */
 .verdict-action {
-  grid-column: 3;
-  grid-row: 1;
-  justify-self: start;
   position: relative;
-  margin: 0;
+  margin: var(--s2) 0 0;
   padding: 0 0 0 var(--s4);
-  max-width: 34ch;
+  max-width: 60ch;
   font-size: 15px;
   line-height: 1.45;
   /* --ink, not --ink-soft: this is the instruction, not a footnote. */
@@ -229,6 +275,12 @@
 .verdict-fail    .verdict-mark { color: var(--fail); }
 .verdict-unknown .verdict-mark { color: var(--unknown); }
 .verdict-unknown { color: var(--ink-soft); }
+/*
+ * EMPTY has no mark rule, on purpose: there is no glyph to colour. It is the
+ * only verdict class without one, which is how the stylesheet itself records
+ * that the empty state is not a verdict.
+ */
+.verdict-empty { color: var(--empty); }
 
 /* 3rd in hierarchy: the palette. */
 .palette {
@@ -985,10 +1037,12 @@
 @media (min-width: 1000px) {
   .shell {
     grid-template-columns: minmax(0, 1fr) 320px;
-    grid-template-rows: minmax(0, 1fr) auto;
+    /* Three rows now: the notes block is a sibling of the verdict (X2a). */
+    grid-template-rows: minmax(0, 1fr) auto auto;
   }
-  .stage   { grid-column: 1; grid-row: 1; }
-  .verdict { grid-column: 1; grid-row: 2; }
+  .stage         { grid-column: 1; grid-row: 1; }
+  .verdict       { grid-column: 1; grid-row: 2; }
+  .verdict-notes { grid-column: 1; grid-row: 3; }
   .palette {
     grid-column: 2;
     grid-row: 1 / -1;

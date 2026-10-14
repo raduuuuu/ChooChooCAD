@@ -53,17 +53,54 @@ const isFailure = (k: VerdictKind): k is FailureKind =>
  * physically join. Each is a different reason to discount the same verdict, so
  * each gets its own line rather than being averaged into a disclaimer.
  */
+const isSerious = (t: TrustIssue) =>
+  t.kind === 'unverified-size' || t.kind === 'brands-do-not-join';
+
+/** At most this many disclosures are shown; the rest become a count (E7). */
+const TRUST_INLINE_LIMIT = 2;
+
 function Trust({ trust }: { trust: readonly TrustIssue[] }) {
   if (trust.length === 0) return null;
-  const serious = trust.some(
-    (t) => t.kind === 'unverified-size' || t.kind === 'brands-do-not-join',
+
+  /*
+   * SERIOUS FIRST, then the rest, then a count (Y1 decision 4).
+   *
+   * With five trust kinds present the block was five lines of equal weight
+   * above the action, and task T3b adds a fifth kind. Ordering by seriousness
+   * means the two that make the verdict actively misleading are the two that
+   * survive truncation.
+   */
+  const ordered = [...trust].sort(
+    (a, b) => Number(isSerious(b)) - Number(isSerious(a)),
   );
+  const shown = ordered.slice(0, TRUST_INLINE_LIMIT);
+  const hidden = ordered.length - shown.length;
+  const serious = shown.some(isSerious);
+
   return (
-    <ul className={serious ? 'verdict-trust is-serious' : 'verdict-trust'}>
-      {trust.map((t) => (
-        <li key={t.kind + t.detail}>{t.detail}</li>
-      ))}
-    </ul>
+    <>
+      <ul className={serious ? 'verdict-trust is-serious' : 'verdict-trust'}>
+        {shown.map((t) => (
+          <li key={t.kind + t.detail}>{t.detail}</li>
+        ))}
+      </ul>
+      {/*
+        * NON-INTERACTIVE TRUNCATION, not a "+N more" toggle (finding E7).
+        *
+        * A toggle implies state, activation and focus, and the harness task
+        * X2b builds renders static markup and dispatches nothing, so the
+        * expansion could never be asserted. That is the same error the T3
+        * split and the U7a/U7b split each caught once already. A plain
+        * sentence is assertable and needs no DOM. The full list is reachable
+        * through U7a's graph listing.
+        */}
+      {hidden > 0 && (
+        <p className="verdict-more">
+          and <span className="num">{hidden}</span> more{' '}
+          {hidden === 1 ? 'note' : 'notes'} about this layout.
+        </p>
+      )}
+    </>
   );
 }
 
@@ -96,20 +133,76 @@ function Action({ action }: { action: string | null }) {
  * announcement of the final state rather than eight interruptions, which is the
  * behaviour D3 chose over announcing each graph mutation.
  *
+ * AND BECAUSE IT IS ATOMIC, IT HOLDS THE SENTENCE AND NOTHING ELSE (task X2a,
+ * Y1 decision 2). Task W1 put `aria-atomic="true"` here and left `<Trust>` and
+ * `<Action>` rendering inside it, so atomic did exactly what it says: a user
+ * placing a piece heard the verdict plus every trust line, every time. Task
+ * T3b adds a fifth trust kind. Those two facts together land on precisely the
+ * user this a11y work exists for.
+ *
+ * The notes are now a SIBLING element, pointed at by `aria-describedby`, so
+ * they are reachable on demand and never re-read on an edit. The id is a
+ * constant rather than generated: there is exactly one verdict line on the
+ * page, and `useId` would make the rendered markup unstable for X2b's
+ * assertions without buying anything.
+ *
  * gstack-shortcut(dec-cc66dbf5): the result is audible, the editor is not
  * operable, upgrade when U7 lands and the announcement policy has to cover
  * piece, end and weld actions.
  */
-function Verdict({ tone, children }: { tone: string; children: ReactNode }) {
+const NOTES_ID = 'verdict-notes';
+
+/**
+ * The notes node, or `undefined` when there would be nothing in it.
+ *
+ * `Boolean(notes)` on a ReactNode is not the same question: a fragment whose
+ * children all render null is still truthy, which would leave
+ * `aria-describedby` pointing at an empty element. That is worse than omitting
+ * it, because a screen reader announces a description that is not there.
+ *
+ * Deciding it from the DATA rather than the node keeps the invariant checkable:
+ * every non-empty verdict currently has an action (`verdictAction.ts` has no
+ * null outside `ACTION_WHEN_EMPTY`), but relying on that silently is how the
+ * live region ended up holding the trust list in the first place.
+ */
+function notesFor(trust: readonly TrustIssue[], action: string | null) {
+  if (trust.length === 0 && !action) return undefined;
   return (
-    <div
-      className={`verdict verdict-${tone}`}
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-    >
-      {children}
-    </div>
+    <>
+      <Trust trust={trust} />
+      <Action action={action} />
+    </>
+  );
+}
+
+function Verdict({
+  tone,
+  notes,
+  children,
+}: {
+  tone: string;
+  /** Trust and action. Rendered OUTSIDE the live region, by contract. */
+  notes?: ReactNode;
+  children: ReactNode;
+}) {
+  const hasNotes = Boolean(notes);
+  return (
+    <>
+      <div
+        className={`verdict verdict-${tone}`}
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        aria-describedby={hasNotes ? NOTES_ID : undefined}
+      >
+        {children}
+      </div>
+      {hasNotes && (
+        <div id={NOTES_ID} className="verdict-notes">
+          {notes}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -137,10 +230,24 @@ export function VerdictLine({
 }) {
   const e = view;
 
+  /*
+   * EMPTY IS ITS OWN STATE (task X2a, Y1 decision 1, gate d5 = b).
+   *
+   * It used to render `verdict-unknown` with a `?` mark, identical to the four
+   * FailureKinds: "I have not started" and "the solver looked and this is
+   * broken" were the same grey with the same glyph.
+   *
+   * NO MARK, because every glyph on this line means a verdict was reached.
+   * NO ACTION LINE, and no instruction, because the gate kept design D10:
+   * `verdictAction.ts` records that the empty state already carries the one
+   * primary action on the CANVAS, and a second invitation here is exactly what
+   * D10 removed. `ACTION_WHEN_EMPTY` stays null and is not rendered.
+   *
+   * What remains is a statement of fact, which is not an invitation.
+   */
   if (e.kind === 'NOTHING') {
     return (
-      <Verdict tone="unknown">
-        <Mark glyph="?" />
+      <Verdict tone="empty">
         <span className="verdict-text">Nothing to check yet.</span>
       </Verdict>
     );
@@ -149,13 +256,15 @@ export function VerdictLine({
   // Every failure is GREY. Never green, never styled as a near-pass.
   if (isFailure(e.kind)) {
     return (
-      <Verdict tone="unknown">
+      <Verdict
+        tone="unknown"
+        notes={notesFor([], ACTION_FOR_FAILURE[e.kind] ?? null)}
+      >
         <Mark glyph="?" />
         <span className="verdict-text">
           {FAILURE_COPY[e.kind]}{' '}
           <span className="verdict-detail">{e.detail}</span>
         </span>
-        <Action action={ACTION_FOR_FAILURE[e.kind] ?? null} />
       </Verdict>
     );
   }
@@ -186,7 +295,10 @@ export function VerdictLine({
     // the pieces themselves, a shared POSITION is about where they ended up.
     case 'IMPOSSIBLE':
       return (
-        <Verdict tone="fail">
+        <Verdict
+          tone="fail"
+          notes={notesFor(trust, ACTION_FOR_VERDICT.IMPOSSIBLE)}
+        >
           <Mark glyph="X" />
           {e.polarityCount > 0 ? (
             <span className="verdict-text">
@@ -211,47 +323,58 @@ export function VerdictLine({
               </span>
             </span>
           )}
-          <Trust trust={trust} />
-          <Action action={ACTION_FOR_VERDICT.IMPOSSIBLE} />
         </Verdict>
       );
 
     case 'EXACT':
       return (
-        <Verdict tone="pass">
+        <Verdict
+          tone="pass"
+          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind])}
+        >
           <Mark glyph="O" />
           <span className="verdict-text">This works. Closes exactly, no give needed at any joint.</span>
-          <Trust trust={trust} />
-          <Action action={ACTION_FOR_VERDICT[e.kind]} />
         </Verdict>
       );
 
     case 'NEEDS_GIVE':
       return (
-        <Verdict tone="tight">
+        <Verdict
+          tone="tight"
+          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind])}
+        >
           <Mark glyph={'/\\'} />
           <span className="verdict-text">
-            Needs <span className="num">{e.gapMm.toFixed(0)}mm</span> absorbed across{' '}
+            {/*
+              * "Tight." leads, so severity survives the loss of colour.
+              *
+              * The mark is aria-hidden and `verdict-tight` against
+              * `verdict-fail` may be a hue-only distinction for low colour
+              * discrimination, which is WCAG 1.4.1. Every other kind already
+              * states its severity in words ("This works", "Won't fit",
+              * "Can't be built", "Could not check"); this one opened with a
+              * measurement and left the reader to infer it.
+              */}
+            Tight. Needs <span className="num">{e.gapMm.toFixed(0)}mm</span> absorbed across{' '}
             <span className="num">{e.jointCount}</span> joints, which give{' '}
             <span className="num">{e.giveMm.toFixed(0)}mm</span> between them. That
             means the gap could fit inside the total give, not that it will.
           </span>
-          <Trust trust={trust} />
-          <Action action={ACTION_FOR_VERDICT[e.kind]} />
         </Verdict>
       );
 
     case 'EXCEEDS':
       return (
-        <Verdict tone="fail">
+        <Verdict
+          tone="fail"
+          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind])}
+        >
           <Mark glyph="X" />
           <span className="verdict-text">
             Won&rsquo;t fit. Needs <span className="num">{e.gapMm.toFixed(0)}mm</span>{' '}
             absorbed, but the joints give only{' '}
             <span className="num">{e.giveMm.toFixed(0)}mm</span> in total.{loopNote}
           </span>
-          <Trust trust={trust} />
-          <Action action={ACTION_FOR_VERDICT[e.kind]} />
         </Verdict>
       );
 
