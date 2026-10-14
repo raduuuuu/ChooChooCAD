@@ -27,14 +27,21 @@
 # and visible to anyone who opens devtools on the page. They are not
 # credentials and there is nothing to rotate.
 #
+# Written WITHOUT the surrounding quotes: the scanner's matched span starts
+# after the opening quote (verified, col 27 on the CHAIN_STORAGE_KEY line), and
+# only a finding whose matched text EQUALS an entry is suppressed. The first
+# version of these five carried the quotes and suppressed nothing -- the push
+# reported "11 entries suppressed 0 finding(s)", which is what an allowlist
+# that matches nothing looks like.
+#
 # They are in a test on purpose and must stay there. Replacing these literals
 # with the constants is exactly what broke the pin: a test that reads the
 # constant it claims to pin cannot fail when the constant changes. Measured
 # before the fix: renaming every key while keeping the `brio.` prefix passed
 # all 333 tests and would silently orphan every saved track, inventory and
 # hand-measured submission on every existing install.
-'brio.chain.v0'
-'brio.graph.v1'
-'brio.graph.v1.rejected'
-'brio.inventory.v0'
-'brio.library.submissions.v1'
+brio.chain.v0
+brio.graph.v1
+brio.graph.v1.rejected
+brio.inventory.v0
+brio.library.submissions.v1
