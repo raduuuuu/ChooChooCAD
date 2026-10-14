@@ -880,12 +880,52 @@ describe('the suppression wiring is present in App.tsx', () => {
     expect(body).not.toContain('setInventoryActed');
   });
 
+  /*
+   * SLICED, NOT ADJACENT. The first version asserted the two flag-setter lines
+   * sat immediately before their store setters, which catches a foreign flag
+   * placed BEFORE and misses one placed after. MEASURED: appending
+   * `setInventoryActed(true);` after `setSubmissions(...)` inside the submit
+   * callback left all 382 tests green -- a cross-store release, which is
+   * verbatim the bug this whole describe exists to prevent.
+   */
   it('a submission and an inventory change acknowledge only themselves', () => {
-    // Both are passed as callbacks to child panels rather than through dispatch.
-    expect(source).toContain('setSubmissionsActed(true);\n              setSubmissions(');
-    expect(source).toContain('setInventoryActed(true);\n              setInventory(');
+    const slice = (open: string) => {
+      const at = source.indexOf(open);
+      expect(at, `${open} not found`).toBeGreaterThan(-1);
+      return source.slice(at, source.indexOf('}}', at));
+    };
+
+    const submit = slice('onSubmit={(sub) => {');
+    expect(submit).toContain('setSubmissionsActed(true)');
+    expect(submit).not.toContain('setGraphActed');
+    expect(submit).not.toContain('setInventoryActed');
+
+    const invChange = slice('onChange={(next) => {');
+    expect(invChange).toContain('setInventoryActed(true)');
+    expect(invChange).not.toContain('setGraphActed');
+    expect(invChange).not.toContain('setSubmissionsActed');
+
     // And no single flag is shared between them.
     expect(source).not.toContain('setUserHasActed');
+  });
+
+  /*
+   * THREE FLAGS, THREE DECLARATIONS. The distinctness check below reads the
+   * identifier NAMES out of the gate calls, so it cannot see two names holding
+   * one value. MEASURED: replacing `const [inventoryActed, setInventoryActed]
+   * = useState(false)` with `const inventoryActed = graphActed;` left all 382
+   * green -- a regression to one effective flag under three names would ship.
+   */
+  it('each flag is its own state, not an alias of another', () => {
+    for (const [flag, setter] of [
+      ['graphActed', 'setGraphActed'],
+      ['inventoryActed', 'setInventoryActed'],
+      ['submissionsActed', 'setSubmissionsActed'],
+    ] as const) {
+      expect(source, `${flag} is not its own useState`).toContain(
+        `const [${flag}, ${setter}] = useState(false);`,
+      );
+    }
   });
 
   it('each save consults its OWN gate, and all three are gated', () => {
@@ -912,7 +952,10 @@ describe('the suppression wiring is present in App.tsx', () => {
    * why_new says the wiring was pinned not at all.
    *
    * MUTATION PROOF, run: change any of the three gate calls below to pass a
-   * literal instead of the variable and the matching case fails.
+   * literal instead of the variable, or give two gates the same IDENTIFIER,
+   * and the matching case fails. Aliasing two names to one value is NOT caught
+   * here -- it is caught by the declaration test above, because this check
+   * reads names out of the call text and cannot see what they hold.
    */
   it('each gate is handed the real variables, not literals', () => {
     const callsFor = (name: string) => {

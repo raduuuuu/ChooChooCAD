@@ -165,6 +165,23 @@ describe('loadSubmissions drops rows the engine would crash on', () => {
     ],
     ['a non-string brand', { ...base, part: { ...base.part, brand: 42 } }],
     ['an empty id', { ...base, part: { ...base.part, id: '' } }],
+    /*
+     * Guards that had no row at all, found by a full single-line mutation
+     * sweep of `looksLikePart` rather than by reading it. Each of these
+     * survived deletion with all 382 tests green.
+     *
+     * `ends.end` needed its own row because the polarity case above sets
+     * `end: 'peg'`, which is the base value, so only `start` was ever varied.
+     */
+    ['a part that is not an object', { ...base, part: 'not an object' }],
+    ['an unknown kind', { ...base, part: { ...base.part, kind: 'spiral' } }],
+    ['a null dimensions', { ...base, part: { ...base.part, dimensions: null } }],
+    [
+      'a bad END polarity, as opposed to a bad start',
+      { ...base, part: { ...base.part, ends: { start: 'socket', end: 'magnet' } } },
+    ],
+    ['a zero gauge width', { ...base, part: { ...base.part, gaugeWidthMm: 0 } }],
+    ['a non-finite curve radius', { ...base, part: { ...base.part, innerRadiusMm: NaN } }],
   ];
 
   for (const [name, row] of cases) {
@@ -204,15 +221,25 @@ describe('loadSubmissions drops rows the engine would crash on', () => {
    *
    * MUTATION PROOF, run: delete `if (!slop) return false;` and this fails.
    */
-  it('a row with no slop is dropped as a ROW, leaving the others loaded', () => {
-    const bad = { ...base, submissionId: 's2', part: { ...base.part, slop: undefined } };
-    const got = withStore({ [SUBMISSIONS_STORAGE_KEY]: JSON.stringify([base, bad]) }, () =>
-      loadSubmissionsResult(),
-    );
-    expect(got.value.map((x) => x.submissionId)).toEqual(['s1']);
-    expect(got.dropped).toBe(1);
-    expect(got.discarded).toBeUndefined();
-  });
+  /*
+   * MUTATION PROOF, run: delete `if (!slop) return false;` and the slop case
+   * fails; delete only the `!ends ||` sub-clause, leaving the polarity check,
+   * and the ends case fails. Both were green before these two existed.
+   */
+  for (const [name, bad] of [
+    ['no slop', { slop: undefined }],
+    ['no ends', { ends: undefined }],
+  ] as const) {
+    it(`a row with ${name} is dropped as a ROW, leaving the others loaded`, () => {
+      const row = { ...base, submissionId: 's2', part: { ...base.part, ...bad } };
+      const got = withStore({ [SUBMISSIONS_STORAGE_KEY]: JSON.stringify([base, row]) }, () =>
+        loadSubmissionsResult(),
+      );
+      expect(got.value.map((x) => x.submissionId)).toEqual(['s1']);
+      expect(got.dropped).toBe(1);
+      expect(got.discarded).toBeUndefined();
+    });
+  }
 });
 
 /**

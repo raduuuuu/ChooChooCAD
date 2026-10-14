@@ -431,7 +431,12 @@ export function savesSuppressed(state: {
   /** This store's loss notice, or undefined when it loaded cleanly. */
   readonly notice: string | undefined;
   readonly dismissed: boolean;
-  /** Any deliberate user action this session. */
+  /**
+   * THIS store's acknowledgement, never a global flag. One flag feeding all
+   * three gates is the bug the per-store rule above exists to prevent: a graph
+   * edit then released the submissions write and destroyed a caliper
+   * measurement that has no rescue copy.
+   */
   readonly userHasActed: boolean;
   /**
    * Graph only: the refused bytes could NOT be copied aside, so overwriting

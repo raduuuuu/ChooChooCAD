@@ -23,3 +23,17 @@
 //                     analytic.test.ts:341. CYCLE_RANK_CEILING 20 -> 3 went
 //                     GREEN, which is how eng finding E13 got its value-pin
 //                     half.
+
+## Source-text dependencies must be added by hand
+
+The dependency map is derived from the import graph, which cannot see a test
+that reads a source file as TEXT. Two do: `layoutStore.test.ts` reads
+`App.tsx` and `repro.test.ts` reads `ErrorBoundary.tsx`, both to assert
+wiring that needs a DOM to exercise and therefore cannot be asserted any other
+way in this suite.
+
+Those lanes were empty, with the justification that React components are not
+reachable from a node-environment suite. That stopped being true the moment
+those tests were written: an App.tsx-only edit selected ZERO tests while
+App.tsx held the only assertions pinning the per-store save gating. Added by
+hand. If you add another source-text test, add its lane here too.

@@ -147,6 +147,11 @@ console.log('inventory', inventory);
 // failed, which is the case this key exists for, so the bytes are the
 // payload. The guarded parse above already reports a failure separately.
 console.log('refused bytes from an earlier load', rescuedRaw);
+// And the parsed form when the bytes DID parse, which is the useful shape for
+// reading a layout. It also keeps that local read: an unused one would trip
+// noUnusedLocals in the editor of anyone who saves this file where the header
+// above tells them to put it.
+if (rescued !== null) console.log('refused layout, parsed', rescued);
 
 // The submissions may parse and still be the wrong shape, and resolveLibrary
 // dereferences each row. A bad row must not stop this file solving the graph:

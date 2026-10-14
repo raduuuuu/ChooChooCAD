@@ -9,8 +9,12 @@
     ".gstack/**": [],
     "app/index.html": [],
     "app/src/*.css": [],
-    "app/src/App.tsx": [],
-    "app/src/ErrorBoundary.tsx": [],
+    "app/src/App.tsx": [
+      "app/src/layoutStore.test.ts"
+    ],
+    "app/src/ErrorBoundary.tsx": [
+      "app/src/repro.test.ts"
+    ],
     "app/src/Inventory.tsx": [],
     "app/src/SubmitPart.tsx": [],
     "app/src/TrackCanvas.tsx": [],
