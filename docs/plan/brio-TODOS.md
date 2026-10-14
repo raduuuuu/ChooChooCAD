@@ -1,7 +1,8 @@
 # TODOS — BRIO Track Designer
 
-Created 2026-10-06 by /plan-ceo-review. No repo exists yet; move this file to
-the project root as TODOS.md when the repo is created.
+Created 2026-10-06 by /plan-ceo-review. The repo exists now
+(`raduuuuu/brio-designer`, private); this is the exported copy that lives in
+the tree, and `docs/plan/README.md` says where the canonical one is.
 
 ## P2 — Community custom-part registry
 
@@ -305,7 +306,10 @@ borrowing a substantial amount of real BRIO track.
 
 ## Accepted residual risks of the 2026-10-07 reduction
 
-1. **No automated regression gate.** The 21 tests run only when someone
+1. **No automated regression gate.** CLOSED 2026-10-14 by task X1b: CI now
+   runs typecheck, tests and build on every push. Left in place because the
+   accepted-risk record should show what was accepted, not be rewritten.
+   As originally written: the 21 tests run only when someone
    remembers. A solver regression ships silently until the next manual run.
 2. **The engine has never met real track.** W1 replaced a guess with a
    derivation from two agreeing published sources, which is better evidence but
@@ -723,7 +727,7 @@ rather than implying the split is making the file smaller: so far it has not.
 **UPDATED 2026-10-14:** editor state is OUT, extracted by task T4 into
 `app/src/editorReducer.ts` with 15 tests. That was the piece the Context note
 below carved out, so this entry is correctly still open for the other four.
-Persistence is the next clearest boundary and `layoutStore.ts` now has 41 tests
+Persistence is the next clearest boundary and `layoutStore.ts` now has 54 tests
 of its own, which makes moving its wiring out of `App.tsx` cheaper than it was.
 
 **Pros:** Each extracted piece becomes testable with no DOM, which is how
@@ -1037,3 +1041,186 @@ divergence it exists for.
 **Effort:** human ~2d / CC ~3h across all six groups. **Priority:** P2.
 **Depends on / blocked by:** B waits on U5's intent for `breakWeld`; the
 `analytic.test.ts` half of C is K2's job.
+
+## P0 — A recovered orphan can be placed inside a surviving run, which manufactures a false "can't be built" (filed by /ship, 2026-10-14)
+
+**What:** `layoutStore.loadGraph` re-anchors pieces whose stored anchor was
+unreadable into free "lanes" along `zeta^4`. The occupancy check de-duplicates
+ROOT ANCHOR POINTS only. A run that marches along the lane axis occupies lanes
+its root does not name, so an orphan can be dropped into the middle of it.
+
+**Measured at `a95408d`:** two 216mm straights (`D`) welded into a run anchored
+at the identity with `heading: 4`, plus one orphan, yields
+`MANUFACTURED CLASHES = 1` at `[1.3226185430791415e-14, 216]`. p0 spans lane 0
+to lane 1 and p1 spans lane 1 to lane 2; p1's root is at lane 1 but only roots
+are anchored, so `taken` does not contain it. The orphan takes lane 1 and lands
+on p1's already-welded port 0. A welded end is spoken for, so
+`findVertexClashes` pushes it straight to `clashes` rather than excusing it the
+way it excuses two free ends meeting. `viewOf` then returns IMPOSSIBLE and the
+verdict reads "Can't be built" about a layout the user built correctly.
+
+**Why it matters more than a wrong position:** the notice says part of your
+track may be in the wrong place. It never says the verdict below it is wrong.
+The twenty-line comment at the lane search argues explicitly that a visible
+wrong position beats an invisible wrong verdict — and then produces the wrong
+verdict anyway. The product's only output is a trustworthy verdict.
+
+**Fix:** place each orphan past the BOUNDING BOX of everything already placed,
+not past occupied root points. `layoutModel.nextRunAnchor` already does this
+correctly for the in-app path, computing clearance from `maxY - minY`; the
+loader uses a strictly weaker rule for the same decision because it has part
+ids but no port geometry. Either thread a `PortsOf` into `loadGraph`, or return
+the orphan ids and let `App.tsx` place them through `nextRunAnchor`. The second
+is cleaner: the resolver already lives there.
+
+**Regression pin:** `app/src/layoutStore.test.ts`, `describe.skip('an orphan
+lane clears a survivor RUN, not just its anchor')`. Both cases fail when
+un-skipped — 1 clash instead of 0, and lane 1 instead of lane 3. Do not delete
+it to make the suite green.
+
+**Why deferred rather than fixed in the ship:** this is the THIRD attempt at
+this one bug. The first shipped `anchorMap.size + k + 1`, which counted
+survivors; the second shipped the root-point `taken` set, which is this. Both
+were written under ship pressure and both were wrong. The correctness argument
+runs through lattice projections and the fix changes a module signature.
+
+**Effort:** human ~3h / CC ~40m. **Priority:** P0.
+**Depends on / blocked by:** nothing.
+
+## P1 — `solveGraph` computes a second placement instead of accepting the one App.tsx already made (filed by /ship, 2026-10-14)
+
+**What:** `App.tsx` builds `placement = placeAll(graph, ports)` and passes it to
+`renderGraph`. `solveGraph` does not take it — `solve.ts:85` calls
+`placeAll(graph, ports)` itself. So the canvas draws from placement A and the
+verdict, including `findVertexClashes` whose `at` coordinates `TrackCanvas`
+draws markers at, is computed from placement B.
+
+**Why it matters:** they agree today only because `placeAll` is pure and
+deterministic. Nothing enforces it, and `placeAll` takes an `anchors` third
+parameter defaulting to `graph.anchors`. The moment any caller passes explicit
+anchors to one and not the other, the clash markers land somewhere the drawing
+never drew, and the two modules disagree about where a piece is — which is the
+exact failure T4's single forest was built to make impossible. It also repeats
+the forest and placement work on every edit, plus twice more per delete in
+`captureAnchors`.
+
+**Fix:** `solveGraph(graph, ports, resolve, slop, placement)` — accept it, do
+not derive it. `App.tsx`'s comment then becomes true by construction rather
+than by convention; it currently says so and is wrong, which is corrected in
+place at `cc89914` pending this.
+
+**Effort:** human ~1h / CC ~15m. **Priority:** P1.
+**Depends on / blocked by:** nothing.
+
+## P1 — Nothing bounds a layout's size, and the clash scan is quadratic in ports, so a large stored layout hangs render uncatchably (filed by /ship, 2026-10-14)
+
+**What:** `loadGraph` validates every field's type and never bounds
+`pieces.length` or `welds.length`. `findVertexClashes` compares all pairs of
+ports. Measured on an open run (rank 0, so this is NOT the cycle-enumeration
+P0):
+
+```
+   100 pieces     200 ports   solveGraph      5 ms   blob    9 KiB
+   500 pieces    1000 ports   solveGraph     27 ms   blob   48 KiB
+  1000 pieces    2000 ports   solveGraph     66 ms   blob   95 KiB
+  2000 pieces    4000 ports   solveGraph    267 ms   blob  194 KiB
+  4000 pieces    8000 ports   solveGraph   1148 ms   blob  391 KiB
+  8000 pieces   16000 ports   solveGraph   4702 ms   blob  786 KiB
+```
+
+Clean quadratic. A ~5MB `localStorage` budget holds roughly 50,000 pieces,
+which is about 5x10^9 pairs, on the order of minutes per render, doubled by
+StrictMode in development.
+
+**Why it is worse than slow:** it is a HANG, not a throw.
+`getDerivedStateFromError` never fires, so the crash screen never paints and
+the "Clear saved data" button is unreachable — permanently, on every reload.
+Every other failure in this app has an escape; this one does not.
+
+**Fix:** two halves. The cheap half is a hard piece/weld cap in `loadGraph`,
+refusing the whole layout above it, which turns an unrecoverable hang into a
+recoverable refusal with a notice and a rescue copy. The real half is the
+spatial grid `graph/feasible.ts:115-123` already describes, keyed on the exact
+lattice position and never on a tolerance. That same comment names the limit —
+"Upgrade when a layout exceeds roughly 500 ports" — and nothing enforces it.
+The cap value is a product decision: 500 ports is about 250 pieces, which may
+be below what someone with a big floor actually builds.
+
+**Effort:** human ~1d / CC ~2h. **Priority:** P1 (the cap alone is ~20m).
+**Depends on / blocked by:** the cap value needs an owner's call.
+
+## P1 — The three save functions swallow every failure, including the one the code says must be surfaced (filed by /ship, 2026-10-14)
+
+**What:** `saveGraph`, `saveInventory` and `saveSubmissions` each wrap
+`localStorage.setItem` in an empty `catch`. Private browsing and a full quota
+both throw. The app then silently stops persisting anything, for the rest of
+the session, with no notice.
+
+`library.ts:193-196` is explicit that this is not acceptable for one of them:
+"unlike the chain this IS data the user cannot trivially recreate, so the
+caller should surface a failure." `saveSubmissions` returns `void`, so the
+caller cannot. The obligation is unmeetable as typed.
+
+**Compounding:** `loadGraph.rescue()` copies the full refused blob to a second
+key. A 2.5MB bad graph plus its 2.5MB rescue copy sits at the ~5MB origin
+budget, after which all three saves start throwing. The safety net can consume
+the budget of the thing it protects.
+
+**Fix:** have the three save functions return whether they succeeded, surface a
+failure for the submissions at minimum, and cap or evict the rescue copy rather
+than letting it compete for the live budget.
+
+**Effort:** human ~2h / CC ~30m. **Priority:** P1.
+**Depends on / blocked by:** nothing.
+
+## P2 — `dimensions.status` is a self-asserted claim, which blocks sharing (filed by /ship, 2026-10-14)
+
+**What:** `looksLikePart` now validates that `dimensions.status` is a KNOWN
+value, and `trustRank` fails closed on unknown ones. Neither checks that the
+claim is EARNED. A stored row asserting `status: 'user-measured'` outranks
+`published` by design — rank 0 beats rank 1 — which is correct and deliberate
+while storage is local: a user who measures their own parts with calipers
+SHOULD outrank a catalogue figure, and `trustBoundary.test.ts` pins exactly
+that as desired behaviour.
+
+**Why it is still filed:** `library.ts:28-33` records sharing as the documented
+next step and calls turning it on "a transport change". It is not. The schema
+has no way to distinguish "I measured this" from "someone claims they measured
+this", so the moment a submission can arrive from another user, rank 0 is an
+open door. `at` is attacker-supplied too and compared as a string, so
+`at: "9999-01-01"` wins every same-rank tie permanently.
+
+**Fix (before any sharing, not now):** re-derive `user-measured` locally from a
+device-local marker written at submit time and never read from the blob, and
+make `at` server-stamped rather than trusted.
+
+**Effort:** human ~1d design / CC ~2h. **Priority:** P2, but a HARD BLOCKER on
+the sharing feature.
+**Depends on / blocked by:** blocks the backend/publish work above.
+
+## P2 — Documentation: README.md denies most of what this release shipped (filed by /ship's docs audit, 2026-10-14)
+
+**What:** the docs audit returned `blocked`. It made four factual corrections
+(test count, `bun run typecheck`, the split U7a/U7b reference, the third
+exported plan copy) and refused the rest as owner territory. `README.md`
+contradicts shipped code in eight places: "Single cycle only", "Switches …
+Not here", "No inventory … no library", "No drag-and-drop. Pieces append and
+remove from the end of the chain", and "the overlap check is specified and
+unbuilt". All of those now exist.
+
+**Also:** `README.md` calls `tokens.css` "PROVISIONAL" with "a researched
+design system … separate work", while `DESIGN.md` says it IS the design system
+and commit `d7238cb` is titled "stop telling people to throw it away". One of
+the two states the project's position; which one is the owner's call. `README`
+line 89 says "There are no per-joint glyphs" while its own Layout tree still
+lists "four-channel joint glyphs". The Layout tree predates the graph rewrite
+and omits about 25 modules. And `DESIGN.md` plus all of `docs/plan/` are
+reachable from neither entry point, so the only explanation-quadrant docs for
+this release cannot be found.
+
+**Fix:** `/document-generate` for the README rewrite and the missing how-to
+coverage. Not a ship job: it rewrites the introduction, "The UI" and the whole
+"What this MVP does NOT do" section.
+
+**Effort:** human ~3h / CC ~45m. **Priority:** P2.
+**Depends on / blocked by:** nothing.

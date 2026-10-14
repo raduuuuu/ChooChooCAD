@@ -112,8 +112,9 @@ calculation inherits the error. The angular lever needs plank width, which is no
 recorded as a published 40mm (see above; this sentence previously said it "is not
 the gauge and is currently not recorded anywhere", and both halves were wrong:
 it WAS the 40mm, recorded under the name gaugeWidthMm). What remains unmeasured
-is the SLOP, which
-is not the gauge and is currently not recorded anywhere.
+is the SLOP: `engine/data/brio.ts` records it as `ESTIMATED_SLOP`, 0.8mm axial
+and 1.5 degrees angular, with `calibrationStatus: 'estimated'` saying in the
+data itself that nobody has measured it. It is recorded, and it is a guess.
 
 ## Q4 — Is the ascending track's 216mm the run or the plank?
 
@@ -139,7 +140,11 @@ fit through what is left.
 
 - [ ] Ramp rise: floor to railhead at the top of the ascending
       track (#33332) ..................................... ______ mm
-- [ ] Plank thickness, from Q3 above ..................... ______ mm
+- [x] Plank thickness, from Q3 above .....................  12 mm
+      (PUBLISHED, not measured. Q3 closed this one without calipers, and the
+      worked figure below already uses it. Re-measure it if you are checking
+      the margin for real: a published figure and your own planks are not the
+      same claim.)
 - [ ] Tallest vehicle you care about, wheels to roof ..... ______ mm
       (measure the tallest one you actually own, not the catalogue)
 
