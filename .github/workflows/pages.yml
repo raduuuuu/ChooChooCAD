@@ -1,0 +1,60 @@
+# Publish the built app to GitHub Pages at woodentrain.world.
+#
+# The app is a static SPA with no backend and no network calls of any kind, so
+# "deploy" is literally: build, upload `app/dist`, serve it. 372 KB.
+#
+# WHY THIS IS SEPARATE FROM ci.yml. CI gates the branch: typecheck, tests,
+# build, on every push. This one publishes, and only from `main`. Keeping them
+# apart means a red test run cannot be mistaken for a failed deploy, and a
+# deploy cannot be mistaken for a passing gate. `needs: gate` makes the
+# dependency explicit rather than implied by job order.
+#
+# The CNAME file lives in `app/public/` rather than being set only in the Pages
+# settings, so the custom domain survives a redeploy and is visible in the repo
+# instead of hiding in a web form.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# The deploy job needs these; the gate job does not. Scoped per job below.
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    # Publishing an app whose tests have not run is how a broken build reaches
+    # a real URL. ci.yml runs the same three commands on every push; this
+    # repeats them here so the deploy cannot outrun them.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run test
+      - run: bun run build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: app/dist
+
+  deploy:
+    needs: gate
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

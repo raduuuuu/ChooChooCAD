@@ -48,7 +48,13 @@
  * devDependencies so the files are reproducible from the lockfile rather than
  * being opaque binaries committed to the repo. IBM Plex is SIL Open Font License
  * 1.1; each package carries its LICENSE, and the OFL requires that licence to
- * travel with the files wherever this is published.
+ * travel with the files wherever this is published. Until the first deploy it
+ * did not: `app/dist` held the four woff2 files and no notice. Both notices now
+ * ship from `app/public/fonts/`, which vite copies into the build, and they are
+ * served at /fonts/IBM-Plex-Sans-OFL.txt and /fonts/IBM-Plex-Mono-OFL.txt. They
+ * are NOT the same text -- Sans is 2019 and Mono is 2017, with different
+ * per-file copyright lines -- so both are shipped rather than one standing in
+ * for the other.
  */
 @font-face {
   font-family: 'IBM Plex Sans';
