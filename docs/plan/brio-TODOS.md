@@ -941,3 +941,99 @@ Un-skip it to start.
 **Depends on / blocked by:** nothing. Deferred from the 2026-10-14 ship by owner
 decision D5, to keep a core-engine algorithm change out of a PR already carrying six
 critical fixes.
+
+## P2 — The review backlog: findings that need judgement, not a keystroke (filed by /ship, 2026-10-14)
+
+The /ship pre-landing review ran six specialists over this branch. Seven criticals
+were fixed in the ship itself and the mechanical findings folded into one commit.
+These are the rest: real, evidenced, and each needing a decision rather than an
+edit. Grouped so one sitting can close a group.
+
+**A. Duplicated constants with no owner.** The same failure shape the project has
+already shipped: a value retyped in two places with a comment claiming the other
+enforces it.
+- `BRAND_LABEL` is byte-identical in `App.tsx` and `SubmitPart.tsx`, and the brand
+  list is duplicated as `BRAND_ORDER` / `BRANDS` with the same six members in the
+  same order. Adding a brand is a compile error in both; RENAMING one's label
+  silently diverges the palette heading from the form's dropdown.
+- The BRIO profile (40 / 12 / 26 / 6) exists three times: named but unexported in
+  `brio.ts`, as bare literals on every `thirdParty.ts` seed, and again as
+  `PROFILE_DEFAULTS` in `SubmitPart.tsx`. The slop budget is duplicated the same
+  way (`ESTIMATED_SLOP`, `UNMEASURED_SLOP`, an inline literal). A corrected
+  measurement has to be applied in three files and nothing fails if one is missed
+  -- which is exactly how `gaugeWidthMm` held the plank width for three days.
+  **Needs:** a decision on where shared data constants live. `schema.ts` owns
+  `Brand`; `brio.ts` owns the figures.
+
+**B. Dead exports, and one test keeping a function alive.** `walkFloat`, `bounds`,
+`nominalFinalHeading` (`geom/fk.ts`), `breakWeld` (`layoutModel.ts`), `VEHICLE`
+(`brio.ts`), `IKEA_CONNECTOR` (`thirdParty.ts`), `KNOWN_ABSENT`,
+`SWITCH_GEOMETRY_ABSENT`, `STRAIGHT_CITATION`, `CURVE_ARC_CITATION` (`sources.ts`),
+`INITIAL_SELECTION` (`editorReducer.ts`), `weldsTouching` (`graph/edit.ts`),
+`presetLayout` (`presets.ts`). **Check U5 before deleting `breakWeld`:** it is in
+U5's file list, so U5 may be about to give it its first caller. `graphEdit.test.ts`
+guards `removeWeld` at the engine boundary and should stay regardless.
+**Needs:** `/test-audit`, and the U5 question answered first.
+
+**C. Tests pinned to paths the user no longer takes.**
+- `presets.test.ts` solves through `solveLayout(presetLayout(...))`, the CHAIN
+  engine the app no longer calls. The app builds a preset through `editorReducer`
+  and judges it with `solveGraph`/`viewOf`, so a regression in the reducer's preset
+  wiring leaves the pin green. `presetLayout` exists only to feed it.
+- Only the blank-canvas preset is solver-checked. Stadium's `note: 'exact'` and
+  Near miss's `'72mm short'` are rendered as button titles and never verified.
+  Measured today: Stadium closes exactly, Near miss is 72mm. Both true, both would
+  silently become lies.
+- `graphFeasible.test.ts` asserts `clashes(g).length > 0` where the chain engine's
+  equivalent pins exact counts and pairs. Measured: 8L+8R returns exactly 1 clash
+  at [0,0]; two stacked A pieces 2; the open 16-run 9.
+- `analytic.test.ts` holds published figures as test-local literals (`OUTER = 222`,
+  the 40/12/26 profile) that exist in `sources.ts` only inside free-text
+  `conflict.note` strings, where no test can read them. K2 is the task that fixes
+  this properly.
+- `cycles.test.ts` asserts wall-clock `< 250ms`, which on a shared CI runner turns
+  a correct refusal into a red build. The structural assertions beside it already
+  prove the behaviour.
+
+**D. Input validation: bounds, not just types.** `loadGraph` checks shapes but no
+magnitudes. A weld port passes on `typeof === 'number'`, so `NaN`, `-1`, `2.5` and
+`1e9` are written into the accepted graph and `portFrame` throws on the next solve
+-- the loader declares a blob valid and the app crashes to the boundary on every
+load. `pieceId` has no length or charset bound (this is what made the repro
+injection reachable), and `Number.isInteger(1e300)` is true so an anchor can sit
+1e300 lattice units away. Welds are also spread (`{ ...a }`), carrying unknown
+attacker-chosen properties into saved state. **Same class as E9**, which this ship
+fixed for `heading` only.
+
+**E. Design and accessibility, needing layout work.**
+- `.inventory-row` is a 6-column grid with three `nowrap` columns inside a
+  `minmax(260px, 1fr)` track, so its min-content exceeds its area and the refusal
+  message -- the visible half of the guard against a discarded inventory -- is
+  clipped and painted over by the next row.
+- No `<h1>` in the application document; the editor jumps straight to `<h2>`.
+- `.port:focus-visible` and `.port.is-armed` have equal specificity, so a port
+  armed from the KEYBOARD composes into the heavy ink disc task W3 removed. Mouse
+  users are unaffected, which is why it survived.
+- `SubmitPart` refuses a number with no message at all: `parseMm` returns null for
+  `12,5` (a European decimal comma) and the only signal is a disabled button at
+  0.4 opacity, about 2.37:1. The inventory panel solves the same problem properly
+  one file over.
+- At >=1000px `.notice` has a column span but no row, so the data-loss notice
+  renders at the BOTTOM of the screen under the palette; `.shortfall` is not in the
+  span list at all.
+- The inventory count field is 32px until `pointer: coarse`, while DESIGN.md rule
+  10 holds 44px unconditionally on data entry and `.submit-field input` does.
+
+**F. One engine duplication.** `solveGraph` recomputes `placeAll` even though
+`App.tsx` already memoized that exact placement and passed it to `renderGraph`, so
+the drawing and the verdict build two separate forests and agree only because
+`spanningForest` is deterministic -- the property `forest.ts` says it exists to
+guarantee by construction. ~0.6ms at 160 pieces, so this is correctness-shaped, not
+speed-shaped. Also `differential.test.ts` re-implements the UI's verdict precedence
+and gets it BACKWARDS (returns `reason` before checking clashes, where `viewOf`
+promotes IMPOSSIBLE), so the harness the file calls "the gate" cannot see the
+divergence it exists for.
+
+**Effort:** human ~2d / CC ~3h across all six groups. **Priority:** P2.
+**Depends on / blocked by:** B waits on U5's intent for `breakWeld`; the
+`analytic.test.ts` half of C is K2's job.
