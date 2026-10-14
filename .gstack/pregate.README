@@ -32,8 +32,17 @@ that reads a source file as TEXT. Two do: `layoutStore.test.ts` reads
 wiring that needs a DOM to exercise and therefore cannot be asserted any other
 way in this suite.
 
-Those lanes were empty, with the justification that React components are not
+There is also a WHOLE-TREE scan. `repro.test.ts`'s "storage keys have one
+owner each" walks every non-test .ts/.tsx under app/ and engine/ and asserts
+no localStorage call passes a string literal. It is deliberately a scan rather
+than a hand-kept list, so a new module is covered the moment it is written --
+which means `repro.test.ts` depends on EVERY source file and is mapped to all
+of them.
+
+These lanes were empty, with the justification that React components are not
 reachable from a node-environment suite. That stopped being true the moment
-those tests were written: an App.tsx-only edit selected ZERO tests while
-App.tsx held the only assertions pinning the per-store save gating. Added by
-hand. If you add another source-text test, add its lane here too.
+these tests were written: an App.tsx-only edit selected ZERO tests while
+App.tsx held the only assertions pinning the per-store save gating, and an
+Inventory.tsx edit could add a literal storage key without selecting the test
+that forbids it. Added by hand, because no import walk can see a readFileSync
+or a readdirSync. If you add another source-text test, add its lanes here too.

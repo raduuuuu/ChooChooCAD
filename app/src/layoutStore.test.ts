@@ -885,7 +885,7 @@ describe('the suppression wiring is present in App.tsx', () => {
    * sat immediately before their store setters, which catches a foreign flag
    * placed BEFORE and misses one placed after. MEASURED: appending
    * `setInventoryActed(true);` after `setSubmissions(...)` inside the submit
-   * callback left all 382 tests green -- a cross-store release, which is
+   * callback left the whole suite green -- a cross-store release, which is
    * verbatim the bug this whole describe exists to prevent.
    */
   it('a submission and an inventory change acknowledge only themselves', () => {
@@ -895,12 +895,24 @@ describe('the suppression wiring is present in App.tsx', () => {
       return source.slice(at, source.indexOf('}}', at));
     };
 
+    /*
+     * EACH SLICE IS ANCHORED AT BOTH ENDS. `indexOf('}}')` undershoots on any
+     * nested `}}` inside the callback -- MEASURED: writing
+     * `setSubmissions((prev) => [...prev, { ...sub, meta: { ok: true }}]);`
+     * followed by a foreign setter left all 68 tests green, because every
+     * `not.toContain` after the truncation point went vacuous while the
+     * positive assertion still matched the callback's first line. Asserting
+     * the slice reaches its real last statement makes a short slice fail
+     * loudly instead of silently.
+     */
     const submit = slice('onSubmit={(sub) => {');
+    expect(submit, 'submit slice truncated').toContain('setSubmitOpen(false)');
     expect(submit).toContain('setSubmissionsActed(true)');
     expect(submit).not.toContain('setGraphActed');
     expect(submit).not.toContain('setInventoryActed');
 
     const invChange = slice('onChange={(next) => {');
+    expect(invChange, 'inventory slice truncated').toContain('setInventory(next)');
     expect(invChange).toContain('setInventoryActed(true)');
     expect(invChange).not.toContain('setGraphActed');
     expect(invChange).not.toContain('setSubmissionsActed');
@@ -913,8 +925,8 @@ describe('the suppression wiring is present in App.tsx', () => {
    * THREE FLAGS, THREE DECLARATIONS. The distinctness check below reads the
    * identifier NAMES out of the gate calls, so it cannot see two names holding
    * one value. MEASURED: replacing `const [inventoryActed, setInventoryActed]
-   * = useState(false)` with `const inventoryActed = graphActed;` left all 382
-   * green -- a regression to one effective flag under three names would ship.
+   * = useState(false)` with `const inventoryActed = graphActed;` left the
+   * whole suite green -- a regression to one effective flag under three names would ship.
    */
   it('each flag is its own state, not an alias of another', () => {
     for (const [flag, setter] of [

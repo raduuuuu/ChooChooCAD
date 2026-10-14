@@ -168,14 +168,12 @@ describe('loadSubmissions drops rows the engine would crash on', () => {
     /*
      * Guards that had no row at all, found by a full single-line mutation
      * sweep of `looksLikePart` rather than by reading it. Each of these
-     * survived deletion with all 382 tests green.
+     * survived deletion with the whole suite green.
      *
      * `ends.end` needed its own row because the polarity case above sets
      * `end: 'peg'`, which is the base value, so only `start` was ever varied.
      */
-    ['a part that is not an object', { ...base, part: 'not an object' }],
     ['an unknown kind', { ...base, part: { ...base.part, kind: 'spiral' } }],
-    ['a null dimensions', { ...base, part: { ...base.part, dimensions: null } }],
     [
       'a bad END polarity, as opposed to a bad start',
       { ...base, part: { ...base.part, ends: { start: 'socket', end: 'magnet' } } },
@@ -229,9 +227,30 @@ describe('loadSubmissions drops rows the engine would crash on', () => {
   for (const [name, bad] of [
     ['no slop', { slop: undefined }],
     ['no ends', { ends: undefined }],
+    /*
+     * THESE TWO WERE VACUOUS as plain matrix rows, which a review caught by
+     * running the mutations the comment above claimed. Deleting either guard
+     * left all 390 tests green:
+     *
+     * - `part: 'not an object'` is dropped one line later by the id guard,
+     *   because `('not an object').id` is undefined. Changed to `null`, which
+     *   THROWS on `.id` once the object guard is gone.
+     * - `dimensions: null` makes `dims.status` throw, and the outer catch turns
+     *   that into a whole-blob refusal. `toHaveLength(0)` is satisfied by both
+     *   a dropped row and a destroyed blob, so it could not tell them apart.
+     *
+     * The row form can: it asserts the OTHER row survives. That is the
+     * difference between losing one unreadable submission and losing every
+     * caliper measurement the user has.
+     */
+    ['a null part', { __replace: null }],
+    ['null dimensions', { dimensions: null }],
   ] as const) {
     it(`a row with ${name} is dropped as a ROW, leaving the others loaded`, () => {
-      const row = { ...base, submissionId: 's2', part: { ...base.part, ...bad } };
+      const row =
+        '__replace' in bad
+          ? { ...base, submissionId: 's2', part: (bad as { __replace: unknown }).__replace }
+          : { ...base, submissionId: 's2', part: { ...base.part, ...bad } };
       const got = withStore({ [SUBMISSIONS_STORAGE_KEY]: JSON.stringify([base, row]) }, () =>
         loadSubmissionsResult(),
       );
