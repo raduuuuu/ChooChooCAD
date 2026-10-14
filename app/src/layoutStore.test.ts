@@ -400,3 +400,132 @@ describe('E9: the anchor-rejection matrix', () => {
     expect(r.value.pieces).toHaveLength(2);
   });
 });
+
+/**
+ * A stored weld's PORT INDEX is validated, not assumed (finding B1).
+ *
+ * Value: protects=a port index the part does not have is refused at load,
+ * with a notice and a rescue copy, instead of being accepted and then
+ * throwing inside render on every reload
+ * Value: fails_when=the port check goes back to `typeof === 'number'`, or
+ * App.tsx stops handing the loader port counts
+ * Value: why_new=nothing reached this branch; every stored weld in the suite
+ * carried a port the part actually has
+ * Value: seam=none
+ * Value: no_claim=nothing about a weld whose two ends are both in range but
+ * geometrically impossible; that is the solver's job, not the loader's
+ *
+ * EVERY CASE HERE REPRODUCES A MEASURED FAILURE. Before the fix, ports 2, 7,
+ * -1 and 2.5 on the two-port straight D were all ACCEPTED with
+ * `discarded: undefined`, `droppedAnchors: 0` and no rescue copy written, and
+ * all four then threw `TypeError: Cannot read properties of undefined
+ * (reading 'at')` out of `placeAll` and `renderGraph`. Because the loader
+ * never touched `GRAPH_STORAGE_KEY`, every reload reproduced it, and the only
+ * escape the crash screen offers also deletes the inventory and the
+ * submissions.
+ */
+describe('a stored weld cannot name a port the part does not have', () => {
+  /** Port counts, the way App.tsx supplies them. */
+  const portCount = (partId: string, turn?: 'left' | 'right') =>
+    portsOf(resolve(partId), turn).length;
+  const loadWithCounts = (seed: Record<string, string>) =>
+    withStore(seed, () => loadGraph(KNOWN, portCount));
+
+  const twoPieces = (port: unknown) => ({
+    pieces: [
+      { pieceId: 'p0', partId: 'D' },
+      { pieceId: 'p1', partId: 'D' },
+    ],
+    welds: [{ a: { pieceId: 'p0', port }, b: { pieceId: 'p1', port: 0 } }],
+    anchors: [],
+  });
+
+  /*
+   * MUTATION PROOF, run.
+   *
+   * Restore `typeof v === 'number'` as the only check: 7 tests fail -- all
+   * five refusal cases, the count-driven case, and the no-port-counts case.
+   *
+   * Drop ONLY the `v < portCountOf(...)` clause and keep the integer and
+   * non-negative checks: 4 fail -- the three in-range integers (2, 7, 1e9)
+   * plus the count-driven case, while -1 and 2.5 still refuse. That is why
+   * both halves are here: the integer floor and the count bound catch
+   * different inputs, and either one alone leaves a hole.
+   */
+  for (const port of [2, 7, 1e9, -1, 2.5]) {
+    it(`refuses the whole layout for port ${port}, and rescues the bytes`, () => {
+      const r = loadWithCounts(blob(twoPieces(port)));
+      expect(r.discarded).toBeTypeOf('string');
+      expect(r.value.pieces).toHaveLength(0);
+      expect(r.value.welds).toHaveLength(0);
+      expect(r.rescued).toBe(true);
+    });
+  }
+
+  it('still accepts the ports the part really has, so this is not a blanket refusal', () => {
+    for (const port of [0, 1]) {
+      const r = loadWithCounts(blob(twoPieces(port)));
+      expect(r.discarded).toBeUndefined();
+      expect(r.value.welds).toHaveLength(1);
+      expect(r.value.welds[0]!.a.port).toBe(port);
+    }
+  });
+
+  /*
+   * THE CHECK IS COUNT-DRIVEN, not hardcoded to two. No switch is seeded in
+   * the library yet (`model.ts:8` says so), so the three-port case is proved
+   * with a port count that reports three: port 2 is accepted for that part and
+   * refused for the two-port straight beside it, in the same layout.
+   */
+  it('port 2 is accepted on a three-port part and refused on a two-port one', () => {
+    const asIfSwitch = (partId: string, turn?: 'left' | 'right') =>
+      partId === 'D' ? 3 : portsOf(resolve(partId), turn).length;
+    const layout = (port: number) =>
+      blob({
+        pieces: [
+          { pieceId: 'p0', partId: 'D' },
+          { pieceId: 'p1', partId: 'D' },
+        ],
+        welds: [{ a: { pieceId: 'p0', port }, b: { pieceId: 'p1', port: 0 } }],
+        anchors: [],
+      });
+    expect(withStore(layout(2), () => loadGraph(KNOWN, asIfSwitch)).discarded).toBeUndefined();
+    expect(withStore(layout(2), () => loadGraph(KNOWN, portCount)).discarded).toBeTypeOf('string');
+    // Three ports still does not mean four.
+    expect(withStore(layout(3), () => loadGraph(KNOWN, asIfSwitch)).discarded).toBeTypeOf('string');
+  });
+
+  /*
+   * The accepted graph carries the two fields a weld end IS and nothing else.
+   * The old code spread the stored object, so an accepted graph could hold
+   * keys the validator never looked at.
+   */
+  it('drops extra keys the stored weld carried', () => {
+    const r = loadWithCounts(
+      blob({
+        pieces: [
+          { pieceId: 'p0', partId: 'D' },
+          { pieceId: 'p1', partId: 'D' },
+        ],
+        welds: [
+          { a: { pieceId: 'p0', port: 1, smuggled: 'x' }, b: { pieceId: 'p1', port: 0 } },
+        ],
+        anchors: [],
+      }),
+    );
+    expect(r.discarded).toBeUndefined();
+    expect(Object.keys(r.value.welds[0]!.a).sort()).toEqual(['pieceId', 'port']);
+  });
+
+  /*
+   * Without port counts the loader still refuses what it CAN judge. This is
+   * the path the older tests in this file take, and it must not silently
+   * become a no-op.
+   */
+  it('without port counts, a non-integer or negative port is still refused', () => {
+    for (const port of [-1, 2.5, Number.NaN]) {
+      const r = load(blob(twoPieces(port)));
+      expect(r.discarded).toBeTypeOf('string');
+    }
+  });
+});

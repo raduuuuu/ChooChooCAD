@@ -138,7 +138,14 @@ export function App() {
    * and an empty one were indistinguishable and the user watched their work
    * vanish in silence.
    */
-  const [graphLoad] = useState(() => loadGraph(libraryIds));
+  /*
+   * The loader is handed port COUNTS, not just part ids, so a stored weld
+   * naming a port the part does not have is refused at load (finding B1)
+   * rather than throwing inside render on every reload.
+   */
+  const [graphLoad] = useState(() =>
+    loadGraph(libraryIds, (partId, turn) => portsOf(resolve(partId), turn).length),
+  );
   const [inventoryLoad] = useState(() => loadInventory(libraryIds));
 
   /*

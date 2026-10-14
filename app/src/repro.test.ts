@@ -4,7 +4,12 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { SUBMISSIONS_STORAGE_KEY } from '../../engine/data/library.js';
 import { reproText, type ReproInput } from './repro.js';
-import { CHAIN_STORAGE_KEY, INVENTORY_STORAGE_KEY } from './storageKeys.js';
+import {
+  CHAIN_STORAGE_KEY,
+  GRAPH_RESCUE_KEY,
+  GRAPH_STORAGE_KEY,
+  INVENTORY_STORAGE_KEY,
+} from './storageKeys.js';
 
 const base: ReproInput = {
   graph: null,
@@ -104,9 +109,52 @@ describe('storage keys have one owner each', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('the three keys are distinct and namespaced', () => {
-    const keys = [CHAIN_STORAGE_KEY, INVENTORY_STORAGE_KEY, SUBMISSIONS_STORAGE_KEY];
-    expect(new Set(keys).size).toBe(3);
+  /*
+   * THE ONE PLACE A STORAGE-KEY LITERAL BELONGS.
+   *
+   * MUTATION PROOF, run: bump every key's version while keeping the `brio.`
+   * prefix (`brio.graph.v1` -> `brio.graph.v2` and so on) and this is the only
+   * test in the suite that fails. Before it existed, that rename passed all
+   * 333 tests -- measured -- and silently orphaned every saved track, every
+   * declared inventory and every hand-measured submission on every existing
+   * install.
+   *
+   * `inventoryModel.test.ts` used to hold `'brio.inventory.v0'` as a literal.
+   * This branch replaced it with the constant, for single ownership, and in
+   * doing so converted the last real pin in the repo into a circular one: a
+   * test that reads the constant it claims to pin cannot fail when the
+   * constant changes. That is the defect class `storageKeys.ts`'s own docblock
+   * names, and this project has now shipped it five times.
+   *
+   * A key rename is sometimes correct -- it is how you deliberately abandon an
+   * old format. It must never be silent. Changing a value here is the cost of
+   * doing it on purpose.
+   */
+  it('every storage key still has the exact value shipped installs look for', () => {
+    expect({
+      CHAIN_STORAGE_KEY,
+      GRAPH_STORAGE_KEY,
+      GRAPH_RESCUE_KEY,
+      INVENTORY_STORAGE_KEY,
+      SUBMISSIONS_STORAGE_KEY,
+    }).toEqual({
+      CHAIN_STORAGE_KEY: 'brio.chain.v0',
+      GRAPH_STORAGE_KEY: 'brio.graph.v1',
+      GRAPH_RESCUE_KEY: 'brio.graph.v1.rejected',
+      INVENTORY_STORAGE_KEY: 'brio.inventory.v0',
+      SUBMISSIONS_STORAGE_KEY: 'brio.library.submissions.v1',
+    });
+  });
+
+  it('the keys are distinct, and all five are namespaced', () => {
+    const keys = [
+      CHAIN_STORAGE_KEY,
+      GRAPH_STORAGE_KEY,
+      GRAPH_RESCUE_KEY,
+      INVENTORY_STORAGE_KEY,
+      SUBMISSIONS_STORAGE_KEY,
+    ];
+    expect(new Set(keys).size).toBe(5);
     for (const k of keys) expect(k).toMatch(/^brio\./);
   });
 });

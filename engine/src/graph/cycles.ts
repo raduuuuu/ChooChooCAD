@@ -174,8 +174,12 @@ export function analyseCycles(
 
   const giveOfWeld = (index: number): number => {
     const w = graph.welds[index]!;
-    const pa = ports(w.a.pieceId)[w.a.port]!;
-    const pb = ports(w.b.pieceId)[w.b.port]!;
+    // Guarded for the same reason as `placeAll`: a bad index should name the
+    // piece and the port, not fail as a property read on undefined.
+    const pa = ports(w.a.pieceId)[w.a.port];
+    const pb = ports(w.b.pieceId)[w.b.port];
+    if (!pa) throw new Error(`piece ${w.a.pieceId} has no port ${w.a.port}`);
+    if (!pb) throw new Error(`piece ${w.b.pieceId} has no port ${w.b.port}`);
     return weldGiveMm(pa, pb, slop(w.a.pieceId), slop(w.b.pieceId));
   };
 

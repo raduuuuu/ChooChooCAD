@@ -89,8 +89,25 @@ export function placeAll(
     const placedPiece = byId.get(placedSide.pieceId)!;
     const thisPiece = byId.get(thisSide.pieceId)!;
     const placedFrame = frames.get(placedSide.pieceId)!;
-    const target = opposed(compose(placedFrame, ports(placedPiece)[placedSide.port]!.at));
-    frames.set(id, frameForPortAt(ports(thisPiece)[thisSide.port]!.at, target));
+    /*
+     * GUARDED, not asserted. `portFrame` forty lines up validates the same
+     * index and throws a named error; these two sites silenced it with `!`
+     * and produced a raw `TypeError: Cannot read properties of undefined
+     * (reading 'at')` instead. `loadGraph` now refuses an out-of-range port,
+     * so this is the second line of defence rather than the only one -- but
+     * an engine that is handed a bad index should say which piece and which
+     * port, not which property of undefined it tried to read.
+     */
+    const placedLocal = ports(placedPiece)[placedSide.port];
+    const thisLocal = ports(thisPiece)[thisSide.port];
+    if (!placedLocal) {
+      throw new Error(`piece ${placedSide.pieceId} has no port ${placedSide.port}`);
+    }
+    if (!thisLocal) {
+      throw new Error(`piece ${thisSide.pieceId} has no port ${thisSide.port}`);
+    }
+    const target = opposed(compose(placedFrame, placedLocal.at));
+    frames.set(id, frameForPortAt(thisLocal.at, target));
   }
 
   return { frames, forest };

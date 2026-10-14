@@ -104,7 +104,16 @@ function rescue(raw: string): boolean {
   }
 }
 
-export function loadGraph(knownPartIds: ReadonlySet<string>): GraphLoadResult {
+/**
+ * How many ports a part has, once its turn is applied. Optional only so the
+ * tests that predate it keep compiling; App.tsx always passes the real one.
+ */
+export type PortCountOf = (partId: string, turn?: 'left' | 'right') => number;
+
+export function loadGraph(
+  knownPartIds: ReadonlySet<string>,
+  portCountOf?: PortCountOf,
+): GraphLoadResult {
   let raw: string | null = null;
   try {
     raw = localStorage.getItem(GRAPH_STORAGE_KEY);
@@ -163,19 +172,57 @@ export function loadGraph(knownPartIds: ReadonlySet<string>): GraphLoadResult {
     }
 
     const outWelds: Weld[] = [];
+    const turnOf = new Map(out.map((p) => [p.pieceId, p.turn]));
+    /*
+     * A PORT INDEX GETS THE SAME TREATMENT AS A HEADING (finding B1).
+     *
+     * `typeof port === 'number'` was the whole check here, which let every
+     * in-type integer through: `7` on a two-port straight, `-1`, `2.5`,
+     * `1e9`. None of them is repairable and none of them was refused. The
+     * loader reported a clean load -- no `discarded` sentence, no notice,
+     * `droppedAnchors: 0`, no rescue copy written -- and then `placeAll`
+     * threw `Cannot read properties of undefined (reading 'at')` inside
+     * render. `ErrorBoundary` caught it, `GRAPH_STORAGE_KEY` was never
+     * touched, so every reload reproduced it identically. The one button that
+     * broke the loop also removed the inventory and the submissions, which is
+     * the data `library.ts` singles out as impossible to recreate.
+     *
+     * MEASURED before this fix: ports 2, 7, -1 and 2.5 on a two-port part
+     * were all accepted, and all four threw in `placeAll` and `renderGraph`.
+     *
+     * `isHeading` right above was tightened for exactly this reason, and its
+     * comment states the rule this now follows: a value this engine did not
+     * write gets dropped rather than repaired. A weld is a declared intent
+     * about two specific ends; inventing a different end is worse than
+     * starting empty, which is why this refuses the whole layout rather than
+     * dropping the weld -- the same call the missing-piece check below makes.
+     */
+    const isPort = (v: unknown, partId: string, pieceId: string): v is number => {
+      if (typeof v !== 'number' || !Number.isInteger(v) || v < 0) return false;
+      if (!portCountOf) return true;
+      return v < portCountOf(partId, turnOf.get(pieceId));
+    };
     for (const w of welds) {
       const a = (w as Weld | undefined)?.a;
       const b = (w as Weld | undefined)?.b;
-      if (!a || !b || typeof a.port !== 'number' || typeof b.port !== 'number') {
-        return refuse(DISCARDED);
-      }
+      if (!a || !b) return refuse(DISCARDED);
       // A weld naming a piece that is not here cannot be repaired: it is a
       // declared intent about two specific ends, and inventing another is
       // worse than starting empty.
       if (!ids.has(a.pieceId) || !ids.has(b.pieceId)) {
         return refuse(DISCARDED);
       }
-      outWelds.push({ a: { ...a }, b: { ...b } });
+      const partA = out.find((p) => p.pieceId === a.pieceId)!.partId;
+      const partB = out.find((p) => p.pieceId === b.pieceId)!.partId;
+      if (!isPort(a.port, partA, a.pieceId) || !isPort(b.port, partB, b.pieceId)) {
+        return refuse(DISCARDED);
+      }
+      // Only the two fields a weld end IS. The stored object may carry extra
+      // keys and the accepted graph should not inherit them.
+      outWelds.push({
+        a: { pieceId: a.pieceId, port: a.port },
+        b: { pieceId: b.pieceId, port: b.port },
+      });
     }
 
     /*
