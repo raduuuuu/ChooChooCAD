@@ -28,6 +28,9 @@
 
 export interface ReproInput {
   /** Raw `localStorage` values, exactly as read. `null` when the key is absent. */
+  /** The live layout (`brio.graph.v1`). The one blob that reproduces a geometry crash. */
+  readonly graph: string | null;
+  /** The retired pre-graph chain. Kept so an old blob is still sent, never the only one. */
   readonly chain: string | null;
   readonly inventory: string | null;
   readonly submissions: string | null;
@@ -88,6 +91,9 @@ import { resolveLibrary, makeResolver } from './engine/data/library.js';
 import { solveLayout } from './engine/src/solver/result.js';
 import { layoutTrust } from './engine/src/joints/trust.js';
 import { brandFit } from './engine/data/thirdParty.js';
+
+// The layout the app actually had when it crashed.
+const graph = ${literal(input.graph, 'null')};
 
 const submissions = ${literal(input.submissions, '[]')};
 const chain = ${literal(input.chain, '[]')};

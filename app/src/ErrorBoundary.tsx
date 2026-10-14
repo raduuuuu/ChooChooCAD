@@ -26,7 +26,12 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { SUBMISSIONS_STORAGE_KEY } from '../../engine/data/library.js';
 import { reproText } from './repro.js';
-import { CHAIN_STORAGE_KEY, INVENTORY_STORAGE_KEY } from './storageKeys.js';
+import {
+  CHAIN_STORAGE_KEY,
+  GRAPH_RESCUE_KEY,
+  GRAPH_STORAGE_KEY,
+  INVENTORY_STORAGE_KEY,
+} from './storageKeys.js';
 
 function read(key: string): string | null {
   try {
@@ -54,8 +59,30 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
     console.error('brio-designer crashed', error, info.componentStack);
   }
 
+  /*
+   * EVERY KEY THE APP WRITES, and the list was wrong in the way that mattered.
+   *
+   * It cleared CHAIN_STORAGE_KEY -- the retired key storageKeys.ts says nothing
+   * writes any more -- and left GRAPH_STORAGE_KEY, which is the only key
+   * saveGraph writes. So the button labelled "Yes, delete my track" did not
+   * delete the track, and when the stored graph was what crashed, clearing and
+   * reloading re-read the same crashing blob: the permanently dead app this
+   * file's own header says it exists to prevent.
+   *
+   * GRAPH_RESCUE_KEY goes too. It holds a blob the loader already refused, so
+   * if the user has reached the point of discarding everything, keeping a copy
+   * of the thing that broke helps nobody and may itself be the crash.
+   *
+   * CHAIN_STORAGE_KEY stays as legacy cleanup.
+   */
   private clearAndReload = () => {
-    for (const key of [CHAIN_STORAGE_KEY, INVENTORY_STORAGE_KEY, SUBMISSIONS_STORAGE_KEY]) {
+    for (const key of [
+      GRAPH_STORAGE_KEY,
+      GRAPH_RESCUE_KEY,
+      CHAIN_STORAGE_KEY,
+      INVENTORY_STORAGE_KEY,
+      SUBMISSIONS_STORAGE_KEY,
+    ]) {
       try {
         localStorage.removeItem(key);
       } catch {
@@ -70,6 +97,14 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
     if (!error) return this.props.children;
 
     const text = reproText({
+      /*
+       * THE GRAPH IS THE LAYOUT NOW. Passing only the retired chain key meant
+       * every crash dump reported an empty layout for a crash that happened
+       * with a full one -- verbatim the failure storageKeys.ts's header names
+       * as the reason these keys have one owner. The chain is still read, so an
+       * old blob is not lost, but it is no longer the only thing sent.
+       */
+      graph: read(GRAPH_STORAGE_KEY),
       chain: read(CHAIN_STORAGE_KEY),
       inventory: read(INVENTORY_STORAGE_KEY),
       submissions: read(SUBMISSIONS_STORAGE_KEY),

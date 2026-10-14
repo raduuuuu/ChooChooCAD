@@ -7,6 +7,7 @@ import { reproText, type ReproInput } from './repro.js';
 import { CHAIN_STORAGE_KEY, INVENTORY_STORAGE_KEY } from './storageKeys.js';
 
 const base: ReproInput = {
+  graph: null,
   chain: '[{"partId":"E","turn":"left"}]',
   inventory: '{"E":8}',
   submissions: '[]',
@@ -168,6 +169,7 @@ describe('the generated repro runs', () => {
  */
 describe('the repro header cannot be escaped', () => {
   const base = {
+    graph: null,
     chain: null,
     inventory: null,
     submissions: null,
@@ -214,5 +216,82 @@ describe('the repro header cannot be escaped', () => {
   it('a long message is truncated rather than filling the file', () => {
     const t = reproText({ ...base, error: { name: 'Error', message: 'x'.repeat(5000) } });
     expect(t.slice(0, t.indexOf('\nimport ')).length).toBeLessThan(1000);
+  });
+});
+
+/**
+ * The crash-recovery path must know about every key the app writes.
+ *
+ * Value: protects=the crash screen's clear list and the repro both cover every
+ * storage key this app owns, so a new key cannot be added without landing here
+ * Value: fails_when=a key is exported from storageKeys.ts (or library.ts) and
+ * ErrorBoundary's clear list or the repro does not name it
+ * Value: why_new=the clear list was wrong for the whole life of the graph
+ * rewrite and nothing noticed: it cleared the retired chain key and left the
+ * live one, so "delete my track" did not delete the track
+ * Value: seam=none, this reads the source text rather than rendering the
+ * component, because the component needs a DOM and this suite has none
+ * Value: no_claim=nothing about the button actually being clickable or about
+ * what the browser does on reload; that is E11 territory
+ */
+describe('the crash screen knows every key the app writes', () => {
+  const source = readFileSync(join(import.meta.dirname, 'ErrorBoundary.tsx'), 'utf8');
+
+  it('names every storage key in its clear list', () => {
+    const clearBlock = source.slice(
+      source.indexOf('private clearAndReload'),
+      source.indexOf('location.reload'),
+    );
+    const owned = [
+      'GRAPH_STORAGE_KEY',
+      'GRAPH_RESCUE_KEY',
+      'CHAIN_STORAGE_KEY',
+      'INVENTORY_STORAGE_KEY',
+      'SUBMISSIONS_STORAGE_KEY',
+    ];
+    const missing = owned.filter((name) => !clearBlock.includes(name));
+    expect(missing, `the clear list does not name: ${missing.join(', ')}`).toEqual([]);
+  });
+
+  it('clears the LIVE layout key, not only the retired one', () => {
+    const clearBlock = source.slice(
+      source.indexOf('private clearAndReload'),
+      source.indexOf('location.reload'),
+    );
+    // The specific regression: CHAIN was cleared and GRAPH was not.
+    expect(clearBlock).toContain('GRAPH_STORAGE_KEY');
+  });
+
+  it('sends the live layout in the repro, not only the retired chain', () => {
+    expect(source).toContain('graph: read(GRAPH_STORAGE_KEY)');
+  });
+});
+
+describe('the repro carries the layout the app actually saved', () => {
+  it('emits the graph blob rather than reporting an empty layout', () => {
+    const t = reproText({
+      graph: '{"pieces":[{"pieceId":"p0","partId":"E","turn":"left"}],"welds":[],"anchors":[]}',
+      chain: null,
+      inventory: null,
+      submissions: null,
+      version: 'abc123',
+      userAgent: 'UA',
+      error: { name: 'Error', message: 'boom' },
+    });
+    expect(t).toContain('const graph =');
+    expect(t).toContain('"partId": "E"');
+  });
+
+  it('a missing graph emits null rather than a silent empty default', () => {
+    const t = reproText({
+      graph: null,
+      chain: null,
+      inventory: null,
+      submissions: null,
+      version: 'abc123',
+      userAgent: 'UA',
+      error: { name: 'Error', message: 'boom' },
+    });
+    expect(t).toContain('const graph = null;');
   });
 });
