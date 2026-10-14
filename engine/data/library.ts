@@ -158,8 +158,42 @@ function looksLikePart(v: unknown): v is Part {
   if (!ends || (ends.start !== 'peg' && ends.start !== 'socket')) return false;
   if (ends.end !== 'peg' && ends.end !== 'socket') return false;
   const slop = p.slop as Record<string, unknown> | undefined;
-  const nonNeg = (x: unknown) => typeof x === 'number' && Number.isFinite(x) && x >= 0;
-  if (!slop || !nonNeg(slop.axialMm) || !nonNeg(slop.angularDeg)) return false;
+  /*
+   * SLOP IS BOUNDED, AND ITS CALIBRATION STATUS IS NOT SELF-ASSERTED
+   * (finding B2, the most serious of the adversarial pass).
+   *
+   * `calibrationStatus` went unvalidated entirely, and `trust.ts`'s rule 4
+   * reads `parts.some((p) => p.slop.calibrationStatus !== 'measured')` with a
+   * comment saying it is always true today and "must stay true in EVERY
+   * verdict state". MEASURED: a stored row claiming
+   * `calibrationStatus: 'measured'` with `axialMm: 999` was accepted here, and
+   * the `estimated-give` caveat -- the one that says the give total and any
+   * verdict resting on it are provisional -- DISAPPEARED from the trust
+   * register. 999mm of give also makes every layout "might fit", which
+   * switches off the one definite claim the engine exists to make: that a gap
+   * exceeding the give definitely will not fit. A confidently wrong verdict
+   * with no visible qualification is worse than a crash.
+   *
+   * `SubmitPart.tsx:88` hardcodes `'estimated'`, so nothing the app writes can
+   * ever carry `'measured'`. A stored row that does was not produced by this
+   * app, which is the definition of a value this code did not write, so it is
+   * refused rather than trusted. That keeps rule 4's invariant true by
+   * construction instead of by convention.
+   *
+   * The ceiling is two orders of magnitude above the real figure (0.8mm axial,
+   * 1.5 degrees in `brio.ts`). It is not a measurement claim; it is the line
+   * past which a number is not a tolerance.
+   */
+  const SLOP_CEILING_MM = 50;
+  const SLOP_CEILING_DEG = 45;
+  const bounded = (x: unknown, ceiling: number) =>
+    typeof x === 'number' && Number.isFinite(x) && x >= 0 && x <= ceiling;
+  if (!slop) return false;
+  if (!bounded(slop.axialMm, SLOP_CEILING_MM)) return false;
+  if (!bounded(slop.angularDeg, SLOP_CEILING_DEG)) return false;
+  if (slop.calibrationStatus !== 'published' && slop.calibrationStatus !== 'estimated') {
+    return false;
+  }
   const finite = (x: unknown) => typeof x === 'number' && Number.isFinite(x) && x > 0;
   if (!finite(p.gaugeWidthMm) || !finite(p.plankWidthMm) || !finite(p.plankThicknessMm)) return false;
   if (p.kind === 'straight') return finite(p.lengthMm);

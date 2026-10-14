@@ -22,7 +22,10 @@
 
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, loadSubmissions, resolveLibrary, type Submission } from '../data/library.js';
-import { DIMENSION_TRUST, trustRank } from '../src/parts/schema.js';
+import { DIMENSION_TRUST, trustRank, type Part } from '../src/parts/schema.js';
+import { layoutTrust } from '../src/joints/trust.js';
+import { brandFit } from '../data/thirdParty.js';
+import { makeResolver } from '../data/library.js';
 import { SUBMISSIONS_STORAGE_KEY } from '../data/library.js';
 
 const realE = BUILT_IN.find((p) => p.id === 'E')!;
@@ -63,9 +66,22 @@ describe('trustRank fails closed', () => {
     }
   });
 
+  /*
+   * `expect(ranks).toEqual([...ranks].sort(...))` was here and could not fail:
+   * `trustRank` is `indexOf`, so mapping it over `DIMENSION_TRUST` yields
+   * [0..n-1], which is already sorted whatever the order of the array. The
+   * literal is the pin.
+   *
+   * Being precise about what was wrong: the two `toBeLessThan` lines below are
+   * real pins, so the BLOCK could always fail. It was the one self-sorting
+   * LINE that could not, and it was the line carrying the claim about the
+   * whole declared order.
+   *
+   * MUTATION PROOF, run: swap 'user-measured' and 'published' in
+   * DIMENSION_TRUST and 2 tests fail, this one among them.
+   */
   it('every real status still ranks in its declared order', () => {
-    const ranks = DIMENSION_TRUST.map((s) => trustRank(s));
-    expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
+    expect(DIMENSION_TRUST.map((s) => trustRank(s))).toEqual([0, 1, 2, 3]);
     expect(trustRank('user-measured')).toBeLessThan(trustRank('published'));
     expect(trustRank('published')).toBeLessThan(trustRank('unverified'));
   });
@@ -136,5 +152,91 @@ describe('loadSubmissions drops rows the engine would crash on', () => {
       loadSubmissions(),
     );
     expect(got.map((s) => s.submissionId)).toEqual(['s1']);
+  });
+});
+
+/**
+ * The slop a stored submission may claim (finding B2).
+ *
+ * Value: protects=the `estimated-give` caveat cannot be switched off by a
+ * stored blob, and a give figure cannot be inflated until every layout
+ * "might fit"
+ * Value: fails_when=`looksLikePart` stops checking `slop.calibrationStatus`,
+ * or drops either slop ceiling
+ * Value: why_new=`calibrationStatus` was not validated at all, and `axialMm`
+ * had only a non-negative check with no upper bound
+ * Value: seam=none
+ * Value: no_claim=nothing about a part whose slop is wrong but plausible;
+ * 0.9mm instead of 0.8mm is indistinguishable from a real measurement and
+ * this cannot tell them apart
+ *
+ * THIS REPRODUCES A MEASURED FAILURE. Before the fix, `layoutTrust` on the
+ * published straight D reported `['estimated-give']`; after one stored row
+ * claiming `calibrationStatus: 'measured'` and `axialMm: 999` was accepted,
+ * it reported no give caveat at all. `trust.ts`'s own comment on that rule
+ * says it "must stay true in EVERY verdict state".
+ */
+describe('a stored submission cannot claim its give was measured', () => {
+  const realD = BUILT_IN.find((p) => p.id === 'D')!;
+  const layout = { placements: [{ partId: 'D' }], closed: false } as never;
+  const kindsFor = (parts: readonly Part[]) =>
+    layoutTrust(layout, makeResolver(parts), brandFit).map((i) => i.kind);
+
+  it('the published library says the give is estimated (control)', () => {
+    expect(kindsFor(BUILT_IN)).toContain('estimated-give');
+  });
+
+  /*
+   * MUTATION PROOF, run: delete the `slop.calibrationStatus` check from
+   * `looksLikePart` and this case fails, because the forged row is accepted
+   * and `estimated-give` vanishes from the register.
+   */
+  it('a row claiming measured give is dropped, so the caveat survives', () => {
+    const forged = submissionWith({
+      slop: { axialMm: 0.8, angularDeg: 1.5, calibrationStatus: 'measured' },
+      dimensions: { status: 'user-measured', source: 'my ruler' },
+      id: 'D',
+      kind: 'straight',
+      lengthMm: (realD as { lengthMm?: number }).lengthMm,
+    });
+    const kept = withStore({ [SUBMISSIONS_STORAGE_KEY]: JSON.stringify([forged]) }, () =>
+      loadSubmissions(),
+    );
+    expect(kept).toHaveLength(0);
+    expect(kindsFor(resolveLibrary(kept))).toContain('estimated-give');
+  });
+
+  /*
+   * MUTATION PROOF, run: remove either ceiling from `bounded` and the matching
+   * case here fails.
+   */
+  it('refuses a give figure too large to be a tolerance', () => {
+    for (const slop of [
+      { axialMm: 999, angularDeg: 1.5, calibrationStatus: 'estimated' },
+      { axialMm: 0.8, angularDeg: 400, calibrationStatus: 'estimated' },
+      { axialMm: Number.POSITIVE_INFINITY, angularDeg: 1.5, calibrationStatus: 'estimated' },
+    ]) {
+      const got = withStore(
+        { [SUBMISSIONS_STORAGE_KEY]: JSON.stringify([submissionWith({ slop })]) },
+        () => loadSubmissions(),
+      );
+      expect(got).toHaveLength(0);
+    }
+  });
+
+  it('still accepts the real figures, and a published calibration', () => {
+    for (const status of ['estimated', 'published']) {
+      const got = withStore(
+        {
+          [SUBMISSIONS_STORAGE_KEY]: JSON.stringify([
+            submissionWith({
+              slop: { axialMm: 0.8, angularDeg: 1.5, calibrationStatus: status },
+            }),
+          ]),
+        },
+        () => loadSubmissions(),
+      );
+      expect(got).toHaveLength(1);
+    }
   });
 });
