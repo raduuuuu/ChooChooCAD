@@ -1,0 +1,294 @@
+/**
+ * Inventory model, task U4 / decisions D6 and D8.
+ *
+ * Pure functions only, no DOM: the persistence half of the module touches
+ * localStorage and is not exercised here, because a document needs task E11.
+ * What IS covered is every rule that could silently produce a wrong number.
+ */
+
+import { describe, expect, it } from 'vitest';
+import { BRIO_PARTS } from '../../engine/data/brio.js';
+import { BUILT_IN } from '../../engine/data/library.js';
+import {
+  loadInventory,
+  QUICK_FILLS,
+  sanitizeCount,
+  saveInventory,
+  shortfalls,
+  usedCounts,
+  wouldExceed,
+  type Inventory,
+} from './inventoryModel.js';
+import { INVENTORY_STORAGE_KEY } from './storageKeys.js';
+
+describe('undeclared is not zero', () => {
+  const used = usedCounts(['E', 'E', 'E']);
+
+  it('an undeclared inventory produces NO shortfall', () => {
+    // The failure this prevents: treating null as all-zeroes, which would tell
+    // every new user they are short of everything they just placed.
+    expect(shortfalls(null, used)).toHaveLength(0);
+  });
+
+  it('an undeclared inventory never greys a palette piece', () => {
+    for (const p of BRIO_PARTS) {
+      expect(wouldExceed(null, used, p.id), p.id).toBe(false);
+    }
+  });
+
+  it('declaring zero IS a claim, and does produce a shortfall', () => {
+    const owned: Inventory = { E: 0 };
+    expect(shortfalls(owned, used)).toEqual([{ partId: 'E', used: 3, owned: 0, shortBy: 3 }]);
+    expect(wouldExceed(owned, used, 'E')).toBe(true);
+  });
+});
+
+describe('shortfall arithmetic', () => {
+  it('reports only the parts actually short, with the exact amount', () => {
+    const used = usedCounts(['E', 'E', 'E', 'E', 'D', 'A2']);
+    const owned: Inventory = { E: 2, D: 4, A2: 1 };
+    expect(shortfalls(owned, used)).toEqual([{ partId: 'E', used: 4, owned: 2, shortBy: 2 }]);
+  });
+
+  it('a part absent from the inventory counts as zero owned, not as unconstrained', () => {
+    // Per-part absence is different from a null inventory: the user declared
+    // their box and this part was not in it.
+    const used = usedCounts(['E1']);
+    expect(shortfalls({ E: 8 }, used)).toEqual([
+      { partId: 'E1', used: 1, owned: 0, shortBy: 1 },
+    ]);
+  });
+
+  it('is stably ordered, so the line does not reshuffle as counts change', () => {
+    const used = usedCounts(['E', 'A2', 'D', 'A1']);
+    const owned: Inventory = {};
+    const ids = shortfalls(owned, used).map((s) => s.partId);
+    expect(ids).toEqual([...ids].sort());
+  });
+
+  it('never reports a shortfall for a part that is exactly used up', () => {
+    const used = usedCounts(['E', 'E']);
+    expect(shortfalls({ E: 2 }, used)).toHaveLength(0);
+    // ...but one MORE would exceed, which is what greys the button.
+    expect(wouldExceed({ E: 2 }, used, 'E')).toBe(true);
+  });
+});
+
+describe('quick-fills write counts and are then forgotten (D6)', () => {
+  it('every quick-fill names only parts the catalogue has', () => {
+    const known = new Set(BUILT_IN.map((p) => p.id));
+    for (const q of QUICK_FILLS) {
+      for (const id of Object.keys(q.counts)) {
+        expect(known.has(id), `${q.label} names ${id}`).toBe(true);
+      }
+    }
+  });
+
+  it('quick-fills stay BRIO-only, so a BRIO owner is not given other brands', () => {
+    // Added when the catalogue gained IKEA and Playtive. A "set you own" is
+    // brand-specific, and the third-party sizes are unverified besides.
+    const brio = new Set(BRIO_PARTS.map((p) => p.id));
+    for (const q of QUICK_FILLS) {
+      for (const id of Object.keys(q.counts)) {
+        expect(brio.has(id), `${q.label} names ${id}`).toBe(true);
+      }
+    }
+  });
+
+  it('every count is a non-negative integer', () => {
+    for (const q of QUICK_FILLS) {
+      for (const [id, n] of Object.entries(q.counts)) {
+        expect(Number.isInteger(n), `${q.label}/${id}`).toBe(true);
+        expect(n, `${q.label}/${id}`).toBeGreaterThanOrEqual(0);
+      }
+    }
+  });
+
+  it('a quick-fill is just counts: nothing records which one was used', () => {
+    // The drift class D6 deletes. If a fill carried an identity that something
+    // re-read later, a wrong manifest could corrupt counts invisibly. It does
+    // not: the applied value is a plain count map and that is all that is kept.
+    const applied: Inventory = { ...QUICK_FILLS[0]!.counts };
+    expect(Object.values(applied).every((v) => typeof v === 'number')).toBe(true);
+    expect(Object.keys(applied)).not.toContain('label');
+    expect(Object.keys(applied)).not.toContain('note');
+  });
+
+  it('the circle fill is short for a double circle, which is the point', () => {
+    const circle = QUICK_FILLS.find((q) => q.label === 'Enough for a circle')!;
+    expect(shortfalls({ ...circle.counts }, usedCounts(Array(8).fill('E')))).toHaveLength(0);
+    expect(shortfalls({ ...circle.counts }, usedCounts(Array(16).fill('E')))).toEqual([
+      { partId: 'E', used: 16, owned: 8, shortBy: 8 },
+    ]);
+  });
+});
+
+describe('usedCounts', () => {
+  it('counts an empty layout as nothing, not as an error', () => {
+    expect(usedCounts([])).toEqual({});
+  });
+
+  it('counts repeats', () => {
+    expect(usedCounts(['E', 'E', 'D'])).toEqual({ E: 2, D: 1 });
+  });
+});
+
+
+/**
+ * CR6 / K3: the silent data loss, and all three halves of its fix.
+ *
+ * The bug: `Math.max(0, Math.floor(value))` passes NaN through, because
+ * Math.max(0, NaN) is NaN. JSON.stringify wrote `null`, the loader correctly
+ * refused a non-integer count, and every declared count was discarded with no
+ * message. One bad keystroke destroyed the lot.
+ */
+describe('CR6: a non-finite count can never reach storage', () => {
+  const ids = new Set(BRIO_PARTS.map((p) => p.id));
+
+  it('REFUSES every input that used to become NaN or Infinity', () => {
+    // Tests the real function the component calls, not a restatement of the
+    // hazard. An earlier version of this test asserted that 'abc' is non-finite,
+    // which is true of JavaScript and says nothing about our guard: deleting the
+    // guard left the suite green. This fails if the guard goes.
+    for (const raw of ['abc', '1e309', '-1e309', 'NaN', 'Infinity', '٣']) {
+      expect(sanitizeCount(raw), raw).toBeNull();
+    }
+  });
+
+  it('accepts and normalises everything legitimate', () => {
+    for (const [raw, want] of [
+      ['3', 3],
+      ['2.7', 2],      // floor: you cannot own 2.7 pieces
+      ['-5', 0],       // clamp: negative stock is not a thing
+      ['', 0],         // blanking a field means zero, documented
+      ['   ', 0],
+      ['0', 0],
+      ['999', 999],
+    ] as const) {
+      expect(sanitizeCount(raw), raw).toBe(want);
+    }
+  });
+
+  it('a refusal is distinct from zero, because zero is a real claim', () => {
+    // The reason sanitizeCount returns null rather than 0 on bad input: zero
+    // means "I own none of these", which is a claim the user did not make.
+    expect(sanitizeCount('abc')).toBeNull();
+    expect(sanitizeCount('0')).toBe(0);
+    expect(sanitizeCount('')).toBe(0);
+  });
+
+  it('nothing sanitizeCount returns can ever survive JSON as a non-integer', () => {
+    // Closes the loop end to end: the whole bug was a value that round-tripped
+    // through JSON as null and then failed the loader.
+    for (const raw of ['3', '2.7', '-5', '', '999', 'abc', '1e309']) {
+      const v = sanitizeCount(raw);
+      if (v === null) continue;
+      const back = JSON.parse(JSON.stringify({ E: v })).E;
+      expect(typeof back === 'number' && Number.isInteger(back) && back >= 0, raw).toBe(true);
+    }
+  });
+
+  it('a stored non-finite count is refused, and the refusal is REPORTED', () => {
+    // The second half: the loader was always right to refuse. What was missing
+    // was saying so, which is what made it silent.
+    const res = loadInventoryFrom({ E: NaN as unknown as number }, ids);
+    expect(res.value).toBeNull();
+    expect(res.discarded, 'a discard must be reported').toBeTruthy();
+    expect(res.discarded).toContain('E');
+  });
+
+  it('an unknown part id drops ONE count and keeps the rest, reporting it', () => {
+    // Deliberately different from the chain loader. Dropping one count changes
+    // nothing about the others; dropping a piece from a chain changes its shape.
+    const res = loadInventoryFrom({ E: 8, 'GONE-99': 3 }, ids);
+    expect(res.value).toEqual({ E: 8 });
+    expect(res.discarded).toMatch(/dropped/i);
+    expect(res.discarded).toMatch(/intact/i);
+  });
+
+  it('a clean load reports no discard at all', () => {
+    const res = loadInventoryFrom({ E: 8, A: 2 }, ids);
+    expect(res.value).toEqual({ E: 8, A: 2 });
+    expect(res.discarded).toBeUndefined();
+  });
+});
+
+/**
+ * Exercises the real loader against a stubbed localStorage, because the
+ * persistence half cannot be reached any other way and it is where the data
+ * loss actually happened.
+ */
+function loadInventoryFrom(blob: Record<string, number>, ids: ReadonlySet<string>) {
+  const store = new Map<string, string>([[INVENTORY_STORAGE_KEY, JSON.stringify(blob)]]);
+  const g = globalThis as { localStorage?: unknown };
+  const had = 'localStorage' in g;
+  const prev = g.localStorage;
+  g.localStorage = {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => void store.set(k, v),
+    removeItem: (k: string) => void store.delete(k),
+  };
+  try {
+    return loadInventory(ids);
+  } finally {
+    if (had) g.localStorage = prev;
+    else delete g.localStorage;
+  }
+}
+
+/*
+ * Value: protects=saveInventory's two cases: counts round-trip through the real loader, and UNDECLARED removes the key rather than storing a null
+ * Value: fails_when=the null case stores `null` (or `{}`) instead of removing the key, so the next load reports "could not be read" or turns undeclared into owning none
+ * Value: why_new=this file's own docblock says the persistence half is not exercised; loadInventory is now seeded by hand and saveInventory had no test at all
+ * Value: seam=none
+ * Value: no_claim=nothing about quota or private-browsing throws (the catch is unobservable by design) and nothing about App.tsx's save effect firing
+ *
+ * Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+ */
+describe('saveInventory is read back by the real loader', () => {
+  const ids = new Set(BUILT_IN.map((p) => p.id));
+
+  /** Both calls against ONE stubbed store, which is what a round-trip needs. */
+  function roundTrip(inventory: Inventory) {
+    const store = new Map<string, string>();
+    const g = globalThis as { localStorage?: unknown };
+    const had = 'localStorage' in g;
+    const prev = g.localStorage;
+    g.localStorage = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    };
+    try {
+      saveInventory(inventory);
+      return { load: loadInventory(ids), stored: store.get(INVENTORY_STORAGE_KEY) };
+    } finally {
+      if (had) g.localStorage = prev;
+      else delete g.localStorage;
+    }
+  }
+
+  it('declared counts come back as the same counts, with no notice', () => {
+    const r = roundTrip({ E: 8, A: 2 });
+    expect(r.load.value).toEqual({ E: 8, A: 2 });
+    expect(r.load.discarded).toBeUndefined();
+  });
+
+  it('declaring zero survives the round trip, because zero IS a claim', () => {
+    // The pairing that matters: {A: 0} must come back as {A: 0} and not as
+    // null, or a user who told us they own none would stop being warned.
+    // MUTATION (run): dropping falsy counts while serializing returns {} here.
+    expect(roundTrip({ A: 0 }).load.value).toEqual({ A: 0 });
+  });
+
+  it('UNDECLARED removes the key instead of writing a null the loader would reject', () => {
+    // MUTATION (run): replacing `removeItem` with `setItem(..., 'null')` makes
+    // loadInventory take its `parsed === null` branch, so clearing the
+    // inventory raises "Your saved inventory could not be read" on the next
+    // visit -- an error message for a thing the user did on purpose.
+    const r = roundTrip(null);
+    expect(r.stored).toBeUndefined();
+    expect(r.load.value).toBeNull();
+    expect(r.load.discarded).toBeUndefined();
+  });
+});

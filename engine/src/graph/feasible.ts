@@ -1,0 +1,220 @@
+/**
+ * FEASIBILITY, LIFTED TO VERTICES (task T9).
+ *
+ * The chain version of these predicates carried two exclusion rules:
+ * `b - a === 1` and, for a closed layout, the `(0, n)` and `(0, n-1)` seam.
+ * They were not geometry. They existed because the chain had no way to say
+ * "these two connectors are JOINED" as distinct from "these two connectors
+ * are in the same place", so consecutive pieces and the closing seam had to
+ * be excluded by index or every layout would report itself as a pile-up.
+ *
+ * A graph says it in the data: a weld is a declared join. So the exclusions
+ * are deleted, and with them the thing they cost, which was that any OTHER
+ * pair the rules happened to cover was silently exempt too.
+ *
+ * The two predicates become:
+ *
+ *   OVERLAP   no two DISTINCT vertices occupy the same position. A vertex is
+ *             a set of ports tied together by welds, so a declared join is
+ *             one vertex and can never report itself.
+ *   POLARITY  a property of each weld, peg against socket, with heels exempt
+ *             because a heel is neither (T8).
+ */
+
+import { type Cyc, equals, toXY } from '../geom/cyclotomic.js';
+import { portFrame, type Placement, type PortsOf } from './frames.js';
+import { portPolarity, weldHasPolarity, type Graph } from './model.js';
+import type { Part } from '../parts/schema.js';
+
+/** Two separate places on the track asked to be the same place. */
+export interface VertexClash {
+  readonly a: { readonly pieceId: string; readonly port: number };
+  readonly b: { readonly pieceId: string; readonly port: number };
+  readonly at: [number, number];
+}
+
+export interface WeldPolarityViolation {
+  readonly weld: number;
+  readonly between: readonly [string, string];
+  readonly polarity: 'peg' | 'socket';
+}
+
+/**
+ * Ports a weld already claims. A port nobody has welded is FREE.
+ *
+ * The distinction decides whether two ends in one place are a problem or an
+ * invitation, which is the difference between the two cases below.
+ */
+function claimedPorts(graph: Graph): ReadonlySet<string> {
+  const out = new Set<string>();
+  for (const w of graph.welds) {
+    out.add(`${w.a.pieceId}#${w.a.port}`);
+    out.add(`${w.b.pieceId}#${w.b.port}`);
+  }
+  return out;
+}
+
+/** Union-find over ports, joined by welds. One set is one vertex. */
+function vertices(graph: Graph): (key: string) => string {
+  const parent = new Map<string, string>();
+  const find = (k: string): string => {
+    const p = parent.get(k);
+    if (p === undefined || p === k) return k;
+    const root = find(p);
+    parent.set(k, root);
+    return root;
+  };
+  const union = (x: string, y: string) => {
+    const a = find(x);
+    const b = find(y);
+    if (a !== b) parent.set(a, b);
+  };
+  for (const w of graph.welds) {
+    union(`${w.a.pieceId}#${w.a.port}`, `${w.b.pieceId}#${w.b.port}`);
+  }
+  return find;
+}
+
+/**
+ * Ports that land on the same spot without being welded there.
+ *
+ * Exact equality in Z[zeta16], no epsilon: two connectors either occupy the
+ * same lattice point or they do not. This is a FEASIBILITY fact and never a
+ * connectivity one, which is the distinction the chain engine could not draw.
+ */
+export function findVertexClashes(
+  graph: Graph,
+  ports: PortsOf,
+  placement: Placement,
+): readonly VertexClash[] {
+  const find = vertices(graph);
+  const claimed = claimedPorts(graph);
+  const placed: Array<{
+    pieceId: string;
+    port: number;
+    vertex: string;
+    free: boolean;
+    pos: Cyc;
+  }> = [];
+
+  for (const piece of graph.pieces) {
+    const count = ports(piece).length;
+    for (let i = 0; i < count; i++) {
+      const key = `${piece.pieceId}#${i}`;
+      placed.push({
+        pieceId: piece.pieceId,
+        port: i,
+        vertex: find(key),
+        free: !claimed.has(key),
+        pos: portFrame(placement, ports, piece, i).pos,
+      });
+    }
+  }
+
+  /*
+   * gstack-shortcut(dec-f333f98f): all-pairs comparison, O(n^2) in ports.
+   * Ceiling: 25,359 pairs at the measured worst case, which is milliseconds.
+   * Upgrade when a layout exceeds roughly 500 ports, or when profiling puts
+   * this above 16ms in a frame; the replacement is a spatial grid keyed on
+   * the exact lattice position, never a tolerance.
+   *
+   * Decision f333f98f SUPERSEDES cae368ab, whose "204,480 conflicting pairs"
+   * was C(640,2), the number of pairs COMPARED, not conflicts found.
+   */
+  /*
+   * ONE CLASH PER PAIR OF VERTICES, not per pair of ports.
+   *
+   * The first version counted ports and the number it produced was wrong in
+   * the way that matters: the 16xE double circle reported "32 pairs of track
+   * ends land in exactly the same spot" when there are EIGHT such spots. At
+   * each one sit two vertices of two ports each, which is four port-pairs,
+   * so the count was inflated fourfold while the canvas drew eight markers.
+   * The verdict and the picture disagreed, and the verdict was the wrong one.
+   *
+   * A vertex is the thing a user sees as "a join". Two of them in one place
+   * is one problem to fix, however many connectors that involves.
+   */
+  const clashes: VertexClash[] = [];
+  const reported = new Set<string>();
+  /** Free-end coincidences, grouped by the pair of pieces that share them. */
+  const touching = new Map<string, VertexClash[]>();
+  for (let i = 0; i < placed.length; i++) {
+    for (let j = i + 1; j < placed.length; j++) {
+      const a = placed[i]!;
+      const b = placed[j]!;
+      // Same vertex means they are DECLARED to be here together. That is a
+      // joint, not a collision, and it is the whole reason the index-based
+      // exclusions could go.
+      if (a.vertex === b.vertex) continue;
+      if (!equals(a.pos, b.pos)) continue;
+      const key = a.vertex < b.vertex ? `${a.vertex}|${b.vertex}` : `${b.vertex}|${a.vertex}`;
+      if (reported.has(key)) continue;
+      reported.add(key);
+      const [x, y] = toXY(a.pos);
+      const pair = a.pieceId < b.pieceId ? `${a.pieceId}|${b.pieceId}` : `${b.pieceId}|${a.pieceId}`;
+      const clash: VertexClash = {
+        a: { pieceId: a.pieceId, port: a.port },
+        b: { pieceId: b.pieceId, port: b.port },
+        at: [x, y],
+      };
+      if (a.free && b.free) {
+        touching.set(pair, [...(touching.get(pair) ?? []), clash]);
+      } else {
+        clashes.push(clash);
+      }
+    }
+  }
+
+  /*
+   * TWO FREE ENDS MEETING AT ONE POINT ARE NOT A CLASH. They are the moment
+   * before you join them, and it is the single most common state in building
+   * track: eight large curves laid end to end bring their two loose ends
+   * together, and the next thing anybody does is push them into each other.
+   *
+   * Reporting that as "can't be built" was a real defect, found by a user
+   * doing exactly this. It arrived when clashes were made to outrank
+   * NO_CYCLE so two overlapping RUNS would stop being silent; that fix was
+   * right, and this is the other half of it.
+   *
+   * COUNT DISCRIMINATES. Two pieces that meet share exactly ONE point. Two
+   * pieces lying on top of each other share BOTH of their ends, and that is
+   * not an invitation, it is a pile-up: no weld makes their middles stop
+   * overlapping. So a single touching point between a pair of pieces is
+   * excused and two or more are reported.
+   *
+   * This is an endpoint test, not a body test. Pieces that cross mid-span
+   * are still not checked, which the verdict copy says out loud.
+   */
+  for (const group of touching.values()) {
+    if (group.length > 1) clashes.push(...group);
+  }
+
+  // If either end is already welded, it is spoken for: a third thing landing
+  // on it is a clash however few points are shared. That case never reaches
+  // `touching`, because it is pushed straight to `clashes` above.
+  return clashes;
+}
+
+/** Welds that put two ends of the same kind together. */
+export function findWeldPolarityViolations(
+  graph: Graph,
+  resolve: (id: string) => Part,
+  ports: PortsOf,
+): readonly WeldPolarityViolation[] {
+  const byId = new Map(graph.pieces.map((p) => [p.pieceId, p]));
+  const out: WeldPolarityViolation[] = [];
+  graph.welds.forEach((w, index) => {
+    const pieceA = byId.get(w.a.pieceId);
+    const pieceB = byId.get(w.b.pieceId);
+    if (!pieceA || !pieceB) return;
+    const portA = ports(pieceA)[w.a.port];
+    const portB = ports(pieceB)[w.b.port];
+    if (!portA || !portB) return;
+    if (!weldHasPolarity(portA, portB)) return;
+    const pa = portPolarity(resolve(pieceA.partId), w.a.port);
+    const pb = portPolarity(resolve(pieceB.partId), w.b.port);
+    if (pa !== pb) return;
+    out.push({ weld: index, between: [pieceA.partId, pieceB.partId], polarity: pa });
+  });
+  return out;
+}

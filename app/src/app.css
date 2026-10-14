@@ -1,8 +1,22 @@
 /* Layout and chrome. All colour comes from tokens.css. */
 
+/*
+ * WHO GETS THE SCREEN.
+ *
+ * Measured before this change, at a 720px viewport: canvas 135px, verdict
+ * 79px, palette 506px. The palette took 70% and the thing being designed took
+ * 19%, while TrackCanvas.tsx's own docblock claimed the canvas "dominates".
+ *
+ * The stage was always `1fr`, so this was not a missing flex. `1fr` takes what
+ * the auto rows leave, and the palette's natural height was 506px. The fix is
+ * on both sides: `minmax(320px, 1fr)` stops the canvas being squeezed below a
+ * usable size, and the palette is capped, so adding a fourth brand can never
+ * again take the canvas apart. On wide screens the media query at the end of
+ * this file moves the palette into a rail, which is what actually solves it.
+ */
 .shell {
   display: grid;
-  grid-template-rows: 1fr auto auto;
+  grid-template-rows: minmax(320px, 1fr) auto auto;
   height: 100%;
   min-height: 0;
 }
@@ -11,7 +25,7 @@
 .stage {
   min-height: 0;
   display: flex;
-  background: var(--paper);
+  background: var(--floor);
   overflow: hidden;
 }
 .canvas {
@@ -26,28 +40,146 @@
   max-width: 34ch;
 }
 .canvas-empty p { margin: 0 0 var(--s2); font-size: 17px; }
-.canvas-empty-hint { font-size: 15px; }
 
-/* The settle: one authored motion moment, propagating from the change. */
-.joint {
-  transition: transform var(--settle-ms) var(--settle-ease);
+/*
+ * One primary action, one lead, one demoted line (design D10, task K6).
+ *
+ * The lead takes --ink rather than inheriting the block's --ink-soft, so the
+ * three lines read in the order they should be read: statement, action, aside.
+ * Measured on --paper: lead 13.43:1, hint 5.21:1, button label 13.43:1
+ * against the filled --ink, all clear of WCAG 1.4.3's 4.5:1 text floor.
+ */
+.canvas-empty-lead { color: var(--ink); }
+
+.canvas-empty-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s2);
+  margin: 0 0 var(--s3);
 }
-@media (prefers-reduced-motion: reduce) {
-  .joint { transition: none; }
+
+/*
+ * FILLED, not outlined. The only filled button in the product.
+ *
+ * Every other button here is a 1px --rule outline, which is right for a row of
+ * equal choices. This one is not one of several choices, it is the single thing
+ * to do on an empty screen, so it gets the one step of hierarchy that outline
+ * buttons cannot express. If a second filled button ever appears, this stops
+ * being a hierarchy and becomes decoration: fix that, do not add a third.
+ */
+.canvas-empty-action button {
+  min-height: 40px;
+  padding: 0 var(--s4);
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: 3px;
+  color: var(--paper);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
 }
+.canvas-empty-action button:hover { background: var(--ink-soft); border-color: var(--ink-soft); }
+
+/* The preset's own claim, in the data face because "8 large curves" is a count. */
+.canvas-empty-note {
+  font-family: var(--font-data);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+/* Body copy, so it owes the 16px floor. Was 15px. */
+.canvas-empty-hint { font-size: 16px; }
+
+/*
+ * THE SETTLE IS GONE, not merely fixed.
+ *
+ * This held `.joint { transition: transform ... }` plus a reduced-motion
+ * override. No element has ever had that class: the per-joint glyphs it was
+ * written for were deleted with the per-joint verdict at R21, and three design
+ * reviews flagged the rule as dead before it was finally removed on 2026-10-09.
+ *
+ * Worth being honest about what removing it leaves. The design brief asked for
+ * ONE authored motion moment, the settle, propagating from the piece you just
+ * placed. The product now has no motion at all. That is an unrealised intention
+ * rather than a broken one, and `--settle-ms` and `--settle-ease` are kept in
+ * tokens.css for whoever builds it against the arriving segment, which is the
+ * other half of the task this deletion came from.
+ */
 
 /* 2nd in hierarchy: one unmistakable status line. */
+/*
+ * THREE REGISTERS, TWO ROWS.
+ *
+ * K4 gave the verdict three registers and laid them out as three flex
+ * columns, which put the claim, the caveat and the instruction at the same
+ * visual weight across the full width: a strip of undifferentiated grey with
+ * "Nothing to fix. Build it." marooned at the far right in 14px.
+ *
+ * The registers were right, the layout was not. Row one carries what you need
+ * at a glance, the claim on the left and the action beside it, both in --ink.
+ * Row two carries the trust caveats under the claim, smaller and softer.
+ */
 .verdict {
-  display: flex;
+  display: grid;
+  /*
+   * `auto minmax(0,1fr) auto` pushed the action hard against the right edge,
+   * half a screen from the claim it answers. The text column now takes its
+   * natural width and the action follows immediately, with the slack trailing
+   * off to the right where it costs nothing.
+   */
+  /*
+   * The action column has a FLOOR.
+   *
+   * `auto minmax(0,auto) 1fr` reads well until the verdict text is long: the
+   * IMPOSSIBLE copy is three sentences, and it squeezed the action down to a
+   * strip one word wide, "Move / one / of / the / pieces". A column that can
+   * be crushed to a word is not a column. 22ch is about four words a line,
+   * which is the narrowest that still reads as a sentence.
+   */
+  /*
+   * TWO COLUMNS NOW, not three (task X2a, Y1 decision 2).
+   *
+   * The action used to sit in column 3 of this grid, which meant it lived
+   * INSIDE the `aria-atomic` live region and was re-read on every edit along
+   * with the verdict. The 22ch floor below was about keeping that column from
+   * being crushed to one word; with the action moved to `.verdict-notes` the
+   * column is gone and the floor with it.
+   */
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--s4);
+  row-gap: var(--s1);
   align-items: baseline;
-  gap: var(--s3);
   padding: var(--s3) var(--s4);
   border-top: 1px solid var(--rule);
-  border-bottom: 1px solid var(--rule);
+  /*
+   * The bottom rule belongs to whatever CLOSES the band. With notes present it
+   * is `.verdict-notes`; without them it is this element. Keeping it on both
+   * drew a divider through the middle of the status band, between the claim
+   * and the notes that describe it.
+   */
   background: var(--paper-sunk);
   font-size: 16px;
   line-height: 1.45;
+  border-bottom: 1px solid var(--rule);
 }
+/* With notes, THEY close the band, so the sentence does not draw a rule. */
+.verdict:has(+ .verdict-notes) { border-bottom: none; }
+.verdict-notes { border-bottom: 1px solid var(--rule); }
+.verdict-mark { grid-column: 1; grid-row: 1; }
+.verdict-text { grid-column: 2; grid-row: 1; }
+/*
+ * THE EMPTY STATE RENDERS NO MARK, so it must not reserve the mark's column.
+ *
+ * `.verdict-text` is pinned to column 2 and the NOTHING branch of
+ * `VerdictLine` deliberately emits no `.verdict-mark` (every glyph on that
+ * line means a verdict was reached). The `auto` first column therefore
+ * collapsed to 0 while the column gap still applied, so the sentence began at
+ * --s4 + 20px while every other verdict begins at --s4 + 2.2ch + --s4. The
+ * band's left text edge jumped about 21px the moment a user placed their
+ * first piece, which is the one transition they are guaranteed to see.
+ */
+.verdict-empty .verdict-text { grid-column: 1 / -1; }
 .verdict-mark {
   font-family: var(--font-data);
   font-weight: 600;
@@ -55,11 +187,128 @@
   width: 2.2ch;
 }
 .verdict-detail { color: var(--ink-soft); }
+
+/*
+ * THE TRUST REGISTER.
+ *
+ * Its own block under the verdict, not a trailing clause, because it now
+ * carries several independent reasons rather than one fixed disclaimer. Quiet
+ * by default at --ink-soft, 4.77:1 against --paper-sunk (not --paper's 5.21:1,
+ * which this comment used to quote); `is-serious` raises the marker to --fail
+ * when a size is unmeasured or brands do not physically join, which are the two
+ * cases where the verdict above is actively misleading.
+ */
+.verdict-trust {
+  margin: var(--s1) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-width: 76ch;
+}
+.verdict-trust li { position: relative; }
+.verdict-trust li::before {
+  content: '\00B7';
+  position: absolute;
+  left: calc(var(--s3) * -1);
+  font-weight: 600;
+}
+.verdict-trust li.is-serious::before { content: '!'; color: var(--fail); }
+
+/*
+ * The truncation count (finding E7). A SENTENCE, not a control.
+ *
+ * Deliberately styled as prose rather than as a link or button: nothing here
+ * is clickable, and anything that looks clickable and is not is worse than
+ * plain text. The full list is reachable through task U7a's graph listing.
+ */
+.verdict-more {
+  margin: var(--s2) 0 0;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+/*
+ * THE NOTES BLOCK (task X2a, Y1 decision 2).
+ *
+ * A SIBLING of `.verdict`, not a child, and that is the whole a11y fix. Trust
+ * lines and the action used to render inside the `aria-atomic="true"` region,
+ * so a user placing a piece heard the verdict sentence plus every trust line,
+ * every time, and task T3b is about to add a fifth trust kind. That lands on
+ * exactly the user the a11y work exists for.
+ *
+ * It is referenced from the live region by `aria-describedby`, so it is
+ * reachable on demand and never re-read on an edit. It carries no role and no
+ * `aria-live`: it is not an announcement, it is context for one.
+ *
+ * Why a sibling rather than a wrapper inside `.verdict`: the role has to stay
+ * on an element that is NOT an ancestor of these notes, and `display: contents`
+ * on a live region is not a bet worth taking. Browsers have historically
+ * dropped such elements from the accessibility tree, which would silence the
+ * verdict outright.
+ */
+.verdict-notes {
+  /*
+   * The text origin matches the verdict SENTENCE, not the panel edge. The mark
+   * occupies 2.2ch plus a column gap in `.verdict`'s grid, so notes padded to
+   * the panel edge started 20px left of the claim they annotate, with the trust
+   * markers landing under the verdict glyph.
+   */
+  padding: 0 var(--s4) var(--s3) calc(var(--s4) + 2.2ch + var(--s4));
+  background: var(--paper-sunk);
+}
+
+/*
+ * The ACTION register, third and quietest (task K4).
+ *
+ * It must not be mistaken for the trust list directly above it: both are
+ * --ink-soft at 14px, so the marker does the separating. Trust items carry
+ * a middot, or an exclamation when serious; the action carries an arrow,
+ * which reads as "do this" rather than "note this".
+ *
+ * --ink-soft measures 4.77:1 against --paper-sunk, the ground .verdict-notes
+ * sets. Clear of the 4.5:1 text floor. (--paper's 5.21:1 is the wrong ground
+ * for anything inside the verdict band.)
+ */
+.verdict-action {
+  position: relative;
+  margin: var(--s2) 0 0;
+  padding: 0 0 0 var(--s4);
+  max-width: 60ch;
+  font-size: 15px;
+  line-height: 1.45;
+  /* --ink, not --ink-soft: this is the instruction, not a footnote. */
+  color: var(--ink);
+  font-weight: 500;
+  text-align: left;
+}
+/*
+ * The arrow sits INSIDE the action's padding box. It was at a negative
+ * offset left over from when the action was a block under the trust list,
+ * which in the one-line layout printed it on top of the end of the verdict
+ * sentence: "...at any joint.->".
+ */
+.verdict-action::before {
+  content: '\2192';
+  position: absolute;
+  left: 0;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
 .verdict-pass    .verdict-mark { color: var(--pass); }
 .verdict-tight   .verdict-mark { color: var(--tight); }
 .verdict-fail    .verdict-mark { color: var(--fail); }
 .verdict-unknown .verdict-mark { color: var(--unknown); }
 .verdict-unknown { color: var(--ink-soft); }
+/*
+ * EMPTY has no mark rule, on purpose: there is no glyph to colour. It is the
+ * only verdict class without one, which is how the stylesheet itself records
+ * that the empty state is not a verdict.
+ */
+.verdict-empty { color: var(--empty); }
 
 /* 3rd in hierarchy: the palette. */
 .palette {
@@ -67,10 +316,66 @@
   display: flex;
   flex-direction: column;
   gap: var(--s3);
+  /*
+   * A ceiling, not a target. See .shell.
+   *
+   * 34vh was the first try and it was too tight once the brand shelves
+   * collapsed: it clipped BRIO's own rows. The tray takes the height it needs
+   * up to 45vh, and `.shell`'s `minmax(320px, 1fr)` is what protects the
+   * canvas. Below that, on a short window, the parts region scrolls. That is
+   * the last resort it was always meant to be rather than the normal case.
+   */
+  max-height: 45vh;
+  min-height: 0;
+  background: var(--paper);
+}
+/*
+ * Only the parts scroll. The control rows under this stay put, because a
+ * Clear button that scrolls out of sight is worse than the tall palette this
+ * cap was introduced to fix.
+ */
+.palette-parts {
+  min-height: 0;
+  overflow-y: auto;
+  /*
+   * A VISIBLE scrollbar, not the macOS overlay one.
+   *
+   * The overlay scrollbar appears only while you scroll, so a clipped list
+   * looks like a complete list. That is exactly how two whole brands went
+   * missing from the palette earlier. If content is cut off, the UI has to
+   * say so without being touched first.
+   */
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule) transparent;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  /* Clipped content needs to look clipped, so the last row is cut mid-card
+     rather than ending flush with the edge. */
+  padding-bottom: var(--s2);
+}
+.palette-parts::-webkit-scrollbar { width: 10px; }
+.palette-parts::-webkit-scrollbar-thumb {
+  background: var(--rule);
+  border: 3px solid var(--paper);
+  border-radius: 5px;
+}
+
+/*
+ * The brand shelves, pinned under the scrolling BRIO list. One line each, so
+ * a user can always see that IKEA and Playtive exist and what is wrong with
+ * their data, whatever the BRIO list is doing above.
+ */
+.palette-shelves {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  padding-top: var(--s2);
+  border-top: 1px solid var(--rule);
 }
 .palette-row {
   display: flex;
-  gap: var(--s2);
+  gap: var(--s1);
   align-items: center;
   flex-wrap: wrap;
 }
@@ -82,12 +387,35 @@
 .piece { position: relative; display: flex; }
 .piece-main {
   display: grid;
-  grid-template-columns: 2.6ch 1fr;
-  grid-template-rows: auto auto;
+  /*
+   * The id column grows. It was a flat 2.6ch, which fit "A2" and "E1" exactly
+   * because BRIO was the only brand. The multi-brand library then put
+   * "PLAYTIVE-200" in it, the text wrapped inside the 2.6ch track and printed
+   * on top of the part name. The card now shows `shortCode(part)` (the brand
+   * prefix lives in the group heading, not on every card), and this floor-plus-
+   * grow means a long code from a brand or a user submission pushes the name
+   * across instead of landing underneath it.
+   */
+  /*
+   * ONE ROW: code, name, dimension. It was two rows with the dimension under
+   * the name, which made every card 49px tall. Nine of those in the 320px
+   * rail is 513px of a 641px column, so the list clipped before it reached
+   * the brand shelves. One row is 36px and the whole catalogue fits.
+   *
+   * It also scans better. A parts bin is read down a column of codes and
+   * across to a size; stacking the size under the name put it in neither
+   * place.
+   */
+  grid-template-columns: minmax(2.6ch, auto) 1fr auto;
   gap: 0 var(--s2);
   align-items: baseline;
   text-align: left;
-  min-height: 44px;            /* touch target floor */
+  /*
+   * 36px on a pointer, 44px on touch (see the coarse-pointer block below).
+   * WCAG 2.5.8 asks 24px for pointer input, so 36 clears it with room. 44
+   * everywhere cost 72px of a 641px rail for no accessibility gain on a mouse.
+   */
+  min-height: 36px;
   padding: var(--s2) var(--s3);
   background: var(--paper);
   border: 1px solid var(--rule);
@@ -97,9 +425,20 @@
   cursor: pointer;
 }
 .piece-main:hover { border-color: var(--ink-soft); }
-.piece-id { grid-row: span 2; font-weight: 600; font-size: 15px; }
+/*
+ * TYPE FLOORS, two of them, stated rather than implied.
+ *
+ * Body copy: 16px. Anything that is a sentence a user reads obeys it.
+ * Data labels inside a control: 12px. A part code, a part name, a dimension or
+ * a count is not prose; it is a field on a thing you click, and it is always
+ * accompanied by the control's own accessible name. Nothing goes below 12px.
+ *
+ * The floor existed as a 16px rule the code broke in eight places. Naming the
+ * second floor makes the rule true instead of violated.
+ */
+.piece-id { font-weight: 600; font-size: 15px; white-space: nowrap; }
 .piece-name { font-size: 14px; }
-.piece-dim { font-size: 12px; color: var(--ink-soft); }
+.piece-dim { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
 .piece-mirror {
   min-width: 32px;
   min-height: 44px;
@@ -122,7 +461,7 @@
   border-radius: 9px;
   background: var(--ink);
   color: var(--paper);
-  font-size: 11px;
+  font-size: 12px;            /* the data-label floor; was 11px */
   line-height: 18px;
   text-align: center;
 }
@@ -147,12 +486,379 @@
 .toggle { cursor: pointer; }
 .spacer { flex: 1; }
 
-.provisional {
+/* Submit-a-part form. Same sunken panel as inventory: both are modes, not chrome. */
+.submit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s3);
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+}
+.submit-why, .submit-hint, .submit-err {
   margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-width: 76ch;
+}
+.submit-hint { font-size: 14px; }
+/* A blocked save is a correctness message, so it gets --fail at 5.58:1. */
+.submit-err { color: var(--fail); font-weight: 600; }
+.submit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--s2);
+}
+.submit-field { display: flex; flex-direction: column; gap: var(--s1); font-size: 14px; }
+.submit-field > span { color: var(--ink-soft); }
+.submit-field input,
+.submit-field select {
+  min-height: 44px;            /* touch floor, unconditional on a data-entry form */
+  padding: 0 var(--s2);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+.submit-actions { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+.submit-actions button {
+  min-height: 44px;
+  padding: 0 var(--s4);
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: 3px;
+  color: var(--paper);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.submit-actions button:disabled { opacity: 0.4; cursor: default; }
+.submit-id { font-size: 14px; color: var(--ink-soft); }
+
+/* Provenance per inventory row. Quiet: it is a caveat, not the content. */
+.inventory-row-src { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+
+/*
+ * A REFUSED KEYSTROKE, and a DISCARDED LOAD.
+ *
+ * Both are correctness messages, so both get --fail at 6.09:1 on --paper and a
+ * solid border rather than a pattern: these are not "you might want to know"
+ * states like the dashed not-owned border or the dotted unverified one, they are
+ * "the app just refused something you did" and "the app just threw data away".
+ */
+.inventory-row.is-invalid {
+  border-style: solid;
+  border-color: var(--fail);
+}
+.inventory-row-bad { font-size: 12px; color: var(--fail); font-weight: 600; white-space: nowrap; }
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin: 0 var(--s4) var(--s2);
+  padding: var(--s2) var(--s3);
+  background: var(--paper-sunk);
+  border: 1px solid var(--fail);
+  border-radius: 3px;
+}
+.notice-line {
+  margin: 0;
+  font-size: 16px;            /* body copy: this is a sentence, it owes the floor */
+  line-height: 1.5;
+  color: var(--ink);
+  max-width: 76ch;
+}
+.notice-line + .notice-line { margin-top: var(--s1); }
+.notice-close {
+  flex: none;
+  min-height: 36px;
+  padding: 0 var(--s3);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/*
+ * BRAND GROUPS.
+ *
+ * A heading-plus-rule per non-BRIO brand, so the separation is structural rather
+ * than a colour the user has to interpret. The warning is text, not a badge: the
+ * reason these pieces are different needs a sentence, and a sentence cannot be
+ * mistaken for decoration.
+ */
+.brand-group + .brand-group {
+  margin-top: var(--s3);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--rule);
+}
+/*
+ * A brand's shelf, as one scannable line.
+ *
+ * It was a 76ch paragraph wrapping to four lines, twice over, between rows of
+ * buttons. Two of those plus fifteen cards is how the palette reached 506px
+ * and squeezed the canvas to 135px. A parts bin is scanned, not read.
+ *
+ * The line is also the disclosure control for the whole group. Capping the
+ * palette and letting it scroll was the first attempt and it was worse: macOS
+ * hides the overlay scrollbar until you scroll, so IKEA and Playtive just
+ * looked absent. A closed row still says the brand exists, still carries its
+ * warning, and still costs one line.
+ */
+.brand-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s2);
+  margin: 0;
+  min-height: 32px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  cursor: pointer;
+  /* Replaces the browser's tiny triangle with the caret below. */
+  list-style: none;
+}
+.brand-note::-webkit-details-marker { display: none; }
+.brand-note::after {
+  content: '>';
+  font-family: var(--font-data);
+  font-size: 12px;
+  color: var(--ink-soft);
+  transition: transform 120ms ease;
+}
+.brand-group[open] > .brand-note::after { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) {
+  .brand-note::after { transition: none; }
+}
+.brand-note:hover { color: var(--ink); }
+/* So a closed shelf still says how much is behind it. */
+.brand-count {
+  font-family: var(--font-data);
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-left: auto;
+}
+/* The full warning, read before any of the shelf's pieces can be clicked. */
+.brand-detail {
+  margin: 0 0 var(--s2);
   font-size: 13px;
   line-height: 1.5;
   color: var(--ink-soft);
   max-width: 76ch;
+}
+.brand-group.is-collapsible > .palette-row { margin-top: var(--s2); }
+.brand-name { font-weight: 600; color: var(--ink); }
+/*
+ * --fail, not a new colour. This IS a correctness warning: the sizes are not
+ * backed by any publisher. It sits on --paper at 6.09:1, above the 4.5:1 floor
+ * 14px text owes.
+ */
+.brand-warn { color: var(--fail); font-weight: 600; }
+
+/*
+ * UNVERIFIED DIMENSIONS.
+ *
+ * A dotted border, distinct from the DASHED border that means "more than you
+ * own". Two different facts need two different patterns, and both survive
+ * greyscale because they are patterns rather than hues. A piece can be both:
+ * dotted and greyed at once is a part you do not own whose size is also a guess.
+ */
+.piece.is-unverified .piece-main,
+.piece.is-unverified .piece-mirror {
+  border-style: dotted;
+  border-color: var(--fail);
+}
+.piece.is-unverified .piece-id::after {
+  content: '*';
+  color: var(--fail);
+}
+
+/*
+ * ADVICE, NOT A GATE (decision D8).
+ *
+ * `is-unowned` marks a palette piece and does nothing else. No `disabled`, no
+ * `pointer-events: none`, no hiding. A shortfall is a fact about the user's box,
+ * not an error in their layout.
+ *
+ * NO OPACITY HERE, and that is the second time this project has had to learn it.
+ * The obvious way to say "greyed" is to fade the label, and it is wrong: at
+ * opacity 0.75 the composite of --ink-soft over --paper measures 3.14:1, which
+ * clears WCAG 1.4.11's 3:1 floor for a graphical object but FAILS the 4.5:1
+ * floor that 14px text owes. At 0.55 it is 2.21:1 and fails both. So the label
+ * stays at full --ink-soft, which measures 5.21:1 and passes.
+ *
+ * The signal is carried by two channels instead, neither of them opacity and
+ * neither of them hue alone:
+ *   - BORDER PATTERN: dashed rather than solid, which survives greyscale and
+ *     every form of colour blindness because it is a shape difference.
+ *   - BORDER COLOUR: --ink-soft at 5.21:1, not --rule. --rule measures 1.40:1
+ *     against --paper, so a dashed --rule border is a pattern nobody can see.
+ *     Visible-dashed is the signal; dashed-in-principle is not.
+ */
+.piece.is-unowned .piece-main,
+.piece.is-unowned .piece-mirror {
+  border-style: dashed;
+  border-color: var(--ink-soft);
+  color: var(--ink-soft);
+}
+
+/* Sits with the verdict: same question, different cause. */
+.shortfall {
+  margin: 0;
+  padding: 0 var(--s4) var(--s2);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.inventory-hint { font-size: 14px; color: var(--ink-soft); }
+
+/*
+ * The inventory panel. Lives inside the palette rather than as a modal: it is
+ * read ALONGSIDE the layout it is about, and a modal would hide the thing the
+ * counts are being compared against.
+ */
+.inventory {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s3);
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+}
+.inventory-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+.inventory-title { margin: 0; font-size: 16px; font-weight: 600; }
+.inventory-close {
+  min-height: 36px;
+  padding: 0 var(--s3);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.inventory-close:hover { border-color: var(--ink-soft); }
+.inventory-undeclared,
+.inventory-shortfall,
+.inventory-note {
+  margin: 0;
+  font-size: 16px;            /* body copy, owes the floor */
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-width: 76ch;
+}
+.inventory-note { font-size: 14px; }
+
+.inventory-rows {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--s2);
+}
+.inventory-row {
+  display: grid;
+  grid-template-columns: 3ch 1fr 6ch auto auto auto;
+  gap: var(--s2);
+  align-items: center;
+  min-height: 44px;            /* touch target floor */
+  padding: 0 var(--s2);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+}
+/*
+ * Dashed, matching the palette, so the two surfaces say "short" the same way.
+ * --ink-soft rather than --rule for the same reason as above: --rule is 1.40:1
+ * against --paper and a dash drawn in it is not a signal.
+ */
+.inventory-row.is-short {
+  border-style: dashed;
+  border-color: var(--ink-soft);
+}
+.inventory-row-id { font-weight: 600; font-size: 14px; }
+.inventory-row-name { font-size: 14px; }
+.inventory-row-input {
+  width: 100%;
+  min-height: 32px;
+  padding: 0 var(--s1);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  text-align: right;
+}
+.inventory-row-used { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+
+.inventory-fills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  align-items: center;
+}
+.inventory-fills-label { font-size: 14px; color: var(--ink-soft); }
+.inventory-fills button {
+  min-height: 36px;
+  padding: 0 var(--s3);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.inventory-fills button:hover { border-color: var(--ink-soft); }
+
+/*
+ * `.provisional` lived here. The paragraph it styled moved into the verdict's
+ * trust register (task K4), so like `.joint` before it the rule had no element
+ * left. Deleted rather than kept "in case", which is how `.joint` survived
+ * three design reviews.
+ */
+
+/*
+ * TOUCH TARGETS.
+ *
+ * The 44px floor belongs to touch, not to a window width: a touch laptop needs
+ * it at 1400px and a mouse does not need it at 700px. `pointer: coarse` asks
+ * about the input device directly, which is the thing that decides.
+ *
+ * On a mouse these stay compact, and 32px and 36px both clear WCAG 2.5.8's 24px
+ * minimum for pointer input, so desktop was never out of compliance. Touch was:
+ * the mirror control is the only way to place a right-turning curve, so missing
+ * it blocks a core action rather than an edge one.
+ */
+@media (pointer: coarse) {
+  .piece-mirror { min-width: 44px; }
+  .palette-controls button,
+  .submit-actions button,
+  .notice-close,
+  .inventory-close,
+  .inventory-fills button,
+  .inventory-row-input,
+  .canvas-empty-action button,
+  .piece-main,
+  .toggle { min-height: 44px; }
 }
 
 /*
@@ -162,7 +868,14 @@
  */
 @media (max-width: 620px) {
   .shell { display: block; padding: var(--s5) var(--s4); }
-  .stage, .verdict, .palette { display: none; }
+  /*
+   * `.verdict-notes` is in this list because X2a made it a SIBLING of
+   * `.verdict` rather than a child. Hiding `.verdict` no longer hides it, so
+   * without this line the sunk notes panel -- trust bullets, the truncation
+   * sentence, the arrowed action -- renders on a phone as the only product
+   * chrome under a message that just said the editor needs a larger screen.
+   */
+  .stage, .verdict, .verdict-notes, .palette, .inventory, .submit, .shortfall, .notice { display: none; }
   .shell::before {
     content: 'The track editor needs a larger screen. Open it on a desktop or tablet.';
     display: block;
@@ -173,4 +886,227 @@
     font-size: 17px;
     line-height: 1.5;
   }
+}
+
+/*
+ * FREE ENDS: the editing surface (decision D5).
+ *
+ * Drawn only where no weld claims a port. The visible dot is small and in
+ * millimetres so it stays the size of the track, but the hit target is a much
+ * larger invisible circle: a 16mm dot in a viewBox scaled to fit is an unfair
+ * thing to ask anyone to click, and its on-screen size changes with the
+ * layout, which a fixed pixel target could not follow.
+ *
+ * --ink-soft at rest rather than an accent colour. A free end is not a
+ * problem and must not read like one; the only red on this canvas is a clash.
+ */
+.port { cursor: pointer; }
+.port-hit { fill: transparent; }
+.port-dot {
+  fill: var(--paper);
+  stroke: var(--ink-soft);
+  stroke-width: 4;
+  transition: none;
+}
+.port:hover .port-dot { stroke: var(--ink); }
+/*
+ * ARMED: a small solid dot inside a ring (task W3, decision D5).
+ *
+ * Was `fill: --ink; stroke: --ink` on a dot grown to r=13, which is a solid
+ * 15mm disc of the darkest ink on the page. On a canvas whose only red is a
+ * clash, the heaviest MONOCHROME mark being a pending choice sent the same
+ * signal by weight: something is wrong here. Nothing is wrong; the user is
+ * halfway through an action.
+ *
+ * Now the dot stays r=8 and only its fill changes, and a separate thin ring
+ * says armed. Inked area drops from ~707 to ~555 square mm and, more to the
+ * point, most of the new mark is empty space, which is what "pending" looks
+ * like. The ring is --ink because it IS the signal; the dot's own stroke drops
+ * to 2 so the centre does not re-thicken what the ring already states.
+ *
+ * Still distinct from focus, which is the other state that darkens this dot:
+ * focus is a thick stroke around a PAPER centre with no ring, armed is a thin
+ * stroke around an INK centre with one.
+ */
+.port-ring {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 3;
+}
+.port.is-armed .port-dot {
+  fill: var(--ink);
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+.port:focus { outline: none; }
+.port:focus-visible .port-dot { stroke: var(--ink); stroke-width: 7; }
+
+/*
+ * THE GAP ANNOTATION (task W2, decision D4).
+ *
+ * MONOCHROME, and that is the whole decision. A gap is a measurement, not an
+ * alarm: NEEDS_GIVE is a gap of several millimetres on a layout that builds
+ * fine. The canvas spends colour on verdicts and red on clashes only, so a
+ * coloured leader here would report a fault on a working layout.
+ *
+ * Lengths are in MILLIMETRES, like everything else in this SVG: the viewBox is
+ * the layout's own extent in mm, so `font-size: 40` is a 40mm figure that
+ * scales with the drawing. That means the on-screen size varies with layout
+ * extent, which is the same trade the clash marker already makes at r=28, and
+ * the alternative (fixed pixels) cannot follow a canvas that rescales to fit.
+ *
+ * The stroke does NOT scale: `vector-effect` keeps the leader one hairline
+ * wide at every zoom, so a leader on a 40-piece layout stays as thin as the
+ * one on a 4-piece layout instead of thickening into the track.
+ */
+.gap-leader {
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.gap-figure {
+  font-size: 40px;
+  font-weight: 600;
+  fill: var(--ink);
+  text-anchor: middle;
+  dominant-baseline: middle;
+  /* Paper behind the figure, so it stays readable over track or a groove. */
+  paint-order: stroke;
+  stroke: var(--floor);
+  stroke-width: 8;
+  stroke-linejoin: round;
+}
+
+/*
+ * THE CRASH SCREEN (task K5).
+ *
+ * Styled at all, rather than left as browser defaults, because this is the
+ * screen most likely to be the last thing a user sees. It should look like
+ * part of the product that knew this could happen, not like a stack trace
+ * that escaped.
+ *
+ * It reuses the empty state's filled-button treatment for Reload, which is
+ * the same role: the one obvious thing to do. The destructive action next to
+ * it stays an outline button and asks again before it fires.
+ */
+.crash {
+  max-width: 76ch;
+  margin: 0 auto;
+  padding: var(--s5) var(--s4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+.crash-title { margin: 0; font-size: 22px; font-weight: 600; color: var(--ink); }
+.crash-lead { margin: 0; font-size: 16px; line-height: 1.5; color: var(--ink-soft); }
+.crash-lead code {
+  font-family: var(--font-data);
+  font-size: 14px;
+  color: var(--ink);
+}
+.crash-actions { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.crash-actions button {
+  min-height: 40px;
+  padding: 0 var(--s4);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+.crash-actions button:hover { border-color: var(--ink-soft); }
+.crash-actions button.primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+.crash-actions button.primary:hover { background: var(--ink-soft); border-color: var(--ink-soft); }
+
+/*
+ * 12px is below the body floor and that is correct: this is a code dump, not
+ * copy. It is read by whoever fixes the bug, in an editor, after pasting.
+ * Nothing in it is a sentence the user has to read on screen.
+ */
+.crash-repro {
+  width: 100%;
+  min-height: 22em;
+  padding: var(--s3);
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre;
+  resize: vertical;
+}
+
+@media (pointer: coarse) {
+  .crash-actions button { min-height: 44px; }
+}
+
+/*
+ * WIDE SCREENS PUT THE PALETTE IN A RAIL.
+ *
+ * Stacking canvas over verdict over palette cannot be made to work on a short
+ * window, and the arithmetic says why rather than taste. At 1280x720 the
+ * palette needs 376px for nine cards, two brand shelves and two control rows;
+ * the verdict needs 79. That leaves 265 for the canvas, under the 320 floor,
+ * so the grid hits the floor and canvas and palette end up splitting the
+ * screen 320/321. Shorter cards and collapsed shelves each bought 30px and
+ * neither changed the outcome.
+ *
+ * Horizontally there is room to spare: the palette's widest content is one
+ * card. A 320px rail gives the canvas the full height minus the verdict, 641px
+ * instead of 320, and the rail no longer needs to hide anything.
+ *
+ * 1000px, because below that a 320px rail leaves under 680 for the canvas and
+ * the stack reads better. The narrow layout above is unchanged.
+ *
+ * LAST IN THE FILE on purpose. A media query adds no specificity, so when this
+ * sat next to .shell the later `.palette { max-height: 45vh }` won and the
+ * rail stayed 324px tall in a 720px column.
+ */
+@media (min-width: 1000px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    /* Three rows now: the notes block is a sibling of the verdict (X2a). */
+    grid-template-rows: minmax(0, 1fr) auto auto;
+  }
+  .stage         { grid-column: 1; grid-row: 1; }
+  .verdict       { grid-column: 1; grid-row: 2; }
+  .verdict-notes { grid-column: 1; grid-row: 3; }
+  .palette {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    max-height: none;
+    border-left: 1px solid var(--rule);
+    border-top: none;
+  }
+  /* The notice and the inventory panel span both columns when they appear. */
+  .notice, .inventory, .submit { grid-column: 1 / -1; }
+
+  /*
+   * Six columns so each control can take the width it needs.
+   *
+   * Left to wrap, these took 229px of a 641px rail, which is what kept the
+   * BRIO curves below the fold. Two even columns did not help: "Remove last"
+   * and the three presets still landed on four separate rows. Six columns
+   * lets the pair of edit buttons halve the row and the three presets thirds
+   * of it, which is three rows instead of five.
+   */
+  .palette-controls {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: var(--s2);
+    align-items: stretch;
+  }
+  .palette-controls .spacer { display: none; }
+  .palette-controls > .toggle { grid-column: span 6; }
+  .palette-controls > button { grid-column: span 3; font-size: 14px; }
+  /* The three presets: the last three buttons of the editing row. */
+  .palette-controls > button:nth-last-of-type(-n+3) { grid-column: span 2; }
+  .palette-controls .inventory-hint { grid-column: span 6; }
 }

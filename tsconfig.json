@@ -16,7 +16,9 @@
       "DOM.Iterable"
     ],
     "noEmit": true,
-    "verbatimModuleSyntax": false
+    "verbatimModuleSyntax": false,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
   },
   "include": [
     "engine",

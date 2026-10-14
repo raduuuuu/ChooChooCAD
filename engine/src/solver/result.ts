@@ -32,13 +32,29 @@
 
 import { getPart } from '../../data/brio.js';
 import { computeResidual, totalGiveMm, type Joint } from './residual.js';
+import {
+  findCoincidentConnectors,
+  findPolarityViolations,
+  type ConnectorClash,
+  type PolarityViolation,
+} from '../feasible.js';
 import type { Layout, Part } from '../parts/schema.js';
 
 /**
  * Three reasons, down from eight. INFEASIBLE, UNBOUNDED, CYCLED, TIMEDOUT and
  * DEGENERATE were all statuses of the deleted LP and are unreachable now.
  */
-export type SolveFailure = 'OPEN_CHAIN' | 'HEADING_MISMATCH' | 'NUMERIC';
+/*
+ * NO_CYCLE, renamed from OPEN_CHAIN (T10).
+ *
+ * The old name was a chain artifact and says something false about a graph:
+ * a layout can be a tree, a forest, or four loose pieces on the table, none
+ * of which is "an open chain". What is true in every case is that there is
+ * no loop to check. `Record<SolveFailure, string>` on FAILURE_COPY and
+ * ACTION_FOR_FAILURE means a missed rename is a compile error, not a
+ * fallthrough to generic copy.
+ */
+export type SolveFailure = 'NO_CYCLE' | 'HEADING_MISMATCH' | 'NUMERIC';
 
 export type SolveResult =
   | {
@@ -55,6 +71,23 @@ export type SolveResult =
        */
       readonly withinBound: boolean;
       readonly joints: readonly Joint[];
+      /**
+       * Non-adjacent connectors sitting at the same exact position (task C4).
+       *
+       * Empty for every assemblable layout. Non-empty is a DEFINITE refusal and
+       * it OVERRIDES closure, including an exact one: sixteen large curves close
+       * with a zero residual and run round the same circle twice. This is
+       * reported on the `ok: true` branch on purpose, because the solve did not
+       * fail. The geometry computed fine; the layout is impossible.
+       */
+      readonly clashes: readonly ConnectorClash[];
+      /**
+       * Joints whose two ends have the same polarity (task C2). Unreachable by
+       * appending, and reported anyway: a restored or imported layout, and D8's
+       * declared welds, both bypass the append path. Like `clashes`, non-empty is
+       * a DEFINITE refusal that overrides an exact closure.
+       */
+      readonly polarityViolations: readonly PolarityViolation[];
     }
   | {
       readonly ok: false;
@@ -75,8 +108,8 @@ export function solveLayout(
   if (!layout.closed) {
     return {
       ok: false,
-      reason: 'OPEN_CHAIN',
-      detail: 'layout is an open chain; there is no loop to close',
+      reason: 'NO_CYCLE',
+      detail: 'nothing here forms a loop yet, so there is nothing to close',
     };
   }
 
@@ -112,5 +145,7 @@ export function solveLayout(
     totalGiveMm: give,
     withinBound: res.gapMm <= give,
     joints: res.joints,
+    clashes: findCoincidentConnectors(res.poses, layout.closed),
+    polarityViolations: findPolarityViolations(layout, resolve),
   };
 }

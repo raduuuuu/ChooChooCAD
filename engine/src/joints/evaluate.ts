@@ -13,10 +13,17 @@
  * middle state is deliberately hedged: the data cannot support more.
  */
 
+import type { ConnectorClash, PolarityViolation } from '../feasible.js';
 import type { CalibrationStatus } from '../parts/schema.js';
 import type { SolveResult } from '../solver/result.js';
 
 export type LayoutVerdict =
+  /**
+   * Two pieces are asked to occupy the same place. Definite, exact, and it
+   * OUTRANKS EXACT: a double circle closes perfectly and cannot be built.
+   * Checked before closure for that reason.
+   */
+  | 'IMPOSSIBLE'
   /** Residual is exactly zero. Needs no give at any joint. */
   | 'EXACT'
   /** Does not close exactly, but the gap is within the total give. MIGHT fit. */
@@ -33,6 +40,10 @@ export interface LayoutEvaluation {
   /** Total one-sided axial give across all joints, millimetres. */
   readonly totalGiveMm: number;
   readonly jointCount: number;
+  /** Coincident non-adjacent connectors. Empty unless the verdict is IMPOSSIBLE. */
+  readonly clashes: readonly ConnectorClash[];
+  /** Joints that cannot physically mate. Empty unless the verdict is IMPOSSIBLE. */
+  readonly polarityViolations: readonly PolarityViolation[];
   readonly reasons: readonly string[];
   readonly calibrationStatus: CalibrationStatus;
 }
@@ -44,6 +55,8 @@ export function unknownLayout(why: string, calibrationStatus: CalibrationStatus)
     gapMm: 0,
     totalGiveMm: 0,
     jointCount: 0,
+    clashes: [],
+    polarityViolations: [],
     reasons: [why],
     calibrationStatus,
   };
@@ -68,7 +81,33 @@ export function evaluateLayout(
   const jointCount = result.joints.length;
   let verdict: LayoutVerdict;
 
-  if (result.closesExactly) {
+  // BEFORE closure, deliberately. A double circle closes exactly and is still
+  // impossible, so asking "does it close" first would report EXACT and be wrong.
+  // Polarity comes first of the two because an unjoinable END is a stronger and
+  // simpler statement than two pieces sharing a POSITION.
+  if (result.polarityViolations.length > 0) {
+    verdict = 'IMPOSSIBLE';
+    const v = result.polarityViolations;
+    reasons.push(
+      `${v.length} ${v.length === 1 ? 'joint joins' : 'joints join'} two ends of the ` +
+        'same kind, which do not fit together',
+    );
+    for (const x of v) {
+      reasons.push(`joint ${x.jointIndex}: ${x.between[0]} to ${x.between[1]}, both ${x.polarity}`);
+    }
+  } else if (result.clashes.length > 0) {
+    verdict = 'IMPOSSIBLE';
+    const n = result.clashes.length;
+    reasons.push(
+      `${n} ${n === 1 ? 'pair of connectors shares' : 'pairs of connectors share'} ` +
+        'the same exact position, so two pieces would have to occupy the same place',
+    );
+    if (result.closesExactly) {
+      reasons.push('the loop does close exactly; it still cannot be assembled');
+    }
+    // Said out loud so IMPOSSIBLE is not read as a complete overlap check.
+    reasons.push('only exact connector coincidences are checked; pieces crossing mid-span are not');
+  } else if (result.closesExactly) {
     verdict = 'EXACT';
     reasons.push('closes exactly; no give needed at any joint');
   } else if (result.withinBound) {
@@ -95,6 +134,8 @@ export function evaluateLayout(
     gapMm: result.gapMm,
     totalGiveMm: result.totalGiveMm,
     jointCount,
+    clashes: result.clashes,
+    polarityViolations: result.polarityViolations,
     reasons,
     calibrationStatus,
   };

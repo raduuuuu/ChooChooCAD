@@ -1,87 +1,35 @@
 /**
- * Render geometry.
+ * Render geometry, engine side.
  *
- * The canvas emits SVG arc commands, and an SVG arc is specified by its
- * endpoints plus flags rather than by its centre. Get the sweep flag wrong and
- * every arc bulges the wrong way: the eight-curve circle renders as a flower,
- * while the endpoints, and therefore every other test, stay perfectly correct.
+ * This file used to also pin the SVG sweep flag, and it did so against its own
+ * hand-copied `SWEEP_FOR_LEFT = 1` rather than against the renderer. That made
+ * it a circular pin: inverting the renderer's literal left the whole suite
+ * green, proven by mutation during the fourth eng review. Those assertions now
+ * live in `app/src/trackPath.test.ts`, where they parse the flag out of
+ * `segmentPath`'s actual output, and the flag itself has one owner in
+ * `app/src/trackPath.ts`.
  *
- * So assert the thing that actually pins it down. The SVG spec (F.6.5) gives a
- * closed form for the centre implied by an arc command; for a circle made of
- * eight curves, all eight must resolve to the same centre.
+ * What stays here is the part that is genuinely about the engine: that the float
+ * walk emits one segment per placed piece and carries a radius only for curves.
  */
 
 import { describe, expect, it } from 'vitest';
 import { getPart } from '../data/brio.js';
-import { walkFloat, type Segment } from '../src/geom/fk.js';
-import type { Layout } from '../src/parts/schema.js';
-
-/** The sweep flag the renderer uses. Must match TrackCanvas.segmentPath. */
-const SWEEP_FOR_LEFT = 1;
-
-/** SVG F.6.5 endpoint-to-centre conversion, for rx = ry = r and phi = 0. */
-function svgArcCentre(
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  r: number,
-  largeArc: 0 | 1,
-  sweep: 0 | 1,
-): [number, number] {
-  const dx = (x1 - x2) / 2;
-  const dy = (y1 - y2) / 2;
-  const d2 = dx * dx + dy * dy;
-  const factor = Math.sqrt(Math.max(0, (r * r) / d2 - 1));
-  const sign = largeArc !== sweep ? 1 : -1;
-  const cx = sign * factor * dy + (x1 + x2) / 2;
-  const cy = sign * factor * -dx + (y1 + y2) / 2;
-  return [cx, cy];
-}
-
-function centreOf(s: Segment): [number, number] {
-  const sweep = (s.sweep === 'left' ? SWEEP_FOR_LEFT : 1 - SWEEP_FOR_LEFT) as 0 | 1;
-  return svgArcCentre(s.from.x, s.from.y, s.to.x, s.to.y, s.radiusMm!, 0, sweep);
-}
+import { BUILT_IN, makeResolver } from '../data/library.js';
+import { walkFloat } from '../src/geom/fk.js';
+import { placeAll } from '../src/graph/frames.js';
+import { graphFromChain } from '../src/graph/fromChain.js';
+import { portsOf, type Graph, type Piece, type Port } from '../src/graph/model.js';
+import { renderBounds, renderGraph } from '../src/graph/render.js';
+import { centrelineRadiusMm } from '../src/parts/schema.js';
+import type { Layout, Part } from '../src/parts/schema.js';
 
 const loop = (ids: string[]): Layout => ({
   placements: ids.map((partId) => ({ partId, turn: 'left' as const })),
   closed: true,
 });
 
-describe('SVG arc rendering', () => {
-  it('all eight arcs of the circle share one centre', () => {
-    const { segments } = walkFloat(loop(Array(8).fill('E')), getPart);
-    expect(segments).toHaveLength(8);
-    const centres = segments.map(centreOf);
-    // First curve starts at the origin heading +x, so the centre is 182mm to
-    // its left: straight up the y axis.
-    expect(centres[0]![0]).toBeCloseTo(0, 6);
-    expect(centres[0]![1]).toBeCloseTo(182, 6);
-    for (const c of centres) {
-      expect(c[0]).toBeCloseTo(centres[0]![0], 6);
-      expect(c[1]).toBeCloseTo(centres[0]![1], 6);
-    }
-  });
-
-  it('the opposite sweep flag would put the centre somewhere else entirely', () => {
-    // Guards the assertion above against passing for the wrong reason.
-    const { segments } = walkFloat(loop(Array(8).fill('E')), getPart);
-    const s = segments[0]!;
-    const wrong = svgArcCentre(s.from.x, s.from.y, s.to.x, s.to.y, s.radiusMm!, 0, 0);
-    expect(Math.hypot(wrong[0] - 0, wrong[1] - 182)).toBeGreaterThan(100);
-  });
-
-  it('a right turn centres on the opposite side', () => {
-    const { segments } = walkFloat(
-      { placements: [{ partId: 'E', turn: 'right' }], closed: false },
-      getPart,
-    );
-    const c = centreOf(segments[0]!);
-    expect(c[0]).toBeCloseTo(0, 6);
-    expect(c[1]).toBeCloseTo(-182, 6);
-  });
-
+describe('the float walk', () => {
   it('emits one segment per placed piece, with curves carrying a radius', () => {
     const { segments, poses } = walkFloat(
       loop([...Array(4).fill('E'), 'D', ...Array(4).fill('E'), 'D']),
@@ -89,7 +37,87 @@ describe('SVG arc rendering', () => {
     );
     expect(segments).toHaveLength(10);
     expect(poses).toHaveLength(11);
-    expect(segments.filter((s) => s.kind === 'curve').every((s) => s.radiusMm === 182)).toBe(true);
-    expect(segments.filter((s) => s.kind === 'straight').every((s) => s.radiusMm === undefined)).toBe(true);
+    // Derived from the part, not a literal: this asserts that a curve segment
+    // CARRIES its part's radius, which is the renderer contract. Pinning the
+    // radius value itself is analytic.test.ts's source-comparison test.
+    const expected = centrelineRadiusMm(getPart('E') as Extract<Part, { kind: 'curve' }>);
+    expect(segments.filter((s) => s.kind === 'curve').every((s) => s.centrelineRadiusMm === expected)).toBe(true);
+    expect(segments.filter((s) => s.kind === 'straight').every((s) => s.centrelineRadiusMm === undefined)).toBe(true);
+  });
+});
+
+/*
+ * Value: protects=renderGraph's free-port flag, one drawn segment per ROAD carrying its part's radius and turn-driven sweep, and renderBounds' empty fallback
+ * Value: fails_when=a weld stops claiming both of its ends, sweep stops following `turn`, a road stops carrying its radius, or empty bounds return Infinity
+ * Value: why_new=this file covered only walkFloat, which no production code calls any more; renderGraph is what App.tsx draws from and had no test at all
+ * Value: seam=none
+ * Value: no_claim=nothing about SVG path text (trackPath.test.ts owns the sweep flag and the `d` string) and nothing about hit-test tolerance in the browser
+ *
+ * Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+ */
+describe('the graph renderer, which is what the canvas actually draws', () => {
+  const resolve = makeResolver(BUILT_IN);
+  const ports = (piece: Piece): readonly Port[] => portsOf(resolve(piece.partId), piece.turn);
+  const render = (g: Graph) => renderGraph(g, ports, resolve, placeAll(g, ports));
+  const chain = (ids: string[], closed: boolean, turn: 'left' | 'right' = 'left') =>
+    graphFromChain({ placements: ids.map((partId) => ({ partId, turn })), closed });
+
+  it('marks a port free only when NO weld claims it, which is what free-end clicking hit-tests', () => {
+    // Three straights in a row: the two outer ends are clickable and the four
+    // welded ones are not. MUTATION: dropping the `b` side of each weld from
+    // `claimed` reports p1#0 and p2#0 free as well, and the UI then offers to
+    // attach a piece to a joint that is already made.
+    const r = render(chain(['A', 'A', 'A'], false));
+    const free = r.ports.filter((p) => p.free).map((p) => `${p.pieceId}#${p.port}`).sort();
+    expect(free).toEqual(['p0#0', 'p2#1']);
+    expect(r.ports).toHaveLength(6);
+  });
+
+  it('a closed loop leaves nothing free, so a finished circle offers no end to click', () => {
+    expect(render(chain(Array(8).fill('E'), true)).ports.every((p) => !p.free)).toBe(true);
+  });
+
+  it('emits one segment per road: a curve carries its part radius, a straight carries none', () => {
+    const expected = centrelineRadiusMm(getPart('E') as Extract<Part, { kind: 'curve' }>);
+    const curves = render(chain(Array(8).fill('E'), true)).segments;
+    expect(curves).toHaveLength(8);
+    expect(curves.every((s) => s.kind === 'curve' && s.centrelineRadiusMm === expected)).toBe(true);
+    const straights = render(chain(['A', 'A', 'A'], false)).segments;
+    expect(straights).toHaveLength(3);
+    expect(straights.every((s) => s.kind === 'straight' && s.centrelineRadiusMm === undefined)).toBe(true);
+  });
+
+  it('the drawn sweep follows the piece turn, so a right curve is not drawn as a left one', () => {
+    // MUTATION: inverting the `piece.turn === 'right'` test in render.ts swaps
+    // both expectations below, which is a track drawn as its own mirror image.
+    expect(render(chain(Array(8).fill('E'), true, 'right')).segments.every((s) => s.sweep === 'right')).toBe(true);
+    expect(render(chain(Array(8).fill('E'), true, 'left')).segments.every((s) => s.sweep === 'left')).toBe(true);
+  });
+
+  it('the circle it draws is as wide as the circle it computes, in both directions', () => {
+    // Derived from the part, not a copied figure: eight 45-degree arcs put
+    // their ports on a circle of the part's own centreline radius, so the
+    // drawing must span one diameter each way. MUTATION (run): making
+    // renderGraph read the identity instead of `placement.frames` collapses
+    // both spans to 0 -- the renderer disagreeing with the solver about where
+    // a piece is, which is the one thing one shared traversal exists to stop.
+    // Halving render.ts's RAD does NOT fail here and the comment used to say
+    // it would: RAD only scales the outward heading, never a position.
+    // What this does not pin is the radius FIGURE (both sides derive it from
+    // centrelineRadiusMm; analytic.test.ts compares that to the source) or
+    // renderBounds' ports loop, which a closed loop's segments already cover.
+    const b = renderBounds(render(chain(Array(8).fill('E'), true)));
+    const diameter = 2 * centrelineRadiusMm(getPart('E') as Extract<Part, { kind: 'curve' }>);
+    expect(b.maxX - b.minX).toBeCloseTo(diameter, 6);
+    expect(b.maxY - b.minY).toBeCloseTo(diameter, 6);
+  });
+
+  it('an empty canvas has zero bounds, never Infinity, because the viewBox is computed from them', () => {
+    // MUTATION: removing the `Number.isFinite` guard in renderBounds returns
+    // +/-Infinity here, and TrackCanvas then writes a NaN viewBox and draws
+    // nothing at all -- a blank page for an empty layout.
+    const empty = render({ pieces: [], welds: [] });
+    expect(empty.segments).toEqual([]);
+    expect(renderBounds(empty)).toEqual({ minX: 0, minY: 0, maxX: 0, maxY: 0 });
   });
 });

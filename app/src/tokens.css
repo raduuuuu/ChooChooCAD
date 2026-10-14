@@ -1,11 +1,22 @@
 /*
- * PROVISIONAL TOKENS.
+ * THE DESIGN SYSTEM. This file is it.
  *
- * There is no design system for this product yet; a real one (researched
- * aesthetic, typography, colour, spacing, motion, with previews) is a separate
- * piece of work. These values exist so the first screen is not assembled from
- * browser defaults, which is the "nobody chose this" signal. Replace wholesale
- * when the real system lands; nothing outside this file hardcodes a colour.
+ * It holds every value: colour, type role, spacing step, motion. Nothing
+ * outside it hardcodes a colour. The rules that are NOT values live in
+ * DESIGN.md at the repo root: colour is spent only on verdicts, no verdict is
+ * ever colour-only, every number is a measurement, contrast is measured
+ * against the surface the thing actually sits on. Read that file before adding
+ * a colour here.
+ *
+ * This header used to say "PROVISIONAL TOKENS. There is no design system for
+ * this product yet... Replace wholesale when the real system lands." That
+ * stopped being true somewhere around the third contrast correction. The file
+ * assigns typeface roles, self-hosts both faces with licence provenance,
+ * carries a measured ratio for every colour against its own ground, and spends
+ * colour in exactly one place. Telling the next contributor to throw that away
+ * was the opposite of what the comment was for. A researched aesthetic with
+ * previews is still separate work; it will be a revision of this system, not a
+ * replacement for the nothing that was claimed to be here (task W5).
  *
  * Direction being served: warm toy crossed with precision instrument. The paper
  * ground and the beech track supply the warmth; everything else reads as a
@@ -13,11 +24,85 @@
  * decision. Thumbnails, chrome and labels get none.
  *
  * Typeface roles are assigned explicitly: a sans for UI, a mono for every
- * number. Not loaded as webfonts yet, so these are stacks with real first
- * choices rather than a system default.
+ * number. Both are now self-hosted and actually load; the @font-face block
+ * below is the declaration. Before that they were named here and fetched
+ * nowhere, so the effective faces were system-ui and ui-monospace, which is the
+ * "nobody chose this" signal in the one place the design brief cared most.
  */
 
+/*
+ * The two faces, self-hosted.
+ *
+ * These are declared here rather than imported from @fontsource's own CSS for
+ * one reason: that CSS hardcodes `font-display: swap`, and swap is the one value
+ * this product cannot use. Every number on screen is a measurement, the design
+ * brief calls tabular figures mandatory, and a swap repaints those columns in a
+ * different face mid-load, which is exactly the jitter tabular figures exist to
+ * prevent. `optional` either has the font by first paint or does not use it at
+ * all this load, so the columns never move.
+ *
+ * Latin only: the entire corpus is millimetre figures, BRIO part codes and
+ * English UI copy. Shipping glyphs the product cannot render is dead weight.
+ *
+ * Provenance: @fontsource/ibm-plex-sans and @fontsource/ibm-plex-mono, both
+ * devDependencies so the files are reproducible from the lockfile rather than
+ * being opaque binaries committed to the repo. IBM Plex is SIL Open Font License
+ * 1.1; each package carries its LICENSE, and the OFL requires that licence to
+ * travel with the files wherever this is published.
+ */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: optional;
+  src: url('@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: optional;
+  src: url('@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: optional;
+  src: url('@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: optional;
+  src: url('@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-600-normal.woff2') format('woff2');
+}
+
 :root {
+  /*
+   * LIGHT, DECLARED (task W6, decision D8).
+   *
+   * Without this the browser styles everything the page does not: the five
+   * selects and the number inputs in SubmitPart.tsx, the ErrorBoundary
+   * textarea, the scrollbars and the caret all came back in dark UA styling on
+   * a dark-OS machine, sitting on a page that is still warm paper. White text
+   * in a dark box beside black text on cream, on the one screen that asks the
+   * user to type real data.
+   *
+   * This declares the mode; it does not add a dark one. Every colour below
+   * carries a contrast ratio measured against a SPECIFIC ground (--paper,
+   * --paper-sunk or --floor), and the four verdict colours already sit in one
+   * greyscale luminance band. New grounds mean re-deriving every ratio, and an
+   * unmeasured dark palette is worse than none: it would drop verdict text
+   * under 4.5:1 silently, in the place this product's credibility lives.
+   *
+   * gstack-shortcut(dec-2508388b): light-only, every contrast ratio is measured
+   * against a light ground, upgrade when a researched dark palette has its
+   * ratios re-measured against dark grounds.
+   */
+  color-scheme: light;
+
   /* Ground and ink */
   --paper: #f7f3ec;
   --paper-sunk: #efe9df;
@@ -25,15 +110,87 @@
   --ink-soft: #6b655d;
   --rule: #d8cfc0;
 
-  /* Beech track. Data, not decoration: this is the only warmth on screen. */
+  /*
+   * Beech track. Data, not decoration: this is the only warmth on screen.
+   *
+   * The edge is deliberately deeper than raw beech. It was #b39a6b, which
+   * measures 2.45:1 against --paper and so sat below WCAG 1.4.11's 3:1 floor
+   * for a graphical object you need to see in order to understand the content.
+   * The canvas is the dominant element on the screen; it cannot be the faintest
+   * thing on it. #8a7349 measures 4.10:1 against --paper and 2.54:1 against the
+   * lighter fill, so the two-pass edge/fill reading survives.
+   */
   --track-fill: #d9be93;
-  --track-edge: #b39a6b;
+  /*
+   * The rail grooves. A recess, so it sits between the wood and the plank
+   * edge: 2.11:1 against the fill, which is a shadow line rather than an
+   * information channel, so WCAG 1.4.11's 3:1 does not bind it. The verdict
+   * never depends on seeing a groove.
+   */
+  --track-groove: #9c7f50;
+  /*
+   * THE FLOOR. The canvas ground, not --paper.
+   *
+   * Canvas and palette were both --paper, so the thing you are designing and
+   * the bin you pull parts from were the same surface. This makes the canvas
+   * a floor and leaves the palette light, which is the right way round: track
+   * goes down on a floor and gets picked out of a tray.
+   *
+   * #ece6da and no darker. The empty state's secondary line sits on it at
+   * 4.64:1, over the 4.5:1 text floor, and the plank edge reads 3.65:1, over
+   * the 3:1 for non-text. Darkening the TRAY instead was the first attempt
+   * and it fails: #eae2d4 puts --ink-soft at 4.48:1.
+   */
+  --floor: #ece6da;
+  --track-edge: #8a7349;
 
-  /* Verdict colours. The ONLY place colour carries meaning. */
+  /*
+   * Verdict colours. The ONLY place colour carries meaning.
+   *
+   * All four are rendered as 16px semibold text, so all four owe 4.5:1. Measured
+   * against --paper-sunk, which is the band they actually sit on:
+   *
+   *   --pass    4.70:1   unchanged
+   *   --fail    5.58:1   unchanged
+   *   --tight   4.78:1   was #a8740c at 3.36:1, which failed
+   *   --unknown 4.66:1   was #8c8880 at 2.92:1, which failed even the 3:1
+   *                      non-text floor
+   *
+   * --unknown mattered most: it is the glyph the grey-is-not-green invariant
+   * rests on, and at 2.92:1 it read as absent rather than as caution. It now
+   * lands on the same tone as --ink-soft, which is correct: UNKNOWN is the
+   * absence of a verdict colour, not a colour of its own.
+   *
+   * In greyscale all four sit in a luminance band of 0.106 to 0.137, so they are
+   * near indistinguishable in print. That was already true before this change.
+   * It is why no verdict may ever be colour-only: the O / \ X ? glyph shapes
+   * carry the entire signal on paper.
+   */
   --pass: #3f7244;
-  --tight: #a8740c;
+  --tight: #875e08;
   --fail: #a3362a;
-  --unknown: #8c8880;
+  --unknown: #6b675f;
+
+  /*
+   * EMPTY IS NOT UNKNOWN (task X2a, Y1 decision 1, gate d5 = b).
+   *
+   * These were the same grey, so "I have not started" and "the solver looked
+   * and this is broken" rendered identically. Those are the two most different
+   * states this product has, and task X2b was about to freeze the collapse
+   * into an asserted invariant.
+   *
+   * It is deliberately NOT a fifth verdict colour, and that is the point
+   * rather than a shortcut: the empty state is the absence of a verdict, so
+   * giving it a hue would claim something. It takes --ink-soft's value, which
+   * measures 4.77:1 against --paper-sunk -- the ground the verdict band
+   * actually sets, NOT --paper's 5.21:1, which an earlier version of this
+   * comment quoted. Clear of the 4.5:1 text floor either way, but the margin
+   * is 0.27 rather than 0.71, and this file's whole claim is that every colour
+   * carries its ratio against the surface it sits on. It carries no glyph at
+   * all and is the one verdict class with no `.verdict-mark` rule. UNKNOWN keeps its own value for the four
+   * FailureKinds, where "could not check" IS a verdict.
+   */
+  --empty: var(--ink-soft);
 
   /* Type. Roles assigned deliberately, per the universal font rule. */
   --font-ui: 'IBM Plex Sans', 'Inter', system-ui, sans-serif;

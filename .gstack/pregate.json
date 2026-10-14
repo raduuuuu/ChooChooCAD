@@ -1,0 +1,250 @@
+{
+  "$schema": "https://github.com/garrytan/gstack/docs/pregate.md#pregate-v1",
+  "runner": "bun x vitest run --config vitest.config.ts {files}",
+  "dependencies": {
+    "*.md": [],
+    ".github/workflows/ci.yml": [],
+    ".gitignore": [],
+    ".gstack-redact-allowlist": [],
+    ".gstack/**": [],
+    "app/index.html": [],
+    "app/src/*.css": [],
+    "app/src/App.tsx": [
+      "app/src/layoutStore.test.ts",
+      "app/src/repro.test.ts"
+    ],
+    "app/src/ErrorBoundary.tsx": [
+      "app/src/repro.test.ts"
+    ],
+    "app/src/Inventory.tsx": [
+      "app/src/repro.test.ts"
+    ],
+    "app/src/SubmitPart.tsx": [
+      "app/src/repro.test.ts"
+    ],
+    "app/src/TrackCanvas.tsx": [
+      "app/src/repro.test.ts"
+    ],
+    "app/src/VerdictLine.tsx": [
+      "app/src/repro.test.ts"
+    ],
+    "app/src/editorReducer.ts": [
+      "app/src/editorReducer.test.ts",
+      "app/src/repro.test.ts"
+    ],
+    "app/src/env.d.ts": [
+      "app/src/repro.test.ts"
+    ],
+    "app/src/inventoryModel.ts": [
+      "app/src/inventoryModel.test.ts",
+      "app/src/repro.test.ts"
+    ],
+    "app/src/layoutModel.ts": [
+      "app/src/editorReducer.test.ts",
+      "app/src/layoutModel.test.ts",
+      "app/src/repro.test.ts"
+    ],
+    "app/src/layoutStore.ts": [
+      "app/src/layoutStore.test.ts",
+      "app/src/repro.test.ts"
+    ],
+    "app/src/main.tsx": [
+      "app/src/repro.test.ts"
+    ],
+    "app/src/presets.ts": [
+      "app/src/presets.test.ts",
+      "app/src/repro.test.ts"
+    ],
+    "app/src/repro.ts": [
+      "app/src/repro.test.ts"
+    ],
+    "app/src/storageKeys.ts": [
+      "app/src/inventoryModel.test.ts",
+      "app/src/layoutStore.test.ts",
+      "app/src/repro.test.ts"
+    ],
+    "app/src/trackPath.ts": [
+      "app/src/repro.test.ts",
+      "app/src/trackPath.test.ts"
+    ],
+    "app/src/verdictAction.ts": [
+      "app/src/repro.test.ts",
+      "app/src/verdictAction.test.ts"
+    ],
+    "app/src/verdictView.ts": [
+      "app/src/repro.test.ts",
+      "app/src/verdictView.test.ts"
+    ],
+    "bun.lock": [],
+    "docs/**": [],
+    "engine/data/brio.ts": [
+      "app/src/inventoryModel.test.ts",
+      "app/src/repro.test.ts",
+      "app/src/trackPath.test.ts",
+      "engine/test/analytic.test.ts",
+      "engine/test/render.test.ts"
+    ],
+    "engine/data/library.ts": [
+      "app/src/editorReducer.test.ts",
+      "app/src/inventoryModel.test.ts",
+      "app/src/layoutModel.test.ts",
+      "app/src/layoutStore.test.ts",
+      "app/src/presets.test.ts",
+      "app/src/repro.test.ts",
+      "engine/test/analytic.test.ts",
+      "engine/test/cycles.test.ts",
+      "engine/test/differential.test.ts",
+      "engine/test/graphEdit.test.ts",
+      "engine/test/graphFeasible.test.ts",
+      "engine/test/graphModel.test.ts",
+      "engine/test/render.test.ts",
+      "engine/test/shortCode.test.ts",
+      "engine/test/switches.test.ts",
+      "engine/test/trustBoundary.test.ts"
+    ],
+    "engine/data/sources.ts": [
+      "app/src/repro.test.ts",
+      "engine/test/analytic.test.ts"
+    ],
+    "engine/data/thirdParty.ts": [
+      "app/src/repro.test.ts",
+      "engine/test/analytic.test.ts",
+      "engine/test/trustBoundary.test.ts"
+    ],
+    "engine/src/feasible.ts": [
+      "app/src/layoutModel.test.ts",
+      "app/src/layoutStore.test.ts",
+      "app/src/repro.test.ts",
+      "engine/test/analytic.test.ts",
+      "engine/test/graphFeasible.test.ts"
+    ],
+    "engine/src/geom/fk.ts": [
+      "app/src/repro.test.ts",
+      "app/src/trackPath.test.ts",
+      "engine/test/render.test.ts"
+    ],
+    "engine/src/geom/pose.ts": [
+      "app/src/repro.test.ts",
+      "engine/test/analytic.test.ts",
+      "engine/test/switches.test.ts"
+    ],
+    "engine/src/graph/cycles.ts": [
+      "app/src/repro.test.ts",
+      "app/src/verdictView.test.ts",
+      "engine/test/cycles.test.ts",
+      "engine/test/differential.test.ts"
+    ],
+    "engine/src/graph/edit.ts": [
+      "app/src/repro.test.ts",
+      "engine/test/graphEdit.test.ts"
+    ],
+    "engine/src/graph/feasible.ts": [
+      "app/src/layoutModel.test.ts",
+      "app/src/layoutStore.test.ts",
+      "app/src/repro.test.ts",
+      "app/src/verdictView.test.ts",
+      "engine/test/analytic.test.ts",
+      "engine/test/graphFeasible.test.ts"
+    ],
+    "engine/src/graph/forest.ts": [
+      "app/src/repro.test.ts",
+      "engine/test/graphModel.test.ts",
+      "engine/test/switches.test.ts"
+    ],
+    "engine/src/graph/frames.ts": [
+      "app/src/editorReducer.test.ts",
+      "app/src/layoutModel.test.ts",
+      "app/src/layoutStore.test.ts",
+      "app/src/repro.test.ts",
+      "engine/test/cycles.test.ts",
+      "engine/test/differential.test.ts",
+      "engine/test/graphEdit.test.ts",
+      "engine/test/graphFeasible.test.ts",
+      "engine/test/graphModel.test.ts",
+      "engine/test/render.test.ts",
+      "engine/test/switches.test.ts"
+    ],
+    "engine/src/graph/fromChain.ts": [
+      "app/src/repro.test.ts",
+      "engine/test/cycles.test.ts",
+      "engine/test/differential.test.ts",
+      "engine/test/graphEdit.test.ts",
+      "engine/test/graphFeasible.test.ts",
+      "engine/test/graphModel.test.ts",
+      "engine/test/render.test.ts",
+      "engine/test/trustBoundary.test.ts"
+    ],
+    "engine/src/graph/model.ts": [
+      "app/src/editorReducer.test.ts",
+      "app/src/layoutModel.test.ts",
+      "app/src/layoutStore.test.ts",
+      "app/src/repro.test.ts",
+      "engine/test/cycles.test.ts",
+      "engine/test/differential.test.ts",
+      "engine/test/graphEdit.test.ts",
+      "engine/test/graphFeasible.test.ts",
+      "engine/test/graphModel.test.ts",
+      "engine/test/render.test.ts",
+      "engine/test/switches.test.ts",
+      "engine/test/trustBoundary.test.ts"
+    ],
+    "engine/src/graph/render.ts": [
+      "app/src/repro.test.ts",
+      "engine/test/render.test.ts"
+    ],
+    "engine/src/graph/solve.ts": [
+      "app/src/repro.test.ts",
+      "app/src/verdictView.test.ts",
+      "engine/test/differential.test.ts",
+      "engine/test/trustBoundary.test.ts"
+    ],
+    "engine/src/joints/evaluate.ts": [
+      "app/src/repro.test.ts",
+      "engine/test/analytic.test.ts"
+    ],
+    "engine/src/joints/trust.ts": [
+      "app/src/repro.test.ts",
+      "engine/test/analytic.test.ts",
+      "engine/test/trustBoundary.test.ts"
+    ],
+    "engine/src/parts/schema.ts": [
+      "app/src/repro.test.ts",
+      "app/src/trackPath.test.ts",
+      "engine/test/analytic.test.ts",
+      "engine/test/cycles.test.ts",
+      "engine/test/differential.test.ts",
+      "engine/test/graphFeasible.test.ts",
+      "engine/test/render.test.ts",
+      "engine/test/shortCode.test.ts",
+      "engine/test/switches.test.ts",
+      "engine/test/trustBoundary.test.ts"
+    ],
+    "engine/src/solver/residual.ts": [
+      "app/src/repro.test.ts",
+      "engine/test/analytic.test.ts",
+      "engine/test/differential.test.ts"
+    ],
+    "engine/src/solver/result.ts": [
+      "app/src/presets.test.ts",
+      "app/src/repro.test.ts",
+      "engine/test/analytic.test.ts",
+      "engine/test/differential.test.ts"
+    ],
+    "package.json": [],
+    "vite.config.ts": [],
+    "vitest.config.ts": [],
+    "engine/src/geom/cyclotomic.ts": [
+      "app/src/repro.test.ts",
+      "engine/test/analytic.test.ts",
+      "engine/test/differential.test.ts",
+      "engine/test/graphModel.test.ts"
+    ]
+  },
+  "selection": {},
+  "warn": [],
+  "strays": {
+    "allow": [
+      ".gstack/tmp/"
+    ]
+  }
+}

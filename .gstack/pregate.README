@@ -1,0 +1,48 @@
+// Which tests cover which file, derived from real imports rather than guessed
+// (checked 2026-10-14 by resolving every test file's import list).
+//
+// An empty lane list is a DECLARATION, not a dodge, and each one has a reason:
+//
+//   App.tsx, ErrorBoundary.tsx, Inventory.tsx, SubmitPart.tsx, TrackCanvas.tsx,
+//   VerdictLine.tsx   React components. vitest runs in node with no DOM, and
+//                     vitest.config.ts's docblock forbids widening that as a
+//                     substitute for a real testing-library setup (task E11).
+//                     VerdictLine gets a renderToStaticMarkup harness in X2b;
+//                     the rest wait for E11.
+//   (verdictView.ts is no longer here: task T3a landed on 2026-10-14 and the
+//   lane now names app/src/verdictView.test.ts, 23 cases over both precedences.)
+//   main.tsx          The root mount. Three lines, nothing to assert.
+//   env.d.ts          Ambient type declarations.
+//   vite/vitest config, package.json, bun.lock, docs, css, html
+//                     Not code under test.
+//   .github/workflows/ci.yml
+//                     The workflow IS the test runner, so it has no unit lane.
+//                     It was verified the only way that means anything: two
+//                     deliberate breaks pushed to a throwaway branch on
+//                     2026-10-14. PLANK_WIDTH_MM 40 -> 41 went red at
+//                     analytic.test.ts:341. CYCLE_RANK_CEILING 20 -> 3 went
+//                     GREEN, which is how eng finding E13 got its value-pin
+//                     half.
+
+## Source-text dependencies must be added by hand
+
+The dependency map is derived from the import graph, which cannot see a test
+that reads a source file as TEXT. Two do: `layoutStore.test.ts` reads
+`App.tsx` and `repro.test.ts` reads `ErrorBoundary.tsx`, both to assert
+wiring that needs a DOM to exercise and therefore cannot be asserted any other
+way in this suite.
+
+There is also a WHOLE-TREE scan. `repro.test.ts`'s "storage keys have one
+owner each" walks every non-test .ts/.tsx under app/ and engine/ and asserts
+no localStorage call passes a string literal. It is deliberately a scan rather
+than a hand-kept list, so a new module is covered the moment it is written --
+which means `repro.test.ts` depends on EVERY source file and is mapped to all
+of them.
+
+These lanes were empty, with the justification that React components are not
+reachable from a node-environment suite. That stopped being true the moment
+these tests were written: an App.tsx-only edit selected ZERO tests while
+App.tsx held the only assertions pinning the per-store save gating, and an
+Inventory.tsx edit could add a literal storage key without selecting the test
+that forbids it. Added by hand, because no import walk can see a readFileSync
+or a readdirSync. If you add another source-text test, add its lanes here too.

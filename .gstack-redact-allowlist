@@ -1,0 +1,47 @@
+# Spans reviewed as benign, 2026-10-14, for the lane-b-tokens-persistence ship.
+# Each entry is an exact matched span the scanner flagged. Reviewed one by one;
+# every one is a heuristic false positive, not a credential and not PII.
+#
+# env.kv — "secret-named assignment with high-entropy value". The secret-looking
+# name is React's `key=` prop and the value is a list key, not a credential.
+{part.id}
+{`${layerIndex}-${i}`}
+{`${p.pieceId}#${p.port}`}
+#
+# pii.cc — "credit-card number (Luhn-valid)". This is a datestamp inside an
+# artifact filename, `tasks-ceo-review-20261006-173003.jsonl`. Luhn-valid by
+# coincidence; 20261006 is 2026-10-06 and 173003 is 17:30:03.
+20261006-173003
+20261013-192517
+#
+# pii.phone.e164 — "phone number". This is the increment constant of the seeded
+# linear congruential generator in the canvas jitter helper, beside its
+# multiplier 1664525. Numerical Recipes' LCG, not a phone number.
+1013904223
+#
+# env.kv — the same heuristic, now firing on the storage-key pin in
+# `app/src/repro.test.ts`. The scanner sees `SOMETHING_KEY: '<string>'` and
+# calls it a secret-named assignment. These five are the localStorage key
+# NAMES this app writes under: they are namespace strings, already exported as
+# plain constants from `app/src/storageKeys.ts` and `engine/data/library.ts`,
+# and visible to anyone who opens devtools on the page. They are not
+# credentials and there is nothing to rotate.
+#
+# Written WITHOUT the surrounding quotes: the scanner's matched span starts
+# after the opening quote (verified, col 27 on the CHAIN_STORAGE_KEY line), and
+# only a finding whose matched text EQUALS an entry is suppressed. The first
+# version of these five carried the quotes and suppressed nothing -- the push
+# reported "11 entries suppressed 0 finding(s)", which is what an allowlist
+# that matches nothing looks like.
+#
+# They are in a test on purpose and must stay there. Replacing these literals
+# with the constants is exactly what broke the pin: a test that reads the
+# constant it claims to pin cannot fail when the constant changes. Measured
+# before the fix: renaming every key while keeping the `brio.` prefix passed
+# all 333 tests and would silently orphan every saved track, inventory and
+# hand-measured submission on every existing install.
+brio.chain.v0
+brio.graph.v1
+brio.graph.v1.rejected
+brio.inventory.v0
+brio.library.submissions.v1
