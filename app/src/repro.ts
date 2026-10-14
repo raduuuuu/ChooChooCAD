@@ -84,10 +84,13 @@ export function reproText(input: ReproInput): string {
 // browser   ${oneLine(input.userAgent)}
 // error     ${oneLine(input.error.name)}: ${oneLine(input.error.message)}
 //
-// NOTE: \`closed\` is not persisted (it is a view toggle), so it is set to the
-// app's default of true here. If the crash needed an open chain, set it false.
+// NOTE: the graph below is the layout the app had. \`closed\` is not part of it
+// any more -- a loop is a weld between two free ends, not a flag -- so the
+// legacy branch is only reached when no graph was stored.
 
 import { resolveLibrary, makeResolver } from './engine/data/library.js';
+import { solveGraph } from './engine/src/graph/solve.js';
+import { portsOf } from './engine/src/graph/model.js';
 import { solveLayout } from './engine/src/solver/result.js';
 import { layoutTrust } from './engine/src/joints/trust.js';
 import { brandFit } from './engine/data/thirdParty.js';
@@ -101,10 +104,31 @@ const inventory = ${literal(input.inventory, 'null')};
 
 const library = resolveLibrary(submissions as never);
 const resolve = makeResolver(library);
-const layout = { placements: chain as never, closed: true };
 
 console.log('inventory', inventory);
-console.log('verdict', solveLayout(layout, resolve));
-console.log('trust', layoutTrust(layout, resolve, brandFit));
+
+if (graph) {
+  // THE LAYOUT THE APP ACTUALLY HAD. anchors serialize as [id, frame] pairs.
+  const g = {
+    pieces: (graph as never as { pieces: unknown[] }).pieces,
+    welds: (graph as never as { welds: unknown[] }).welds,
+    anchors: new Map((graph as never as { anchors?: [string, unknown][] }).anchors ?? []),
+  } as never;
+  const ports = (piece: never) => portsOf(resolve((piece as { partId: string }).partId), (piece as { turn?: never }).turn);
+  const slop = (pieceId: string) => {
+    const piece = (g as { pieces: { pieceId: string; partId: string }[] }).pieces.find((x) => x.pieceId === pieceId);
+    return piece ? resolve(piece.partId).slop.axialMm : 0;
+  };
+  console.log('verdict', solveGraph(g, ports as never, resolve, slop));
+  console.log('trust', layoutTrust({ placements: (g as { pieces: never[] }).pieces, closed: false } as never, resolve, brandFit));
+} else if ((chain as unknown[]).length > 0) {
+  // No graph stored, but an old pre-graph chain was. Solve that instead of
+  // nothing, through the engine it belongs to.
+  const layout = { placements: chain as never, closed: true };
+  console.log('verdict (legacy chain)', solveLayout(layout, resolve));
+  console.log('trust (legacy chain)', layoutTrust(layout, resolve, brandFit));
+} else {
+  console.log('no layout was stored when this crashed');
+}
 `;
 }

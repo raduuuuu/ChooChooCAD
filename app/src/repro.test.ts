@@ -131,20 +131,75 @@ describe('the generated repro runs', () => {
   const root = join(import.meta.dirname, '..', '..');
   const file = join(root, '.repro-check.ts');
 
-  it('exits clean and prints a verdict for the chain it carries', () => {
-    writeFileSync(file, reproText({ ...base, chain: '[{"partId":"E","turn":"left"}]' }));
+  const run = (input: Parameters<typeof reproText>[0]) => {
+    writeFileSync(file, reproText(input));
     try {
-      const out = execFileSync('bun', ['run', file], {
+      const raw = execFileSync('bun', ['run', file], {
         cwd: root,
         encoding: 'utf8',
         timeout: 60_000,
         env: { ...process.env, NO_COLOR: '1' },
       });
-      expect(out).toContain('verdict');
-      expect(out).toContain('trust');
+      // bun's inspector colours object keys even under NO_COLOR, so a plain
+      // `key: value` assertion would never match. Strip the escapes.
+      // eslint-disable-next-line no-control-regex
+      return raw.replace(/\u001b\[[0-9;]*m/g, '');
     } finally {
       rmSync(file, { force: true });
     }
+  };
+
+  it('exits clean and prints a verdict for the legacy chain it carries', () => {
+    const out = run({ ...base, chain: '[{"partId":"E","turn":"left"}]' });
+    expect(out).toContain('verdict');
+    expect(out).toContain('trust');
+  });
+
+  /*
+   * THE GRAPH IS SOLVED, NOT JUST PRINTED.
+   *
+   * The first version of this fix carried the graph into the generated file and
+   * then solved the retired chain anyway, so `const graph` was declared and
+   * never read: the repro printed the data and reproduced nothing. Caught by
+   * re-reviewing the fix rather than by the fix itself.
+   *
+   * Eight large curves welded into a circle, which closes exactly. Asserting
+   * the VERDICT rather than the presence of the word is what makes this bite:
+   * a repro that solves an empty chain cannot print closesExactly true.
+   */
+  it('solves the GRAPH it carries, not an empty chain', () => {
+    const pieces = Array.from({ length: 8 }, (_, i) => ({
+      pieceId: `p${i}`,
+      partId: 'E',
+      turn: 'left',
+    }));
+    const welds = Array.from({ length: 8 }, (_, i) => ({
+      a: { pieceId: `p${i}`, port: 1 },
+      b: { pieceId: `p${(i + 1) % 8}`, port: 0 },
+    }));
+    const out = run({
+      ...base,
+      graph: JSON.stringify({ pieces, welds, anchors: [] }),
+      chain: null,
+    });
+    expect(out).toContain('verdict');
+    /*
+     * `closesExactly: true` ALONE IS VACUOUS and the mutation proved it: an
+     * empty chain also reports ok true / closesExactly true, so that assertion
+     * passed whether the repro solved the real graph or nothing at all. The
+     * discriminators are the graph engine's own fields -- `rank` counts the
+     * independent loops and the chain engine never emits it -- and a give total
+     * that only eight real joints produce.
+     */
+    expect(out).toContain('rank: 1');
+    expect(out).toMatch(/totalGiveMm: 6\.[0-9]/);
+    expect(out).toContain('closesExactly: true');
+    expect(out).not.toContain('no layout was stored');
+  });
+
+  it('says so plainly when nothing was stored, rather than solving an empty chain', () => {
+    const out = run({ ...base, graph: null, chain: null });
+    expect(out).toContain('no layout was stored');
   });
 });
 
