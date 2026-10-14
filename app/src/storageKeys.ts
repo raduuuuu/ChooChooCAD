@@ -39,3 +39,19 @@ export const GRAPH_STORAGE_KEY = 'brio.graph.v1';
 
 /** What the user says they own. A map of part id to count. */
 export const INVENTORY_STORAGE_KEY = 'brio.inventory.v0';
+
+/**
+ * The last layout blob this app REFUSED to load, kept verbatim (task T5, E1).
+ *
+ * The loader used to be the end of the story for a damaged save: it returned
+ * `EMPTY_GRAPH`, and `App.tsx`'s save effect then wrote that empty graph back
+ * over the unreadable bytes at first paint, before the notice telling the user
+ * anything had rendered. The original was gone and nothing could recover it,
+ * which is Prime Directive 1's exact failure arriving zero interactions after
+ * the load rather than one.
+ *
+ * So the raw string is copied here first, untouched and unparsed. It is never
+ * read by the app and never migrated; it exists so a user who loses a layout
+ * has something to send, and so the loss is recoverable by hand.
+ */
+export const GRAPH_RESCUE_KEY = 'brio.graph.v1.rejected';

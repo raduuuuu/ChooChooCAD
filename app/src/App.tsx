@@ -47,7 +47,7 @@ import { portsOf, type Graph, type Piece as GPiece, type Port, type PortRef } fr
 import { renderGraph } from '../../engine/src/graph/render.js';
 import { solveGraph } from '../../engine/src/graph/solve.js';
 import { reduce, type EditorAction } from './editorReducer.js';
-import { loadGraph, saveGraph } from './layoutStore.js';
+import { loadGraph, partialLoadNotice, saveGraph } from './layoutStore.js';
 import { viewOf } from './verdictView.js';
 import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
 import type { Brand, Layout, Part, Turn } from '../../engine/src/parts/schema.js';
@@ -146,10 +146,22 @@ export function App() {
    */
   const [graphLoad] = useState(() => loadGraph(libraryIds));
   const [inventoryLoad] = useState(() => loadInventory(libraryIds));
-  const [dismissed, setDismissed] = useState(false);
-  const notices = [graphLoad.discarded, inventoryLoad.discarded].filter(
-    (x): x is string => typeof x === 'string',
-  );
+
+  /*
+   * TWO NOTICES, TWO DISMISSALS (task T5, finding E12).
+   *
+   * These shared one `dismissed` boolean and one block, so dismissing an
+   * inventory message also hid a layout-loss message and the other way round.
+   * Y1 decision 3 requires the load notice to persist until it is explicitly
+   * dismissed or a clean load replaces it, which one shared flag cannot do.
+   */
+  const layoutNotice =
+    graphLoad.discarded ??
+    (graphLoad.droppedAnchors > 0
+      ? partialLoadNotice(graphLoad.value.pieces.length, graphLoad.droppedAnchors)
+      : undefined);
+  const [layoutDismissed, setLayoutDismissed] = useState(false);
+  const [inventoryDismissed, setInventoryDismissed] = useState(false);
 
   /*
    * THE GRAPH AND THE SELECTION ARE ONE PIECE OF STATE, and that is not
@@ -178,9 +190,33 @@ export function App() {
     saveSubmissions(submissions);
   }, [submissions]);
 
+  /*
+   * THE FIRST SAVE IS SKIPPED WHEN THE LOAD LOST SOMETHING (finding E1).
+   *
+   * This effect ran on mount with no guard, so React wrote the sanitized
+   * graph straight back over the stored bytes after the first paint: on a
+   * whole-layout refusal that meant `EMPTY_GRAPH` overwriting an
+   * unreadable-but-present blob, and on a dropped anchor it meant the
+   * anchor-stripped graph replacing the one that still had them. The loss was
+   * permanent before the user had done anything at all, and the notice was a
+   * eulogy. `loadGraph` also rescues the raw bytes, so this is belt AND
+   * braces.
+   *
+   * IT IS A CONDITION, NOT A ONE-SHOT FLAG, and that distinction is the whole
+   * fix. The first version used a `useRef` that the first effect run cleared.
+   * React 19 StrictMode double-invokes mount effects (mount, cleanup, mount),
+   * so the second invocation found the flag already spent and saved anyway:
+   * verified in the browser, where the stored blob came back as
+   * `{"pieces":[],"welds":[],"anchors":[]}` with the fix supposedly in place.
+   * No unit test in this suite could have caught it, because there is no DOM
+   * and therefore no StrictMode. Suppression now lasts until the user
+   * acknowledges the loss, which is also what Y1 decision 3 says in words.
+   */
+  const lossUnacknowledged = layoutNotice !== undefined && !layoutDismissed;
   useEffect(() => {
+    if (lossUnacknowledged) return;
     saveGraph(graph);
-  }, [graph]);
+  }, [graph, lossUnacknowledged]);
 
   useEffect(() => {
     saveInventory(inventory);
@@ -422,14 +458,23 @@ export function App() {
         />
       </main>
 
-      {notices.length > 0 && !dismissed && (
-        <div className="notice" role="status">
+      {layoutNotice !== undefined && !layoutDismissed && (
+        <div className="notice" role="status" aria-live="polite" aria-atomic="false">
           <div>
-            {notices.map((n) => (
-              <p key={n} className="notice-line">{n}</p>
-            ))}
+            <p className="notice-line">{layoutNotice}</p>
           </div>
-          <button className="notice-close" onClick={() => setDismissed(true)}>
+          <button className="notice-close" onClick={() => setLayoutDismissed(true)}>
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {inventoryLoad.discarded !== undefined && !inventoryDismissed && (
+        <div className="notice" role="status" aria-live="polite" aria-atomic="false">
+          <div>
+            <p className="notice-line">{inventoryLoad.discarded}</p>
+          </div>
+          <button className="notice-close" onClick={() => setInventoryDismissed(true)}>
             Dismiss
           </button>
         </div>
