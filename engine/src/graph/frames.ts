@@ -97,6 +97,14 @@ export function placeAll(
      * so this is the second line of defence rather than the only one -- but
      * an engine that is handed a bad index should say which piece and which
      * port, not which property of undefined it tried to read.
+     *
+     * WHERE THE THROW LANDS DEPENDS ON THE CALLER. From App.tsx's render path
+     * a React error boundary catches it and the crash screen appears. From
+     * `graph/edit.ts` through the editor reducer it is inside an event
+     * handler, where boundaries do NOT catch: there it is a console error and
+     * a frozen UI with no crash screen and no repro. That asymmetry predates
+     * this change and is not made worse by it, but do not read "the boundary
+     * catches it" as unconditional.
      */
     const placedLocal = ports(placedPiece)[placedSide.port];
     const thisLocal = ports(thisPiece)[thisSide.port];

@@ -176,9 +176,16 @@ function looksLikePart(v: unknown): v is Part {
    *
    * `SubmitPart.tsx:88` hardcodes `'estimated'`, so nothing the app writes can
    * ever carry `'measured'`. A stored row that does was not produced by this
-   * app, which is the definition of a value this code did not write, so it is
-   * refused rather than trusted. That keeps rule 4's invariant true by
-   * construction instead of by convention.
+   * app.
+   *
+   * COERCED, NOT REFUSED. The first version of this fix dropped the whole row,
+   * which contradicted the priority stated at the top of this section: a
+   * submission's dimensions are measurements somebody took with calipers, and
+   * destroying them to reject a self-asserted calibration flag throws away the
+   * data to punish the claim. `loadSubmissionsResult` now forces every stored
+   * row to `'estimated'`, so rule 4's invariant holds BY CONSTRUCTION -- no
+   * stored row can ever read `'measured'` -- and the user keeps the figures
+   * they measured. The status is only validated for shape here.
    *
    * THE CEILING IS NEAR THE REAL FIGURE, not two orders of magnitude above it.
    *
@@ -211,9 +218,7 @@ function looksLikePart(v: unknown): v is Part {
   if (!slop) return false;
   if (!bounded(slop.axialMm, SLOP_CEILING_MM)) return false;
   if (!bounded(slop.angularDeg, SLOP_CEILING_DEG)) return false;
-  if (slop.calibrationStatus !== 'published' && slop.calibrationStatus !== 'estimated') {
-    return false;
-  }
+  if (typeof slop.calibrationStatus !== 'string') return false;
   const finite = (x: unknown) => typeof x === 'number' && Number.isFinite(x) && x > 0;
   if (!finite(p.gaugeWidthMm) || !finite(p.plankWidthMm) || !finite(p.plankThicknessMm)) return false;
   if (p.kind === 'straight') return finite(p.lengthMm);
@@ -271,7 +276,20 @@ export function loadSubmissionsResult(): SubmissionsLoadResult {
         dropped++;
         continue;
       }
-      out.push({ part: s.part, submissionId: s.submissionId, at: s.at });
+      /*
+       * THE ONE FIELD A STORED ROW DOES NOT GET TO ASSERT.
+       *
+       * `trust.ts` rule 4 emits the `estimated-give` caveat only while some
+       * part reads other than `'measured'`, and its comment says that must
+       * stay true in every verdict state. Forcing it here makes that true by
+       * construction: no row that came out of storage can claim its give was
+       * measured, whatever the bytes said, and the row's dimensions survive.
+       */
+      out.push({
+        part: { ...s.part, slop: { ...s.part.slop, calibrationStatus: 'estimated' } },
+        submissionId: s.submissionId,
+        at: s.at,
+      });
     }
     return { value: out, dropped };
   } catch {

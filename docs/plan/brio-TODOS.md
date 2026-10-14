@@ -1224,3 +1224,29 @@ coverage. Not a ship job: it rewrites the introduction, "The UI" and the whole
 
 **Effort:** human ~3h / CC ~45m. **Priority:** P2.
 **Depends on / blocked by:** nothing.
+
+## P2 — A no-op edit counts as consent to overwrite, and an engine throw from a handler is uncatchable (filed by /ship, 2026-10-14)
+
+Two small correctness items from the delta review, both narrow enough to
+defer and both real.
+
+**1. `setUserHasActed(true)` fires on every dispatch**, including actions the
+reducer turns into no-ops: a click on an already-selected port, `clear` on an
+empty canvas. That flips `lossUnacknowledged` false, the effect dep arrays
+change, and the saves run. A click that changes nothing visible is read as
+consent to overwrite stored bytes. Mitigated but not closed by the `rescued`
+check landed in `d49dd87`: with a rescue copy the original is recoverable, so
+the cost is bounded. **Fix:** set the flag from the reducer's RESULT rather
+than the attempt — only when `reduce` returns a graph that differs from the
+previous one.
+
+**2. A throw out of `placeAll` is only catchable on the render path.** From
+`App.tsx` a React error boundary catches it and the crash screen appears. From
+`graph/edit.ts` through the editor reducer the throw is inside an event
+handler, where boundaries do not catch: console error, frozen UI, no crash
+screen, no repro. Pre-existing and unchanged by this ship; the comment in
+`frames.ts` now says so rather than implying the boundary always catches.
+**Fix:** catch in `dispatch` and re-throw into state so the boundary sees it.
+
+**Effort:** human ~2h / CC ~25m for both. **Priority:** P2.
+**Depends on / blocked by:** nothing.

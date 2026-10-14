@@ -190,13 +190,20 @@ describe('a stored submission cannot claim its give was measured', () => {
   });
 
   /*
-   * MUTATION PROOF, run: delete the `slop.calibrationStatus` check from
-   * `looksLikePart` and this case fails, because the forged row is accepted
-   * and `estimated-give` vanishes from the register.
+   * COERCED, NOT DROPPED, and the difference is the user's calipers.
+   *
+   * The first version of this fix refused the whole row, which threw away
+   * measured dimensions to punish a self-asserted flag -- the opposite of
+   * what `library.ts` says it values. The row is kept and the status is
+   * forced, so rule 4's invariant holds by construction.
+   *
+   * MUTATION PROOF, run: remove the `calibrationStatus: 'estimated'` coercion
+   * from `loadSubmissionsResult` and this fails -- the stored 'measured'
+   * survives and `estimated-give` vanishes from the register.
    */
-  it('a row claiming measured give is dropped, so the caveat survives', () => {
+  it('a row claiming measured give is kept, coerced, and still caveated', () => {
     const forged = submissionWith({
-      slop: { axialMm: 0.8, angularDeg: 1.5, calibrationStatus: 'measured' },
+      slop: { axialMm: 0.9, angularDeg: 1.6, calibrationStatus: 'measured' },
       dimensions: { status: 'user-measured', source: 'my ruler' },
       id: 'D',
       kind: 'straight',
@@ -205,8 +212,31 @@ describe('a stored submission cannot claim its give was measured', () => {
     const kept = withStore({ [SUBMISSIONS_STORAGE_KEY]: JSON.stringify([forged]) }, () =>
       loadSubmissions(),
     );
-    expect(kept).toHaveLength(0);
+    // The row survived, so the measurements did.
+    expect(kept).toHaveLength(1);
+    expect(kept[0]!.part.slop.axialMm).toBe(0.9);
+    // But the claim did not.
+    expect(kept[0]!.part.slop.calibrationStatus).toBe('estimated');
     expect(kindsFor(resolveLibrary(kept))).toContain('estimated-give');
+  });
+
+  it('a legitimate estimated row is untouched, so this is not a blanket rewrite', () => {
+    const kept = withStore(
+      {
+        [SUBMISSIONS_STORAGE_KEY]: JSON.stringify([
+          submissionWith({
+            slop: { axialMm: 0.8, angularDeg: 1.5, calibrationStatus: 'estimated' },
+          }),
+        ]),
+      },
+      () => loadSubmissions(),
+    );
+    expect(kept).toHaveLength(1);
+    expect(kept[0]!.part.slop).toEqual({
+      axialMm: 0.8,
+      angularDeg: 1.5,
+      calibrationStatus: 'estimated',
+    });
   });
 
   /*
