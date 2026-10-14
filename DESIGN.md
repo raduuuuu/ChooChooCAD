@@ -110,6 +110,6 @@ a wrong answer the user will not know is wrong.
 ## What is NOT settled
 
 Keyboard operability of the canvas. The verdict is announced, and the graph
-itself cannot be edited without a mouse. That is task U7 in the plan, blocked on
-a DOM test project, and it is the open hole in this system rather than a thing
-anybody chose. See `dec-cc66dbf5`.
+itself cannot be edited without a mouse. That work is tasks U7a and U7b in the
+plan, U7b blocked on a DOM test project, and it is the open hole in this system
+rather than a thing anybody chose. See `dec-cc66dbf5`.

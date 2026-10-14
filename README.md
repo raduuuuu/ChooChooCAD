@@ -6,7 +6,7 @@ no existing tool answers: **will this layout actually work?**
 ```
 bun install        # once
 bun run dev        # the UI, at http://localhost:5173
-bun run test       # 21 tests
+bun run test       # 348 tests + 4 skipped, 19 files
 bun try.ts         # one layout from the command line; edit PIECES at the top
 ```
 

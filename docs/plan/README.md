@@ -1,12 +1,13 @@
 # Plan and backlog: exported copies
 
-**These two files are copies. They are not the originals and nothing here writes
-to them.**
+**These three files are copies. They are not the originals and nothing here
+writes to them.**
 
 | File | Canonical location |
 |---|---|
 | `2026-10-06-brio-track-designer.md` | `~/.gstack/projects/radudiaconescu/ceo-plans/` |
 | `brio-TODOS.md` | `~/.gstack/projects/radudiaconescu/` |
+| `2026-10-13-open-work.md` | `~/.gstack/projects/brio-designer/ceo-plans/` |
 
 The gstack review skills (`/plan-ceo-review`, `/plan-eng-review`,
 `/plan-design-review`) read and append to the canonical paths above. They do not
@@ -26,7 +27,8 @@ To refresh:
 ```sh
 cp ~/.gstack/projects/radudiaconescu/ceo-plans/2026-10-06-brio-track-designer.md docs/plan/
 cp ~/.gstack/projects/radudiaconescu/brio-TODOS.md docs/plan/
+cp ~/.gstack/projects/brio-designer/ceo-plans/2026-10-13-open-work.md docs/plan/
 ```
 
-Both copies are byte-identical to their source at the commit that added them, so
-`cmp` against the canonical path tells you whether they have drifted.
+Each copy is byte-identical to its source at the commit that added it, so `cmp`
+against the canonical path tells you whether it has drifted.

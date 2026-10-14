@@ -23,7 +23,7 @@ Key routing rules:
 
 ```bash
 bun run test        # vitest run --config vitest.config.ts
-bun x tsc --noEmit  # strict typecheck, must be clean
+bun run typecheck   # strict typecheck (tsc --noEmit), must be clean
 bun run build       # vite build, rooted at app/
 ```
 
