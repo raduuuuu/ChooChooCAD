@@ -1,0 +1,19 @@
+// Which tests cover which file, derived from real imports rather than guessed
+// (checked 2026-10-14 by resolving every test file's import list).
+//
+// An empty lane list is a DECLARATION, not a dodge, and each one has a reason:
+//
+//   App.tsx, ErrorBoundary.tsx, Inventory.tsx, SubmitPart.tsx, TrackCanvas.tsx,
+//   VerdictLine.tsx   React components. vitest runs in node with no DOM, and
+//                     vitest.config.ts's docblock forbids widening that as a
+//                     substitute for a real testing-library setup (task E11).
+//                     VerdictLine gets a renderToStaticMarkup harness in X2b;
+//                     the rest wait for E11.
+//   verdictView.ts    A KNOWN GAP, owned by task T3a, which is the next item in
+//                     the plan's sequence. The verdict the user reads is derived
+//                     by an untested pure function. Declared so it is visible,
+//                     not so it is excused.
+//   main.tsx          The root mount. Three lines, nothing to assert.
+//   env.d.ts          Ambient type declarations.
+//   vite/vitest config, package.json, bun.lock, docs, css, html
+//                     Not code under test.
