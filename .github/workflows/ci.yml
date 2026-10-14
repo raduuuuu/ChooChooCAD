@@ -39,11 +39,16 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    # PINNED, not ubuntu-latest. GitHub migrates that label to Ubuntu 26 from
+    # 2026-10-19, five days after this file was written, and a runner image
+    # changing under the build is the same class of silent move as an unpinned
+    # bun: it can change a result without anyone deciding to. Raise it
+    # deliberately, the way the bun pin below is raised.
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: oven-sh/setup-bun@v2
         with:
