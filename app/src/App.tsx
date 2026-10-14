@@ -200,10 +200,12 @@ export function App() {
    * read the notice describing it. `saveInventory(null)` is a `removeItem`, so
    * the whole-refusal case deleted the very evidence its notice calls a bug.
    *
-   * ONE acknowledgement covers all three. Tying each save to only its own
-   * notice would be more precise and is not worth the surface: the user reads
-   * one banner either way, and the conservative direction is to hold every
-   * write until they have.
+   * SUPERSEDED, and kept here only so the reasoning is traceable: this block
+   * used to end by arguing that one acknowledgement should cover all three,
+   * because "the user reads one banner either way". Both halves were wrong.
+   * All three banners can be on screen at once, and a single flag meant an
+   * action about one store released the writes for the other two. The current
+   * rule is three gates and three flags, stated at the declarations below.
    *
    * IT IS A CONDITION, NOT A ONE-SHOT FLAG, and that distinction is the whole
    * of E1. The first version used a `useRef` the first effect run cleared.
@@ -237,7 +239,22 @@ export function App() {
    * E1's is: React 19 StrictMode double-invokes mount effects and spends a
    * ref before the second invocation reads it.
    */
-  const [userHasActed, setUserHasActed] = useState(false);
+  /*
+   * ONE ACKNOWLEDGEMENT PER STORE, not one for the app.
+   *
+   * The gates were split per store and this flag was left global, so an action
+   * about one store released the other two. MEASURED: on a clean graph load
+   * with one dropped submission row, a single palette click -- a GRAPH edit --
+   * flipped the submissions gate from blocked to open and the effect wrote the
+   * survivors over the stored blob. The caliper row has no rescue copy, so it
+   * was gone, while a banner reading "Nothing is saved over them until you
+   * dismiss this" was still on screen. The docstring's justification, that the
+   * user's action "is about the thing it names", is only true when the action
+   * and the notice concern the same store.
+   */
+  const [graphActed, setGraphActed] = useState(false);
+  const [inventoryActed, setInventoryActed] = useState(false);
+  const [submissionsActed, setSubmissionsActed] = useState(false);
   /*
    * THREE INDEPENDENT GATES, one per store, because each store answers for
    * its own loss. A single global condition made one notice hold back all
@@ -248,18 +265,18 @@ export function App() {
   const graphSaveBlocked = savesSuppressed({
     notice: layoutNotice,
     dismissed: layoutDismissed,
-    userHasActed,
+    userHasActed: graphActed,
     noRescueCopy: !graphLoad.rescued,
   });
   const inventorySaveBlocked = savesSuppressed({
     notice: inventoryLoad.discarded,
     dismissed: inventoryDismissed,
-    userHasActed,
+    userHasActed: inventoryActed,
   });
   const submissionsSaveBlocked = savesSuppressed({
     notice: submissionsNotice,
     dismissed: submissionsDismissed,
-    userHasActed,
+    userHasActed: submissionsActed,
   });
 
   /*
@@ -361,7 +378,8 @@ export function App() {
    * saw the same stale `null` eight times.
    */
   const dispatch = (action: EditorAction) => {
-    setUserHasActed(true);
+    // A graph edit acknowledges the GRAPH notice and nothing else.
+    setGraphActed(true);
     setEditor((e) => reduce(e, action, ports));
   };
 
@@ -714,7 +732,7 @@ export function App() {
           <SubmitPart
             existingIds={libraryIds}
             onSubmit={(sub) => {
-              setUserHasActed(true);
+              setSubmissionsActed(true);
               setSubmissions((prev) => [...prev, sub]);
               setSubmitOpen(false);
             }}
@@ -729,7 +747,7 @@ export function App() {
             used={counts}
             shortfalls={shortfalls}
             onChange={(next) => {
-              setUserHasActed(true);
+              setInventoryActed(true);
               setInventory(next);
             }}
             onClose={() => setInventoryOpen(false)}

@@ -18,3 +18,23 @@
 # linear congruential generator in the canvas jitter helper, beside its
 # multiplier 1664525. Numerical Recipes' LCG, not a phone number.
 1013904223
+#
+# env.kv — the same heuristic, now firing on the storage-key pin in
+# `app/src/repro.test.ts`. The scanner sees `SOMETHING_KEY: '<string>'` and
+# calls it a secret-named assignment. These five are the localStorage key
+# NAMES this app writes under: they are namespace strings, already exported as
+# plain constants from `app/src/storageKeys.ts` and `engine/data/library.ts`,
+# and visible to anyone who opens devtools on the page. They are not
+# credentials and there is nothing to rotate.
+#
+# They are in a test on purpose and must stay there. Replacing these literals
+# with the constants is exactly what broke the pin: a test that reads the
+# constant it claims to pin cannot fail when the constant changes. Measured
+# before the fix: renaming every key while keeping the `brio.` prefix passed
+# all 333 tests and would silently orphan every saved track, inventory and
+# hand-measured submission on every existing install.
+'brio.chain.v0'
+'brio.graph.v1'
+'brio.graph.v1.rejected'
+'brio.inventory.v0'
+'brio.library.submissions.v1'

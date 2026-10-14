@@ -4,13 +4,18 @@
 is the ORIGINAL, and the "canonical" gstack path holds something smaller and
 older. Copying the wrong way destroys work.**
 
-Measured on 2026-10-14, at the commit that rewrote this file:
+| File | Authoritative |
+|---|---|
+| `2026-10-13-open-work.md` | **the repo copy** |
+| `brio-TODOS.md` | **the repo copy** |
+| `2026-10-06-brio-track-designer.md` | the gstack path |
 
-| File | Repo copy | gstack path | Authoritative |
-|---|---|---|---|
-| `2026-10-13-open-work.md` | 224,748 B | 7,220 B | **the repo copy** |
-| `brio-TODOS.md` | 66,115 B | 39,974 B | **the repo copy** |
-| `2026-10-06-brio-track-designer.md` | 1,032,997 B | 1,033,037 B | the gstack path |
+No byte counts in this table, on purpose. The first version of it carried
+them, and the figure for `brio-TODOS.md` was already wrong in the commit that
+wrote it -- it recorded the parent commit's size, because that commit edited
+the file too. A number that the act of stating it invalidates is the exact rot
+this file was rewritten to stop. The direction is the durable claim; run the
+`wc -c` below when you want the sizes.
 
 This file previously said all three were exported copies and gave three `cp`
 commands to refresh them. Two of those commands destroy content:
@@ -20,7 +25,7 @@ commands to refresh them. Two of those commands destroy content:
   `/plan-ceo-review` RECORD whose own header lists the repo file as "Plan under
   review". Copying it over the repo file replaces a 224KB plan with a 7KB
   review of that plan.
-- `brio-TODOS.md` in this repo carries 20 entries dated 2026-10-14, including
+- `brio-TODOS.md` in this repo carries the 2026-10-14 entries, including
   both filed P0s (the cycle enumeration freeze and the orphan lane collision).
   The gstack copy is from 2026-10-09, has none of them, and still opens "No
   repo exists yet". Copying it over the repo file deletes every finding this

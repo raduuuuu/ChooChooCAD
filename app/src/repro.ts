@@ -143,7 +143,10 @@ ${guardedBlob('inventory', input.inventory)}
 // nothing, the same "printed nothing at all" failure the guards were added to
 // end. The payload is these two lines, so they go out first.
 console.log('inventory', inventory);
-console.log('refused bytes from an earlier load', rescuedRaw ?? rescued);
+// The RAW bytes, deliberately. The parsed form is null whenever the parse
+// failed, which is the case this key exists for, so the bytes are the
+// payload. The guarded parse above already reports a failure separately.
+console.log('refused bytes from an earlier load', rescuedRaw);
 
 // The submissions may parse and still be the wrong shape, and resolveLibrary
 // dereferences each row. A bad row must not stop this file solving the graph:

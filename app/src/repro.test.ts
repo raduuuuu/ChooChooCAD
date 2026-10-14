@@ -254,9 +254,17 @@ describe('the generated repro runs', () => {
    * on a submissions value of `7` threw afterwards, and the file exited 1
    * having printed nothing -- the same failure, one line later.
    *
-   * MUTATION PROOF, run: move the two console.log lines back below
-   * `resolveLibrary` and drop its try/catch -- 5 tests fail, all five cases
-   * here.
+   * MUTATION PROOF, run, with the honest split -- the first version of this
+   * comment claimed all 5 and measured 2.
+   *
+   * Move the logs back below `resolveLibrary` and drop its try/catch, keeping
+   * the `Array.isArray(submissions)` narrowing: 2 fail, the `[null]` and
+   * `[{}]` cases. Revert the narrowing to `(submissions ?? [])` as well and
+   * the other 3 follow (`7`, `"abc"`, `{}`).
+   *
+   * So three of these cases are defended by the array narrowing and two by the
+   * log order and the catch. Both halves are needed and the comment now says
+   * which does what.
    */
   for (const submissions of ['7', '"abc"', '{}', '[null]', '[{}]']) {
     it(`prints the payload even when submissions parses to ${submissions}`, () => {

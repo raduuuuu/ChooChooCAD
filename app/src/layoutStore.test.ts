@@ -274,11 +274,22 @@ describe('E2: a dropped anchor keeps the layout and never manufactures a clash',
   /*
    * THE LANE COLLISION, which the first version of this fix had.
    *
-   * MUTATION PROOF, run: restore `const steps = anchorMap.size + k + 1` and
-   * this fails with two clashes. A survivor at lane 2 gives size 1, k 0,
-   * steps 2 -- the orphan lands on the survivor's exact frame and the loader
-   * manufactures the "can't be built" verdict E2 exists to prevent. Found by
-   * the ship review, not by me.
+   * MUTATION PROOF, run -- and this comment was FALSE for as long as it stood.
+   *
+   * It claimed that restoring `const steps = anchorMap.size + k + 1` makes
+   * this test fail with two clashes. MEASURED: all 375 tests stayed green. The
+   * reason is in the nested comment below: the fixture was deliberately moved
+   * to put the survivor at LANE 1 so the `while` branch executes, and with one
+   * survivor and one orphan the buggy formula gives size 1 + k 0 + 1 = 2,
+   * which is the lane the correct search picks anyway. The two edits
+   * cancelled, and the comment went on asserting a regression nobody re-ran.
+   *
+   * The original collision needs a survivor at LANE 2 and two orphans, which
+   * is the case directly below. Measured there: the buggy formula puts the
+   * first orphan at 432, the survivor's exact frame, and the second at 864;
+   * the occupancy search gives 216 and 648. That case fails under the
+   * mutation and this one does not. Both stay: this pins the `while` branch,
+   * the next pins the regression.
    */
   it('an orphan never lands on a lane a SURVIVING anchor already holds', () => {
     const r = load(
@@ -314,6 +325,44 @@ describe('E2: a dropped anchor keeps the layout and never manufactures a clash',
     const frames = placement.forest.roots.map((id) => placement.frames.get(id)!);
     const distinct = new Set(frames.map((f) => f.pos.join(',')));
     expect(distinct.size).toBe(frames.length);
+    expect(findVertexClashes(r.value, ports, placement)).toHaveLength(0);
+  });
+
+  /*
+   * THE ORIGINAL COLLISION, which the case above cannot reproduce.
+   *
+   * A survivor parked at lane 2 and TWO orphans. MEASURED with
+   * `const steps = anchorMap.size + n + 1` restored: the first orphan lands at
+   * `[0,0,0,0,432,0,0,0]`, the survivor's exact frame, and the second at 864 --
+   * one formula producing both a collision and a gap. The occupancy search
+   * gives 216 and 648: the free lanes, in order.
+   *
+   * MUTATION PROOF, run: restore that formula and this fails. It is the only
+   * case in this file that does.
+   */
+  it('two orphans take the free lanes in order, around an occupied lane 2', () => {
+    const r = load(
+      blob({
+        pieces: [
+          { pieceId: 's1', partId: 'E', turn: 'left' },
+          { pieceId: 'o1', partId: 'E', turn: 'left' },
+          { pieceId: 'o2', partId: 'E', turn: 'left' },
+        ],
+        welds: [],
+        anchors: [
+          ['s1', { pos: [0, 0, 0, 0, 432, 0, 0, 0], heading: 0 }],
+          ['o1', { pos: 'rubbish', heading: 0 }],
+          ['o2', { pos: 'rubbish', heading: 0 }],
+        ],
+      }),
+    );
+    expect(r.droppedAnchors).toBe(2);
+    expect(r.value.anchors?.get('o1')?.pos.join(',')).toBe('0,0,0,0,216,0,0,0');
+    expect(r.value.anchors?.get('o2')?.pos.join(',')).toBe('0,0,0,0,648,0,0,0');
+
+    const placement = placeAll(r.value, ports);
+    const frames = placement.forest.roots.map((id) => placement.frames.get(id)!);
+    expect(new Set(frames.map((f) => f.pos.join(','))).size).toBe(frames.length);
     expect(findVertexClashes(r.value, ports, placement)).toHaveLength(0);
   });
 
@@ -667,8 +716,12 @@ describe('savesSuppressed, one store at a time', () => {
   });
 
   /*
-   * MUTATION PROOF, run: delete the `state.notice === undefined` arm and this
-   * fails; delete the `state.dismissed` arm and the dismissal case fails.
+   * MUTATION PROOF, run, and the first version of this comment was wrong about
+   * its own first half. Deleting the `state.notice === undefined` arm does NOT
+   * fail this test -- with the arm gone, `{notice: 'lost'}` still returns
+   * `!userHasActed`, which is true. It fails 2 others: 'nothing lost means
+   * save' and the 24-state table. Deleting the `state.dismissed` arm fails 3,
+   * 'a dismissal releases it' among them.
    */
   it('an unread notice holds the save, which is what E1 is for', () => {
     expect(savesSuppressed({ ...clean, notice: 'lost' })).toBe(true);
@@ -761,6 +814,35 @@ describe('savesSuppressed, one store at a time', () => {
     }
   });
 
+  /*
+   * AN ACTION ABOUT ONE STORE MUST NOT RELEASE ANOTHER.
+   *
+   * This is the assertion that could not be written while a single global
+   * `userHasActed` fed all three gates, and its absence is why the bug
+   * shipped. MEASURED before the split, on a clean graph load with one
+   * dropped submission row: a palette click took the submissions gate from
+   * blocked to open, and the effect wrote the survivors over a caliper
+   * measurement that has no rescue copy -- while the banner on screen read
+   * "Nothing is saved over them until you dismiss this".
+   *
+   * The call sites are pinned separately, in the App.tsx wiring describe:
+   * three distinct flags, one per gate, asserted to be distinct.
+   *
+   * MUTATION PROOF, run: feed any two gates the same flag in App.tsx and the
+   * wiring test fails; collapse them here and this fails.
+   */
+  it('acknowledging one store leaves the others held', () => {
+    const lost = { notice: 'lost', dismissed: false } as const;
+    // The graph store is acknowledged; the other two are not.
+    const graphActed = true;
+    const submissionsActed = false;
+    const inventoryActed = false;
+
+    expect(savesSuppressed({ ...lost, userHasActed: graphActed })).toBe(false);
+    expect(savesSuppressed({ ...lost, userHasActed: submissionsActed })).toBe(true);
+    expect(savesSuppressed({ ...lost, userHasActed: inventoryActed })).toBe(true);
+  });
+
   it('the exception is opt-in, so a store without a rescue key is not stuck', () => {
     // Omitted entirely, which is how App.tsx calls it for inventory and
     // submissions. An action must release.
@@ -781,18 +863,29 @@ describe('savesSuppressed, one store at a time', () => {
 describe('the suppression wiring is present in App.tsx', () => {
   const source = readFileSync(join(import.meta.dirname, 'App.tsx'), 'utf8');
 
-  it('every dispatch marks the user as having acted', () => {
+  /*
+   * EACH ACTION ACKNOWLEDGES ITS OWN STORE, and the first version of this test
+   * pinned the opposite. It asserted a single global `setUserHasActed(true)`
+   * in all three places and `userHasActed,` in all three gate calls, which is
+   * exactly the wiring that let a palette click release the submissions write.
+   * The test blessed the bug it was written to prevent.
+   */
+  it('a graph edit acknowledges the graph and nothing else', () => {
     const body = source.slice(
       source.indexOf('const dispatch = (action: EditorAction)'),
       source.indexOf('const add = (partId: string'),
     );
-    expect(body).toContain('setUserHasActed(true)');
+    expect(body).toContain('setGraphActed(true)');
+    expect(body).not.toContain('setSubmissionsActed');
+    expect(body).not.toContain('setInventoryActed');
   });
 
-  it('a submission and an inventory change mark it too', () => {
+  it('a submission and an inventory change acknowledge only themselves', () => {
     // Both are passed as callbacks to child panels rather than through dispatch.
-    expect(source).toContain('setUserHasActed(true);\n              setSubmissions(');
-    expect(source).toContain('setUserHasActed(true);\n              setInventory(');
+    expect(source).toContain('setSubmissionsActed(true);\n              setSubmissions(');
+    expect(source).toContain('setInventoryActed(true);\n              setInventory(');
+    // And no single flag is shared between them.
+    expect(source).not.toContain('setUserHasActed');
   });
 
   it('each save consults its OWN gate, and all three are gated', () => {
@@ -831,18 +924,22 @@ describe('the suppression wiring is present in App.tsx', () => {
     const graph = callsFor('graphSaveBlocked');
     expect(graph).toMatch(/^\s*notice: layoutNotice,$/m);
     expect(graph).toMatch(/^\s*dismissed: layoutDismissed,$/m);
-    expect(graph).toMatch(/^\s*userHasActed,$/m);
+    expect(graph).toMatch(/^\s*userHasActed: graphActed,$/m);
     expect(graph).toMatch(/^\s*noRescueCopy: !graphLoad\.rescued,$/m);
 
     const inv = callsFor('inventorySaveBlocked');
     expect(inv).toMatch(/^\s*notice: inventoryLoad\.discarded,$/m);
     expect(inv).toMatch(/^\s*dismissed: inventoryDismissed,$/m);
-    expect(inv).toMatch(/^\s*userHasActed,$/m);
+    expect(inv).toMatch(/^\s*userHasActed: inventoryActed,$/m);
 
     const subs = callsFor('submissionsSaveBlocked');
     expect(subs).toMatch(/^\s*notice: submissionsNotice,$/m);
     expect(subs).toMatch(/^\s*dismissed: submissionsDismissed,$/m);
-    expect(subs).toMatch(/^\s*userHasActed,$/m);
+    expect(subs).toMatch(/^\s*userHasActed: submissionsActed,$/m);
+
+    // No two gates may share an acknowledgement flag.
+    const flags = [graph, inv, subs].map((c) => /userHasActed: (\w+),/.exec(c)![1]);
+    expect(new Set(flags).size, `gates share a flag: ${flags.join(', ')}`).toBe(3);
 
     /*
      * The graph-only exception stays graph-only. Passing `noRescueCopy` to a
