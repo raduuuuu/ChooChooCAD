@@ -22,7 +22,7 @@ function run(partIds: string[]) {
   let graph = EMPTY_GRAPH;
   let select: ReturnType<typeof addPiece>['select'] = null;
   for (const id of partIds) {
-    const next = addPiece(graph, id, 'left', countFor(id), select);
+    const next = addPiece(graph, id, 'left', countFor(id), select, ports);
     graph = next.graph;
     select = next.select;
   }
@@ -31,7 +31,7 @@ function run(partIds: string[]) {
 
 describe('free-end clicking', () => {
   it('the first piece starts a run with nothing selected', () => {
-    const { graph } = addPiece(EMPTY_GRAPH, 'A', 'left', 2, null);
+    const { graph } = addPiece(EMPTY_GRAPH, 'A', 'left', 2, null, ports);
     expect(graph.pieces).toHaveLength(1);
     expect(graph.welds).toHaveLength(0);
   });
@@ -46,7 +46,7 @@ describe('free-end clicking', () => {
 
   it('clicking with nothing selected starts a SEPARATE run', () => {
     const a = run(['E', 'E']);
-    const b = addPiece(a.graph, 'A', 'left', 2, null);
+    const b = addPiece(a.graph, 'A', 'left', 2, null, ports);
     // Two components: the thing a chain could never hold.
     expect(placeAll(b.graph, ports).forest.roots).toHaveLength(2);
   });

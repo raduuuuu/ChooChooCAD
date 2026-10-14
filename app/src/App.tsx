@@ -46,13 +46,7 @@ import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Graph, type Piece as GPiece, type Port, type PortRef } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
 import { solveGraph } from '../../engine/src/graph/solve.js';
-import {
-  EMPTY_GRAPH,
-  addPiece,
-  deletePiece,
-  lastPieceId,
-  weldEnds,
-} from './layoutModel.js';
+import { reduce, type EditorAction } from './editorReducer.js';
 import { loadGraph, saveGraph } from './layoutStore.js';
 import { viewOf } from './verdictView.js';
 import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
@@ -220,57 +214,23 @@ export function App() {
     [graph, ports, resolve],
   );
 
-  const add = (partId: string, turn: Turn) => {
-    const count = portsOf(resolve(partId), turn).length;
-    // The updater is PURE and reads the selection it is handed, never the one
-    // in scope, which is what makes eight rapid clicks build one run.
-    setEditor((e) => {
-      const next = addPiece(e.graph, partId, turn, count, e.selected, ports);
-      return { graph: next.graph, selected: next.select };
-    });
-  };
-
-  /**
-   * Clicking a free end. One click arms it; a second click on a DIFFERENT
-   * free end welds the two together, which is what closing a loop is now.
-   * Clicking the armed end again disarms it.
+  /*
+   * EVERY EDIT GOES THROUGH THE REDUCER (task T4).
+   *
+   * `editorReducer.ts` holds the five transitions and is unit-tested without
+   * a DOM. What stays here is the `resolve`/`ports` wiring, which is the only
+   * part that needs the part library. `dispatch` hands the reducer the state
+   * it is given, which is what makes eight rapid palette clicks build one run
+   * instead of eight: a handler that read `selected` from its render closure
+   * saw the same stale `null` eight times.
    */
-  const clickPort = (ref: PortRef) => {
-    setEditor((e) => {
-      const armed = e.selected;
-      if (armed && armed.pieceId === ref.pieceId && armed.port === ref.port) {
-        return { ...e, selected: null };
-      }
-      if (armed) return { graph: weldEnds(e.graph, armed, ref), selected: null };
-      return { ...e, selected: ref };
-    });
-  };
+  const dispatch = (action: EditorAction) => setEditor((e) => reduce(e, action, ports));
 
-  const undo = () =>
-    setEditor((e) => {
-      const last = lastPieceId(e.graph);
-      return last ? { graph: deletePiece(e.graph, ports, last), selected: null } : e;
-    });
-  const clear = () => setEditor({ graph: EMPTY_GRAPH, selected: null });
-
-  /**
-   * A preset builds a run and then welds its two ends, exactly as a user
-   * would: there is no "closed" flag left to set.
-   */
-  const preset = (ids: readonly string[]) => {
-    let next = EMPTY_GRAPH;
-    let at: PortRef | null = null;
-    for (const partId of ids) {
-      const count = portsOf(resolve(partId), 'left').length;
-      const step = addPiece(next, partId, 'left', count, at);
-      next = step.graph;
-      at = step.select;
-    }
-    if (next.pieces.length > 1 && at) {
-      next = weldEnds(next, at, { pieceId: next.pieces[0]!.pieceId, port: 0 });
-    }
-    setEditor({ graph: next, selected: null });
-  };
+  const add = (partId: string, turn: Turn) => dispatch({ kind: 'add', partId, turn });
+  const clickPort = (ref: PortRef) => dispatch({ kind: 'clickPort', ref });
+  const undo = () => dispatch({ kind: 'undo' });
+  const clear = () => dispatch({ kind: 'clear' });
+  const preset = (ids: readonly string[]) => dispatch({ kind: 'preset', ids });
 
   // The trust register. Computed from the library, so it knows what the solver
   // cannot: how good the numbers under the verdict actually are. It reads only

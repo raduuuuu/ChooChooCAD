@@ -97,7 +97,19 @@ export function addPiece(
   turn: Turn,
   portCount: number,
   at: PortRef | null,
-  ports?: PortsOf,
+  /*
+   * REQUIRED, not optional (task T4, gate decision d6).
+   *
+   * It was optional, and the anchoring below is gated on having it, so the
+   * two call sites disagreed in a way nothing could see: `add` passed it and
+   * `preset` did not, which meant a preset step that failed to attach started
+   * a run with NO anchor and `placeAll` then put that component at the
+   * identity, on top of whatever was already at the origin. The solver reads
+   * that as a clash in a layout the user built correctly. Required is what
+   * stops the two paths drifting again when a one-port buffer or T2's
+   * three-port switch makes the unattached step reachable.
+   */
+  ports: PortsOf,
 ): { graph: Graph; select: PortRef | null } {
   const pieceId = newPieceId(graph.pieces);
   const piece: Piece = { pieceId, partId, turn };
@@ -110,7 +122,7 @@ export function addPiece(
   // A piece that attaches joins an existing component and needs no anchor.
   // One that starts a new run gets put down beside what is already there.
   const anchors = new Map(graph.anchors ?? []);
-  if (!attaching && ports && graph.pieces.length > 0) {
+  if (!attaching && graph.pieces.length > 0) {
     anchors.set(pieceId, nextRunAnchor(graph, ports));
   }
 
