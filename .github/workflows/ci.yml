@@ -14,16 +14,21 @@
 # BASELINES AT THE TIME OF WRITING (task E15), so a red run is distinguishable
 # from a pre-existing failure rather than being argued about:
 #
-#   bun run test        18 files, 302 tests, exit 0, about 0.7s
+#   bun run test        19 files, 333 passed + 2 skipped, exit 0, about 0.8s
 #   bun run typecheck   exit 0, no diagnostics
 #   bun run build       vite build green, about 0.1s
-#                       app/dist/assets/index-*.js 268.44 kB (gzip 84.09 kB)
+#                       app/dist/assets/index-*.js 270.81 kB (gzip 84.95 kB)
 #
-# RE-MEASURED 2026-10-14 after T3a and the ship's coverage work landed. The
-# first version of this header said 17 files / 261 tests / ~267 kB, which went
-# stale within the hour. A baseline nobody re-measures is worse than none: it
-# makes a red run look like a known quantity. If you change what CI runs, change
-# these numbers in the same commit.
+# The 2 skipped are cycles.test.ts's solver-freeze timing spec, left skipped
+# deliberately: it is the regression pin for the P0 in docs/plan/brio-TODOS.md
+# and it fails on the current solver. Unskip it when that P0 is fixed.
+#
+# RE-MEASURED 2026-10-14 at the end of the ship, after the trust-boundary and
+# verdict-view suites landed. This header has now gone stale twice inside a day:
+# it first said 17 files / 261 tests / ~267 kB, then 18 / 302 / 268.44 kB. A
+# baseline nobody re-measures is worse than none: it makes a red run look like a
+# known quantity. If you change what CI runs, change these numbers in the same
+# commit.
 #
 # All three run as declared package scripts, never inlined here, so CI and a
 # person at a keyboard invoke the same command. That is E15's point: an inlined
