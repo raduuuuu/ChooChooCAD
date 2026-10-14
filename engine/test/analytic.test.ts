@@ -16,8 +16,11 @@ import { describe, expect, it } from 'vitest';
 import { BRIO_PARTS, getPart } from '../data/brio.js';
 import {
   BUILT_IN,
+  loadSubmissions,
   makeResolver,
   resolveLibrary,
+  saveSubmissions,
+  SUBMISSIONS_STORAGE_KEY,
   type Submission,
 } from '../data/library.js';
 import { brandFit } from '../data/thirdParty.js';
@@ -990,5 +993,102 @@ describe('joint budgets come from the mating pair', () => {
     expect(seam.between).toEqual(['LOOSE', 'E']);
     expect(seam.axialMaxMm).toBeCloseTo(LOOSE, 9);
     expect(res.joints.filter((j) => j.between.includes('LOOSE'))).toHaveLength(2);
+  });
+});
+
+/*
+ * Value: protects=loadSubmissions keeps every row that parses and drops only the bad ones, round-trips through saveSubmissions, and survives a non-array or unparseable blob
+ * Value: fails_when=one malformed row discards the whole set (the chain loader's rule, which this file's comment deliberately rejects), or a kept row stops reaching resolveLibrary
+ * Value: why_new=analytic.test.ts covers resolveLibrary's tier arithmetic with hand-built submissions; nothing anywhere reads them back out of storage
+ * Value: seam=none
+ * Value: no_claim=nothing about sharing, moderation or a server (storage is local today) and nothing about quota throws on save
+ *
+ * Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+ */
+describe('submissions survive storage per ROW, because a measurement is not a layout', () => {
+  const seed = BUILT_IN.find((p) => p.id === 'IKEA-150')!;
+  const sub = (lengthMm: number, submissionId: string): Submission => ({
+    submissionId,
+    at: '2026-01-01T00:00:00.000Z',
+    part: {
+      ...(seed as Extract<Part, { kind: 'straight' }>),
+      lengthMm,
+      dimensions: {
+        status: 'user-measured',
+        source: 'measured by this user',
+        submittedAt: '2026-01-01T00:00:00.000Z',
+        corroborations: 1,
+      },
+    },
+  });
+
+  function withStore<T>(seedStore: Record<string, string>, body: () => T): T {
+    const store = new Map<string, string>(Object.entries(seedStore));
+    const g = globalThis as { localStorage?: unknown };
+    const had = 'localStorage' in g;
+    const prev = g.localStorage;
+    g.localStorage = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    };
+    try {
+      return body();
+    } finally {
+      if (had) g.localStorage = prev;
+      else delete g.localStorage;
+    }
+  }
+
+  it('one unreadable row does NOT take the other measurements with it', () => {
+    /*
+     * The decided difference from the layout loader, in its own words: a bad
+     * chain costs a layout you can rebuild in a minute, a bad submission costs
+     * calipers work you cannot. MUTATION (run): turning the per-row `continue`
+     * statements in loadSubmissions into `return []` empties this list, which
+     * is one typo'd row deleting every measurement the user ever took.
+     */
+    const blob = JSON.stringify([
+      sub(151, 'sub-good-1'),
+      'not even an object',
+      { submissionId: 'sub-no-at', part: sub(152, 'x').part },
+      { ...sub(-5, 'sub-bad-length') },
+      sub(153, 'sub-good-2'),
+    ]);
+    const kept = withStore({ [SUBMISSIONS_STORAGE_KEY]: blob }, () => loadSubmissions());
+    expect(kept.map((s) => s.submissionId)).toEqual(['sub-good-1', 'sub-good-2']);
+  });
+
+  it('a row that survives storage still reaches the resolved library', () => {
+    // Loading is only half the promise: the kept measurement has to be the one
+    // the engine then places. MUTATION (run): having loadSubmissions return
+    // `[]` leaves the resolved length at the unverified seed's figure.
+    const blob = JSON.stringify([sub(151, 'sub-good-1')]);
+    const kept = withStore({ [SUBMISSIONS_STORAGE_KEY]: blob }, () => loadSubmissions());
+    const resolved = resolveLibrary(kept).find((p) => p.id === seed.id)!;
+    expect((resolved as Extract<Part, { kind: 'straight' }>).lengthMm).toBe(151);
+    expect(isUnverified(resolved)).toBe(false);
+  });
+
+  it('saveSubmissions writes what loadSubmissions reads, under one owned key', () => {
+    // The two halves agreeing is the whole reason SUBMISSIONS_STORAGE_KEY is
+    // exported rather than retyped. MUTATION (run): making saveSubmissions
+    // write under `STORAGE_KEY + '.v2'` fails this, because the read no longer
+    // finds the write. RENAMING the constant does NOT fail it and the comment
+    // used to claim it would -- both halves import the one constant, which is
+    // the point of it, so a rename moves them together.
+    const round = withStore({}, () => {
+      saveSubmissions([sub(151, 'sub-a'), sub(152, 'sub-b')]);
+      return loadSubmissions();
+    });
+    expect(round.map((s) => s.submissionId)).toEqual(['sub-a', 'sub-b']);
+  });
+
+  it('a blob that is not a list, or not JSON at all, is empty rather than a crash', () => {
+    // The error boundary reads this on the way up from a crash, so throwing
+    // here would replace the crash screen with a second crash.
+    expect(withStore({ [SUBMISSIONS_STORAGE_KEY]: '{"not":"a list"}' }, () => loadSubmissions())).toEqual([]);
+    expect(withStore({ [SUBMISSIONS_STORAGE_KEY]: '{not json' }, () => loadSubmissions())).toEqual([]);
+    expect(withStore({}, () => loadSubmissions())).toEqual([]);
   });
 });

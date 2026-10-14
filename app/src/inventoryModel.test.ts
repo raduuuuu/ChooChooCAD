@@ -13,11 +13,13 @@ import {
   loadInventory,
   QUICK_FILLS,
   sanitizeCount,
+  saveInventory,
   shortfalls,
   usedCounts,
   wouldExceed,
   type Inventory,
 } from './inventoryModel.js';
+import { INVENTORY_STORAGE_KEY } from './storageKeys.js';
 
 describe('undeclared is not zero', () => {
   const used = usedCounts(['E', 'E', 'E']);
@@ -233,3 +235,60 @@ function loadInventoryFrom(blob: Record<string, number>, ids: ReadonlySet<string
     else delete g.localStorage;
   }
 }
+
+/*
+ * Value: protects=saveInventory's two cases: counts round-trip through the real loader, and UNDECLARED removes the key rather than storing a null
+ * Value: fails_when=the null case stores `null` (or `{}`) instead of removing the key, so the next load reports "could not be read" or turns undeclared into owning none
+ * Value: why_new=this file's own docblock says the persistence half is not exercised; loadInventory is now seeded by hand and saveInventory had no test at all
+ * Value: seam=none
+ * Value: no_claim=nothing about quota or private-browsing throws (the catch is unobservable by design) and nothing about App.tsx's save effect firing
+ *
+ * Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+ */
+describe('saveInventory is read back by the real loader', () => {
+  const ids = new Set(BUILT_IN.map((p) => p.id));
+
+  /** Both calls against ONE stubbed store, which is what a round-trip needs. */
+  function roundTrip(inventory: Inventory) {
+    const store = new Map<string, string>();
+    const g = globalThis as { localStorage?: unknown };
+    const had = 'localStorage' in g;
+    const prev = g.localStorage;
+    g.localStorage = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    };
+    try {
+      saveInventory(inventory);
+      return { load: loadInventory(ids), stored: store.get(INVENTORY_STORAGE_KEY) };
+    } finally {
+      if (had) g.localStorage = prev;
+      else delete g.localStorage;
+    }
+  }
+
+  it('declared counts come back as the same counts, with no notice', () => {
+    const r = roundTrip({ E: 8, A: 2 });
+    expect(r.load.value).toEqual({ E: 8, A: 2 });
+    expect(r.load.discarded).toBeUndefined();
+  });
+
+  it('declaring zero survives the round trip, because zero IS a claim', () => {
+    // The pairing that matters: {A: 0} must come back as {A: 0} and not as
+    // null, or a user who told us they own none would stop being warned.
+    // MUTATION (run): dropping falsy counts while serializing returns {} here.
+    expect(roundTrip({ A: 0 }).load.value).toEqual({ A: 0 });
+  });
+
+  it('UNDECLARED removes the key instead of writing a null the loader would reject', () => {
+    // MUTATION (run): replacing `removeItem` with `setItem(..., 'null')` makes
+    // loadInventory take its `parsed === null` branch, so clearing the
+    // inventory raises "Your saved inventory could not be read" on the next
+    // visit -- an error message for a thing the user did on purpose.
+    const r = roundTrip(null);
+    expect(r.stored).toBeUndefined();
+    expect(r.load.value).toBeNull();
+    expect(r.load.discarded).toBeUndefined();
+  });
+});

@@ -614,44 +614,28 @@ no longer exist, to per-piece facts, which do.
 **Priority:** P2
 **Depends on:** nothing
 
-## P2 — Continuous integration, blocked on there being a remote
+## P2 — Where the app is published, and whether the fonts may travel with it
 
-**What:** A CI workflow that runs `bun run test`, `tsc --noEmit` and
-`vite build` on push. Separately, a decision about where the app is published,
-and whether the self-hosted woff2 fonts plus their OFL licence file travel with
-it.
+**What:** the half of the old CI entry that X1b did NOT do. A decision about
+where the app is published, and whether the self-hosted woff2 fonts plus their
+OFL licence file travel with it. The OFL requires the licence to accompany the
+fonts, and they are this project's first bundled assets.
 
-**Why:** there is no `.github` directory and no CI of any kind. The third eng
-review counted 44 new code paths in the next release, and decision D14 funds
-exact ring arithmetic in `engine/src/geom/cyclotomic.ts`: a general multiply
-modulo x^8 + 1, a norm into Z[sqrt2] and a sign test there. That is precisely the
-class of code where a mistake still compiles, still reads correctly in review,
-and quietly returns a wrong answer. The only thing between that and a build today
-is somebody remembering to run a 314ms suite.
+**Why:** CI landed on 2026-10-14 (X1b) and runs typecheck, tests and build on
+every push, so the testing half of this entry is done and moved to Completed.
+The distribution question it was bundled with is untouched and is not a CI
+question at all.
 
-**Pros:** catches arithmetic regressions on push in the one subsystem whose whole
-value is being provably right. Writes the build and typecheck commands down in
-one place. Also forces the distribution question the Scope Challenge raised: the
-fonts are the project's first bundled assets and the OFL requires its licence to
-travel with them.
+**Context:** the CI half was added by the third eng review, 2026-10-08, decision
+D16 option A. Its stated blocker, "CI needs a remote, and a remote needs the two
+P1 pre-launch questions resolved", was resolved differently than expected: X1
+created a PRIVATE remote, which carries none of the provenance exposure a public
+one would, so CI stopped being blocked without the counsel questions closing.
+Those questions still gate a PUBLIC remote and any deploy.
 
-**Cons:** it cannot run. The repository has three commits, no origin and nothing
-pushed, so a workflow file would be configuration for a hypothetical and may be
-stale by the time it first executes.
-
-**Context:** added by the third eng review, 2026-10-08, decision D16 option A,
-from the Section 1 architecture finding and outside-voice L2. Five reviews have
-passed without deployment being addressed at all. The real blocker is not effort,
-it is that CI needs a remote, and a remote needs the two P1 pre-launch questions
-in this file resolved first: whether the woodenrailway.info compilation is
-protected, and the BRIO trademark and product name. Until then CI has nowhere to
-live. Pick this up the day a remote exists; the workflow itself is small.
-
-**Effort:** human ~1h / CC ~10min
-**Priority:** P2
-**Depends on:** a git remote, which depends on the data-provenance and
-product-naming items above in this file
-
+**Effort:** human S / CC S. **Priority:** P2.
+**Depends on / blocked by:** overlaps "Deploy the app to a URL" below; the same
+counsel question gates both.
 ## P1 — Tolerances, the calibration afternoon, and everything gated on it
 
 **What:** The physical measurement afternoon described in `CALIBRATION.md`, and
@@ -721,45 +705,26 @@ port kinds has settled.
 **Origin:** task C2 of the fourth eng review, second half. The first half,
 polarity in the schema, already shipped.
 
-## P1 — No remote, no backup, no CI
-
-**What:** Create a remote for this repository, or otherwise guarantee a second
-copy exists. A PRIVATE remote is the obvious first move.
-
-**Why:** `git remote -v` is empty and `lane-b-tokens-persistence` is 30 commits
-ahead of `main`. The engine, 199 tests, the 11,900-line plan and every review
-artifact exist on exactly one disk. A failure or a mistaken delete ends the
-project. Nothing else in the plan records this.
-
-**Pros:** Removes a total-loss risk for about ten minutes of work. Unlocks CI,
-which task P6-4 explicitly cannot have today: its revert check ("fails against
-the pre-fix stale-closure code") is manual and one-time precisely because
-nothing re-runs it.
-
-**Cons:** A PUBLIC remote touches the P1 data-provenance question already
-flagged for counsel, since part dimensions are transcribed from
-woodenrailway.info. A private remote carries none of that exposure, so the two
-should not be conflated.
-
-**Context:** Raised by Section 9 of the sixth CEO review (2026-10-13), which
-found no deployment posture at all: no remote, no CI, no second copy. It is
-outside that review's accepted scope and was recorded rather than acted on,
-because creating a remote is an outward-facing act and the repository's
-ownership mode was unknown to the reviewer.
-
-**Effort:** human S / CC S. **Priority:** P1.
-**Depends on:** nothing technical. The provenance question gates a PUBLIC
-remote only.
-
 ## P3 — Finish splitting App.tsx
 
 **What:** Extract persistence, palette rendering and the inventory/submission
 wiring out of `App.tsx` into their own modules, following the pattern that
 already produced `layoutModel.ts` and `trackPath.ts`.
 
-**Why:** 584 lines owning six responsibilities: editor state, persistence,
-palette, presets, inventory and the part-submission form. Both React defects of
-2026-10-13 lived in this file.
+**Why:** 627 lines owning five responsibilities: persistence, palette, presets,
+inventory and the part-submission form. Both React defects of 2026-10-13 lived
+in this file, and a third one did on 2026-10-14: the StrictMode-defeated save
+guard (finding E1).
+
+It GREW from 584 despite T4 extracting the editor state, because T5 then added
+the two notice regions and the save-suppression condition. Worth stating plainly
+rather than implying the split is making the file smaller: so far it has not.
+
+**UPDATED 2026-10-14:** editor state is OUT, extracted by task T4 into
+`app/src/editorReducer.ts` with 15 tests. That was the piece the Context note
+below carved out, so this entry is correctly still open for the other four.
+Persistence is the next clearest boundary and `layoutStore.ts` now has 41 tests
+of its own, which makes moving its wiring out of `App.tsx` cheaper than it was.
 
 **Pros:** Each extracted piece becomes testable with no DOM, which is how
 `layoutModel.ts` and `trackPath.ts` are already covered. Smaller diffs on the
@@ -878,3 +843,50 @@ deliberate deferral rather than a gap.
 
 **Effort:** human S / CC S. **Priority:** P3.
 **Depends on / blocked by:** X1 (a remote), and a second person.
+
+## P3 — Five dead exports, and a test keeping one alive (filed by /ship, 2026-10-14)
+
+**What:** `walkFloat`, `bounds` and `nominalFinalHeading` (`engine/src/geom/fk.ts`),
+`breakWeld` (`app/src/layoutModel.ts`) and `VEHICLE` (`engine/data/brio.ts`) have
+no production caller anywhere in `app/`, `engine/` or `try.ts`.
+
+**Why it is worth a line:** `walkFloat`'s only remaining caller is its own test,
+and until 2026-10-14 `.gstack/pregate.json` declared `engine/test/render.test.ts`
+as the test lane for `engine/src/graph/render.ts` on the strength of it. The lane
+was green, the module it named had zero coverage, and the live renderer `App.tsx`
+draws from was untested. The lane is fixed; the dead code is what let it look
+fine. `breakWeld` is also listed in task U5's file set, so check before deleting:
+U5 may be about to give it a caller.
+
+**Effort:** human S / CC S. **Priority:** P3. `/test-audit` territory.
+**Depends on / blocked by:** nothing. Confirm U5's intent for `breakWeld` first.
+
+## Completed
+
+### P1 — No remote, no backup, no CI
+**Completed:** 2026-10-14 (tasks X1 and X1b)
+
+`raduuuuu/brio-designer`, created private and verified `PRIVATE` by
+`gh repo view --json visibility` BEFORE anything was pushed, which is the order
+this entry's own Cons section asked for: a public remote would have touched the
+counsel-gated provenance question, a private one carries none of it. A fresh
+clone installs, typechecks, runs 261 tests and builds. CI followed in the same
+hour, so the entry's "Unlocks CI" prediction held.
+
+### P2 — Continuous integration (the testing half)
+**Completed:** 2026-10-14 (task X1b)
+
+`.github/workflows/ci.yml` runs typecheck, tests and build on push and
+pull_request, bun pinned to 1.3.14 and the runner pinned to `ubuntu-24.04`.
+Verified by deliberate breakage, not by assumption: `PLANK_WIDTH_MM` 40 -> 41
+failed CI red at `engine/test/analytic.test.ts:341`.
+
+A first attempt at that proof is worth recording, because it found something.
+`CYCLE_RANK_CEILING` 20 -> 3 passed CI green: `engine/test/cycles.test.ts`
+imports the constant and builds fixtures as `CYCLE_RANK_CEILING + 5`, which is
+right for the behaviour under test but pins no VALUE. Changing it to 3 silently
+narrows what the product will rank, with no test objecting. Tracked as eng
+finding E13 in `docs/plan/2026-10-13-open-work.md`.
+
+The distribution and font-licence half of the old entry is NOT done and stays
+open above.

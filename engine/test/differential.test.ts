@@ -18,7 +18,8 @@ import { BUILT_IN, makeResolver } from '../data/library.js';
 import { magnitude } from '../src/geom/cyclotomic.js';
 import { placeAll, residuals } from '../src/graph/frames.js';
 import { graphFromChain } from '../src/graph/fromChain.js';
-import { portsOf, type Piece, type Port } from '../src/graph/model.js';
+import { portsOf, type Graph, type Piece, type Port } from '../src/graph/model.js';
+import { CYCLE_RANK_CEILING } from '../src/graph/cycles.js';
 import type { Layout, Turn } from '../src/parts/schema.js';
 import { computeResidual } from '../src/solver/residual.js';
 import { solveLayout } from '../src/solver/result.js';
@@ -281,5 +282,117 @@ describe('both engines reach the same verdict', () => {
       expect(verdictOfGraph(l)).toEqual(verdictOfChain(l));
       expect(verdictOfGraph(l).kind).toBe('IMPOSSIBLE');
     }
+  });
+});
+
+/*
+ * Value: protects=solveGraph's failure translations no chain can reach: the run-count detail, the rank ceiling, a non-finite give, and clashes reported with no loop
+ * Value: fails_when=the detail reverts to restating the headline, a truncated or non-finite cycle space still returns a verdict, or clashes are dropped from the !ok branch
+ * Value: why_new=the harness above compares the two engines over single-run chains, which reach none of these; cycles.test.ts stops at analyseCycles' own flags
+ * Value: seam=none
+ * Value: no_claim=nothing about the sentence the UI renders (verdictView.ts owns that and has no test at all) and nothing about which loop a user should fix first
+ *
+ * Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+ */
+describe('what only the graph engine can say, which is the boundary of the comparison above', () => {
+  const slopOf = (g: Graph) => (pieceId: string) => {
+    const piece = g.pieces.find((p) => p.pieceId === pieceId)!;
+    return resolve(piece.partId).slop.axialMm;
+  };
+  const solve = (g: Graph, slop = slopOf(g)) =>
+    solveGraph(g, ports, (id: string): Part => resolve(id), slop);
+
+  /** A straight run of `ids`, open at both ends. */
+  const chain = (ids: string[], closed: boolean): Layout => ({
+    placements: ids.map((partId) => ({ partId, turn: 'left' as Turn })),
+    closed,
+  });
+
+  /** Two chains on the table with nothing joining them: not expressible as one. */
+  function twoRuns(): Graph {
+    const a = graphFromChain(chain(['A', 'A'], false));
+    const b = graphFromChain(chain(['E', 'E'], false));
+    return {
+      pieces: [...a.pieces, ...b.pieces.map((p) => ({ ...p, pieceId: `q${p.pieceId}` }))],
+      welds: [
+        ...a.welds,
+        ...b.welds.map((w) => ({
+          a: { ...w.a, pieceId: `q${w.a.pieceId}` },
+          b: { ...w.b, pieceId: `q${w.b.pieceId}` },
+        })),
+      ],
+      anchors: new Map([['qp0', { pos: [900, 0, 0, 0, 0, 0, 0, 0] as never, heading: 0 }]]),
+    };
+  }
+
+  it('counts the separate RUNS on the table, which is the fact a chain could not hold', () => {
+    /*
+     * MUTATION (run): making the detail unconditional on `runs` ("N pieces,
+     * open at both ends") drops the run count, and the empty-canvas copy goes
+     * back to restating its own headline. Two runs of two is four pieces, and
+     * "4 pieces, open at both ends" is false about both of them.
+     */
+    const two = solve(twoRuns());
+    expect(two.ok).toBe(false);
+    if (two.ok) throw new Error('unreachable');
+    expect(two.reason).toBe('NO_CYCLE');
+    expect(two.detail).toBe('2 separate runs of track, none of them a loop');
+    expect(two.rank).toBe(0);
+  });
+
+  it('says piece, singular, for one piece, and pieces for several', () => {
+    const one = solve(graphFromChain(chain(['A'], false)));
+    const three = solve(graphFromChain(chain(['A', 'A', 'A'], false)));
+    expect(one.ok || three.ok).toBe(false);
+    expect((one as Extract<typeof one, { ok: false }>).detail).toBe('1 piece, open at both ends');
+    expect((three as Extract<typeof three, { ok: false }>).detail).toBe('3 pieces, open at both ends');
+  });
+
+  it('an overlap is reported with NO loop, because where the pieces ARE is already a fact', () => {
+    // Two unwelded pieces in the same place. MUTATION (run): moving `clashes`
+    // back onto the ok branch only returns [] here, and the user is told the
+    // one thing that is not wrong while two runs sit on top of each other.
+    const stacked: Graph = {
+      pieces: [
+        { pieceId: 'p0', partId: 'A', turn: 'left' },
+        { pieceId: 'p1', partId: 'A', turn: 'left' },
+      ],
+      welds: [],
+    };
+    const r = solve(stacked);
+    expect(r.ok).toBe(false);
+    expect(r.clashes.length).toBeGreaterThan(0);
+  });
+
+  it('refuses to rank more loops than it can search, instead of answering about some of them', () => {
+    // MUTATION (run): dropping solveGraph's `space.truncated` branch returns
+    // ok:true with gapMm 0 and withinBound true -- a PASS for a layout whose
+    // cycle space was never searched.
+    const pieces: Piece[] = [{ pieceId: 'p', partId: 'E', turn: 'left' }];
+    const welds = Array.from({ length: CYCLE_RANK_CEILING + 5 }, () => ({
+      a: { pieceId: 'p', port: 1 },
+      b: { pieceId: 'p', port: 0 },
+    }));
+    const r = solve({ pieces, welds });
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('unreachable');
+    expect(r.reason).toBe('TOO_MANY_LOOPS');
+    expect(r.rank).toBeGreaterThan(CYCLE_RANK_CEILING);
+  });
+
+  it('a non-finite give is a refusal, never a gap verdict carrying NaN', () => {
+    /*
+     * A part whose slop figure came out non-finite -- a submitted measurement
+     * is the live route to one. The circle still closes exactly, so this is
+     * the dangerous shape: every geometric figure is right and only the give
+     * is unusable. MUTATION (run): dropping the `Number.isFinite` sweep
+     * returns ok:true with EXACT, so a layout judged against a give of NaN
+     * reads as a definite yes.
+     */
+    const g = graphFromChain(chain(Array(8).fill('E'), true));
+    const r = solve(g, () => Number.NaN);
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('unreachable');
+    expect(r.reason).toBe('NUMERIC');
   });
 });
