@@ -184,9 +184,25 @@ verdict line renders it; build mode and the diagnostics panel will too. None
 recomputes it. Independent implementations drift, and the visible symptom of
 drift is the product contradicting itself.
 
-## Provenance
+## Licence, and what it does and does not cover
 
-Part dimensions are transcribed from the woodenrailway.info track guide and
-Track Math pages. Whether that curated compilation is protected is an open
-question to settle before publishing the data. BRIO is a live trademark and no
-product name has been chosen.
+The source code is MIT licensed. See `LICENSE`.
+
+**The MIT grant covers the code, not the part data.** Part dimensions in
+`engine/data/` are transcribed from the woodenrailway.info track guide and
+Track Math pages. Individual measurements of physical objects are facts, but a
+curated compilation of them may be protected, and that question is open. It was
+filed as a pre-launch item before this went public and is still unresolved, so
+the MIT licence should not be read as a grant over that compilation: it is not
+mine to give until the question is settled or the figures are re-derived from
+physical measurement.
+
+If you are the maintainer of woodenrailway.info and object to this use, open an
+issue and I will take the data down.
+
+The self-hosted IBM Plex fonts are SIL Open Font License 1.1, and both notices
+ship with the build at `/fonts/`.
+
+BRIO is a live trademark of BRIO AB. This project is not affiliated with,
+endorsed by, or connected to BRIO. The name `woodentrain.world` is descriptive
+and deliberately does not reference the trademark.
