@@ -55,22 +55,36 @@ export interface ReproInput {
 }
 
 /**
- * A stored value, made safe to paste into source.
+ * A stored blob emitted so the generated file RUNS even when the bytes do not
+ * parse.
  *
- * The value is attacker-influenced in the sense that matters here: the user
- * can type anything into the submission form, and a crash dump that pasted it
- * raw could close the string literal and turn the repro into something else
- * when run. Round-tripping through JSON.stringify makes it a literal and
- * nothing more. Unparseable text is emitted as a quoted string with a note,
- * never dropped, because a blob that will not parse is often the bug.
+ * `literal` emits `JSON.parse("...")` for unparseable bytes, which throws at
+ * module top level and kills the whole program before a single line prints.
+ * That is fine for a blob that parses and fatal for one that does not -- and
+ * the crash screen tells the user to run this file, so a dump that cannot run
+ * is worse than no dump.
+ *
+ * It bit the rescue key first and hardest, because `GRAPH_RESCUE_KEY` holds by
+ * definition the bytes `loadGraph` REFUSED, and `JSON.parse` throwing is one
+ * of the main reasons it refuses. MEASURED before this fix: a rescue blob of
+ * `{"pieces":[ truncated` produced `SyntaxError: JSON Parse error: Unexpected
+ * identifier "truncated"` at line 28 and printed nothing at all.
+ *
+ * The same latent bug sat on the graph, chain, inventory and submissions
+ * blobs. A crash dump exists to carry exactly the data that broke something,
+ * so every one of them gets the raw text plus a guarded parse. The raw string
+ * is kept beside the parsed value, because when the parse fails the raw bytes
+ * are the entire payload.
  */
-function literal(raw: string | null, fallback: string): string {
-  if (raw === null) return fallback;
-  try {
-    return JSON.stringify(JSON.parse(raw), null, 2);
-  } catch {
-    return `JSON.parse(${JSON.stringify(raw)}) /* NOTE: this did not parse */`;
-  }
+function guardedBlob(name: string, raw: string | null): string {
+  return `const ${name}Raw: string | null = ${JSON.stringify(raw)};
+let ${name}: unknown = null;
+try {
+  ${name} = ${name}Raw === null ? null : JSON.parse(${name}Raw);
+} catch (e) {
+  console.log('${name}: stored bytes did not parse --', (e as Error).message);
+  console.log('${name}: raw bytes follow', ${name}Raw);
+}`;
 }
 
 /**
@@ -109,18 +123,20 @@ import { solveLayout } from './engine/src/solver/result.js';
 import { layoutTrust } from './engine/src/joints/trust.js';
 import { brandFit } from './engine/data/thirdParty.js';
 
-// The layout the app actually had when it crashed.
-const graph = ${literal(input.graph, 'null')};
+// The layout the app actually had when it crashed. Every blob below is parsed
+// defensively: these are the bytes that broke something, so any of them may be
+// unparseable, and this file has to RUN to be worth sending.
+${guardedBlob('graph', input.graph)}
 
 // The bytes a previous load REFUSED, if any. Usually the real culprit: the
 // live graph above may be a sanitized rewrite of this.
-const rescued = ${literal(input.rescue, 'null')};
+${guardedBlob('rescued', input.rescue)}
 
-const submissions = ${literal(input.submissions, '[]')};
-const chain = ${literal(input.chain, '[]')};
-const inventory = ${literal(input.inventory, 'null')};
+${guardedBlob('submissions', input.submissions)}
+${guardedBlob('chain', input.chain)}
+${guardedBlob('inventory', input.inventory)}
 
-const library = resolveLibrary(submissions as never);
+const library = resolveLibrary((submissions ?? []) as never);
 const resolve = makeResolver(library);
 
 console.log('inventory', inventory);
@@ -140,7 +156,7 @@ if (graph) {
   };
   console.log('verdict', solveGraph(g, ports as never, resolve, slop));
   console.log('trust', layoutTrust({ placements: (g as { pieces: never[] }).pieces, closed: false } as never, resolve, brandFit));
-} else if ((chain as unknown[]).length > 0) {
+} else if (Array.isArray(chain) && chain.length > 0) {
   // No graph stored, but an old pre-graph chain was. Solve that instead of
   // nothing, through the engine it belongs to.
   const layout = { placements: chain as never, closed: true };

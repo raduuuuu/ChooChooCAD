@@ -16,6 +16,8 @@
  *       being dropped like every other value this engine did not write
  */
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../../engine/data/library.js';
 import { findVertexClashes } from '../../engine/src/graph/feasible.js';
@@ -53,7 +55,17 @@ function withStore<T>(seed: Record<string, string>, body: (store: Map<string, st
 }
 
 const blob = (v: unknown) => ({ [GRAPH_STORAGE_KEY]: JSON.stringify(v) });
-const load = (seed: Record<string, string>) => withStore(seed, () => loadGraph(KNOWN));
+/*
+ * REAL PORT COUNTS, so the suite exercises the path production takes.
+ *
+ * `loadGraph`'s second parameter defaults to an unbounded count for callers
+ * that only have part ids. App.tsx always passes the real counts, so a test
+ * helper that omitted them ran a weaker branch than the shipped one -- every
+ * pre-existing E2/E9 case included.
+ */
+const portCountOf = (partId: string) => portsOf(resolve(partId)).length;
+const load = (seed: Record<string, string>) =>
+  withStore(seed, () => loadGraph(KNOWN, portCountOf));
 
 /** A real two-piece run, built through the model and serialized by `saveGraph`. */
 function storedRun(): string {
@@ -450,10 +462,8 @@ describe('E9: the anchor-rejection matrix', () => {
  */
 describe('a stored weld cannot name a port the part does not have', () => {
   /** Port counts, the way App.tsx supplies them. */
-  const portCount = (partId: string, turn?: 'left' | 'right') =>
-    portsOf(resolve(partId), turn).length;
   const loadWithCounts = (seed: Record<string, string>) =>
-    withStore(seed, () => loadGraph(KNOWN, portCount));
+    withStore(seed, () => loadGraph(KNOWN, portCountOf));
 
   const twoPieces = (port: unknown) => ({
     pieces: [
@@ -468,7 +478,7 @@ describe('a stored weld cannot name a port the part does not have', () => {
    * MUTATION PROOF, run.
    *
    * Restore `typeof v === 'number'` as the only check: 7 tests fail -- all
-   * five refusal cases, the count-driven case, and the no-port-counts case.
+   * five refusal cases, the count-driven case, and the default-count case.
    *
    * Drop ONLY the `v < portCountOf(...)` clause and keep the integer and
    * non-negative checks: 4 fail -- the three in-range integers (2, 7, 1e9)
@@ -502,8 +512,7 @@ describe('a stored weld cannot name a port the part does not have', () => {
    * refused for the two-port straight beside it, in the same layout.
    */
   it('port 2 is accepted on a three-port part and refused on a two-port one', () => {
-    const asIfSwitch = (partId: string, turn?: 'left' | 'right') =>
-      partId === 'D' ? 3 : portsOf(resolve(partId), turn).length;
+    const asIfSwitch = (partId: string) => (partId === 'D' ? 3 : portCountOf(partId));
     const layout = (port: number) =>
       blob({
         pieces: [
@@ -514,7 +523,7 @@ describe('a stored weld cannot name a port the part does not have', () => {
         anchors: [],
       });
     expect(withStore(layout(2), () => loadGraph(KNOWN, asIfSwitch)).discarded).toBeUndefined();
-    expect(withStore(layout(2), () => loadGraph(KNOWN, portCount)).discarded).toBeTypeOf('string');
+    expect(withStore(layout(2), () => loadGraph(KNOWN, portCountOf)).discarded).toBeTypeOf('string');
     // Three ports still does not mean four.
     expect(withStore(layout(3), () => loadGraph(KNOWN, asIfSwitch)).discarded).toBeTypeOf('string');
   });
@@ -546,11 +555,18 @@ describe('a stored weld cannot name a port the part does not have', () => {
    * the path the older tests in this file take, and it must not silently
    * become a no-op.
    */
-  it('without port counts, a non-integer or negative port is still refused', () => {
+  /*
+   * The default count is unbounded, for a caller that has part ids and no
+   * geometry. The integer and non-negative checks still apply, so the weak
+   * branch is weaker but never a no-op.
+   */
+  it('with the default unbounded count, a non-integer or negative port is still refused', () => {
     for (const port of [-1, 2.5, Number.NaN]) {
-      const r = load(blob(twoPieces(port)));
+      const r = withStore(blob(twoPieces(port)), () => loadGraph(KNOWN));
       expect(r.discarded).toBeTypeOf('string');
     }
+    // And an in-range integer is accepted, so the default is not refusing all.
+    expect(withStore(blob(twoPieces(99)), () => loadGraph(KNOWN)).discarded).toBeUndefined();
   });
 });
 
@@ -645,6 +661,9 @@ describe('savesSuppressed', () => {
     layoutDismissed: false,
     inventoryNotice: undefined,
     inventoryDismissed: false,
+    submissionsNotice: undefined,
+    submissionsDismissed: false,
+    rescued: true,
     userHasActed: false,
   } as const;
 
@@ -697,9 +716,104 @@ describe('savesSuppressed', () => {
     for (const lost of [
       { layoutNotice: 'lost' },
       { inventoryNotice: 'lost' },
-      { layoutNotice: 'lost', inventoryNotice: 'lost' },
+      { submissionsNotice: 'lost' },
+      { layoutNotice: 'lost', inventoryNotice: 'lost', submissionsNotice: 'lost' },
     ]) {
       expect(savesSuppressed({ ...clean, ...lost, userHasActed: true })).toBe(false);
+    }
+  });
+
+  /*
+   * THE SUBMISSIONS NOTICE, which the gate was written for and could not see.
+   *
+   * `loadSubmissions` returned a bare array and skipped refused rows with a
+   * bare `continue`, so a measurement dropped by this release's stricter
+   * validation produced NO notice. `savesSuppressed` therefore saw no loss,
+   * the mount effect ran, and the survivors were written over the stored
+   * bytes. The one scenario the gate's own comment cites as needing no
+   * adversary was the one it did not cover.
+   *
+   * MUTATION PROOF, run: drop the `submissionsNotice` clause and 1 test fails
+   * -- this one. The resumes-saving case below covers the submissions notice
+   * too but passes either way, since dropping the clause also makes it
+   * unsuppressed.
+   */
+  it('an unread submissions notice suppresses', () => {
+    expect(savesSuppressed({ ...clean, submissionsNotice: 'lost' })).toBe(true);
+    expect(
+      savesSuppressed({ ...clean, submissionsNotice: 'lost', submissionsDismissed: true }),
+    ).toBe(false);
+  });
+
+  /*
+   * A FAILED RESCUE MEANS A CLICK IS NOT ENOUGH.
+   *
+   * Releasing on the first action is justified by the refused bytes already
+   * being copied to `GRAPH_RESCUE_KEY`. `rescue()` swallows a quota or
+   * private-browsing failure and returns false, and `GraphLoadResult.rescued`
+   * was computed, returned, and read nowhere at all. When it is false the
+   * user is the only backup, so only a deliberate dismissal releases.
+   *
+   * MUTATION PROOF, run: ignore `rescued` and return `!userHasActed`, and
+   * this test fails.
+   */
+  it('without a rescue copy, only a dismissal releases, not an action', () => {
+    const noRescue = { ...clean, rescued: false, layoutNotice: 'lost' };
+    expect(savesSuppressed({ ...noRescue, userHasActed: true })).toBe(true);
+    expect(savesSuppressed({ ...noRescue, layoutDismissed: true })).toBe(false);
+  });
+});
+
+/**
+ * The WIRING that drives `savesSuppressed`, asserted from the source text.
+ *
+ * Value: protects=every path that mutates user data marks the loss as
+ * acknowledged, and all three save effects consult the condition
+ * Value: fails_when=`setUserHasActed` is removed from `dispatch` or either
+ * panel callback, or a save effect stops checking `lossUnacknowledged`
+ * Value: why_new=MEASURED, removing `setUserHasActed(true)` from `dispatch`
+ * broke ZERO of 354 tests. The condition was pinned six ways and the one line
+ * that drives it was pinned not at all, which restores the unbounded
+ * suppression bug silently
+ * Value: seam=reads App.tsx's source text, the way `repro.test.ts` already
+ * reads ErrorBoundary's, because the effects need a DOM and StrictMode and
+ * `vitest.config.ts` deliberately provides neither
+ * Value: no_claim=nothing about the effects FIRING, about React's batching,
+ * or about StrictMode's double invocation. Those need E11. This pins that the
+ * calls are present and in the right places, not that React runs them.
+ */
+describe('the suppression wiring is present in App.tsx', () => {
+  const source = readFileSync(join(import.meta.dirname, 'App.tsx'), 'utf8');
+
+  it('every dispatch marks the user as having acted', () => {
+    const body = source.slice(
+      source.indexOf('const dispatch = (action: EditorAction)'),
+      source.indexOf('const add = (partId: string'),
+    );
+    expect(body).toContain('setUserHasActed(true)');
+  });
+
+  it('a submission and an inventory change mark it too', () => {
+    // Both are passed as callbacks to child panels rather than through dispatch.
+    expect(source).toContain('setUserHasActed(true);\n              setSubmissions(');
+    expect(source).toContain('setUserHasActed(true);\n              setInventory(');
+  });
+
+  it('all three saves consult the condition', () => {
+    for (const fn of ['saveGraph(graph)', 'saveInventory(inventory)', 'saveSubmissions(submissions)']) {
+      const at = source.indexOf(fn);
+      expect(at, `${fn} is not called at all`).toBeGreaterThan(-1);
+      // The guard sits on the line above the call, inside the same effect.
+      const before = source.slice(Math.max(0, at - 220), at);
+      expect(before, `${fn} is not guarded`).toContain('if (lossUnacknowledged) return;');
+    }
+  });
+
+  it('the condition comes from savesSuppressed, not re-derived inline', () => {
+    expect(source).toContain('savesSuppressed({');
+    // It is handed every input, including the two the first version omitted.
+    for (const field of ['submissionsNotice', 'rescued: graphLoad.rescued', 'userHasActed']) {
+      expect(source).toContain(field);
     }
   });
 });

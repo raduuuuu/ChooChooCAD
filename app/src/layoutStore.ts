@@ -98,14 +98,24 @@ function rescue(raw: string): boolean {
 }
 
 /**
- * How many ports a part has, once its turn is applied. Optional only so the
- * tests that predate it keep compiling; App.tsx always passes the real one.
+ * How many ports a part has.
+ *
+ * NOT turn-dependent. The first version threaded `turn` through here, through
+ * a `turnOf` map and through the port check, on the assumption that a turn
+ * could change the COUNT. It cannot: `portsOf` returns a fixed length per kind
+ * (2 for a straight, 2 for a curve, 3 for a switch) and `turn` only picks
+ * which way an arc bends. A sweep over every part in `BUILT_IN` found none
+ * whose count differs between `undefined`, `'left'` and `'right'`. The
+ * threading was the only reason the weld loop needed a per-piece lookup.
+ *
+ * If the switch work later makes the count turn-dependent, add the parameter
+ * back together with a test that fails without it.
  */
-export type PortCountOf = (partId: string, turn?: 'left' | 'right') => number;
+export type PortCountOf = (partId: string) => number;
 
 export function loadGraph(
   knownPartIds: ReadonlySet<string>,
-  portCountOf?: PortCountOf,
+  portCountOf: PortCountOf = () => Number.POSITIVE_INFINITY,
 ): GraphLoadResult {
   let raw: string | null = null;
   try {
@@ -165,7 +175,14 @@ export function loadGraph(
     }
 
     const outWelds: Weld[] = [];
-    const turnOf = new Map(out.map((p) => [p.pieceId, p.turn]));
+    /*
+     * One Map, built once. The first version called `out.find(...)` twice per
+     * weld inside this loop, which is O(pieces x welds): measured 0.7ms at 100
+     * pieces, 7.2ms at 1000, 340ms at 8000. Not a blocker at real layout
+     * sizes, and a gratuitous quadratic two lines from proof that the right
+     * structure was already in hand.
+     */
+    const partOf = new Map(out.map((p) => [p.pieceId, p.partId]));
     /*
      * A PORT INDEX GETS THE SAME TREATMENT AS A HEADING (finding B1).
      *
@@ -190,11 +207,11 @@ export function loadGraph(
      * starting empty, which is why this refuses the whole layout rather than
      * dropping the weld -- the same call the missing-piece check below makes.
      */
-    const isPort = (v: unknown, partId: string, pieceId: string): v is number => {
-      if (typeof v !== 'number' || !Number.isInteger(v) || v < 0) return false;
-      if (!portCountOf) return true;
-      return v < portCountOf(partId, turnOf.get(pieceId));
-    };
+    const isPort = (v: unknown, partId: string): v is number =>
+      typeof v === 'number' &&
+      Number.isInteger(v) &&
+      v >= 0 &&
+      v < portCountOf(partId);
     for (const w of welds) {
       const a = (w as Weld | undefined)?.a;
       const b = (w as Weld | undefined)?.b;
@@ -205,9 +222,12 @@ export function loadGraph(
       if (!ids.has(a.pieceId) || !ids.has(b.pieceId)) {
         return refuse(DISCARDED);
       }
-      const partA = out.find((p) => p.pieceId === a.pieceId)!.partId;
-      const partB = out.find((p) => p.pieceId === b.pieceId)!.partId;
-      if (!isPort(a.port, partA, a.pieceId) || !isPort(b.port, partB, b.pieceId)) {
+      // Non-null is sound: `ids.has` above gated both lookups, and `ids` and
+      // `partOf` are filled from the same array in lockstep.
+      if (
+        !isPort(a.port, partOf.get(a.pieceId)!) ||
+        !isPort(b.port, partOf.get(b.pieceId)!)
+      ) {
         return refuse(DISCARDED);
       }
       // Only the two fields a weld end IS. The stored object may carry extra
@@ -384,9 +404,26 @@ export function savesSuppressed(state: {
   readonly layoutDismissed: boolean;
   readonly inventoryNotice: string | undefined;
   readonly inventoryDismissed: boolean;
+  readonly submissionsNotice: string | undefined;
+  readonly submissionsDismissed: boolean;
+  /**
+   * Whether `loadGraph` managed to copy the refused bytes aside.
+   *
+   * `rescue()` swallows a quota-exceeded or private-browsing failure and
+   * returns false, and this field was computed, returned and then read
+   * NOWHERE -- the whole justification for releasing suppression on the first
+   * click was "the rescue copy exists", which is the one thing nobody
+   * checked. When the rescue failed the user is the only backup, so a click
+   * is not enough: the notice has to be dismissed deliberately.
+   */
+  readonly rescued: boolean;
   readonly userHasActed: boolean;
 }): boolean {
-  if (state.userHasActed) return false;
-  if (state.layoutNotice !== undefined && !state.layoutDismissed) return true;
-  return state.inventoryNotice !== undefined && !state.inventoryDismissed;
+  const unread =
+    (state.layoutNotice !== undefined && !state.layoutDismissed) ||
+    (state.inventoryNotice !== undefined && !state.inventoryDismissed) ||
+    (state.submissionsNotice !== undefined && !state.submissionsDismissed);
+  if (!unread) return false;
+  // An action acknowledges the loss only when a rescue copy was actually made.
+  return state.rescued ? !state.userHasActed : true;
 }

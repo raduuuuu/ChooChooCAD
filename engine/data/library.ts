@@ -180,12 +180,32 @@ function looksLikePart(v: unknown): v is Part {
    * refused rather than trusted. That keeps rule 4's invariant true by
    * construction instead of by convention.
    *
-   * The ceiling is two orders of magnitude above the real figure (0.8mm axial,
-   * 1.5 degrees in `brio.ts`). It is not a measurement claim; it is the line
-   * past which a number is not a tolerance.
+   * THE CEILING IS NEAR THE REAL FIGURE, not two orders of magnitude above it.
+   *
+   * The first version of this fix used 50mm and 45 degrees, reasoning that the
+   * harm needed something absurd like 999mm. MEASURED: it does not. On eight
+   * large curves plus one straight -- a ring with a 216mm gap and no clashes --
+   * a stored row at exactly 50mm per joint gives 450mm of total give across 9
+   * joints, and the verdict goes from EXCEEDS (`withinBound: false`, a definite
+   * "this will not fit") to NEEDS_GIVE (`withinBound: true`, a "this might").
+   * The ceiling as chosen permitted the exact harm the paragraph above
+   * describes, which is the third invariant: a failed check must never be
+   * styled as a pass.
+   *
+   * 5mm and 5 degrees are about 6x and 3x the published figures (0.8mm axial,
+   * 1.5 degrees in `brio.ts`). A BRIO joint's real slop is sub-millimetre, so
+   * this is already generous for somebody measuring their own worn track, and
+   * 5mm across 9 joints is 45mm against that 216mm gap.
+   *
+   * It is a plausibility bound, NOT a guarantee. Give scales with joint count,
+   * so a large enough layout of legitimate-looking rows can still soften a
+   * definite claim; that is filed as the P2 on provenance rather than pretended
+   * away with a constant. What keeps the verdict honest meanwhile is the
+   * `calibrationStatus` refusal below: `estimated-give` always fires, so the
+   * user is always told the give is a guess.
    */
-  const SLOP_CEILING_MM = 50;
-  const SLOP_CEILING_DEG = 45;
+  const SLOP_CEILING_MM = 5;
+  const SLOP_CEILING_DEG = 5;
   const bounded = (x: unknown, ceiling: number) =>
     typeof x === 'number' && Number.isFinite(x) && x >= 0 && x <= ceiling;
   if (!slop) return false;
@@ -200,24 +220,89 @@ function looksLikePart(v: unknown): v is Part {
   return finite(p.innerRadiusMm) && typeof p.arcSteps === 'number' && Number.isInteger(p.arcSteps);
 }
 
-export function loadSubmissions(): readonly Submission[] {
+/**
+ * What `loadSubmissionsResult` returns.
+ *
+ * `dropped` EXISTS SO THE LOSS CAN BE SHOWN. Before it, every drop here was a
+ * bare `continue`: the row vanished, `App.tsx` had no notice for it, so
+ * `savesSuppressed` saw no loss and the mount effect wrote the survivors
+ * straight over the stored bytes. The scenario the save gate was written for
+ * was the one scenario it could not see, because the loss never reached it.
+ *
+ * It matters most for exactly this loader. A dropped layout is a minute of
+ * clicking; the comment at the top of this section says a dropped submission
+ * "costs you measurements you took with calipers, which you cannot" recreate.
+ */
+export interface SubmissionsLoadResult {
+  readonly value: readonly Submission[];
+  /** How many stored rows were refused. Zero on a clean load. */
+  readonly dropped: number;
+  /** Set when the whole blob was unreadable, as opposed to some rows. */
+  readonly discarded?: string;
+}
+
+export function loadSubmissionsResult(): SubmissionsLoadResult {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
+    if (!raw) return { value: [], dropped: 0 };
     const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
+    if (!Array.isArray(parsed)) {
+      return {
+        value: [],
+        dropped: 0,
+        discarded:
+          'Your submitted part measurements could not be read, so none of them ' +
+          'were loaded. The original is kept until you dismiss this.',
+      };
+    }
     const out: Submission[] = [];
+    let dropped = 0;
     for (const item of parsed) {
-      if (typeof item !== 'object' || item === null) continue;
+      if (typeof item !== 'object' || item === null) {
+        dropped++;
+        continue;
+      }
       const s = item as Record<string, unknown>;
-      if (typeof s.submissionId !== 'string' || typeof s.at !== 'string') continue;
-      if (!looksLikePart(s.part)) continue;
+      if (typeof s.submissionId !== 'string' || typeof s.at !== 'string') {
+        dropped++;
+        continue;
+      }
+      if (!looksLikePart(s.part)) {
+        dropped++;
+        continue;
+      }
       out.push({ part: s.part, submissionId: s.submissionId, at: s.at });
     }
-    return out;
+    return { value: out, dropped };
   } catch {
-    return [];
+    return {
+      value: [],
+      dropped: 0,
+      discarded:
+        'Your submitted part measurements could not be read, so none of them ' +
+        'were loaded. The original is kept until you dismiss this.',
+    };
   }
+}
+
+/** The sentence shown when some rows were refused and the rest were kept. */
+export function droppedSubmissionsNotice(kept: number, dropped: number): string {
+  const rows = dropped === 1 ? '1 saved measurement' : `${dropped} saved measurements`;
+  const was = dropped === 1 ? 'was' : 'were';
+  const rest =
+    kept === 0
+      ? 'Nothing was loaded.'
+      : `The other ${kept === 1 ? 'one' : kept} loaded normally.`;
+  return (
+    `${rows} ${was} in a format this version does not accept, so ${dropped === 1 ? 'it' : 'they'} ` +
+    `${dropped === 1 ? 'was' : 'were'} not loaded. ${rest} ` +
+    'Nothing is saved over them until you dismiss this.'
+  );
+}
+
+/** Kept for callers that do not care why rows are missing. */
+export function loadSubmissions(): readonly Submission[] {
+  return loadSubmissionsResult().value;
 }
 
 export function saveSubmissions(subs: readonly Submission[]): void {

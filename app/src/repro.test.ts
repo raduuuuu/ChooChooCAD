@@ -30,27 +30,29 @@ describe('reproText', () => {
     expect(t).toContain('TypeError: x is not a function');
   });
 
-  it('carries the chain and the inventory', () => {
+  it('carries the chain and the inventory as raw bytes', () => {
     const t = reproText(base);
-    expect(t).toContain('"partId": "E"');
-    expect(t).toContain('"E": 8');
+    expect(t).toContain('[{\\"partId\\":\\"E\\",\\"turn\\":\\"left\\"}]');
+    expect(t).toContain('{\\"E\\":8}');
   });
 
-  it('absent keys become empty values, not the word null in the chain', () => {
+  it('absent keys emit a null raw string, not the text of a default', () => {
     const t = reproText({ ...base, chain: null, inventory: null, submissions: null });
-    expect(t).toContain('const chain = [];');
-    expect(t).toContain('const inventory = null;');
-    expect(t).toContain('const submissions = [];');
+    for (const name of ['chain', 'inventory', 'submissions']) {
+      expect(t).toContain(`const ${name}Raw: string | null = null;`);
+    }
   });
 
   /*
    * A blob that will not parse is frequently the bug, so it must survive into
-   * the repro rather than being dropped as unusable.
+   * the repro rather than being dropped as unusable -- AND the file must still
+   * run. See the runnable cases below, which is where the first version of
+   * this failed.
    */
-  it('keeps a blob that does not parse, and says so', () => {
+  it('keeps a blob that does not parse', () => {
     const t = reproText({ ...base, chain: '{not json' });
-    expect(t).toContain('this did not parse');
     expect(t).toContain('{not json');
+    expect(t).toContain('const chainRaw: string | null =');
   });
 
   /*
@@ -202,6 +204,63 @@ describe('the generated repro runs', () => {
     const out = run({ ...base, chain: '[{"partId":"E","turn":"left"}]' });
     expect(out).toContain('verdict');
     expect(out).toContain('trust');
+  });
+
+  /*
+   * AN UNPARSEABLE BLOB MUST NOT KILL THE FILE, and this is the case that
+   * shipped broken.
+   *
+   * `literal()` emitted `JSON.parse("...")` at module top level for bytes that
+   * do not parse. MEASURED before the fix: a rescue blob of
+   * `{"pieces":[ truncated` produced `SyntaxError: JSON Parse error: Unexpected
+   * identifier "truncated"` on line 28 and the program printed NOTHING. The
+   * crash screen tells the user to run this file, so a dump that cannot run is
+   * worse than a dump missing a field.
+   *
+   * The rescue key is the worst case and the reason it was found: it holds by
+   * definition the bytes `loadGraph` REFUSED, and a JSON.parse failure is one
+   * of the main reasons it refuses. So the field added to make the dump useful
+   * made it unrunnable in exactly the case it was added for.
+   *
+   * MUTATION PROOF, run: put any blob back through a bare
+   * `JSON.parse(<literal>)` at top level and the matching case here fails with
+   * a non-zero exit.
+   */
+  for (const key of ['graph', 'rescue', 'chain', 'inventory', 'submissions'] as const) {
+    it(`still runs when the ${key} blob does not parse`, () => {
+      /*
+       * A VALID graph AND a valid chain, so whichever one is not the broken
+       * blob still produces a verdict. Without that the chain case fails for
+       * the wrong reason -- nothing left to solve -- which this test caught
+       * about itself on the first run.
+       */
+      const out = run({
+        ...base,
+        graph: '{"pieces":[{"pieceId":"p0","partId":"E","turn":"left"}],"welds":[],"anchors":[]}',
+        chain: '[{"partId":"E","turn":"left"}]',
+        [key]: '{"pieces":[ truncated',
+      });
+      // It ran to the end rather than dying at the top.
+      expect(out).toContain('verdict');
+      // And it said which blob was broken, with the bytes.
+      expect(out).toContain('stored bytes did not parse');
+      expect(out).toContain('truncated');
+    });
+  }
+
+  /*
+   * The rescue bytes actually leave with the dump. Before this, every fixture
+   * in this file passed `rescue: null`, so the field's VALUE was never
+   * exercised and the bug above shipped green.
+   */
+  it('prints the refused bytes when they are present and valid', () => {
+    const out = run({
+      ...base,
+      chain: '[{"partId":"E","turn":"left"}]',
+      rescue: '{"pieces":[{"pieceId":"ghost","partId":"E"}],"welds":[],"anchors":[]}',
+    });
+    expect(out).toContain('refused bytes from an earlier load');
+    expect(out).toContain('ghost');
   });
 
   /*
@@ -407,8 +466,8 @@ describe('the repro carries the layout the app actually saved', () => {
       userAgent: 'UA',
       error: { name: 'Error', message: 'boom' },
     });
-    expect(t).toContain('const graph =');
-    expect(t).toContain('"partId": "E"');
+    expect(t).toContain('const graphRaw: string | null =');
+    expect(t).toContain('\\"partId\\":\\"E\\"');
   });
 
   it('a missing graph emits null rather than a silent empty default', () => {
@@ -422,6 +481,6 @@ describe('the repro carries the layout the app actually saved', () => {
       userAgent: 'UA',
       error: { name: 'Error', message: 'boom' },
     });
-    expect(t).toContain('const graph = null;');
+    expect(t).toContain('const graphRaw: string | null = null;');
   });
 });

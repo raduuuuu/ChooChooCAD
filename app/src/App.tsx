@@ -33,7 +33,8 @@
 
 import { useEffect, useMemo, useState , type ReactNode } from 'react';
 import {
-  loadSubmissions,
+  droppedSubmissionsNotice,
+  loadSubmissionsResult,
   makeResolver,
   resolveLibrary,
   saveSubmissions,
@@ -127,7 +128,23 @@ export function App() {
    * resolves from them, and only then can the chain and the inventory be
    * validated, because both reference part ids that may be user-submitted.
    */
-  const [submissions, setSubmissions] = useState<readonly Submission[]>(loadSubmissions);
+  /*
+   * The submissions loader reports its losses now. It used to return a bare
+   * array and `continue` silently past every refused row, so a measurement
+   * dropped by this release's stricter validation produced no notice, nothing
+   * suppressed the mount save, and the survivors were written over the stored
+   * bytes before anyone could be told.
+   */
+  const [submissionsLoad] = useState(loadSubmissionsResult);
+  const [submissions, setSubmissions] = useState<readonly Submission[]>(
+    submissionsLoad.value,
+  );
+  const [submissionsDismissed, setSubmissionsDismissed] = useState(false);
+  const submissionsNotice =
+    submissionsLoad.discarded ??
+    (submissionsLoad.dropped > 0
+      ? droppedSubmissionsNotice(submissionsLoad.value.length, submissionsLoad.dropped)
+      : undefined);
   const library = useMemo(() => resolveLibrary(submissions), [submissions]);
   const resolve = useMemo(() => makeResolver(library), [library]);
   const libraryIds = useMemo(() => new Set(library.map((p) => p.id)), [library]);
@@ -144,7 +161,7 @@ export function App() {
    * rather than throwing inside render on every reload.
    */
   const [graphLoad] = useState(() =>
-    loadGraph(libraryIds, (partId, turn) => portsOf(resolve(partId), turn).length),
+    loadGraph(libraryIds, (partId) => portsOf(resolve(partId)).length),
   );
   const [inventoryLoad] = useState(() => loadInventory(libraryIds));
 
@@ -226,6 +243,9 @@ export function App() {
     layoutDismissed,
     inventoryNotice: inventoryLoad.discarded,
     inventoryDismissed,
+    submissionsNotice,
+    submissionsDismissed,
+    rescued: graphLoad.rescued,
     userHasActed,
   });
 
@@ -545,6 +565,23 @@ export function App() {
             <p className="notice-line">{inventoryLoad.discarded}</p>
           </div>
           <button className="notice-close" onClick={() => setInventoryDismissed(true)}>
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/*
+        * THE THIRD NOTICE, and the one with the most at stake. A dropped
+        * submission is a measurement somebody took with calipers. It had no
+        * notice at all until now, which also meant nothing held back the save
+        * that overwrote it.
+        */}
+      {submissionsNotice !== undefined && !submissionsDismissed && (
+        <div className="notice" role="status" aria-live="polite" aria-atomic="false">
+          <div>
+            <p className="notice-line">{submissionsNotice}</p>
+          </div>
+          <button className="notice-close" onClick={() => setSubmissionsDismissed(true)}>
             Dismiss
           </button>
         </div>

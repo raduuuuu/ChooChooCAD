@@ -24,6 +24,9 @@ import { describe, expect, it } from 'vitest';
 import { BUILT_IN, loadSubmissions, resolveLibrary, type Submission } from '../data/library.js';
 import { DIMENSION_TRUST, trustRank, type Part } from '../src/parts/schema.js';
 import { layoutTrust } from '../src/joints/trust.js';
+import { graphFromChain } from '../src/graph/fromChain.js';
+import { solveGraph } from '../src/graph/solve.js';
+import { portsOf } from '../src/graph/model.js';
 import { brandFit } from '../data/thirdParty.js';
 import { makeResolver } from '../data/library.js';
 import { SUBMISSIONS_STORAGE_KEY } from '../data/library.js';
@@ -238,5 +241,112 @@ describe('a stored submission cannot claim its give was measured', () => {
       );
       expect(got).toHaveLength(1);
     }
+  });
+});
+
+/**
+ * The ceiling is low enough to matter (finding D1).
+ *
+ * Value: protects=a stored row cannot inflate the give until a definite
+ * "this will not fit" softens into "this might fit"
+ * Value: fails_when=SLOP_CEILING_MM rises back towards the tens of
+ * millimetres, where per-joint give times joint count exceeds a real gap
+ * Value: why_new=the first version of the bound was 50mm/45deg, chosen by
+ * eye; nothing tested whether a row AT the ceiling could still flip a verdict
+ * Value: seam=none
+ * Value: no_claim=this is a plausibility bound, not a guarantee. Give scales
+ * with joint count, so a big enough layout of individually plausible rows can
+ * still soften a definite claim. That is the filed P2 on provenance.
+ *
+ * MEASURED at the old ceiling: eight large curves plus one straight, a 216mm
+ * gap and no clashes, went from `withinBound: false` (EXCEEDS) with the real
+ * 7.2mm of give to `withinBound: true` (NEEDS_GIVE) with 450mm.
+ */
+describe('a stored row cannot inflate the give into a softer verdict', () => {
+  const ring = () => {
+    const ids = [...Array(8).fill('E'), 'D'];
+    return graphFromChain({
+      placements: ids.map((id) => ({ partId: id, turn: 'left' as const })),
+      closed: true,
+    } as never);
+  };
+
+  const verdictFor = (parts: readonly Part[]) => {
+    const g = ring();
+    const resolve = makeResolver(parts);
+    const ports = (piece: { partId: string; turn?: 'left' | 'right' }) =>
+      portsOf(resolve(piece.partId), piece.turn);
+    const slopOf = (pieceId: string) => {
+      const piece = g.pieces.find((x) => x.pieceId === pieceId)!;
+      return resolve(piece.partId).slop.axialMm;
+    };
+    return solveGraph(g, ports as never, resolve, slopOf) as unknown as {
+      gapMm: number;
+      totalGiveMm: number;
+      withinBound: boolean;
+    };
+  };
+
+  it('the published library calls this ring a definite failure (control)', () => {
+    const v = verdictFor(BUILT_IN);
+    expect(v.gapMm).toBeCloseTo(216, 6);
+    expect(v.withinBound).toBe(false);
+  });
+
+  /*
+   * MUTATION PROOF, run: set SLOP_CEILING_MM back to 50 and this fails --
+   * the rows are accepted, the give reaches 450mm and withinBound flips true.
+   */
+  it('a row at ten times the ceiling is refused, so the verdict holds', () => {
+    const rows = ['E', 'D'].map((id, i) => {
+      const real = BUILT_IN.find((p) => p.id === id)!;
+      return submissionWith({
+        id,
+        kind: real.kind,
+        ...(real.kind === 'straight'
+          ? { lengthMm: (real as { lengthMm?: number }).lengthMm }
+          : {
+              innerRadiusMm: (real as { innerRadiusMm?: number }).innerRadiusMm,
+              arcSteps: (real as { arcSteps?: number }).arcSteps,
+            }),
+        submissionId: `s${i}`,
+        slop: { axialMm: 50, angularDeg: 45, calibrationStatus: 'published' },
+        dimensions: { status: 'published', source: 'x' },
+      });
+    });
+    const kept = withStore({ [SUBMISSIONS_STORAGE_KEY]: JSON.stringify(rows) }, () =>
+      loadSubmissions(),
+    );
+    expect(kept).toHaveLength(0);
+    const v = verdictFor(resolveLibrary(kept));
+    expect(v.withinBound).toBe(false);
+    expect(v.totalGiveMm).toBeLessThan(50);
+  });
+
+  it('a row AT the ceiling is accepted and still cannot flip it', () => {
+    const rows = ['E', 'D'].map((id, i) => {
+      const real = BUILT_IN.find((p) => p.id === id)!;
+      return submissionWith({
+        id,
+        kind: real.kind,
+        ...(real.kind === 'straight'
+          ? { lengthMm: (real as { lengthMm?: number }).lengthMm }
+          : {
+              innerRadiusMm: (real as { innerRadiusMm?: number }).innerRadiusMm,
+              arcSteps: (real as { arcSteps?: number }).arcSteps,
+            }),
+        submissionId: `s${i}`,
+        slop: { axialMm: 5, angularDeg: 5, calibrationStatus: 'published' },
+        dimensions: { status: 'published', source: 'x' },
+      });
+    });
+    const kept = withStore({ [SUBMISSIONS_STORAGE_KEY]: JSON.stringify(rows) }, () =>
+      loadSubmissions(),
+    );
+    expect(kept).toHaveLength(2);
+    const v = verdictFor(resolveLibrary(kept));
+    // 5mm x 9 joints = 45mm, nowhere near the 216mm gap.
+    expect(v.totalGiveMm).toBeCloseTo(45, 6);
+    expect(v.withinBound).toBe(false);
   });
 });
