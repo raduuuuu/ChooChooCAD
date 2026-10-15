@@ -869,6 +869,53 @@ U5 may be about to give it a caller.
 
 ## Completed
 
+### DONE — A recovered orphan could be placed inside a surviving run (P0, fixed 2026-10-15)
+
+**Was:** `loadGraph` re-anchored orphans into lanes chosen by stepping over
+occupied ANCHOR POINTS. An anchor names where a component starts; a run
+marching along the lane axis occupies lanes its root never mentions, so an
+orphan could land on an already-welded joint inside it. A welded end is spoken
+for, so `findVertexClashes` reported it rather than excusing it the way it
+excuses two free ends meeting, and the verdict read "Can't be built" about a
+layout the user built correctly.
+
+**Fix:** the loader clears the FOOTPRINT of everything already placed, which is
+what `layoutModel.nextRunAnchor` has always done for the in-app path. It takes
+port geometry (`PortsOf`) instead of a port count, which it needed anyway to
+validate weld indices, so the parameter got smaller rather than larger.
+
+ONE placement, not one per orphan: moving an anchor along zeta^4 without
+changing its heading translates a component rigidly, so every component's
+height is measured once and the orphans are stacked using those heights.
+MEASURED linear, 400 orphans in 1.4ms and 800 in 2.6ms.
+
+**It took three commits, and the first two were wrong.** The footprint rule
+landed in `57b891e`, which then left a stale provisional anchor on orphans
+that are not component roots. `captureAnchors` prefers an existing anchor over
+the frame a piece was actually at, so the first "Remove last" promoted that
+piece to a root and the stale lane won: measured 0 clashes at load and 2 after
+one edit, at the same coordinate as the original P0. `06e513f` deletes the
+anchor instead, and a differential sweep of 3205 app-built layouts with every
+single-edit follow-up found 0 violations against 298 on its parent.
+
+The same commit found `isCyc` accepting any finite coefficient, so a stored
+anchor of eight 1e308s produced NaN coordinates that make every closure and
+clash test silently answer "no". Tightened to safe integers, then tightened
+again: 2^53 - 1 is a safe integer and still breaks exactness, reporting an
+eight-curve loop that closes exactly as `closesExactly: false`. The ceiling is
+2^31.
+
+**Verified:** the two specs that pinned the original are un-skipped and pass.
+Reverting to the anchor-point rule fails 6 tests including both; never
+advancing the frontier between orphans fails the two-orphan case; deleting the
+non-root anchor deletion fails the lifecycle spec. In the browser, the exact
+reproducing layout now reads "Not a loop yet. 2 separate runs of track" with
+the position notice still shown, where it used to read "Can't be built".
+
+Also removed on the way: an optional port-count parameter that let the suite
+exercise a weaker branch than production, and an `orphans.indexOf(id)` inside
+the loop over `orphans` that I wrote in the first draft of the fix.
+
 ### P1 — No remote, no backup, no CI
 **Completed:** 2026-10-14 (tasks X1 and X1b)
 
@@ -1043,51 +1090,6 @@ divergence it exists for.
 **Effort:** human ~2d / CC ~3h across all six groups. **Priority:** P2.
 **Depends on / blocked by:** B waits on U5's intent for `breakWeld`; the
 `analytic.test.ts` half of C is K2's job.
-
-## P0 — A recovered orphan can be placed inside a surviving run, which manufactures a false "can't be built" (filed by /ship, 2026-10-14)
-
-**What:** `layoutStore.loadGraph` re-anchors pieces whose stored anchor was
-unreadable into free "lanes" along `zeta^4`. The occupancy check de-duplicates
-ROOT ANCHOR POINTS only. A run that marches along the lane axis occupies lanes
-its root does not name, so an orphan can be dropped into the middle of it.
-
-**Measured at `a95408d`:** two 216mm straights (`D`) welded into a run anchored
-at the identity with `heading: 4`, plus one orphan, yields
-`MANUFACTURED CLASHES = 1` at `[1.3226185430791415e-14, 216]`. p0 spans lane 0
-to lane 1 and p1 spans lane 1 to lane 2; p1's root is at lane 1 but only roots
-are anchored, so `taken` does not contain it. The orphan takes lane 1 and lands
-on p1's already-welded port 0. A welded end is spoken for, so
-`findVertexClashes` pushes it straight to `clashes` rather than excusing it the
-way it excuses two free ends meeting. `viewOf` then returns IMPOSSIBLE and the
-verdict reads "Can't be built" about a layout the user built correctly.
-
-**Why it matters more than a wrong position:** the notice says part of your
-track may be in the wrong place. It never says the verdict below it is wrong.
-The twenty-line comment at the lane search argues explicitly that a visible
-wrong position beats an invisible wrong verdict — and then produces the wrong
-verdict anyway. The product's only output is a trustworthy verdict.
-
-**Fix:** place each orphan past the BOUNDING BOX of everything already placed,
-not past occupied root points. `layoutModel.nextRunAnchor` already does this
-correctly for the in-app path, computing clearance from `maxY - minY`; the
-loader uses a strictly weaker rule for the same decision because it has part
-ids but no port geometry. Either thread a `PortsOf` into `loadGraph`, or return
-the orphan ids and let `App.tsx` place them through `nextRunAnchor`. The second
-is cleaner: the resolver already lives there.
-
-**Regression pin:** `app/src/layoutStore.test.ts`, `describe.skip('an orphan
-lane clears a survivor RUN, not just its anchor')`. Both cases fail when
-un-skipped — 1 clash instead of 0, and lane 1 instead of lane 3. Do not delete
-it to make the suite green.
-
-**Why deferred rather than fixed in the ship:** this is the THIRD attempt at
-this one bug. The first shipped `anchorMap.size + k + 1`, which counted
-survivors; the second shipped the root-point `taken` set, which is this. Both
-were written under ship pressure and both were wrong. The correctness argument
-runs through lattice projections and the fix changes a module signature.
-
-**Effort:** human ~3h / CC ~40m. **Priority:** P0.
-**Depends on / blocked by:** nothing.
 
 ## P1 — `solveGraph` computes a second placement instead of accepting the one App.tsx already made (filed by /ship, 2026-10-14)
 
@@ -1368,3 +1370,47 @@ tests a claim about the product rather than a restatement of the code.
 
 **Effort:** human ~2h / CC ~25m. **Priority:** P3.
 **Depends on / blocked by:** nothing.
+
+## P2 — `droppedAnchors` counts entries, and a valid anchor can lose to a bad one (filed 2026-10-15)
+
+**What:** two small defects in the same loop, both pre-existing and both
+surfaced by the review of the orphan-lane fix.
+
+`droppedAnchors` counts stored ENTRIES, not affected pieces. The anchors field
+is an array out of an untrusted blob and may name an id twice, so two
+unreadable entries for one piece report "2 had unreadable positions" when one
+piece is affected. The notice overstates the loss.
+
+Worse: when an id has BOTH an unreadable entry and a VALID one, the valid
+position is discarded. The good entry is taken into `anchorMap`, then the id
+is in `orphans` regardless, so it is re-laned anyway. Measured: a valid
+`[0,0,0,0,432,0,0,0]` replaced by lane 3. Safe -- no clash results -- but a
+recoverable position is thrown away for no reason.
+
+**Fix:** count `new Set` of affected ids for the notice, and skip the
+provisional lane for any id `anchorMap` already holds a valid frame for.
+
+**Effort:** human ~45m / CC ~10m. **Priority:** P2.
+**Depends on / blocked by:** nothing.
+
+## P2 — `captureAnchors` honours a stale anchor on any demoted root, not just orphans (filed 2026-10-15)
+
+**What:** the orphan-lane fix closed one case of a general problem.
+`weldEnds` appends a weld without touching anchors, so merging two components
+leaves the demoted component's root anchor in place. `clickPort` is the
+user-facing path that does it, and `undo` or a future `breakWeld` is the
+promotion that makes `captureAnchors` read that anchor again.
+
+**Why it is milder than the P0 it resembles:** the stale anchor is a real
+position the component once held, not a manufactured lane, so the measured
+simple case (add, add, add, add, weld, break) reports 0 clashes. It is wrong
+rather than dangerous. But `layoutStore.ts`'s comment that "something does
+read it" applies verbatim to valid non-root anchors too.
+
+**Fix:** have `weldEnds` drop the anchor of any root it demotes, or have
+`captureAnchors` prefer the measured frame for a root whose anchor predates
+its last topology change.
+
+**Effort:** human ~2h / CC ~25m. **Priority:** P2.
+**Depends on / blocked by:** relates to U5, which wires `breakWeld` to the UI
+and makes the promotion path reachable deliberately rather than only via undo.

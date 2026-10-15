@@ -20,7 +20,10 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../../engine/data/library.js';
+import { removeWeld } from '../../engine/src/graph/edit.js';
 import { findVertexClashes } from '../../engine/src/graph/feasible.js';
+import { portFrame } from '../../engine/src/graph/frames.js';
+import { toXY } from '../../engine/src/geom/cyclotomic.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Piece, type Port } from '../../engine/src/graph/model.js';
 import { CHAIN_STORAGE_KEY, GRAPH_RESCUE_KEY, GRAPH_STORAGE_KEY } from './storageKeys.js';
@@ -56,16 +59,15 @@ function withStore<T>(seed: Record<string, string>, body: (store: Map<string, st
 
 const blob = (v: unknown) => ({ [GRAPH_STORAGE_KEY]: JSON.stringify(v) });
 /*
- * REAL PORT COUNTS, so the suite exercises the path production takes.
+ * REAL PORT GEOMETRY, which is the only thing `loadGraph` accepts now.
  *
- * `loadGraph`'s second parameter defaults to an unbounded count for callers
- * that only have part ids. App.tsx always passes the real counts, so a test
- * helper that omitted them ran a weaker branch than the shipped one -- every
- * pre-existing E2/E9 case included.
+ * The parameter used to be an OPTIONAL port count, so a helper that omitted
+ * it ran a weaker branch than production -- every pre-existing E2/E9 case
+ * included. It is required geometry since the orphan placement needs to know
+ * where components actually sit, not just how many ends they have, so the
+ * suite and the shipped path cannot diverge here any more.
  */
-const portCountOf = (partId: string) => portsOf(resolve(partId)).length;
-const load = (seed: Record<string, string>) =>
-  withStore(seed, () => loadGraph(KNOWN, portCountOf));
+const load = (seed: Record<string, string>) => withStore(seed, () => loadGraph(KNOWN, ports));
 
 /** A real two-piece run, built through the model and serialized by `saveGraph`. */
 function storedRun(): string {
@@ -95,7 +97,7 @@ describe('nothing stored', () => {
 
   it('an old chain blob is reported, not silently skipped, and is rescued', () => {
     const r = withStore({ [CHAIN_STORAGE_KEY]: '[{"partId":"E"}]' }, (store) => {
-      const out = loadGraph(KNOWN);
+      const out = loadGraph(KNOWN, ports);
       // The legacy bytes are kept: this is the one migration that cannot be
       // written, so the user needs the original to rebuild from.
       expect(store.get(GRAPH_RESCUE_KEY)).toBe('[{"partId":"E"}]');
@@ -178,7 +180,7 @@ describe('E1: the refused bytes are rescued', () => {
   it('copies the original blob verbatim before refusing it', () => {
     const raw = JSON.stringify({ pieces: [{ pieceId: 'a', partId: 'NOPE' }], welds: [] });
     const r = withStore({ [GRAPH_STORAGE_KEY]: raw }, (store) => {
-      const out = loadGraph(KNOWN);
+      const out = loadGraph(KNOWN, ports);
       expect(store.get(GRAPH_RESCUE_KEY)).toBe(raw);
       return out;
     });
@@ -187,7 +189,7 @@ describe('E1: the refused bytes are rescued', () => {
 
   it('rescues unparseable bytes too, which are exactly the ones a human must read', () => {
     withStore({ [GRAPH_STORAGE_KEY]: '{not json' }, (store) => {
-      loadGraph(KNOWN);
+      loadGraph(KNOWN, ports);
       expect(store.get(GRAPH_RESCUE_KEY)).toBe('{not json');
     });
   });
@@ -199,7 +201,7 @@ describe('E1: the refused bytes are rescued', () => {
       anchors: [['a', { pos: [1, 0, 0, 0, 0, 0, 0, 0], heading: 400 }]],
     });
     const r = withStore({ [GRAPH_STORAGE_KEY]: raw }, (store) => {
-      const out = loadGraph(KNOWN);
+      const out = loadGraph(KNOWN, ports);
       expect(store.get(GRAPH_RESCUE_KEY)).toBe(raw);
       return out;
     });
@@ -209,7 +211,7 @@ describe('E1: the refused bytes are rescued', () => {
 
   it('does not write a rescue copy when the load was clean', () => {
     withStore({ [GRAPH_STORAGE_KEY]: storedRun() }, (store) => {
-      loadGraph(KNOWN);
+      loadGraph(KNOWN, ports);
       expect(store.has(GRAPH_RESCUE_KEY)).toBe(false);
     });
   });
@@ -272,24 +274,33 @@ describe('E2: a dropped anchor keeps the layout and never manufactures a clash',
   });
 
   /*
-   * THE LANE COLLISION, which the first version of this fix had.
+   * THE FRONTIER COVERS EVERY COMPONENT, including one with no anchor at all.
    *
-   * MUTATION PROOF, run -- and this comment was FALSE for as long as it stood.
+   * This fixture has three: `p1` with no stored anchor, which `placeAll` puts
+   * at the identity; `p2` anchored at lane 1; and `p3`, the orphan. Both of
+   * the first two have to be cleared, and the unanchored one is easy to
+   * forget because it never appears in the anchor map.
    *
-   * It claimed that restoring `const steps = anchorMap.size + k + 1` makes
-   * this test fail with two clashes. MEASURED: all 375 tests stayed green. The
-   * reason is in the nested comment below: the fixture was deliberately moved
-   * to put the survivor at LANE 1 so the `while` branch executes, and with one
-   * survivor and one orphan the buggy formula gives size 1 + k 0 + 1 = 2,
-   * which is the lane the correct search picks anyway. The two edits
-   * cancelled, and the comment went on asserting a regression nobody re-ran.
+   * The docblock that stood here was about `anchorMap.size + k + 1`, a
+   * `while` branch and an occupancy search -- three mechanisms this commit
+   * deleted. It was the same rot the commit removed from the sibling
+   * docblock below and left here, which is how these survive: you fix the
+   * copy you are looking at.
    *
-   * The original collision needs a survivor at LANE 2 and two orphans, which
-   * is the case directly below. Measured there: the buggy formula puts the
-   * first orphan at 432, the survivor's exact frame, and the second at 864;
-   * the occupancy search gives 216 and 648. That case fails under the
-   * mutation and this one does not. Both stay: this pins the `while` branch,
-   * the next pins the regression.
+   * MUTATION PROOF, run: clear anchor POINTS rather than footprints and 6
+   * tests fail, this one among them.
+   *
+   * What this fixture does NOT pin, and a previous version of this comment
+   * wrongly claimed it did: skipping unanchored roots in the frontier. That
+   * mutation fails the NEXT test, not this one, and the arithmetic below says
+   * why -- `p1` spans y 0 to 59.2 while the survivor spans 216 to 275.2, so
+   * the frontier is 275.2 whether `p1` counts or not. The claim was written
+   * from a mental model and never run, in the commit whose whole subject was
+   * that failure mode. It is now stated where it is true.
+   *
+   * Not pinned, deliberately: `let frontier = 0` versus `-Infinity` is not
+   * observable, because `Math.max(1, ...)` already forces lane >= 1. A test
+   * for it would assert a difference that cannot exist.
    */
   it('an orphan never lands on a lane a SURVIVING anchor already holds', () => {
     const r = load(
@@ -301,25 +312,21 @@ describe('E2: a dropped anchor keeps the layout and never manufactures a clash',
         ],
         welds: [],
         anchors: [
-          /*
-           * LANE 1, NOT LANE 2, and the difference is the whole test.
-           *
-           * With the survivor parked at lane 2 this case did not pin the
-           * mechanism it names: free lane 1 was handed straight to the orphan
-           * and the `while (taken.has(...))` branch never ran. MEASURED:
-           * deleting the entire occupancy search left all 333 tests green, and
-           * only `noUnusedLocals` noticed. At lane 1 -- exactly what
-           * `nextRunAnchor` returns for a second run over a short first one --
-           * the orphan must step over it.
-           */
           ['p2', { pos: [0, 0, 0, 0, 216, 0, 0, 0], heading: 0 }],
           ['p3', { pos: 'rubbish', heading: 0 }],
         ],
       }),
     );
     expect(r.droppedAnchors).toBe(1);
-    // It stepped PAST the occupied lane, rather than onto it.
-    expect(r.value.anchors?.get('p3')?.pos.join(',')).toBe('0,0,0,0,432,0,0,0');
+    /*
+     * PAST THE FOOTPRINT, not past the anchor point, which is the P0 fix.
+     * MEASURED for this fixture: the unanchored root occupies y 0 to 59.2 and
+     * the survivor at lane 1 occupies 216 to 275.2, so the frontier is 275.2.
+     * The orphan's bottom edge goes one full spacing above that, 491.2, which
+     * rounds up to lane 3. The old rule said 432 -- clear here by luck, since
+     * it only ever looked at where anchors START.
+     */
+    expect(r.value.anchors?.get('p3')?.pos.join(',')).toBe('0,0,0,0,648,0,0,0');
 
     const placement = placeAll(r.value, ports);
     const frames = placement.forest.roots.map((id) => placement.frames.get(id)!);
@@ -329,18 +336,158 @@ describe('E2: a dropped anchor keeps the layout and never manufactures a clash',
   });
 
   /*
-   * THE ORIGINAL COLLISION, which the case above cannot reproduce.
+   * EACH ORPHAN CLEARS THE ONE BEFORE IT, not just the survivors.
    *
-   * A survivor parked at lane 2 and TWO orphans. MEASURED with
-   * `const steps = anchorMap.size + n + 1` restored: the first orphan lands at
-   * `[0,0,0,0,432,0,0,0]`, the survivor's exact frame, and the second at 864 --
-   * one formula producing both a collision and a gap. The occupancy search
-   * gives 216 and 648: the free lanes, in order.
+   * A survivor at lane 2 and TWO orphans. MEASURED: the survivor occupies
+   * y 432 to 491.2, the first orphan is placed at 864 (occupying 864 to
+   * 923.2) and the second at 1296 -- each one AT LEAST a full 216mm spacing
+   * clear of the previous component's TOP edge, not of its anchor. The actual
+   * gaps are 372.8mm, because the required clearance is then rounded up to
+   * the next whole lane.
    *
-   * MUTATION PROOF, run: restore that formula and this fails. It is the only
-   * case in this file that does.
+   * This case used to pin the arithmetic bug that preceded the footprint rule
+   * (`anchorMap.size + n + 1`, which put the first orphan on the survivor's
+   * exact frame). That code no longer exists, so the comment claiming it was
+   * the only case in the file that failed under it would have rotted into
+   * another unrunnable mutation proof. Replaced with two that do run.
+   *
+   * MUTATION PROOF, run: measure the frontier only over survivors and never
+   * advance it between orphans, and this fails -- both orphans land on the
+   * same lane. Revert to clearing anchor POINTS rather than footprints and it
+   * fails too, with the first orphan back at lane 1.
    */
-  it('two orphans take the free lanes in order, around an occupied lane 2', () => {
+  /*
+   * A NON-ROOT ORPHAN LEAVES NO ANCHOR, and the cost of getting this wrong is
+   * the P0 coming back one user action later.
+   *
+   * `captureAnchors` (`graph/edit.ts:37`) keeps an existing anchor in
+   * preference to the frame a piece was actually at. So an inert anchor left
+   * on a non-root is not inert at all: the moment a weld break makes that
+   * piece a component root, the stale lane wins.
+   *
+   * MEASURED before the fix: this exact fixture loaded clean with 0 clashes
+   * and reported 2 clashes at [1.32e-14, 216] after one `removeWeld` -- the
+   * same coordinate and the same manufactured "can't be built" the whole
+   * footprint rule exists to prevent.
+   *
+   * MUTATION PROOF, run: replace the `anchors.delete(id)` with `continue` and
+   * this fails on the post-break clash count.
+   */
+  it('a non-root orphan leaves no anchor to collide with later', () => {
+    const r = load(
+      blob({
+        pieces: [
+          { pieceId: 's1', partId: 'E', turn: 'left' },
+          { pieceId: 'a1', partId: 'E', turn: 'left' },
+          { pieceId: 'a2', partId: 'E', turn: 'left' },
+        ],
+        welds: [{ a: { pieceId: 'a1', port: 1 }, b: { pieceId: 'a2', port: 0 } }],
+        anchors: [
+          ['s1', { pos: [0, 0, 0, 0, 216, 0, 0, 0], heading: 0 }],
+          ['a2', { pos: 'rubbish', heading: 0 }],
+        ],
+      }),
+    );
+    // a2 is welded to a1, so a1 is the root and a2 has no position of its own.
+    expect(r.value.anchors?.has('a2')).toBe(false);
+    // No two anchors may share a position.
+    const positions = [...(r.value.anchors ?? [])].map(([, f]) => f.pos.join(','));
+    expect(new Set(positions).size).toBe(positions.length);
+
+    expect(findVertexClashes(r.value, ports, placeAll(r.value, ports))).toHaveLength(0);
+    // And it stays clean through the edit that promotes a2 to a root.
+    const broken = removeWeld(r.value, ports, 0);
+    expect(findVertexClashes(broken, ports, placeAll(broken, ports))).toHaveLength(0);
+  });
+
+  /*
+   * THE `- s.min` TERM, which is the only thing making this a FOOTPRINT rule
+   * rather than an anchor-point rule for a component that extends BELOW its
+   * own anchor. A right-hand curve run marches downward from heading 0.
+   *
+   * MUTATION PROOF, run: replace `- s.min` with `- provisionalY`, which is
+   * what "assume every component's bottom edge is its anchor" means in code,
+   * and exactly this test fails. Said as "drop `- s.min`" it does NOT
+   * reproduce -- `Math.ceil` puts the correct 836.0 and the mutated 707.2 in
+   * the same lane 4, and four other tests fail instead. Before this case existed that mutation kept
+   * the whole suite green while producing a 188mm overlap, because the overlap
+   * is mid-span and `findVertexClashes` only compares endpoints.
+   *
+   * Asserts the PROPERTY, not a lane number: every orphan component's lowest
+   * point clears the highest point of everything before it by a full spacing.
+   */
+  it('an orphan run that descends below its anchor still clears the survivor', () => {
+    const r = load(
+      blob({
+        pieces: [
+          { pieceId: 's1', partId: 'E', turn: 'left' },
+          { pieceId: 'o0', partId: 'E', turn: 'right' },
+          { pieceId: 'o1', partId: 'E', turn: 'right' },
+          { pieceId: 'o2', partId: 'E', turn: 'right' },
+        ],
+        welds: [
+          { a: { pieceId: 'o0', port: 1 }, b: { pieceId: 'o1', port: 0 } },
+          { a: { pieceId: 'o1', port: 1 }, b: { pieceId: 'o2', port: 0 } },
+        ],
+        anchors: [
+          ['s1', { pos: [0, 0, 0, 0, 216, 0, 0, 0], heading: 0 }],
+          ['o0', { pos: 'rubbish', heading: 0 }],
+        ],
+      }),
+    );
+    const placement = placeAll(r.value, ports);
+    const yOf = (id: string) => {
+      const piece = r.value.pieces.find((p) => p.pieceId === id)!;
+      const ys: number[] = [];
+      for (let i = 0; i < ports(piece).length; i++) {
+        ys.push(toXY(portFrame(placement, ports, piece, i).pos)[1]);
+      }
+      return ys;
+    };
+    const survivorTop = Math.max(...yOf('s1'));
+    const orphanBottom = Math.min(...yOf('o0'), ...yOf('o1'), ...yOf('o2'));
+    expect(orphanBottom - survivorTop).toBeGreaterThanOrEqual(216);
+  });
+
+  /*
+   * THE SAME ID TWICE. `anchors` is an ARRAY out of an untrusted blob, so it
+   * can name one piece twice. Each entry is counted and each goes into the
+   * orphan list, and the placement loop recovers a component's provisional
+   * position from its INDEX -- so a duplicate makes the index and the lane
+   * disagree unless the list is de-duplicated first.
+   *
+   * MUTATION PROOF, run: replace `[...new Set(orphans)]` with
+   * `orphans.slice()` and this fails, with the lanes shifted out by one
+   * duplicate. Nothing else in the suite notices.
+   *
+   * Honest about the stakes: the direction is conservative either way. The
+   * last write for a duplicated id uses the matching provisional y, so the
+   * stored anchor is right regardless, and the frontier is over-estimated
+   * rather than under. This pins the lanes, not a near-miss.
+   */
+  it('a duplicated orphan id does not shift the lanes', () => {
+    const r = load(
+      blob({
+        pieces: [
+          { pieceId: 's1', partId: 'E', turn: 'left' },
+          { pieceId: 'o1', partId: 'E', turn: 'left' },
+          { pieceId: 'o2', partId: 'E', turn: 'left' },
+        ],
+        welds: [],
+        anchors: [
+          ['s1', { pos: [0, 0, 0, 0, 216, 0, 0, 0], heading: 0 }],
+          ['o1', { pos: 'rubbish', heading: 0 }],
+          ['o1', { pos: 'rubbish again', heading: 0 }],
+          ['o2', { pos: 'rubbish', heading: 0 }],
+        ],
+      }),
+    );
+    expect(r.value.anchors?.get('o1')?.pos.join(',')).toBe('0,0,0,0,648,0,0,0');
+    expect(r.value.anchors?.get('o2')?.pos.join(',')).toBe('0,0,0,0,1080,0,0,0');
+    expect(findVertexClashes(r.value, ports, placeAll(r.value, ports))).toHaveLength(0);
+  });
+
+  it('two orphans each clear the footprint of everything before them', () => {
     const r = load(
       blob({
         pieces: [
@@ -357,8 +504,8 @@ describe('E2: a dropped anchor keeps the layout and never manufactures a clash',
       }),
     );
     expect(r.droppedAnchors).toBe(2);
-    expect(r.value.anchors?.get('o1')?.pos.join(',')).toBe('0,0,0,0,216,0,0,0');
-    expect(r.value.anchors?.get('o2')?.pos.join(',')).toBe('0,0,0,0,648,0,0,0');
+    expect(r.value.anchors?.get('o1')?.pos.join(',')).toBe('0,0,0,0,864,0,0,0');
+    expect(r.value.anchors?.get('o2')?.pos.join(',')).toBe('0,0,0,0,1296,0,0,0');
 
     const placement = placeAll(r.value, ports);
     const frames = placement.forest.roots.map((id) => placement.frames.get(id)!);
@@ -389,8 +536,19 @@ describe('E2: a dropped anchor keeps the layout and never manufactures a clash',
         anchors: [['p2', { pos: 'rubbish', heading: 0 }]],
       }),
     );
-    // p1 is unanchored, so it lands at the identity; p2 is the orphan.
-    expect(r.value.anchors?.get('p2')?.pos.join(',')).toBe('0,0,0,0,216,0,0,0');
+    /*
+     * p1 is unanchored, so `placeAll` puts it at the identity, where it
+     * occupies y 0 to 59.2. The orphan clears that footprint by a full
+     * spacing, which rounds to lane 2. Under the old anchor-point rule it was
+     * lane 1, which only cleared the identity POINT.
+     *
+     * THIS is the case that pins the unanchored-root term. MUTATION PROOF,
+     * run: skip roots with no anchor when computing the frontier
+     * (`if (!isOrphan.has(root) && anchors.has(root) && ...)`) and exactly
+     * this test fails -- nothing else in the suite notices, because every
+     * other fixture has an anchored survivor that dominates the frontier.
+     */
+    expect(r.value.anchors?.get('p2')?.pos.join(',')).toBe('0,0,0,0,432,0,0,0');
     const placement = placeAll(r.value, ports);
     const frames = placement.forest.roots.map((id) => placement.frames.get(id)!);
     expect(new Set(frames.map((f) => f.pos.join(','))).size).toBe(frames.length);
@@ -420,6 +578,40 @@ describe('E9: the anchor-rejection matrix', () => {
     ['a pos with a non-finite entry', { pos: [1, 0, 0, 0, 0, 0, 0, Infinity], heading: 0 }],
     ['a pos with a NaN entry', { pos: [1, 0, 0, 0, 0, 0, 0, NaN], heading: 0 }],
     ['a non-integer pos', { pos: [1.5, 0, 0, 0, 0, 0, 0, 0], heading: 0 }],
+    /*
+     * INTEGRAL BUT ABSURD. Every coefficient here is a whole number, so the
+     * integer check passes; what rejects it is the safe-integer BOUND.
+     *
+     * MEASURED without that bound: `toXY` sums the eight terms to Infinity,
+     * the orphan placement computes an infinite lane, and the stored anchor
+     * comes out as [NaN, ..., Infinity, ...]. `equals` and `isZero` are both
+     * false for NaN, so every closure and clash test downstream silently
+     * answers "no" -- a layout that reports no problems because the
+     * arithmetic stopped working, which is the worst shape a bug can take in
+     * this engine.
+     *
+     * MUTATION PROOF, run: relax `isCyc` to `Number.isFinite` and 3 rows fail
+     * -- these two and the non-integer one above, since both checks now live
+     * in `isCyc`. They were in two places when this was written, and the
+     * bound was the half nothing tested.
+     */
+    ['a pos too large to sum without overflowing', { pos: Array(8).fill(1e308), heading: 0 }],
+    ['a pos above the safe-integer bound', { pos: [2 ** 53, 0, 0, 0, 0, 0, 0, 0], heading: 0 }],
+    /*
+     * A SAFE INTEGER THAT STILL BREAKS EXACTNESS. 2^53 - 1 passes every
+     * integrality and finiteness check, and composing poses from it loses
+     * precision: MEASURED, an eight-curve loop that closes EXACTLY reports
+     * `closesExactly: false` with a non-zero gap when anchored there, and
+     * closes exactly at 2^31. A false "can't be built", which is the same
+     * invariant the orphan-lane P0 inverted.
+     *
+     * MUTATION PROOF, run: drop `Math.abs(n) <= COEFFICIENT_CEILING` and 2
+     * rows fail -- this one and the negative one below it. The two above
+     * still pass, caught by the safe-integer half, which is why these are
+     * separate rows rather than a tighter version of those.
+     */
+    ['a safe integer still too large to compose exactly', { pos: [2 ** 53 - 1, 0, 0, 0, 0, 0, 0, 0], heading: 0 }],
+    ['a large NEGATIVE coefficient', { pos: [-(2 ** 53 - 1), 0, 0, 0, 0, 0, 0, 0], heading: 0 }],
     ['a non-integer heading', { pos: [1, 0, 0, 0, 0, 0, 0, 0], heading: 1.5 }],
     ['a heading above 15', { pos: [1, 0, 0, 0, 0, 0, 0, 0], heading: 400 }],
     ['a negative heading', { pos: [1, 0, 0, 0, 0, 0, 0, 0], heading: -1 }],
@@ -512,7 +704,7 @@ describe('E9: the anchor-rejection matrix', () => {
 describe('a stored weld cannot name a port the part does not have', () => {
   /** Port counts, the way App.tsx supplies them. */
   const loadWithCounts = (seed: Record<string, string>) =>
-    withStore(seed, () => loadGraph(KNOWN, portCountOf));
+    withStore(seed, () => loadGraph(KNOWN, ports));
 
   const twoPieces = (port: unknown) => ({
     pieces: [
@@ -557,11 +749,14 @@ describe('a stored weld cannot name a port the part does not have', () => {
   /*
    * THE CHECK IS COUNT-DRIVEN, not hardcoded to two. No switch is seeded in
    * the library yet (`model.ts:8` says so), so the three-port case is proved
-   * with a port count that reports three: port 2 is accepted for that part and
-   * refused for the two-port straight beside it, in the same layout.
+   * with port geometry that reports three ends: port 2 is accepted for that
+   * part and refused for the two-port straight beside it, in the same layout.
    */
   it('port 2 is accepted on a three-port part and refused on a two-port one', () => {
-    const asIfSwitch = (partId: string) => (partId === 'D' ? 3 : portCountOf(partId));
+    // A real third end, not a padded array: the loader now measures geometry
+    // with these, so a fake entry would be placed as well as counted.
+    const asIfSwitch: typeof ports = (piece) =>
+      piece.partId === 'D' ? [...ports(piece), ports(piece)[1]!] : ports(piece);
     const layout = (port: number) =>
       blob({
         pieces: [
@@ -572,7 +767,7 @@ describe('a stored weld cannot name a port the part does not have', () => {
         anchors: [],
       });
     expect(withStore(layout(2), () => loadGraph(KNOWN, asIfSwitch)).discarded).toBeUndefined();
-    expect(withStore(layout(2), () => loadGraph(KNOWN, portCountOf)).discarded).toBeTypeOf('string');
+    expect(withStore(layout(2), () => loadGraph(KNOWN, ports)).discarded).toBeTypeOf('string');
     // Three ports still does not mean four.
     expect(withStore(layout(3), () => loadGraph(KNOWN, asIfSwitch)).discarded).toBeTypeOf('string');
   });
@@ -605,17 +800,21 @@ describe('a stored weld cannot name a port the part does not have', () => {
    * become a no-op.
    */
   /*
-   * The default count is unbounded, for a caller that has part ids and no
-   * geometry. The integer and non-negative checks still apply, so the weak
-   * branch is weaker but never a no-op.
+   * THERE IS NO WEAK BRANCH ANY MORE. `loadGraph` used to take an OPTIONAL
+   * port count defaulting to unbounded, so a caller with only part ids got a
+   * looser check than production, and the suite's own helper took that branch
+   * for every pre-existing case. Port geometry is required now -- the loader
+   * needs it to place orphans clear of real footprints anyway -- so the test
+   * that proved the fallback still bit has nothing left to prove.
+   *
+   * What replaces it: the integer and non-negative checks are exercised by
+   * the refusal matrix above, which runs through the same required parameter
+   * production uses.
    */
-  it('with the default unbounded count, a non-integer or negative port is still refused', () => {
+  it('a non-integer or negative port is refused, on the production path', () => {
     for (const port of [-1, 2.5, Number.NaN]) {
-      const r = withStore(blob(twoPieces(port)), () => loadGraph(KNOWN));
-      expect(r.discarded).toBeTypeOf('string');
+      expect(load(blob(twoPieces(port))).discarded).toBeTypeOf('string');
     }
-    // And an in-range integer is accepted, so the default is not refusing all.
-    expect(withStore(blob(twoPieces(99)), () => loadGraph(KNOWN)).discarded).toBeUndefined();
   });
 });
 
@@ -659,7 +858,7 @@ describe('a stored weld cannot name a port the part does not have', () => {
  *
  * Un-skip this to start the work; do not delete it to make the suite green.
  */
-describe.skip('an orphan lane clears a survivor RUN, not just its anchor', () => {
+describe('an orphan lane clears a survivor RUN, not just its anchor', () => {
   const runAlongTheLaneAxis = () =>
     blob({
       pieces: [
