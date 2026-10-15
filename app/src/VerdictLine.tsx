@@ -33,16 +33,21 @@ import { ACTION_FOR_FAILURE, ACTION_FOR_VERDICT } from './verdictAction.js';
  */
 type FailureKind = Extract<
   VerdictKind,
-  'NO_CYCLE' | 'HEADING_MISMATCH' | 'TOO_MANY_LOOPS' | 'NUMERIC'
+  'NO_CYCLE' | 'HEADING_MISMATCH' | 'TOO_MANY_LOOPS' | 'TOO_BIG_TO_CHECK' | 'NUMERIC'
 >;
 const FAILURE_COPY: Record<FailureKind, string> = {
   NO_CYCLE: 'Not a loop yet.',
   HEADING_MISMATCH: 'The track does not come back pointing the right way.',
   TOO_MANY_LOOPS: 'Too many loops in this layout to rank them.',
+  TOO_BIG_TO_CHECK: 'Too much track here to check every loop.',
   NUMERIC: 'Could not check this layout.',
 };
 const isFailure = (k: VerdictKind): k is FailureKind =>
-  k === 'NO_CYCLE' || k === 'HEADING_MISMATCH' || k === 'TOO_MANY_LOOPS' || k === 'NUMERIC';
+  k === 'NO_CYCLE' ||
+  k === 'HEADING_MISMATCH' ||
+  k === 'TOO_MANY_LOOPS' ||
+  k === 'TOO_BIG_TO_CHECK' ||
+  k === 'NUMERIC';
 
 /**
  * The trust register.

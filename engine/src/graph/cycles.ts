@@ -36,7 +36,15 @@ import { weldGiveMm } from './model.js';
 /**
  * Above this rank the cycle space is not enumerated.
  *
- * 2^rank subsets, so 20 is about a million. The point of the ceiling is that
+ * It bounds the INPUT; `CYCLE_WORK_BUDGET` bounds the WORK. This used to
+ * justify 20 with "2^rank subsets, so 20 is about a million", which was the
+ * cost model of the enumeration that walked every subset and no longer
+ * describes anything: the walk now visits only connected subsets and is
+ * charged per weld. 20 is still unpinned against a frame target (eng finding
+ * E13); what IS pinned is that it cannot exceed 31, because both the sharing
+ * graph and the walk carry subsets in an int32 mask.
+ *
+ * The point of the ceiling is that
  * exceeding it REPORTS "too many loops to rank" rather than quietly falling
  * back to the fundamental basis: a basis cycle is an arbitrary choice of
  * which loops to look at, and presenting one as "the worst" would be a claim
@@ -44,6 +52,13 @@ import { weldGiveMm } from './model.js';
  * begins, so a hostile graph cannot spend the time before being refused.
  */
 export const CYCLE_RANK_CEILING = 20;
+
+/**
+ * Subsets are carried in an int32 mask, so vertex 31 is the last one `1 << j`
+ * can address. Named once because it was a bare literal in two guards and
+ * two message strings, and raising it means changing all four together.
+ */
+export const SUBSET_MASK_BITS = 31;
 
 export interface CycleReport {
   /** Weld indices forming this cycle. */
@@ -62,8 +77,16 @@ export interface CycleReport {
 export interface CycleSpace {
   /** E - V + CC, taken from the forest's leftover welds. */
   readonly rank: number;
-  /** True when rank exceeded the ceiling and nothing was enumerated. */
-  readonly truncated: boolean;
+  /**
+   * Why the cycle space was NOT fully enumerated, or `false` when it was.
+   *
+   * `'rank'` means rank exceeded `CYCLE_RANK_CEILING`, refused before any
+   * work. `'work'` means the walk spent `CYCLE_WORK_BUDGET`. Both return
+   * `cycles: []` and `worst: null`: a partial enumeration must not be read as
+   * the whole, so there is deliberately nothing here to mistake for an
+   * answer. Anything other than `false` means this report answers nothing.
+   */
+  readonly truncated: false | 'rank' | 'work';
   /** True when some closing weld is rotated, so gaps cannot be combined. */
   readonly rotationBroken: boolean;
   readonly cycles: readonly CycleReport[];
@@ -95,7 +118,14 @@ function fundamentalCycle(graph: Graph, forest: Forest, closingWeld: number): nu
   const weld = graph.welds[closingWeld]!;
   const up = pathToRoot(forest, weld.a.pieceId);
   const down = pathToRoot(forest, weld.b.pieceId);
-  const shared = new Set(up.filter((w) => down.includes(w)));
+  // `down.includes` inside a filter was O(|up| x |down|), so building the
+  // basis was quadratic in tree depth. MEASURED at rank 20 on a branching
+  // forest, before and after: 2000 pieces 11.7ms -> 3.2ms, 4000 45.3 -> 5.8,
+  // 8000 162.8 -> 16.2. It only bites when both ends of a closing weld sit
+  // deep in the tree, which needs a branching forest, which is the same
+  // dense shape the work budget above exists for.
+  const inDown = new Set(down);
+  const shared = new Set(up.filter((w) => inDown.has(w)));
   return [
     closingWeld,
     ...up.filter((w) => !shared.has(w)),
@@ -150,20 +180,91 @@ function traceSimpleCycle(
 }
 
 /**
- * How many subsets the enumeration will look at before it gives up.
+ * THE SHARING GRAPH: fundamental i is adjacent to j when they pass through a
+ * common PIECE. Vertex-sharing, not edge-sharing, because connectivity of the
+ * combined subgraph is what decides whether a symmetric difference can be one
+ * circuit, and two cycles sharing an edge share its ends anyway.
  *
- * The CONNECTED-subset walk below collapses today's catalogue to `rank`
- * iterations, but a graph whose fundamentals all share pieces can still have
- * exponentially many connected subsets, and a three-port switch is what makes
- * that reachable. This is the bound that turns "slow" into "refused": a
- * budget on WORK, where `CYCLE_RANK_CEILING` is a bound on INPUT. Exceeding
- * it reports `truncated` for the same reason the rank ceiling does -- naming
- * one basis cycle "the worst" would be a claim nobody checked.
+ * @internal Exported for the test seam below, not as engine API. The only
+ * non-test caller is `analyseCycles` in this file.
  *
- * 20,000 at the measured ~12us per subset is about a quarter of a second in
- * the worst case the old code took 12 seconds on.
+ * Separated from `analyseCycles` so it can be tested on its own, because on
+ * today's catalogue it CANNOT be tested through `analyseCycles`: every part
+ * has two ports and both `weldEnds` and `addPiece` weld only FREE ports, so
+ * no piece can carry a third weld and no two fundamentals can share one.
+ * Every mask this returns is 0 today, and the whole 12-second freeze went
+ * away because of it: the walk yields `rank` subsets instead of 2^rank - 1,
+ * 20 instead of 1,048,575 at the ceiling.
+ *
+ * The dangerous direction is a MISSING edge. Two fundamentals that really do
+ * share a piece, reported as disjoint, make their combined subset
+ * unreachable, and that subset can be a real loop the user built. A loop
+ * never examined is a loop that never fails, which is a false pass. The
+ * extra edge is the harmless direction: it only costs a subset that
+ * `traceSimpleCycle` then rejects.
  */
-export const CYCLE_SUBSET_BUDGET = 20_000;
+export function sharingGraph(
+  graph: Graph,
+  fundamentals: readonly (readonly number[])[],
+): number[] {
+  // Same trap as `forEachConnectedSubset`, same reason to be loud about it:
+  // `1 << j` wraps past 31, so a 32nd fundamental would quietly take vertex
+  // 0's bit and the adjacency would be wrong rather than absent. Unreachable
+  // while `CYCLE_RANK_CEILING` is 20, which the spec pins.
+  if (fundamentals.length > SUBSET_MASK_BITS) {
+    throw new Error(
+      `${fundamentals.length} fundamentals exceeds the ${SUBSET_MASK_BITS}-bit mask`,
+    );
+  }
+
+  const piecesOf = fundamentals.map((edges) => {
+    const ids = new Set<string>();
+    for (const e of edges) {
+      const w = graph.welds[e]!;
+      ids.add(w.a.pieceId);
+      ids.add(w.b.pieceId);
+    }
+    return ids;
+  });
+  return piecesOf.map((mine, i) => {
+    let mask = 0;
+    for (let j = 0; j < piecesOf.length; j++) {
+      if (j === i) continue;
+      for (const id of piecesOf[j]!) {
+        if (mine.has(id)) {
+          mask |= 1 << j;
+          break;
+        }
+      }
+    }
+    return mask;
+  });
+}
+
+/**
+ * How much WORK the enumeration will do before it gives up, in weld-slots.
+ *
+ * THIS COUNTED SUBSETS AND THAT WAS THE WRONG AXIS. A subset's cost is the
+ * total length of the fundamentals it selects, and a fundamental is as long
+ * as the tree path between its closing weld's ends, so cost scales with PIECE
+ * count while `CYCLE_RANK_CEILING` bounds only RANK. Both failure modes were
+ * measured on a dense sharing graph of two-port parts, reachable from stored
+ * data with no switch part in the catalogue:
+ *
+ *   rank 14,  8402 pieces   16,383 subsets, UNDER the old 20,000 cap, so
+ *                           nothing truncated: 6905ms and a normal verdict
+ *   rank 20,  6302 pieces   capped at 20,000 subsets, but it had already
+ *                           spent 8875ms getting there, then refused
+ *
+ * The first is the worse of the two: a seven-second frozen tab and no
+ * refusal at all, which is the same P0 this walk was written to close.
+ *
+ * In weld-slots the bound no longer depends on layout size. The budget is
+ * charged per subset BEFORE that subset's work is done, so a hostile graph is
+ * refused rather than paid for -- the same property `CYCLE_RANK_CEILING`
+ * claims for the input.
+ */
+export const CYCLE_WORK_BUDGET = 150_000;
 
 /**
  * Every CONNECTED subset of the fundamental-sharing graph, each exactly once.
@@ -186,18 +287,48 @@ export const CYCLE_SUBSET_BUDGET = 20_000;
  *
  * Returns false when the budget ran out, which the caller reports as
  * `truncated` rather than presenting a partial enumeration as the whole.
+ *
+ * @internal Exported for the brute-force differential below, not as engine
+ * API. The only non-test caller is `analyseCycles` in this file.
  */
 export function forEachConnectedSubset(
   neighbours: readonly number[],
   rank: number,
   budget: number,
+  /** Work this subset will cost, in whatever unit `budget` is counted in. */
+  costOf: (mask: number) => number,
   visit: (mask: number) => void,
 ): boolean {
+  // Guarded for the same reason `giveOfWeld` is: this is exported, the only
+  // caller today passes a mask array it just built, and both ways of getting
+  // it wrong fail SILENTLY rather than loudly -- and silently SMALLER, which
+  // on this path is a missed cycle, which is a layout that cannot be built
+  // reported as fine.
+  //
+  // MEASURED with the guard removed, complete graph, `visit` counted:
+  //   rank 4, neighbours length 4   15 subsets, reports complete  (correct)
+  //   rank 4, neighbours length 2   14 subsets, reports complete
+  //   rank 32                       32 subsets, reports complete
+  //
+  // A short `neighbours` yields `undefined`, which `&` coerces to 0, so a
+  // missing vertex reads as isolated. At rank 32 the shift count wraps
+  // (`1 << 32 === 1`), so `allowed` collapses to 0 and only singletons come
+  // out. Neither case sets `exhausted`, so both claim a complete walk.
+  if (rank < 0 || rank > SUBSET_MASK_BITS) {
+    throw new Error(`rank ${rank} outside 0..${SUBSET_MASK_BITS}`);
+  }
+  if (neighbours.length !== rank) {
+    throw new Error(`neighbours has ${neighbours.length} entries for rank ${rank}`);
+  }
+
   let spent = 0;
   let exhausted = false;
 
   const grow = (sub: number, ext: number, banned: number, allowed: number): void => {
-    if (++spent > budget) {
+    // Charged BEFORE the work, so the refusal does not first pay for what it
+    // is refusing. `costOf` is O(rank); the work it prices is O(welds).
+    spent += costOf(sub);
+    if (spent > budget) {
       exhausted = true;
       return;
     }
@@ -240,7 +371,7 @@ export function analyseCycles(
   // Checked BEFORE enumerating, so an adversarial graph is refused rather
   // than paid for.
   if (rank > CYCLE_RANK_CEILING) {
-    return { rank, truncated: true, rotationBroken: false, cycles: [], worst: null };
+    return { rank, truncated: 'rank', rotationBroken: false, cycles: [], worst: null };
   }
   if (rank === 0) {
     return { rank: 0, truncated: false, rotationBroken: false, cycles: [], worst: null };
@@ -261,44 +392,22 @@ export function analyseCycles(
     return weldGiveMm(pa, pb, slop(w.a.pieceId), slop(w.b.pieceId));
   };
 
+  const neighbours = sharingGraph(graph, fundamentals);
+
   /*
-   * THE SHARING GRAPH: fundamental i is adjacent to j when they pass through
-   * a common PIECE. Vertex-sharing, not edge-sharing, because connectivity of
-   * the combined subgraph is what decides whether a symmetric difference can
-   * be one circuit, and two cycles sharing an edge share its ends anyway.
-   *
-   * On today's catalogue this graph has no edges at all. Every part has two
-   * ports and both `weldEnds` and `addPiece` weld only FREE ports, so no
-   * piece can carry a third weld and every fundamental is vertex-disjoint
-   * from every other. The walk below then yields exactly `rank` subsets
-   * instead of 2^rank - 1. At the rank-20 ceiling that is 20 iterations in
-   * place of 1,048,575, which is the 12-second freeze this replaces.
+   * What a subset COSTS, which is what the budget is charged in. The visit
+   * below walks every weld of every selected fundamental, so the price is
+   * their total length. O(rank) to compute, pricing O(welds) of work.
    */
-  const piecesOf = fundamentals.map((edges) => {
-    const ids = new Set<string>();
-    for (const e of edges) {
-      const w = graph.welds[e]!;
-      ids.add(w.a.pieceId);
-      ids.add(w.b.pieceId);
-    }
-    return ids;
-  });
-  const neighbours = piecesOf.map((mine, i) => {
-    let mask = 0;
-    for (let j = 0; j < rank; j++) {
-      if (j === i) continue;
-      for (const id of piecesOf[j]!) {
-        if (mine.has(id)) {
-          mask |= 1 << j;
-          break;
-        }
-      }
-    }
-    return mask;
-  });
+  const lengths = fundamentals.map((edges) => edges.length);
+  const costOf = (mask: number): number => {
+    let n = 0;
+    for (let i = 0; i < rank; i++) if ((mask & (1 << i)) !== 0) n += lengths[i]!;
+    return n;
+  };
 
   const cycles: CycleReport[] = [];
-  const complete = forEachConnectedSubset(neighbours, rank, CYCLE_SUBSET_BUDGET, (mask) => {
+  const complete = forEachConnectedSubset(neighbours, rank, CYCLE_WORK_BUDGET, costOf, (mask) => {
     const counts = new Map<number, number>();
     for (let i = 0; i < rank; i++) {
       if ((mask & (1 << i)) === 0) continue;
@@ -328,6 +437,20 @@ export function analyseCycles(
     });
   });
 
+  /*
+   * A TRUNCATED WALK REPORTS NOTHING, the same as the rank ceiling above.
+   *
+   * It used to return the partial `cycles` and a `worst` reduced over them,
+   * which is exactly the "presenting one as the worst would be a claim nobody
+   * checked" that `CYCLE_RANK_CEILING`'s own docblock says the refusal exists
+   * to avoid. `solve.ts` bails on `truncated` before reading either, so
+   * nothing was wrong in the product; the struct was handing the next reader
+   * a plausible answer built from a walk that did not finish.
+   */
+  if (!complete) {
+    return { rank, truncated: 'work', rotationBroken, cycles: [], worst: null };
+  }
+
   // Worst = furthest over its OWN give. Ties go to the larger gap, so the
   // reported cycle is stable rather than whichever the enumeration hit first.
   const worst =
@@ -342,5 +465,5 @@ export function analyseCycles(
           return b.gapMm > a.gapMm ? b : a;
         });
 
-  return { rank, truncated: !complete, rotationBroken, cycles, worst };
+  return { rank, truncated: false, rotationBroken, cycles, worst };
 }

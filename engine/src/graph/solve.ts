@@ -23,7 +23,12 @@ import { placeAll, residuals, type PortsOf, type WeldResidual } from './frames.j
 import type { Graph } from './model.js';
 import type { Part } from '../parts/schema.js';
 
-export type GraphFailure = 'NO_CYCLE' | 'HEADING_MISMATCH' | 'TOO_MANY_LOOPS' | 'NUMERIC';
+export type GraphFailure =
+  | 'NO_CYCLE'
+  | 'HEADING_MISMATCH'
+  | 'TOO_MANY_LOOPS'
+  | 'TOO_BIG_TO_CHECK'
+  | 'NUMERIC';
 
 export type GraphResult =
   | {
@@ -126,11 +131,35 @@ export function solveGraph(
   const portsById = (id: string) => ports(byId.get(id)!);
   const space = analyseCycles(graph, placement, rs, portsById, slop);
 
+  /*
+   * TWO LIMITS, TWO ANSWERS. `truncated` names which one stopped the walk,
+   * and they are different things to tell someone.
+   *
+   * 'rank' is too many independent loops: the ceiling refused before any work
+   * and the advice is to use fewer loops. 'work' is too much track to check
+   * every loop in, at a rank that may be well UNDER the ceiling -- measured
+   * at rank 14 over 8402 pieces. Both used to report TOO_MANY_LOOPS, so that
+   * case told the user to break a layout into fewer loops when the loop count
+   * was never the problem.
+   *
+   * TOO_BIG_TO_CHECK IS A BACKSTOP, NOT A PATH ANYONE CAN REACH TODAY, and it
+   * is deliberately kept anyway. Spending the work budget needs a dense
+   * fundamental-sharing graph, which needs one piece sitting in many cycles at
+   * once. Both routes to that are now shut: `weldEnds` only ever welds FREE
+   * ports, and `loadGraph` refuses a stored weld on an already-claimed port.
+   * No part in the catalogue has a third port. So this branch is covered by
+   * specs and by nothing a user can do, which is what a bound is for. Do not
+   * delete it as dead code: the route reopens the day a switch part lands, and
+   * this is what stops that being another 12-second freeze.
+   */
   if (space.truncated) {
+    const tooMany = space.truncated === 'rank';
     return {
       ok: false,
-      reason: 'TOO_MANY_LOOPS',
-      detail: `${rank} independent loops is more than this can rank`,
+      reason: tooMany ? 'TOO_MANY_LOOPS' : 'TOO_BIG_TO_CHECK',
+      detail: tooMany
+        ? `${rank} independent loops is more than this can rank`
+        : `checking all ${rank} loops across ${graph.pieces.length} pieces would take too long`,
       rank,
       clashes,
       polarityViolations,

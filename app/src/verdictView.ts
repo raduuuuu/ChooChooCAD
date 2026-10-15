@@ -25,6 +25,7 @@ export type VerdictKind =
   | 'NO_CYCLE'
   | 'HEADING_MISMATCH'
   | 'TOO_MANY_LOOPS'
+  | 'TOO_BIG_TO_CHECK'
   | 'NUMERIC'
   | 'IMPOSSIBLE'
   | 'EXACT'

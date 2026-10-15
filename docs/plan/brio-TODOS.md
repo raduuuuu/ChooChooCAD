@@ -404,6 +404,29 @@ the existing single-cycle machinery run once per component. Switches are exactly
 what breaks that property. Revisit once K0c's repair has proven itself on one
 cycle, with the gauge sweep passing across every cut point at four sizes.
 
+**WHAT THE 2026-10-15 ENUMERATION FIX LEFT FOR THIS TASK.** One thing, and it
+is smaller than the first version of this note claimed.
+
+`CYCLE_WORK_BUDGET` is unpinned against a frame target, the same gap
+`CYCLE_RANK_CEILING` has (eng finding E13). 150,000 weld-slots was chosen by
+measurement -- it refuses the worst dense layout in 12-22ms and still answers a
+legitimate 10,000-piece layout in full -- but not derived from a frame budget.
+A real switch catalogue is what makes it measurable against something.
+
+**CORRECTED, SAME DAY.** This note first said that the dense-sharing-graph
+regime and the budget were "unreachable until a part carries a third port", and
+that the refusal wording could therefore wait for this task. Both were wrong,
+and the reasoning error is worth keeping: shared pieces do NOT require extra
+ports. Two fundamentals share a piece whenever that piece sits in both of them,
+and a second weld on ONE port is enough to put it there. `loadGraph` validated
+a weld's port RANGE and never its OCCUPANCY, so a stored layout could claim the
+same track end many times over and reach the dense regime with nothing but
+ordinary two-port parts. Measured: 11,058ms of frozen main thread from a
+303,940-byte blob the loader accepted without a word. The port count was never
+the gate; the trust boundary was. Both were fixed on the branch instead of
+deferred here.
+
+
 **Effort:** human ~3-4 weeks / CC ~4 hours
 **Priority:** P1 for v2
 **Depends on:** K0c engine repair proven; K4's switch part with its centreline shift
@@ -949,19 +972,20 @@ open above.
 **Was:** `cycles.ts` walked `for (let mask = 1; mask < 1 << rank; mask++)` with
 per-subset work proportional to the selected fundamentals' total length. At the
 accepted `CYCLE_RANK_CEILING = 20` that is 1,048,575 subsets, and the solve runs
-synchronously inside render, so the cost landed on the main thread with no timeout
-and no cancel. A freeze is not a throw, so `ErrorBoundary` could not catch it.
+synchronously inside render, so the cost landed on the main thread with no
+timeout and no cancel. A freeze is not a throw, so `ErrorBoundary` could not
+catch it.
 
-**Fix:** `forEachConnectedSubset` enumerates only the CONNECTED subsets of the
-fundamental-sharing graph (fundamental i adjacent to j when their piece sets
-intersect), bounded by `CYCLE_SUBSET_BUDGET = 20_000`. Lossless, not a heuristic:
-a disconnected subset's symmetric difference is a disconnected even subgraph, and
+**Fixed in two parts, because the first part was not enough.**
+
+**Part one, the enumeration.** `forEachConnectedSubset` visits only the
+CONNECTED subsets of the fundamental-sharing graph (fundamental i adjacent to j
+when their piece sets intersect). Lossless, not a heuristic: a disconnected
+subset's symmetric difference is a disconnected even subgraph, and
 `traceSimpleCycle` already rejects anything that is not one simple circuit, so
-every subset skipped was one that could only have been discarded. The full cycle
-space is still reached the moment a 3-port switch lands, so T6's no-pooling
-guarantee is untouched.
-
-**Measured, same machine, same topologies:**
+every subset skipped could only ever have been discarded. On today's catalogue
+the sharing graph has no edges at all, so the walk yields `rank` subsets instead
+of 2^rank - 1:
 
 ```
   rank 12 /  96 pieces      41ms  ->  0.75ms
@@ -970,29 +994,96 @@ guarantee is untouched.
   rank 20 / 160 pieces   12289ms  ->  1.65ms
 ```
 
-In the browser, a stored rank-20 / 160-piece layout goes from frozen to 132ms for
-navigate plus first verdict, with the correct verdict and no console errors.
+**Part two, the budget, which the review caught.** Part one shipped with a cap
+of 20,000 SUBSETS, and subsets are the wrong axis. A subset costs the total
+length of the fundamentals it selects, and a fundamental is as long as the tree
+path between its closing weld's ends, so cost scales with PIECE count while the
+rank ceiling bounds only rank. Measured on a dense sharing graph built from
+ordinary two-port parts:
 
-**Correctness evidence, not just timing.** 660 random sharing graphs checked
-against a brute-force subset walk: identical sets, no duplicates. 35 topologies
-run through main's `cycles.ts` and the new one side by side: identical cycles,
-gaps, give and worst joint. Both skipped specs are un-skipped and pass, so the
-suite is 405 passing and ZERO skipped.
+```
+  rank 14,  8402 pieces   16,383 subsets, UNDER the 20,000 cap, so nothing
+                          truncated at all: 6905ms and then a normal verdict
+  rank 20,  6302 pieces   capped, but only after spending 8875ms getting there
+```
 
-**Mutations run, not asserted:** enumerating all subsets again fails the frame
-budget spec; deleting the budget stop fails the budget spec; passing `0` instead
-of `seen` as the child's `banned` yields duplicate subsets at rank 3.
+The first is the worse one: a seven-second frozen tab and no refusal. So the
+budget is now `CYCLE_WORK_BUDGET = 150_000` counted in weld-slots and charged
+BEFORE each subset's work, which makes it independent of layout size:
 
-**One thing I got wrong and fixed:** the first version masked candidates with
-`& ~seen` as well as handing `seen` down as `banned`. Deleting that mask left all
-405 specs green, which means it was redundant rather than pinned. It is gone, and
-the recorded mutation is the one that actually fails.
+```
+  analyseCycles on a dense graph    602 pieces 14ms   2102 12ms
+                                   5102 pieces 11ms   8402 20ms
+  a legitimate 10,000-piece layout at rank 20   answered in full, 10ms
+```
 
-**Still open, and NOT fixed by this:** `solveGraph` still runs on the synchronous
-render path and still recomputes `placeAll` instead of taking the placement
-`App.tsx` memoized (its own P1 below), and nothing yet bounds a layout's size or
-de-quadratifies the clash scan (also its own P1). Those were listed as "separately
-worth doing" in this entry and they stay open.
+Flat in piece count, which is the property that was missing.
+
+**Part three, the trust boundary.** The dense regime was reachable because
+`loadGraph` validated a weld's port RANGE and never its OCCUPANCY, so a stored
+layout could weld the same track end twenty times. Each duplicate becomes
+another closing weld, which inflates the rank AND makes the sharing graph
+dense. Measured end to end before the check existed: a 303,940-byte blob loaded
+with NO discarded sentence and the solve then blocked for 11,058ms, with
+`ErrorBoundary` unable to fire and the key never cleared, so every reload did it
+again. `loadGraph` now refuses the whole layout, the same call it already makes
+for an out-of-range port index, because a weld is a declared intent about two
+specific ends and there is no way to tell which duplicate was meant.
+
+**Part four, the sentence.** Both limits used to report `TOO_MANY_LOOPS` with
+`${rank} independent loops is more than this can rank`, and `verdictAction` then
+advised "Break this into fewer loops". At rank 14 that is simply untrue -- 14 is
+inside the ceiling of 20 -- and the advice points at loops that are not the
+problem. `CycleSpace.truncated` is now `false | 'rank' | 'work'` and the work
+case gets its own reason, `TOO_BIG_TO_CHECK`.
+
+**STILL OPEN, and this is the honest limit of the fix.** `analyseCycles` is
+bounded; `solveGraph` is not. The all-pairs clash scan is quadratic in ports, so
+the same dense fixture costs 76ms at 602 pieces and 19,306ms at 8402 while
+`analyseCycles` inside it stays at 20ms. The tab can still be frozen by a large
+layout. That is the already-filed P1 below (unbounded layout size + quadratic
+clash scan), not this P0, and the measurements above are better than the ones
+that entry carried. `solveGraph` also still runs on the synchronous render path
+and still recomputes `placeAll` instead of taking the placement `App.tsx`
+memoized: its own P1, also still open.
+
+**Correctness evidence, not just timing.** Exhaustive over all 33,867 graphs on
+6 or fewer vertices: complete, duplicate-free. A differential against a full
+2^rank walk with an identical visit body over 5,054 hostile random graphs
+(duplicate welds, self-welds, ports welded many times): 0 cycles lost, 0 gained;
+a second over 3,315 graphs comparing `gapMm`, `giveMm`, `withinGive` and cycle
+count per cycle: 0 mismatches. Give is still reduced over each cycle's OWN
+welds, so T6 is untouched, and `closesExactly` comes from residuals rather than
+the enumeration, so the exact verdict never depended on the walk.
+
+**Suite: 426 passing, ZERO skipped.** It was 405 with 2 skipped.
+
+**THE REVIEW FOUND MORE IN THE COMMENTS THAN IN THE CODE**, which is this
+repo's recurring defect and the reason the test file now opens with a note
+about it. Four mutation claims I wrote were wrong and all four were caught by
+running them: a reversed `expected false to be true` (really
+`expected true to be false`), a predicted `[ 0, 2 ]` that was `[ 1, 2 ]`, a
+claim that one mutation would HANG when it fails in 9ms, and a failure count of
+four that was really five. A fifth was wrong only because I truncated the
+output. None of them weakened a test; all of them were records a reader is told
+to trust instead of re-running.
+
+**Two coverage holes the review closed.** The sharing graph's edge-finding
+branch was unreachable from the whole suite -- made to throw, all 405 specs
+passed -- and so was `analyseCycles`' USE of it: replacing the adjacency with
+all zeros, the exact "missing edge" false-pass direction, also left everything
+green. Both are now pinned, the second by a theta graph that loses a real loop
+(3 cycles become 2) the moment the wiring breaks. Separately,
+`verdictView.test.ts` claimed to check that every `VerdictKind` is reachable
+while holding a hand-maintained array, which a SUBSET satisfies; adding a kind
+left it green. It is a `Record<VerdictKind, true>` now, so tsc fails instead.
+
+**And one spec of mine that flaked.** The first dense-graph timing specs timed
+the whole `analyse()` -- including `placeAll` over 8402 pieces -- against a
+100ms bound, and failed 2 runs in 8 at 162ms and 100.19ms. They now time
+`analyseCycles` alone against 250ms, which still catches the regression by 27x,
+and 10 consecutive runs are clean.
+
 
 ## P2 — The review backlog: findings that need judgement, not a keystroke (filed by /ship, 2026-10-14)
 
@@ -1134,6 +1225,27 @@ P0):
 Clean quadratic. A ~5MB `localStorage` budget holds roughly 50,000 pieces,
 which is about 5x10^9 pairs, on the order of minutes per render, doubled by
 StrictMode in development.
+
+**UPDATED 2026-10-15, and this entry is now the WHOLE of the remaining hang.**
+The cycle-enumeration P0 is closed, and closing it isolated this one. Measured
+on a dense fixture at the same moment, with `analyseCycles` and `solveGraph`
+timed separately:
+
+```
+   602 pieces   analyseCycles  14 ms   solveGraph      76 ms
+  2102 pieces   analyseCycles  12 ms   solveGraph     875 ms
+  5102 pieces   analyseCycles  11 ms   solveGraph    5583 ms
+  8402 pieces   analyseCycles  20 ms   solveGraph   19306 ms
+```
+
+`analyseCycles` is flat and this is everything else. Two consequences for
+whoever takes it. First, the sentence above that calls this "NOT the
+cycle-enumeration P0" is now literally all that is left: at 8402 pieces the
+enumeration is 0.1% of the solve. Second, the port-occupancy refusal added to
+`loadGraph` on 2026-10-15 does NOT help here -- it rejects a weld on an
+already-claimed port, and this needs only a large number of perfectly legal
+pieces. A cap on `pieces.length` / `welds.length` at load is still unwritten,
+and it is the cheap half of this entry.
 
 **Why it is worse than slow:** it is a HANG, not a throw.
 `getDerivedStateFromError` never fires, so the crash screen never paints and

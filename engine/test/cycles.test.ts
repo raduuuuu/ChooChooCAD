@@ -4,12 +4,30 @@
  * The property that matters most here is NEGATIVE: give is never pooled. A
  * layout with a slack loop and a tight loop must not let the slack one pay
  * for the tight one, because the joints are not shared.
+ *
+ * EVERY `MUTATION PROOF` BELOW QUOTES A MESSAGE THAT WAS RUN, and the quoted
+ * failure COUNTS were run too. That is not a boast, it is a correction: the
+ * first draft of this file guessed three of them and got all three wrong (a
+ * reversed `expected true to be false`, a predicted `[ 0, 2 ]` that was
+ * `[ 1, 2 ]`, and a claim that one mutation would HANG when it fails in
+ * milliseconds). A mutation comment is a claim about behaviour, so it is
+ * worth exactly as much as a run, and guessing one is the same defect class
+ * as a test that cannot fail. If a message here does not reproduce, the
+ * comment is the thing that is broken -- fix it, do not weaken the spec.
  */
 
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../data/library.js';
-import { CYCLE_RANK_CEILING, analyseCycles, forEachConnectedSubset } from '../src/graph/cycles.js';
+import {
+  CYCLE_RANK_CEILING,
+  CYCLE_WORK_BUDGET,
+  SUBSET_MASK_BITS,
+  analyseCycles,
+  forEachConnectedSubset,
+  sharingGraph,
+} from '../src/graph/cycles.js';
 import { placeAll, residuals } from '../src/graph/frames.js';
+import { solveGraph } from '../src/graph/solve.js';
 import { graphFromChain } from '../src/graph/fromChain.js';
 import { portsOf, type Graph, type Piece, type Port, type Weld } from '../src/graph/model.js';
 import type { Layout } from '../src/parts/schema.js';
@@ -23,6 +41,35 @@ function analyse(g: Graph, slopMm = 0.8) {
   const place = placeAll(g, ports);
   return analyseCycles(g, place, residuals(g, ports, place), portsById, () => slopMm);
 }
+
+/**
+ * `analyseCycles` alone, timed. `placeAll` and `residuals` are hoisted OUT of
+ * the measurement on purpose: they are linear in pieces and cheap (6ms at
+ * 8402), they are not what the budget bounds, and the unbounded-layout cost
+ * is its own filed P1. Timing them together made the bound a measurement of
+ * two unrelated things and flaked 2 runs in 8.
+ */
+function timeAnalyse(g: Graph, slopMm = 0.8) {
+  const byId = new Map(g.pieces.map((p) => [p.pieceId, p]));
+  const portsById = (id: string) => ports(byId.get(id)!);
+  const place = placeAll(g, ports);
+  const rs = residuals(g, ports, place);
+  const t0 = performance.now();
+  const space = analyseCycles(g, place, rs, portsById, () => slopMm);
+  return { space, ms: performance.now() - t0 };
+}
+
+/** `n` DISJOINT closed loops of `k` pieces: rank n, sharing graph all zeros. */
+const loops = (n: number, k = 8): Graph => {
+  const pieces: Piece[] = [];
+  const welds: Weld[] = [];
+  for (let c = 0; c < n; c++) {
+    for (let i = 0; i < k; i++) pieces.push({ pieceId: `c${c}p${i}`, partId: 'E', turn: 'left' });
+    for (let i = 0; i < k; i++)
+      welds.push({ a: { pieceId: `c${c}p${i}`, port: 1 }, b: { pieceId: `c${c}p${(i + 1) % k}`, port: 0 } });
+  }
+  return { pieces, welds, anchors: new Map() };
+};
 
 const chain = (ids: string[], closed: boolean): Layout => ({
   placements: ids.map((partId) => ({ partId, turn: 'left' as const })),
@@ -153,7 +200,9 @@ describe('T5: the rank ceiling', () => {
     }));
     const started = performance.now();
     const a = analyse({ pieces, welds });
-    expect(a.truncated).toBe(true);
+    // The CAUSE, not just the fact. There are two now, and this is the one
+    // that refuses before any work; 'work' is pinned separately below.
+    expect(a.truncated).toBe('rank');
     expect(a.cycles).toEqual([]);
     expect(a.worst).toBeNull();
     expect(a.rank).toBeGreaterThan(CYCLE_RANK_CEILING);
@@ -214,17 +263,6 @@ describe('rotation', () => {
  * rather than against a wall-clock number.
  */
 describe('enumeration cost at the accepted ceiling', () => {
-  const loops = (n: number, k = 8): Graph => {
-    const pieces: Piece[] = [];
-    const welds: Weld[] = [];
-    for (let c = 0; c < n; c++) {
-      for (let i = 0; i < k; i++) pieces.push({ pieceId: `c${c}p${i}`, partId: 'E', turn: 'left' });
-      for (let i = 0; i < k; i++)
-        welds.push({ a: { pieceId: `c${c}p${i}`, port: 1 }, b: { pieceId: `c${c}p${(i + 1) % k}`, port: 0 } });
-    }
-    return { pieces, welds, anchors: new Map() };
-  };
-
   it('solves a rank-20 layout of 160 pieces inside one frame budget', () => {
     const g = loops(20);
     const t0 = performance.now();
@@ -283,19 +321,16 @@ describe('forEachConnectedSubset', () => {
 
   const collect = (nb: readonly number[], rank: number, budget = 1 << 22) => {
     const got: number[] = [];
-    const complete = forEachConnectedSubset(nb, rank, budget, (m) => got.push(m));
+    const complete = forEachConnectedSubset(nb, rank, budget, () => 1, (m) => got.push(m));
     return { got, complete };
   };
 
   /*
    * MUTATION PROOF, run: pass `0` instead of `seen` as the child's `banned`
-   * and this fails on duplicates at rank 3 (8 emitted where 7 are connected).
-   * That argument is the whole duplicate-avoidance mechanism.
+   * and this fails with `duplicate at rank 3 trial 2: expected 7 to be 8` --
+   * 8 subsets emitted, 7 of them distinct. That argument is the whole
+   * duplicate-avoidance mechanism.
    *
-   * A first version of this comment claimed that masking `ext` with `~seen`
-   * was also load-bearing. It is not -- removing it left all 405 green,
-   * because the child filters its own candidates by `banned` anyway. The
-   * redundant mask is gone rather than left wearing a false justification.
    */
   it('matches brute force exactly over 660 random graphs, with no duplicates', () => {
     let rng = 12345;
@@ -340,20 +375,28 @@ describe('forEachConnectedSubset', () => {
    * 20 has 2^20 - 1 connected subsets, which is the case the budget exists
    * for.
    *
-   * MUTATION PROOF, run: remove the `if (++spent > budget)` early return and
-   * this test hangs rather than failing -- so it is written with a small
-   * budget and an assertion on the COUNT, which fails fast instead.
+   * MUTATION PROOF, run: remove the budget's early return and this fails on
+   * `expected true to be false` -- the walk runs the complete rank-20 graph
+   * to completion and reports success.
+   *
+   * The count is asserted EXACTLY, not as an upper bound: cost is 1 per
+   * subset here and `spent` is compared before the visit, so 500 is
+   * deterministic. `<= 500` would also pass a mutation that stops after the
+   * FIRST subset, which is the opposite defect and just as wrong.
    */
   it('stops at the budget and says so, instead of running to completion', () => {
     const rank = 20;
     const complete = (1 << rank) - 1;
     const nb = Array.from({ length: rank }, (_, i) => complete & ~(1 << i));
     let visits = 0;
-    const done = forEachConnectedSubset(nb, rank, 500, () => {
+    // Cost 1 per subset, so this spec stays about the budget MECHANISM.
+    // `analyseCycles` supplies the real price (a subset's total weld count),
+    // and the dense-layout spec below is what pins that.
+    const done = forEachConnectedSubset(nb, rank, 500, () => 1, () => {
       visits++;
     });
     expect(done).toBe(false);
-    expect(visits).toBeLessThanOrEqual(500);
+    expect(visits).toBe(500);
   });
 
   it('reports completion when it finishes inside the budget', () => {
@@ -361,5 +404,344 @@ describe('forEachConnectedSubset', () => {
     expect(complete).toBe(true);
     // {0}, {1}, {0,1}: all three are connected when the two share a piece.
     expect(got.sort((a, b) => a - b)).toEqual([1, 2, 3]);
+  });
+});
+
+/**
+ * The sharing graph, which decides which subsets the walk is allowed to reach.
+ *
+ * Value: protects=two fundamentals that share a piece are reported as
+ * adjacent, so their combined subset stays reachable and the loop it
+ * represents still gets checked
+ * Value: fails_when=the piece-set intersection drops an edge, adds a
+ * self-edge, or puts an edge on the wrong index
+ * Value: why_new=this logic was UNREACHABLE from the rest of the suite. Made
+ * to throw on finding a shared piece, all 405 specs of the pre-review suite
+ * still passed, because nothing built a layout where two fundamentals share
+ * a piece. RE-RUN against the suite as it stands: 7 fail, 416 pass. That
+ * change in the number IS the hole closing, and it is why the count is
+ * quoted against a suite rather than left as a bare figure.
+ * Value: seam=`sharingGraph` takes welds and fundamentals as plain data, so
+ * a shape the catalogue cannot build is still expressible here. The pieces
+ * array is left empty on purpose: this function reads `graph.welds` and
+ * nothing else.
+ * Value: no_claim=nothing about whether the extra subsets then produce
+ * cycles. `traceSimpleCycle` owns that and is tested above. This pins
+ * REACHABILITY, which is the half that can silently lose a loop.
+ *
+ * WHY A MISSING EDGE IS THE DANGEROUS DIRECTION. An extra edge costs one
+ * subset that `traceSimpleCycle` rejects. A missing edge makes a combined
+ * subset unreachable, and that subset can be a loop the user actually built.
+ * A loop never examined is a loop that never fails: a false pass, which is
+ * the invariant this project says no task may weaken.
+ */
+describe('sharingGraph', () => {
+  /** Welds as plain data, so a 3-weld piece is expressible. */
+  const welds = (...pairs: readonly [string, string][]): Weld[] =>
+    pairs.map(([a, b]) => ({ a: { pieceId: a, port: 1 }, b: { pieceId: b, port: 0 } }));
+  const graph = (ws: Weld[]): Graph => ({ pieces: [], welds: ws, anchors: new Map() });
+
+  /*
+   * TODAY'S CATALOGUE. Every mask is 0, which is why the walk visits `rank`
+   * subsets and not 2^rank - 1.
+   *
+   * MUTATION PROOF, run: delete `if (j === i) continue;` and all FIVE specs
+   * in this block fail, this one with
+   * `expected [ 1, 2 ] to deeply equal [ +0, +0 ]`. Every fundamental shares
+   * every piece with itself, so without the skip each one claims itself as a
+   * neighbour and nothing is ever disjoint.
+   */
+  it('reports no edges when no two fundamentals share a piece', () => {
+    const g = graph(welds(['a', 'b'], ['b', 'c'], ['d', 'e'], ['e', 'f']));
+    expect(sharingGraph(g, [[0, 1], [2, 3]])).toEqual([0, 0]);
+  });
+
+  /*
+   * THE BRANCH NOTHING ELSE REACHES: piece `c` is in both fundamentals, so
+   * both directions of the edge must appear.
+   *
+   * MUTATION PROOF, run: change `mask |= 1 << j` to `mask |= 1 << i` and this
+   * fails with `expected [ 1, 2 ] to deeply equal [ 2, 1 ]` -- each
+   * fundamental then records ITSELF as the neighbour it found, so the edge
+   * points at the wrong vertex and the walk still cannot cross it. The
+   * no-edge spec above still PASSES under this mutation, which is why the
+   * sharing case needs its own assertion rather than relying on that one.
+   */
+  it('reports both directions of an edge when two fundamentals share a piece', () => {
+    const g = graph(welds(['a', 'b'], ['b', 'c'], ['c', 'd'], ['d', 'e']));
+    expect(sharingGraph(g, [[0, 1], [2, 3]])).toEqual([0b10, 0b01]);
+  });
+
+  /*
+   * ADJACENCY IS PER PAIR, not all-or-nothing: 0 and 1 share `c`, 1 and 2
+   * share `e`, and 0 and 2 share nothing. A mutation that collapses the inner
+   * loop into "any sharing anywhere" would make all three mutually adjacent.
+   */
+  it('keeps unrelated fundamentals apart in a chain of three', () => {
+    const g = graph(
+      welds(['a', 'b'], ['b', 'c'], ['c', 'd'], ['d', 'e'], ['e', 'f'], ['f', 'g']),
+    );
+    expect(sharingGraph(g, [[0, 1], [2, 3], [4, 5]])).toEqual([0b010, 0b101, 0b010]);
+  });
+
+  /*
+   * A piece carrying three welds is the shape a switch introduces and the
+   * reason this function exists. `b` is in all three fundamentals, so the
+   * sharing graph is complete and every subset stays reachable.
+   */
+  it('reports a complete graph when one piece carries three welds', () => {
+    const g = graph(welds(['a', 'b'], ['b', 'c'], ['b', 'd']));
+    expect(sharingGraph(g, [[0], [1], [2]])).toEqual([0b110, 0b101, 0b011]);
+  });
+
+  it('is empty for an empty basis, and a lone fundamental has no neighbours', () => {
+    expect(sharingGraph(graph(welds(['a', 'b'])), [])).toEqual([]);
+    expect(sharingGraph(graph(welds(['a', 'b'], ['b', 'c'])), [[0, 1]])).toEqual([0]);
+  });
+
+  /*
+   * THE CEILING IS COUPLED TO A 31-BIT MASK, and nothing else says so. Both
+   * `sharingGraph` and `forEachConnectedSubset` carry subsets in an int32, so
+   * raising `CYCLE_RANK_CEILING` past 31 would make `1 << j` wrap and hand
+   * vertex 32 the bit belonging to vertex 0. This asserts the RELATIONSHIP,
+   * not the value: the ceiling is free to move anywhere at or below 31.
+   *
+   * MUTATION PROOF, run: set `CYCLE_RANK_CEILING = 32` and exactly one spec
+   * fails, this one, with `expected 32 to be less than or equal to 31`. The
+   * other 410 stay green, which is the point of asserting the relationship
+   * here: nothing in the suite builds 32 fundamentals, so the two runtime
+   * guards never fire and would not have caught the raised ceiling.
+   */
+  it('refuses a basis too large for the 31-bit mask it is carried in', () => {
+    expect(CYCLE_RANK_CEILING).toBeLessThanOrEqual(SUBSET_MASK_BITS);
+    const tooMany = Array.from({ length: 32 }, (_, i) => [i]);
+    expect(() => sharingGraph(graph(welds(['a', 'b'])), tooMany)).toThrow(
+      '32 fundamentals exceeds the 31-bit mask',
+    );
+    expect(() => forEachConnectedSubset(Array(32).fill(0), 32, 10, () => 1, () => {})).toThrow(
+      'rank 32 outside 0..31',
+    );
+  });
+
+  /*
+   * THE OTHER TWO GUARDS, which nothing reached. Deleting either left all 411
+   * specs of the previous suite green, and the one they protect against is
+   * the silent-UNDERCOUNT direction the docblock measures: `neighbours` of
+   * length 2 at rank 4 emits 14 subsets instead of 15 and still reports a
+   * complete walk. A missed subset is a missed loop.
+   *
+   * MUTATION PROOF, run: delete the `neighbours.length !== rank` check and
+   * the first assertion fails with `expected [Function] to throw an error`;
+   * delete the `rank < 0` half and the second does.
+   */
+  it('refuses a neighbours array that does not match the rank, and a negative rank', () => {
+    expect(() => forEachConnectedSubset([0, 0], 4, 10, () => 1, () => {})).toThrow(
+      'neighbours has 2 entries for rank 4',
+    );
+    expect(() => forEachConnectedSubset([], -1, 10, () => 1, () => {})).toThrow(
+      'rank -1 outside 0..31',
+    );
+  });
+});
+
+/**
+ * THE DENSE SHARING GRAPH, which is where the freeze actually lived.
+ *
+ * Value: protects=a layout whose fundamentals all share pieces is answered or
+ * refused inside a frame, at ANY piece count, and a legitimate large layout
+ * is still answered in full
+ * Value: fails_when=the budget goes back to counting subsets instead of work,
+ * the truncation stops propagating out of analyseCycles, a truncated walk
+ * reports cycles, or analyseCycles stops using the real sharing graph
+ * Value: why_new=every timing spec above uses DISJOINT loops, whose sharing
+ * graph is all zeros and whose walk visits exactly `rank` subsets. That is
+ * the one topology where the walk is trivially cheap, so the cost was pinned
+ * only where it could not fail. Measured on a dense graph at the same rank
+ * ceiling, the first version of this fix took 6905ms at rank 14 and did not
+ * truncate at all, because 2^14-1 = 16,383 subsets fell UNDER the old 20,000
+ * subset cap: a seven-second frozen tab and then a normal verdict.
+ * Value: seam=`bundle` builds the dense shape out of two-port catalogue parts
+ * by welding the two hub pieces many times over. `loadGraph` used to accept
+ * exactly this from storage, which is how it was reachable with no switch
+ * part in the catalogue.
+ * Value: no_claim=nothing about which cycles a dense layout SHOULD report
+ * beyond reachability; the brute-force differential above owns that.
+ *
+ * MEASURED, before this fix and after, same graphs:
+ *
+ *   rank 14,  8402 pieces   6905ms, truncated=false  ->  22ms, truncated='work'
+ *   rank 20,  6302 pieces   8875ms, truncated='work' ->  12ms, truncated='work'
+ *   rank 20, 10000 pieces, DISJOINT (a legitimate layout)  ->  10ms, answered
+ */
+describe('a dense sharing graph is bounded by work, not by subset count', () => {
+  /*
+   * STEADY STATE IS 10-22ms; this bound is 250. The gap is deliberate.
+   *
+   * A 100ms bound flaked 2 runs in 8 on a loaded machine (measured 162ms and
+   * 100.19ms), which is worse than no test: a pin that fails at random
+   * teaches people to re-run rather than to look. The regression it has to
+   * catch is not nearby -- charging the budget per subset again measures
+   * 6834ms and 5000ms vitest timeouts, 27x past this bound -- so the
+   * separation is kept in the headroom rather than in the tightness.
+   */
+  const BOUND_MS = 250;
+
+  /**
+   * `petals` parallel paths of `len` pieces between two hub pieces. Rank is
+   * `petals - 1` and every fundamental runs through both hubs, so the sharing
+   * graph is COMPLETE. Each hub carries `petals` welds on one port, which no
+   * two-port part can physically do -- that is the point: it is the shape a
+   * stored layout could claim.
+   */
+  const bundle = (petals: number, len: number): Graph => {
+    const pieces: Piece[] = [
+      { pieceId: 'L', partId: 'E', turn: 'left' },
+      { pieceId: 'R', partId: 'E', turn: 'left' },
+    ];
+    const welds: Weld[] = [];
+    for (let i = 0; i < petals; i++) {
+      for (let j = 0; j < len; j++)
+        pieces.push({ pieceId: `m${i}_${j}`, partId: 'E', turn: 'left' });
+      welds.push({ a: { pieceId: 'L', port: 1 }, b: { pieceId: `m${i}_0`, port: 0 } });
+      for (let j = 0; j + 1 < len; j++)
+        welds.push({ a: { pieceId: `m${i}_${j}`, port: 1 }, b: { pieceId: `m${i}_${j + 1}`, port: 0 } });
+      welds.push({ a: { pieceId: `m${i}_${len - 1}`, port: 1 }, b: { pieceId: 'R', port: 0 } });
+    }
+    return { pieces, welds, anchors: new Map() };
+  };
+
+  /*
+   * MUTATION PROOF, run: charge the budget per subset again (`costOf` -> `1`,
+   * budget 20_000) and three specs fail -- this one on the 602-piece case
+   * with `expected false to be 'work'`, then the two larger cases as
+   * `Test timed out in 5000ms`. The 602-piece failure is the instructive
+   * one: 2^14-1 = 16,383 subsets falls UNDER a 20,000 subset cap, so the
+   * walk does not truncate at all and simply takes as long as it takes.
+   * The piece-count sweep is the point: a per-subset budget is flat in
+   * subsets and LINEAR in pieces, so only varying pieces catches it.
+   */
+  it('refuses inside one frame at any piece count', () => {
+    for (const [petals, len] of [
+      [15, 40],
+      [21, 300],
+      [15, 560],
+    ] as const) {
+      const g = bundle(petals, len);
+      const { space, ms } = timeAnalyse(g);
+      expect(space.truncated, `${g.pieces.length} pieces`).toBe('work');
+      expect(ms, `${g.pieces.length} pieces took ${ms.toFixed(0)}ms`).toBeLessThan(BOUND_MS);
+    }
+  });
+
+  /*
+   * THE OTHER DIRECTION, and the reason the budget is 150,000 and not 2,000:
+   * a budget tight enough to refuse the dense case must still answer a large
+   * ORDINARY layout in full. On today's catalogue the sharing graph has no
+   * edges, so cost is the total weld count rather than a product.
+   *
+   * MUTATION PROOF, run: set CYCLE_WORK_BUDGET to 2_000 and three specs fail,
+   * this one with `expected 'work' to be false` -- a 10,000-piece layout of
+   * plain loops stops being answered at all. The shipped-value spec below
+   * fails too, which is the pair working as intended: one spec guards the
+   * budget being too loose, this one guards it being too tight.
+   */
+  it('still answers a legitimate 10,000-piece layout in full', () => {
+    const g = loops(20, 500);
+    const { space, ms } = timeAnalyse(g);
+    expect(g.pieces).toHaveLength(10_000);
+    expect(space.truncated).toBe(false);
+    expect(space.cycles).toHaveLength(20);
+    expect(ms, `took ${ms.toFixed(0)}ms`).toBeLessThan(BOUND_MS);
+  });
+
+  /*
+   * analyseCycles MUST USE THE REAL ADJACENCY, and nothing else proved it did.
+   *
+   * MUTATION PROOF, run: replace the call with
+   * `sharingGraph(graph, fundamentals).map(() => 0)` -- the exact "missing
+   * edge" the docblock calls a false pass -- and this fails with
+   * `expected [...] to have a length of 2 but got 3`... in the other
+   * direction: 3 cycles become 2. The combined loop stops being reachable
+   * and a loop the user built is never checked.
+   */
+  it('reaches the combined subset when two fundamentals share pieces', () => {
+    const a = analyse(bundle(3, 2));
+    expect(a.truncated).toBe(false);
+    expect(a.rank).toBe(2);
+    // The two fundamentals plus their symmetric difference: three real loops.
+    expect(a.cycles).toHaveLength(3);
+  });
+
+  /*
+   * NOTHING TO MISTAKE FOR AN ANSWER, the same rule the rank ceiling follows.
+   *
+   * MUTATION PROOF, run: keep the cause but hand back the partial `cycles`
+   * and a `worst` reduced over them (what this did before review) and this
+   * is the ONLY spec that fails, with
+   * `expected [ { …(6) }, { …(6) } ] to deeply equal []`. Only one, which is
+   * exactly why it is here: nothing else looked.
+   */
+  it('reports no cycles and no worst when the budget stops it', () => {
+    const a = analyse(bundle(21, 300));
+    expect(a.truncated).toBe('work');
+    expect(a.cycles).toEqual([]);
+    expect(a.worst).toBeNull();
+  });
+
+  /*
+   * THE SHIPPED CONSTANT, not a literal. The budget spec above passes its own
+   * cost function and its own 500, so without this the value that actually
+   * ships was pinned by nothing.
+   *
+   * MUTATION PROOF, run: set CYCLE_WORK_BUDGET to 20_000_000 and two specs
+   * fail: this one with `expected 20000000 to be 150000`, and the frame
+   * spec above with `expected false to be 'work'` on its 602-piece case,
+   * because a budget that large stops bounding anything.
+   */
+  it('spends the shipped budget, which is what bounds the product', () => {
+    expect(CYCLE_WORK_BUDGET).toBe(150_000);
+    expect(analyse(bundle(21, 300)).truncated).toBe('work');
+  });
+
+  /*
+   * WHAT THE PERSON READS, which is the only part of this they see.
+   *
+   * Both limits used to say "N independent loops is more than this can rank",
+   * and `verdictAction` then advised "Break this into fewer loops". At rank 14
+   * that sentence is simply untrue -- 14 is inside the ceiling of 20 -- and
+   * the advice points at loops that are not the problem. The cause now picks
+   * the reason, so the two refusals say different things.
+   *
+   * MUTATION PROOF, run: collapse the branch back to a single
+   * `reason: 'TOO_MANY_LOOPS'` and this fails with
+   * `expected 'TOO_MANY_LOOPS' to be 'TOO_BIG_TO_CHECK'`.
+   */
+  it('refuses a big dense layout as TOO_BIG_TO_CHECK, not as too many loops', () => {
+    // 602 pieces, not 8402: this spec is about the SENTENCE, and solveGraph
+    // also runs the all-pairs clash scan, which is quadratic in ports and has
+    // its own filed P1. At 8402 pieces that scan alone takes ~20s, which
+    // would make this a test of the wrong thing.
+    const g = bundle(15, 40);
+    const r = solveGraph(g, ports, (id) => base(id), () => 0.8);
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.rank).toBeLessThanOrEqual(CYCLE_RANK_CEILING);
+    expect(r.reason).toBe('TOO_BIG_TO_CHECK');
+    expect(r.detail).toContain('would take too long');
+    expect(r.detail).not.toContain('more than this can rank');
+  });
+
+  /* The rank ceiling keeps the OTHER sentence, so the two stay told apart. */
+  it('still refuses a too-high rank as TOO_MANY_LOOPS', () => {
+    const pieces: Piece[] = [{ pieceId: 'p', partId: 'E', turn: 'left' }];
+    const welds = Array.from({ length: CYCLE_RANK_CEILING + 5 }, () => ({
+      a: { pieceId: 'p', port: 1 },
+      b: { pieceId: 'p', port: 0 },
+    }));
+    const r = solveGraph({ pieces, welds, anchors: new Map() }, ports, (id) => base(id), () => 0.8);
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.reason).toBe('TOO_MANY_LOOPS');
+    expect(r.detail).toContain('more than this can rank');
   });
 });

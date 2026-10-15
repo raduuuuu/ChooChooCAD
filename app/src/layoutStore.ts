@@ -382,6 +382,28 @@ export function loadGraph(
       // `pieceOf` are filled from the same array in lockstep.
       return v < ports(pieceOf.get(pieceId)!).length;
     };
+    /*
+     * A PORT HOLDS ONE WELD. `weldEnds` refuses a port that is not free and
+     * `addPiece` welds only free ports, so a second weld on the same end is a
+     * value this engine did not write -- and the loader was the one place
+     * that did not say so. It checked a port index's RANGE and never its
+     * OCCUPANCY.
+     *
+     * That hole was not cosmetic. Every duplicate weld becomes another
+     * closing weld, so it inflates the cycle rank, and a piece welded many
+     * times over sits in many fundamental cycles at once, which makes the
+     * fundamental-sharing graph dense. MEASURED through this loader before
+     * the check existed: a 303,940-byte layout of 3000 pieces with 20
+     * duplicate welds loaded with no discarded sentence at all, and the solve
+     * then blocked the main thread for 11,058ms. A freeze is not a throw, so
+     * `ErrorBoundary` never fired and the key was never cleared: every
+     * reload did it again.
+     *
+     * Refused whole rather than dropped, for the reason the comment above
+     * gives: a weld is a declared intent about two specific ends, and there
+     * is no way to tell WHICH of the duplicates was meant.
+     */
+    const claimed = new Set<string>();
     for (const w of welds) {
       const a = (w as Weld | undefined)?.a;
       const b = (w as Weld | undefined)?.b;
@@ -395,6 +417,14 @@ export function loadGraph(
       if (!isPort(a.port, a.pieceId) || !isPort(b.port, b.pieceId)) {
         return refuse(DISCARDED);
       }
+      const endA = `${a.pieceId}:${a.port}`;
+      const endB = `${b.pieceId}:${b.port}`;
+      // Also catches a weld joining one end to itself, which claims it twice.
+      if (endA === endB || claimed.has(endA) || claimed.has(endB)) {
+        return refuse(DISCARDED);
+      }
+      claimed.add(endA);
+      claimed.add(endB);
       // Only the two fields a weld end IS. The stored object may carry extra
       // keys and the accepted graph should not inherit them.
       outWelds.push({

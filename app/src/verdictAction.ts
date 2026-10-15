@@ -42,11 +42,12 @@ export const ACTION_FOR_VERDICT: Record<OutcomeKind, string> = {
 
 type FailureKind = Extract<
   VerdictKind,
-  'NO_CYCLE' | 'HEADING_MISMATCH' | 'TOO_MANY_LOOPS' | 'NUMERIC'
+  'NO_CYCLE' | 'HEADING_MISMATCH' | 'TOO_MANY_LOOPS' | 'TOO_BIG_TO_CHECK' | 'NUMERIC'
 >;
 export const ACTION_FOR_FAILURE: Record<FailureKind, string> = {
   NO_CYCLE: 'Click the two free ends you want joined.',
   TOO_MANY_LOOPS: 'Break this into fewer loops, or check them a few at a time.',
+  TOO_BIG_TO_CHECK: 'Remove some track, or split this into separate layouts.',
   HEADING_MISMATCH:
     'The curves need to add up to a whole turn. Add one, remove one, or mirror one.',
   NUMERIC: 'Nothing to act on until the check completes.',

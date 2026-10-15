@@ -24,7 +24,7 @@
  * predicate, not a rank, so "EXCEEDS outranks EXACT" is not a true statement
  * about `viewOf` and is not asserted here.
  *
- * The ordering AMONG the four failure kinds is not here at all. It lives in
+ * The ordering AMONG the five failure kinds is not here at all. It lives in
  * `engine/src/graph/solve.ts`, which decides `result.reason` before `viewOf`
  * ever sees it: NO_CYCLE, TOO_MANY_LOOPS, HEADING_MISMATCH, NUMERIC. `viewOf`
  * passes that reason straight through, so these tests feed it a reason and
@@ -178,11 +178,17 @@ describe('precedence 1 again, on the FAILED branch: a separate check in a separa
   });
 });
 
-describe('the four failure kinds are passed THROUGH, never ranked here', () => {
+describe('the five failure kinds are passed THROUGH, never ranked here', () => {
   // The ordering among these lives in engine/src/graph/solve.ts, which picks
   // one before viewOf runs. All this file does is carry it, so that is all
   // these cases assert.
-  const kinds = ['NO_CYCLE', 'TOO_MANY_LOOPS', 'HEADING_MISMATCH', 'NUMERIC'] as const;
+  const kinds = [
+    'NO_CYCLE',
+    'TOO_MANY_LOOPS',
+    'TOO_BIG_TO_CHECK',
+    'HEADING_MISMATCH',
+    'NUMERIC',
+  ] as const;
 
   for (const reason of kinds) {
     it(`${reason} arrives as ${reason}`, () => {
@@ -316,6 +322,7 @@ describe('completeness', () => {
       viewOf(null).kind,
       viewOf(refused({ reason: 'NO_CYCLE' })).kind,
       viewOf(refused({ reason: 'TOO_MANY_LOOPS' })).kind,
+      viewOf(refused({ reason: 'TOO_BIG_TO_CHECK' })).kind,
       viewOf(refused({ reason: 'HEADING_MISMATCH' })).kind,
       viewOf(refused({ reason: 'NUMERIC' })).kind,
       viewOf(refused({ clashes: [clash()] })).kind,
@@ -324,17 +331,33 @@ describe('completeness', () => {
       viewOf(solved({ closesExactly: false, withinBound: false, worst: over, cycles: [over] })).kind,
     ]);
 
-    const all: readonly VerdictKind[] = [
-      'NOTHING',
-      'NO_CYCLE',
-      'HEADING_MISMATCH',
-      'TOO_MANY_LOOPS',
-      'NUMERIC',
-      'IMPOSSIBLE',
-      'EXACT',
-      'NEEDS_GIVE',
-      'EXCEEDS',
-    ];
+    /*
+     * A RECORD, NOT AN ARRAY, and that is the whole point of this line.
+     *
+     * This was `readonly VerdictKind[]`, which a SUBSET satisfies, so the
+     * list was hand-maintained and silently stopped being exhaustive. Adding
+     * TOO_BIG_TO_CHECK to `VerdictKind` left this spec green while the new
+     * kind was reachable from `viewOf` and covered by nothing. A Record over
+     * the union cannot be short: tsc fails the file instead.
+     *
+     * MUTATION PROOF, run: delete the TOO_BIG_TO_CHECK line below and
+     * `bun run typecheck` fails with TS2741, "Property 'TOO_BIG_TO_CHECK' is
+     * missing in type ...". That is the failure the array shape could not
+     * produce.
+     */
+    const ALL: Record<VerdictKind, true> = {
+      NOTHING: true,
+      NO_CYCLE: true,
+      HEADING_MISMATCH: true,
+      TOO_MANY_LOOPS: true,
+      TOO_BIG_TO_CHECK: true,
+      NUMERIC: true,
+      IMPOSSIBLE: true,
+      EXACT: true,
+      NEEDS_GIVE: true,
+      EXCEEDS: true,
+    };
+    const all = Object.keys(ALL) as readonly VerdictKind[];
     for (const k of all) expect(reached).toContain(k);
     expect(reached.size).toBe(all.length);
   });
