@@ -1067,7 +1067,7 @@ ordinary straights -- every port claimed once, no duplicate weld, catalogue
 parts only, so no guard anywhere objects -- a 1MB stored layout of 10,000
 pieces took 8337ms in that scan alone and still reported "ok". It now groups
 ports by their exact lattice position, which is the replacement that decision
-note already prescribed: 8337ms becomes 16ms, and the output is byte-identical
+note already prescribed: 8337ms becomes 16-18ms across runs, and the output is byte-identical
 across 582 fixtures (every catalogue part at both turns as chains and loops,
 400 random soups, the 16xE double circle, the 8L8R tangent pair; 749 clash
 records in all).
@@ -1089,11 +1089,22 @@ End to end on the same fixture, `solveGraph`:
 
 **STILL OPEN, and this is the honest limit of the fix.** Nothing caps
 `pieces.length` or `welds.length` at load, so the remaining cost is linear
-rather than bounded, and a layout whose ports genuinely all coincide is still
-quadratic in the coincidences (792ms at 1,000 stacked pieces, which produces
-999,000 clash records -- work proportional to the answer). `solveGraph` also
-still runs on the synchronous render path and still recomputes `placeAll`
-instead of taking the placement `App.tsx` memoized: its own P1, still open.
+rather than bounded. `solveGraph` also still runs on the synchronous render
+path and still recomputes `placeAll` instead of taking the placement
+`App.tsx` memoized: its own P1, still open.
+
+**CORRECTION, 2026-10-15.** This entry used to end the paragraph above with
+"a layout whose ports genuinely all coincide is still quadratic in the
+coincidences (792ms at 1,000 stacked pieces, which produces 999,000 clash
+records -- work proportional to the answer)". That was true of the grouping
+fix alone, and grouping is exactly why: when every port is at ONE position,
+every port lands in one group and the comparison inside that group is still
+all-pairs. A later commit on this same branch removed it, by reformulating
+the rule per PIECE instead of per pair (`graph/feasible.ts`, which now
+retracts the same phrase in its own comment). MEASURED on this branch at
+1,000 stacked pieces: **2.2ms and 2 records**, against the 792ms and 999,000
+this paragraph claimed. The coincident case is no longer the quadratic
+exception to the fix; there is no quadratic exception left.
 
 **Correctness evidence, and WHERE IT LIVES, which the first version of this
 entry got wrong.** It cited three differential runs -- 33,867 graphs on 6 or
@@ -1326,7 +1337,7 @@ divergence it exists for.
 ## P1 — `solveGraph` computes a second placement instead of accepting the one App.tsx already made (filed by /ship, 2026-10-14)
 
 **What:** `App.tsx` builds `placement = placeAll(graph, ports)` and passes it to
-`renderGraph`. `solveGraph` does not take it — `solve.ts:85` calls
+`renderGraph`. `solveGraph` does not take it — `solve.ts:90` calls
 `placeAll(graph, ports)` itself. So the canvas draws from placement A and the
 verdict, including `findVertexClashes` whose `at` coordinates `TrackCanvas`
 draws markers at, is computed from placement B.
@@ -1340,13 +1351,137 @@ exact failure T4's single forest was built to make impossible. It also repeats
 the forest and placement work on every edit, plus twice more per delete in
 `captureAnchors`.
 
+**What it costs, MEASURED 2026-10-15** (this entry carried no price when it was
+filed, which is why it sat at P1 without anyone being able to weigh it). On a
+42,000-piece layout, one `placeAll` is the dominant term of a ~191ms
+`solveGraph`, and the per-edit sequence recomputes `portFrame` across three to
+four callers. The duplicate placement is real work, not a theoretical tidy-up.
+
+**A THIRD placement nobody filed: `nextRunAnchor`.** `layoutModel.ts:84` runs
+its own `placeAll` AND then scans every port through `portFrame` to find the
+vertical extent, and `addPiece` calls it whenever a piece does NOT attach
+(`layoutModel.ts:134`, gated on `!attaching && graph.pieces.length > 0`) — that
+is every palette click with nothing selected. MEASURED, as the delta between an
+unattached and an attached add:
+
+```
+   1,000 pieces    1.9ms
+   5,000 pieces    8.9ms
+  20,000 pieces   31.2ms
+  42,000 pieces   58.5ms   (vs 1.1ms for an attached add at the same size)
+```
+
+Linear per click, so O(k·n) across a session: the cost is paid again, in full,
+on every unattached add. At 42,000 pieces an unattached add is ~53x an attached
+one. This is the most expensive thing on the add path and it appears in no other
+entry; the two placements named above are `App.tsx`'s and `captureAnchors`'.
+
 **Fix:** `solveGraph(graph, ports, resolve, slop, placement)` — accept it, do
 not derive it. `App.tsx`'s comment then becomes true by construction rather
 than by convention; it currently says so and is wrong, which is corrected in
-place at `cc89914` pending this.
+place at `cc89914` pending this. `nextRunAnchor` is a separate half: it needs
+the placement passed in too, and its port scan wants the extent it already
+computed rather than a fresh `portFrame` per port.
 
-**Effort:** human ~1h / CC ~15m. **Priority:** P1.
+**Effort:** human ~1h / CC ~15m for the `solveGraph` half; human ~2h / CC ~20m
+for the `nextRunAnchor` half. **Priority:** P1.
 **Depends on / blocked by:** nothing.
+
+## P0 — The freeze moved into `TrackCanvas`, which is bounded by nothing (filed by /ship, 2026-10-15)
+
+**What:** this branch made the engine linear and the freeze relocated one
+layer out, into the render that consumes the engine's answer in the SAME
+synchronous pass. MEASURED on 120,000 loose straights -- 3.72M stored chars,
+inside a ~5MB quota, which `loadGraph` accepts with `discarded=none` and
+`droppedAnchors=0`:
+
+```
+  loadGraph                        29ms
+  placeAll      (canvas memo)      58ms
+  renderGraph   (canvas memo)     185ms
+  solveGraph    (verdict memo)    274ms   <- the whole engine
+  layoutTrust                       5ms
+  saveGraph     (per-edit effect)  25ms
+  TrackCanvas render             3153ms   <- 1.2M SVG elements, 96MB markup
+```
+
+At 161,000 pieces (4.99M chars, exactly at quota) the canvas is 5,172ms and
+1.6M elements. The 3,153ms figure is `renderToStaticMarkup`, which is a FLOOR:
+client-side reconciliation plus SVG layout and paint of 1.2M nodes, each free
+port carrying `onClick`/`onKeyDown`/`tabIndex`, is strictly worse and is an
+OOM candidate.
+
+**Why it is worse than slow:** it is inside render, so it is an uncatchable
+frozen tab. `ErrorBoundary` never fires, `GRAPH_STORAGE_KEY` is never cleared,
+and every reload repeats it. That is the identical shape of the two P0s this
+branch just closed.
+
+**THIS IS THE FOURTH TIME THE BOUND HAS MOVED ONE LAYER OUT, and that is the
+finding, not the milliseconds.** Round one capped subsets while per-subset
+cost still scaled with pieces. Round two capped enumeration work while the
+all-pairs clash scan ran upstream of it. Round three grouped that scan while
+the coincident case stayed quadratic. This round made the clash scan linear in
+every case, and the render downstream of it is now the binding constraint. The
+engine comment that says "`solveGraph` end to end on the 8,000-piece lapped
+run is 63ms" was and is true, and it invited exactly the inference that the
+tab was fine; it now carries this measurement beside it.
+
+**Mechanism:** `app/src/TrackCanvas.tsx` emits roughly 10 DOM nodes per piece
+-- `maxLayers x segments` `<path>` plus 3 `<circle>` per FREE port -- with no
+cap and no virtualisation. `maxLayers` and the inner `layers(s.partId)` are
+computed in the render body rather than a `useMemo`, so every render repeats
+`4 x segments` `resolve()` calls and allocations on top.
+
+**Pre-existing:** `TrackCanvas` is untouched by this branch. It is filed as a
+P0 anyway because the branch is what made it binding, and because a reader of
+the engine's own numbers would now conclude the opposite.
+
+**Fix:** a piece cap at load is the cheap half and is already filed in the
+entry below. The real half is virtualisation (draw only what the viewport
+covers) or a hard element budget with an explicit "too much track to draw"
+state. Both are product decisions about what the canvas does at size, not
+performance tuning.
+
+**Effort:** human ~3d / CC ~4h for virtualisation; human ~2h / CC ~20m for a
+budget plus a notice. **Priority:** P0. **Depends on / blocked by:** the cap
+value and the at-size behaviour both need an owner's call.
+
+**FIXED IN THIS BRANCH, the one part that was one line:**
+`Math.max(...segments.map(...))` passed one argument per segment. MEASURED:
+node/V8, the engine Chrome runs, throws `RangeError: Maximum call stack size
+exceeded` at 125,000 arguments; bun/JSC, which is what `vitest` runs under,
+returns fine at 161,000 -- so every spec in this repo passed while the browser
+threw. A 161,000-piece blob is 4.99M chars and loads clean, so the throw
+landed inside render, `ErrorBoundary` painted the crash screen, and its only
+exit (`clearAndReload`) also deletes the inventory and the submitted parts,
+which `library.ts` records as impossible to recreate. Replaced with a loop.
+
+## P2 — `CYCLE_RANK_CEILING` refuses layouts the work budget answers in microseconds (filed by /ship, 2026-10-15)
+
+**What:** MEASURED -- 21 separate 8-curve circles, 168 pieces, every loop
+closing exactly, reachable by 21 weld clicks with no stored layout involved:
+`TOO_MANY_LOOPS`, "21 independent loops is more than this can rank", in 1.1ms.
+Twenty of the same circles answer `ok` with `closesExactly: true` in 4.8ms.
+
+**Why it matters:** the ceiling was sized when the enumeration was `2^rank`
+subsets, and this branch deleted that justification -- the comment saying
+`2^rank` "no longer describes anything" -- while keeping the number. On a
+two-port catalogue `sharingGraph` is all zeros, the walk emits exactly `rank`
+singletons, and those 21 circles spend 168 of a 150,000-slot budget. The
+work budget is the real bound now; 20 is a leftover.
+
+`SUBSET_MASK_BITS` is 31, so the int32 mask supports a ceiling of 31 with no
+representation change. Invariant 3 is not broken -- the verdict is a grey "?"
+rather than a green pass, and clashes are still reported on this branch -- but
+refusing a correct, ordinary layout is the mirror of it, and 21 loops on a big
+floor is not an exotic shape.
+
+**Fix:** raise the ceiling to `SUBSET_MASK_BITS` (31) and let the work budget
+do the bounding, or decide a product number and pin it to a reason. Either way
+the ceiling needs a justification it currently does not have.
+
+**Effort:** human ~2h / CC ~20m. **Priority:** P2.
+**Depends on / blocked by:** the number is a product call.
 
 ## P1 — Nothing bounds a layout's size (filed by /ship, 2026-10-14; the clash scan itself was fixed 2026-10-15, both halves)
 
@@ -1378,7 +1513,7 @@ rings of ordinary straights, anchored apart so nothing overlaps:
 ```
    1,000 pieces   clash scan  85ms ->  3ms   solveGraph  101ms ->  8ms
    5,000 pieces               2221 ->  8                 2332  -> 21
-  10,000 pieces               8337 -> 18                 9114  -> 45
+  10,000 pieces               8337 -> 16-18              9114  -> 45
   20,000 pieces                 --  -> 33                  --  -> 86
 ```
 
