@@ -1,5 +1,14 @@
 /**
- * The ACTION register: the third of the verdict's three (task K4).
+ * The ACTION register, plus the failure HEADLINE copy that has nowhere else
+ * testable to live: the third of the verdict's three (task K4).
+ *
+ * Strictly this file is now verdict copy AND actions. `FAILURE_COPY` and
+ * `isFailure` are headline and branch selection rather than advice, and they
+ * sit here because `vitest.config.ts` collects `.test.ts` only, so a `.tsx`
+ * home for them is a home with no coverage. The honest options are to rename
+ * this module for what it holds or to split them out; both are filed rather
+ * than done, because moving them is a rename across three call sites and
+ * this branch is already large.
  *
  * The three answer three different questions, and they were tangled:
  *
@@ -22,7 +31,7 @@
  * is a claim about a layout nobody evaluated. This is the same rule the verdict
  * copy lives under, applied to advice rather than to findings.
  *
- * Both maps are keyed by their union, not by string. A new verdict state or a
+ * The three registers are keyed by their unions, not by string. A new verdict state or a
  * new failure reason is a compile error here, so a state cannot ship with no
  * guidance attached.
  */
@@ -70,7 +79,7 @@ export const FAILURE_COPY: Record<FailureKind, string> = {
 /**
  * DERIVED from the copy table, not hand-written beside it.
  *
- * This was a five-clause `||` chain maintained in parallel with a Record that
+ * This was a hand-maintained `||` chain kept in parallel with a Record that
  * tsc already keeps exhaustive, so a new kind needed three edits and the
  * compiler only checked two of them. With the arm missing, a refusal falls
  * past the grey failure branch and renders as a NEAR-PASS -- the same
@@ -82,7 +91,12 @@ export const isFailure = (k: VerdictKind): k is FailureKind => Object.hasOwn(FAI
 export const ACTION_FOR_FAILURE: Record<FailureKind, string> = {
   NO_CYCLE: 'Click the two free ends you want joined.',
   TOO_MANY_LOOPS: 'Break this into fewer loops, or check them a few at a time.',
-  TOO_BIG_TO_CHECK: 'Remove some track, or split this into separate layouts.',
+  /*
+   * ONLY LEVERS THAT EXIST. This said "or split this into separate layouts",
+   * and there are none: one storage key, and the only layout controls are
+   * Remove last, Clear and the three presets.
+   */
+  TOO_BIG_TO_CHECK: 'Remove some track.',
   HEADING_MISMATCH:
     'The curves need to add up to a whole turn. Add one, remove one, or mirror one.',
   /*
@@ -95,7 +109,13 @@ export const ACTION_FOR_FAILURE: Record<FailureKind, string> = {
    * one is worded to cover both rather than split, because the second cause
    * is not reachable today.
    */
-  NUMERIC: 'Nothing to act on; this layout could not be checked.',
+  /*
+   * An imperative, not the headline again. The headline already says "Could
+   * not check this layout."; repeating it in the one register whose job is
+   * "what do I do now?" leaves the builder with nothing. Both controls named
+   * here exist.
+   */
+  NUMERIC: 'Remove the last piece you added, or clear the canvas and start again.',
 };
 
 /**

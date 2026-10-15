@@ -206,7 +206,7 @@ export function solveGraph(
     return {
       ok: false,
       reason: 'NUMERIC',
-      detail: `${rank} ${rank === 1 ? 'loop was' : 'loops were'} found but none could be traced`,
+      detail: `${rank} ${rank === 1 ? 'loop' : 'loops'} in this layout, but the check could not follow ${rank === 1 ? 'it' : 'them'} round`,
       rank,
       clashes,
       polarityViolations,

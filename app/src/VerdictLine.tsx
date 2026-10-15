@@ -326,8 +326,8 @@ export function VerdictLine({
                 */}
               Can&rsquo;t be built. <span className="num">{e.clashCount}</span>{' '}
               {e.clashCount === 1
-                ? 'spot has track ends in exactly the same place, so two pieces would have to share it.'
-                : 'spots have track ends in exactly the same place, so pieces would have to share them.'}
+                ? 'spot has two or more track ends on top of each other, so pieces would have to share it.'
+                : 'spots have two or more track ends on top of each other, so pieces would have to share them.'}
               {/*
                 * Only when there IS a loop. `viewOf` reports a gap of 0 on the
                 * failure branch, so keying this on gapMm alone printed "the
@@ -343,8 +343,12 @@ export function VerdictLine({
                 * back aligned. Measured through `viewOf` at rank 7 with one
                 * clash: every one of them rendered the sentence.
                 */}
-              {e.rank > 0 && e.gapKnown && e.gapMm === 0 &&
-                ' The loop does close; that does not help.'}
+              {e.rank > 0 &&
+                e.gapKnown &&
+                e.gapMm === 0 &&
+                (e.rank === 1
+                  ? ' The loop does close; that does not help.'
+                  : ' The loops do close; that does not help.')}
               <span className="verdict-detail">
                 {' '}Only exact overlaps like this are checked. Pieces crossing mid-span are not.
               </span>
