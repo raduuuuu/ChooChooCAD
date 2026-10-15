@@ -398,3 +398,82 @@ describe('the overlap scan groups by exact position', () => {
     }
   });
 });
+
+/**
+ * ONE PLACE CAN BE BOTH THINGS AT ONCE, and the reformulation has to answer
+ * both questions about it.
+ *
+ * Value: protects=a place that holds a welded end AND two or more free ones is
+ * reported once for being welded, and its free pieces still count toward the
+ * pile-up that reports the OTHER place
+ * Value: fails_when=the welded answer and the pile-up answer are conflated --
+ * either by dropping a welded place's `freePieces`, which loses the place it
+ * would have piled up with, or by dropping the already-reported guard, which
+ * reports one place twice
+ * Value: why_new=every clash fixture in this suite is a chain, a lapped run or
+ * a pile of loose pieces, and none of them can produce this shape: piling up
+ * needs two pieces whose free ends share two places, which needs four free
+ * ends, and a chain has two. MEASURED over 1,037 fixture shapes -- every
+ * catalogue part at both turns as open and closed chains of 1/2/3/4/8/9/16/17/
+ * 24 pieces, 700 random mixed chains, piles of 2/3/5/10/60 loose pieces of one
+ * and of mixed parts, and lapped open runs of 9/17/33 Large curves -- BOTH
+ * mutations below produce byte-identical output to the shipped code, so
+ * nothing in the suite could see either one.
+ * Value: seam=none
+ * Value: no_claim=nothing about the ORDER the two records come out in beyond
+ * their being one per place, and nothing about three or more loose ends meeting
+ * at one point, which the specs above own and which stays an invitation.
+ *
+ * THE SHAPE. `x` and `y` are two Medium straights with no welds and no
+ * anchors, so `placeAll` stacks them on the identity frame and they share BOTH
+ * their ends: that pair of places is the pile-up. `z0` is anchored one
+ * straight-length behind the origin and welded to `z1`, so the weld's vertex
+ * lands exactly on the first of those two places. That place is therefore
+ * welded AND holds two free ends.
+ *
+ * MUTATION PROOF, run against a relocated copy of `feasible.ts` -- its
+ * siblings unmodified -- because this audit may not write to `engine/src`:
+ *
+ *   drop a welded place's free pieces (`freeReps.length === reps.length` added
+ *   to the `freePieces` condition): ONE record instead of two, and this fails
+ *   with `expected [ { …(3) } ] to have a length of 2 but got 1`. The origin
+ *   is still reported for being welded; the place it piles up with is lost.
+ *
+ *   drop the `!reportedPlaces.has(site.key)` guard on the pile-up emit: THREE
+ *   records, the places coming out as `[[0,0],[0,0],[144,0]]`, and this fails
+ *   with `expected [ { …(3) }, { …(3) }, …(1) ] to have a length of 2 but got
+ *   3`. The verdict would count a place twice while `clashMarkers` drew it
+ *   once, which is the disagreement the place rule exists to end.
+ *
+ * ONE SPEC FAILS under each of them -- this one. That count is not a guess:
+ * it is the 1,037-shape comparison above, where neither mutation changed the
+ * output of any shape this suite builds.
+ */
+describe('a place can be welded AND hold a pile-up, and it is one record either way', () => {
+  const straightA = resolve('A');
+  if (straightA.kind !== 'straight') throw new Error('part A is no longer a straight');
+  const lenA = straightA.lengthMm;
+
+  const g: Graph = {
+    pieces: [
+      { pieceId: 'x', partId: 'A' },
+      { pieceId: 'y', partId: 'A' },
+      { pieceId: 'z0', partId: 'A' },
+      { pieceId: 'z1', partId: 'A' },
+    ],
+    welds: [{ a: { pieceId: 'z0', port: 1 }, b: { pieceId: 'z1', port: 0 } }],
+    anchors: new Map([['z0', { pos: scale(zetaPow(0), -lenA), heading: 0 }]]),
+  };
+
+  it('reports both places, once each, and the welded one is not doubled', () => {
+    const found = clashes(g);
+    expect(found).toHaveLength(2);
+    const places = found.map((c) => c.at.join(','));
+    // The welded joint sits on the origin, where x and y also have a free end.
+    expect(places).toContain('0,0');
+    // The other end of the stacked pair, reported only because those two
+    // pieces share this place as well.
+    expect(places).toContain(`${lenA},0`);
+    expect(new Set(places).size).toBe(2);
+  });
+});

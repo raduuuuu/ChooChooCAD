@@ -40,6 +40,41 @@ describe('the action register', () => {
     }
   });
 
+  /*
+   * AN ACTION MAY NOT TELL THE USER TO WAIT FOR A CHECK THAT IS OVER.
+   *
+   * Value: protects=no action points at a check still in progress, because
+   * every refusal the engine returns is deterministic and already finished
+   * Value: fails_when=an action promises a pending result, which leaves the
+   * user waiting instead of acting -- NUMERIC said "Nothing to act on until
+   * the check completes." and `solve.ts` now returns NUMERIC for a rank with
+   * no traced cycles, a refusal that has already finished
+   * Value: why_new=the register's own rule is that an action must not claim an
+   * outcome, and the `promises` spec above enforces that for FUTURE outcomes
+   * ("will close", "will fit"). A promise about the CHECK rather than the
+   * layout slips past it: all five specs in this file passed on the old
+   * wording.
+   * Value: seam=none
+   * Value: no_claim=nothing about whether the advice is good advice, and
+   * nothing about the headline, which `verdictView.test.ts` owns.
+   *
+   * MUTATION PROOF, run against a relocated copy of `verdictAction.ts` --
+   * imports rewritten, nothing else touched -- because this audit may not
+   * write to `app/src/verdictAction.ts`: restore NUMERIC's old
+   * `'Nothing to act on until the check completes.'` and this fails with
+   * `NUMERIC: Nothing to act on until the check completes.: expected true to
+   * be false // Object.is equality`. Exactly one spec fails; the other five
+   * accept that sentence, verified by running their four assertions over the
+   * mutated register, which is how it shipped.
+   */
+  it('no action tells the user to wait for a check that has already finished', () => {
+    const pending =
+      /\b(until the check completes|when the check (completes|finishes)|still (running|checking)|check is (running|in progress)|in progress)\b/i;
+    for (const [state, action] of all) {
+      expect(pending.test(action), `${state}: ${action}`).toBe(false);
+    }
+  });
+
   it('every action is a finished sentence', () => {
     for (const [state, action] of all) {
       expect(action, state).toMatch(/^[A-Z].*\.$/s);

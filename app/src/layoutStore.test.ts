@@ -1298,3 +1298,69 @@ describe('the suppression wiring is present in App.tsx', () => {
     expect(subs).not.toContain('noRescueCopy');
   });
 });
+
+/**
+ * THE SOLVE'S SLOP CALLBACK IS A LOOKUP, NOT A SCAN.
+ *
+ * Value: protects=App.tsx hands `solveGraph` a constant-time slop callback, so
+ * the engine's work budget -- which is priced in weld-slots on the assumption
+ * that a slot is O(1) -- is not made quadratic in pieces from outside it
+ * Value: fails_when=the callback goes back to scanning `graph.pieces` for each
+ * lookup, or rebuilds the map on every call, either of which reintroduces the
+ * measured stall
+ * Value: why_new=nothing in the suite could see this. Every spec passes
+ * `() => slopMm` or `() => 0.8`, which is O(1), so the engine specs measure a
+ * cost the product did not pay. MEASURED on App.tsx's own callback,
+ * `analyseCycles` alone: 4,000 pieces 48ms, 8,000 197ms, 16,000 766ms, 32,000
+ * 2196ms, every one of them returning `truncated: false` -- so the budget
+ * never fired and the user got a normal verdict after the stall rather than a
+ * refusal. With the map it is 4/7/13/23ms.
+ * Value: seam=none
+ * Value: no_claim=nothing about the rendered component, which needs a DOM this
+ * suite does not have, and no timing claim of its own: this reads source text,
+ * so it pins the SHAPE of the call. A behaviour-preserving rewrite of the memo
+ * has to keep a `<map>.get(pieceId)` callback or update this spec, which is
+ * the price of pinning a `.tsx` file at all. It is the same price
+ * `describe('the suppression wiring is present in App.tsx')` above pays, and
+ * the same one the crash-screen specs in `repro.test.ts` pay.
+ *
+ * MUTATION PROOF, run: both specs below, applied to `App.tsx` exactly as it
+ * stands at `origin/main` -- the scanning callback this change replaced, which
+ * is the real regression rather than a synthetic one -- fail. TWO specs, with
+ * these messages:
+ *
+ *   expected 'const result = useMemo(\n    () =>\n …' to match
+ *   /=>\s*\w+\.get\(pieceId\)/
+ *
+ *   expected '/**\n * Layout-as-home.\n *\n * You a…' to match
+ *   /useMemo\(\s*\(\)\s*=>\s*new Map\(grap…/
+ *
+ * The POSITIVE assertion is what fires on that text, not the `.find(` one:
+ * vitest stops at the first failure and the lookup match comes first. The two
+ * negative assertions are for the variants the positive one would let past --
+ * a `.get(pieceId)` callback that also scans, or one that builds its map
+ * inside itself. Nothing else in the suite moves under this mutation, because
+ * nothing else reads this call.
+ */
+describe('the solve is handed a constant-time slop lookup', () => {
+  const source = readFileSync(join(import.meta.dirname, 'App.tsx'), 'utf8');
+
+  it('the callback looks the piece up, and does not scan or rebuild per call', () => {
+    const at = source.indexOf('const result = useMemo(');
+    expect(at, 'the solve is no longer computed in a useMemo').toBeGreaterThan(-1);
+    const block = source.slice(at, source.indexOf('\n  );', at));
+    expect(block).toContain('solveGraph(graph, ports, resolve,');
+    // Anchored at BOTH ends: the dependency list is the memo's last line, so a
+    // slice that stopped early would fail here rather than go vacuously green
+    // on the two negative assertions below.
+    expect(block, 'the slice did not reach the dependency list').toMatch(/\[graph, ports, resolve/);
+    // A lookup on something that has one, whatever it is called.
+    expect(block).toMatch(/=>\s*\w+\.get\(pieceId\)/);
+    expect(block, 'the slop callback scans the pieces array').not.toContain('.find(');
+    expect(block, 'the slop callback rebuilds its map per call').not.toContain('new Map(');
+  });
+
+  it('the map is built once per graph, in its own memo', () => {
+    expect(source).toMatch(/useMemo\(\s*\(\)\s*=>\s*new Map\(graph\.pieces\.map\(/);
+  });
+});

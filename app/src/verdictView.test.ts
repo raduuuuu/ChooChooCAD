@@ -436,6 +436,43 @@ describe('the failure register', () => {
       expect(isFailure(k), k).toBe(false);
     }
   });
+
+  /*
+   * TWO LIMITS, TWO SENTENCES, and nothing held them apart.
+   *
+   * Value: protects=each failure kind reads as its own refusal, so splitting
+   * TOO_BIG_TO_CHECK out of TOO_MANY_LOOPS actually reaches the person
+   * Value: fails_when=a new kind is given a copy-paste headline, which is how
+   * the two limits came to say the same wrong thing in the first place
+   * Value: why_new=the spec above checks each headline is non-EMPTY, which a
+   * duplicate passes. `verdictAction.test.ts` pins distinctness for the
+   * ACTIONS and there was no equivalent for the headlines, so the entire
+   * user-visible point of this branch -- that a layout refused at rank 14 is
+   * not told it has too many loops -- rested on nothing.
+   * Value: seam=none
+   * Value: no_claim=nothing about the wording itself. A headline may be
+   * rewritten freely; it may not be a copy of another kind's.
+   *
+   * MUTATION PROOF, run against a relocated copy of `verdictAction.ts` --
+   * imports rewritten, nothing else touched -- because this audit may not
+   * write to `app/src/verdictAction.ts`: give TOO_BIG_TO_CHECK the
+   * TOO_MANY_LOOPS headline and this fails with
+   * `expected [ [ 'TOO_BIG_TO_CHECK', …(1) ] ] to deeply equal []` -- quoted
+   * as vitest abbreviates it, the elided member being TOO_MANY_LOOPS. Exactly
+   * one spec fails: every other spec in the register only asks whether the
+   * copy is non-empty.
+   */
+  it('no two failures share a headline, so a refusal says which one it is', () => {
+    const byCopy = new Map<string, string[]>();
+    for (const [kind, text] of Object.entries(FAILURE_COPY)) {
+      byCopy.set(text, [...(byCopy.get(text) ?? []), kind]);
+    }
+    const shared = [...byCopy.values()].filter((ks) => ks.length > 1).map((ks) => ks.sort());
+    expect(shared).toEqual([]);
+    // Named, because this is the pair the split exists for: at rank 14, inside
+    // a ceiling of 20, "too many loops to rank" is simply untrue.
+    expect(FAILURE_COPY.TOO_BIG_TO_CHECK).not.toBe(FAILURE_COPY.TOO_MANY_LOOPS);
+  });
 });
 
 /**
