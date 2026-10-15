@@ -71,8 +71,29 @@ interface StoredGraph {
   anchors?: Array<[string, { pos: number[]; heading: number }]>;
 }
 
+/**
+ * A lattice point this engine could have written.
+ *
+ * SAFE INTEGERS, not merely finite. Integrality was already enforced, by a
+ * separate `pos.every(Number.isInteger)` at the one call site, so what this
+ * adds is the BOUND -- and the two checks are folded into one here rather
+ * than left in two places claiming the same thing.
+ *
+ * The bound matters on its own: a coefficient can be a perfectly good integer
+ * and still be large enough that summing the eight terms OVERFLOWS. MEASURED:
+ *   a stored anchor of eight 1e308s makes `toXY` return Infinity, which made
+ *   the orphan placement below compute an infinite lane and store
+ *   `[NaN, ..., Infinity, ...]`. `equals` and `isZero` are false for NaN, so
+ *   every closure and clash test downstream would quietly answer "no" --
+ *   a layout that reports no problems because the arithmetic stopped working.
+ *
+ * Nothing legitimate comes close to 2^53: these are millimetres, and a layout
+ * that filled a room is five digits.
+ */
 function isCyc(v: unknown): v is Cyc {
-  return Array.isArray(v) && v.length === 8 && v.every((n) => typeof n === 'number' && Number.isFinite(n));
+  return (
+    Array.isArray(v) && v.length === 8 && v.every((n) => typeof n === 'number' && Number.isSafeInteger(n))
+  );
 }
 
 /**
@@ -139,8 +160,17 @@ function clearOfEveryFootprint(
 ): void {
   if (orphans.length === 0) return;
 
-  // Provisional distinct lanes, so one `placeAll` can measure every component.
-  orphans.forEach((id, i) =>
+  /*
+   * Provisional distinct lanes, so one `placeAll` can measure every component.
+   *
+   * DE-DUPLICATED, because the stored anchors are an ARRAY from an untrusted
+   * blob and may name the same id twice. Without this the loop below recovers
+   * each component's provisional y from its index, which would then disagree
+   * with the lane actually written -- the span would be measured against one
+   * position and corrected against another.
+   */
+  const unique = [...new Set(orphans)];
+  unique.forEach((id, i) =>
     anchors.set(id, { pos: scale(zetaPow(4), RUN_SPACING_MM * (i + 1)), heading: 0 }),
   );
   const placement = placeAll({ pieces, welds, anchors }, ports);
@@ -183,11 +213,36 @@ function clearOfEveryFootprint(
     if (!isOrphan.has(root) && s.max > frontier) frontier = s.max;
   }
 
-  for (const [i, id] of orphans.entries()) {
-    // An anchor on a piece that is not a component root is inert: `placeAll`
-    // reads the root's. Leave the provisional one rather than inventing a
-    // position that nothing will use.
-    if (rootOf.get(id) !== id) continue;
+  for (const [i, id] of unique.entries()) {
+    /*
+     * A NON-ROOT ORPHAN'S ANCHOR IS DELETED, NOT LEFT.
+     *
+     * The first version of this said the provisional anchor was "inert:
+     * `placeAll` reads the root's", and left it. Something does read it.
+     * `captureAnchors` (`graph/edit.ts:37`) keeps an existing anchor in
+     * preference to the frame a piece was actually at, so the moment a weld
+     * break or a delete makes that piece a component root, the stale lane
+     * wins and the component teleports onto whatever is already there.
+     *
+     * MEASURED: a survivor anchored at lane 1 plus a two-piece run whose
+     * second piece has an unreadable anchor loads clean with 0 clashes, and
+     * after ONE `removeWeld` reports 2 clashes at [1.32e-14, 216] -- the same
+     * coordinate, and the same manufactured "can't be built", that this whole
+     * function exists to prevent. The previous anchor-point rule did not have
+     * this hole because its occupancy set de-duplicated orphan lanes against
+     * surviving anchors.
+     *
+     * Deleting is right rather than placing: a non-root has no position of
+     * its own to preserve, and if it becomes a root later `captureAnchors`
+     * will record where it actually was.
+     */
+    if (rootOf.get(id) !== id) {
+      anchors.delete(id);
+      continue;
+    }
+    // Every root is in `forest.order` and in `byId`, so `span` has an entry
+    // unless a part reports zero ports, which nothing in the catalogue does.
+    // Conservative if it ever fires: keep the lane, do not advance.
     const s = span.get(id);
     if (!s) continue;
     // The index, not `orphans.indexOf(id)`, which would be a quadratic hiding
@@ -195,7 +250,17 @@ function clearOfEveryFootprint(
     const provisionalY = RUN_SPACING_MM * (i + 1);
     // Put this component's BOTTOM edge one full spacing above the frontier.
     const wantedY = frontier + RUN_SPACING_MM - s.min + provisionalY;
-    const lane = Math.max(1, Math.ceil(wantedY / RUN_SPACING_MM));
+    /*
+     * A STORED ANCHOR IS ALWAYS AN EXACT LATTICE POINT, including when the
+     * measurement that chose it was not finite. `isCyc` is tightened to
+     * `Number.isSafeInteger` below, which is the real guard, but the
+     * arithmetic here is belt and braces: `scale(zetaPow(4), 216 * Infinity)`
+     * yields NaN coefficients, and `equals`/`isZero` answer false for NaN, so
+     * every closure and clash test downstream would silently say "no".
+     */
+    const lane = Number.isFinite(wantedY)
+      ? Math.max(1, Math.ceil(wantedY / RUN_SPACING_MM))
+      : 1;
     anchors.set(id, { pos: scale(zetaPow(4), RUN_SPACING_MM * lane), heading: 0 });
     frontier = RUN_SPACING_MM * lane + (s.max - provisionalY);
   }
@@ -372,9 +437,10 @@ export function loadGraph(
         continue;
       }
       const { pos, heading } = frame as Record<string, unknown>;
-      // Anchors are exact lattice points. A non-integer one is not an anchor
-      // this engine wrote, so it is dropped rather than rounded into place.
-      if (!isCyc(pos) || !pos.every(Number.isInteger)) {
+      // Anchors are exact lattice points. A non-integer or absurdly large one
+      // is not an anchor this engine wrote, so it is dropped rather than
+      // rounded or truncated into place. Both checks live in `isCyc`.
+      if (!isCyc(pos)) {
         droppedAnchors++;
         orphans.push(id);
         continue;
@@ -387,7 +453,27 @@ export function loadGraph(
       anchorMap.set(id, { pos, heading });
     }
 
-    clearOfEveryFootprint(out, outWelds, anchorMap, orphans, ports);
+    /*
+     * A THROW HERE MUST NOT COST THE WHOLE LAYOUT.
+     *
+     * The code this replaced was pure arithmetic and could not throw. This
+     * calls `placeAll` and `portFrame`, both of which throw on a port index
+     * the part does not have. Inside the outer `try` that would become
+     * `refuse(DISCARDED)` -- the user loses everything rather than having one
+     * piece drawn in the wrong place, which is exactly the trade the comment
+     * on this whole passage argues against.
+     *
+     * I could not reach it: the same `ports` function already gated every
+     * weld index above. So this is latent, and the catch keeps it latent
+     * instead of resting on that argument staying true. The provisional lanes
+     * are already assigned when it runs, so the fallback is the old
+     * behaviour: positions that may be wrong, and the notice that says so.
+     */
+    try {
+      clearOfEveryFootprint(out, outWelds, anchorMap, orphans, ports);
+    } catch {
+      // Keep the layout. The provisional lanes stand.
+    }
 
     return {
       value: { pieces: out, welds: outWelds, anchors: anchorMap },

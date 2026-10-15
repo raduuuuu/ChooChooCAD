@@ -7,4 +7,3 @@ dist/
 # NOT try.ts, which is a committed tool.
 crash-repro.ts
 .repro-check.ts
-.gstack/

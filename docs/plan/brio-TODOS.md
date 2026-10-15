@@ -869,7 +869,7 @@ U5 may be about to give it a caller.
 
 ## Completed
 
-## DONE — A recovered orphan could be placed inside a surviving run (P0, fixed 2026-10-15)
+### DONE — A recovered orphan could be placed inside a surviving run (P0, fixed 2026-10-15)
 
 **Was:** `loadGraph` re-anchored orphans into lanes chosen by stepping over
 occupied ANCHOR POINTS. An anchor names where a component starts; a run
