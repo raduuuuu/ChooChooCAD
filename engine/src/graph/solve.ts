@@ -196,9 +196,11 @@ export function solveGraph(
    * `traceSimpleCycle` starts rejecting things -- which a third port makes
    * routine. The cheap guard is better than the accident.
    *
-   * NUMERIC rather than a new reason: its copy is already "Could not check
-   * this layout." and its advice "Nothing to act on until the check
-   * completes.", which is exactly the situation.
+   * NUMERIC rather than a new reason, because its headline "Could not check
+   * this layout." fits. Its ADVICE did not -- it promised a check still in
+   * progress, and this refusal is deterministic and already finished -- so
+   * the advice was reworded to cover both causes rather than split the
+   * reason, since this arm is not reachable today.
    */
   if (space.cycles.length === 0) {
     return {

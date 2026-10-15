@@ -358,9 +358,6 @@ export function App() {
     [graph, ports, resolve, placement],
   );
 
-  // Synchronous and inside render on purpose: it keeps a React error boundary
-  // able to catch a throw from the engine, which an event-handler trigger
-  // would not. See the eng review's finding on the blank-page rescue.
   /*
    * ONE MAP, NOT A SCAN PER CALL. This passed a callback that did
    * `graph.pieces.find(...)`, and `analyseCycles` calls it once per edge of
@@ -386,6 +383,9 @@ export function App() {
     () => new Map(graph.pieces.map((p: GPiece) => [p.pieceId, resolve(p.partId).slop.axialMm])),
     [graph, resolve],
   );
+  // Synchronous and inside render on purpose: it keeps a React error boundary
+  // able to catch a throw from the engine, which an event-handler trigger
+  // would not. See the eng review's finding on the blank-page rescue.
   const result = useMemo(
     () =>
       graph.pieces.length === 0

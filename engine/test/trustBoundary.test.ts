@@ -489,3 +489,58 @@ describe('a stored row cannot inflate the give into a softer verdict', () => {
     expect(v.withinBound).toBe(false);
   });
 });
+
+/**
+ * A SUBMITTED CURVE TURNS SOME OF THE WAY ROUND, NOT ALL OF IT.
+ *
+ * Value: protects=a submission cannot declare a curve that occupies no length
+ * and makes no turn, which would put every port of every piece welded to it
+ * on one lattice point
+ * Value: fails_when=`looksLikePart` goes back to accepting any integer
+ * `arcSteps`
+ * Value: why_new=the check was `Number.isInteger(p.arcSteps)` with no range,
+ * beside a `slop` that IS bounded. MEASURED through `portsOf`: `arcSteps` of
+ * 0, 16, 32 and -16 all give displacement exactly ZERO and heading 0, so the
+ * piece is a no-op and a chain of them collapses onto a point. That is also
+ * the cheapest way to make the overlap scan's coincident-port quadratic bite,
+ * which is its own filed P0.
+ * Value: seam=none
+ * Value: no_claim=nothing about whether 1..15 are each PHYSICALLY plausible;
+ * the catalogue uses 2 (45 degrees) and this only refuses the values that are
+ * not a curve at all.
+ */
+describe('a submitted curve cannot be a full turn or no turn', () => {
+  const curveWith = (arcSteps: unknown, n = 0) =>
+    submissionWith({
+      id: 'E',
+      kind: 'curve',
+      innerRadiusMm: 182,
+      arcSteps,
+      submissionId: `a${n}`,
+      dimensions: { status: 'published', source: 'x' },
+    });
+  const keptFor = (arcSteps: unknown) =>
+    withStore(
+      { [SUBMISSIONS_STORAGE_KEY]: JSON.stringify([curveWith(arcSteps)]) },
+      () => loadSubmissions(),
+    );
+
+  /*
+   * MUTATION PROOF, run: restore `Number.isInteger(p.arcSteps)` as the only
+   * check and SIX of the seven refusals below start loading, each failing
+   * with `expected 1 to be +0`. Not all seven: 1.5 is still refused, because
+   * the integer check catches it and only the RANGE is what this adds.
+   */
+  for (const arcSteps of [0, 16, 32, -16, -1, 1.5, 100]) {
+    it(`refuses arcSteps ${arcSteps}`, () => {
+      expect(keptFor(arcSteps).length).toBe(0);
+    });
+  }
+
+  /* The real range still loads, so this is not a blanket refusal. */
+  for (const arcSteps of [1, 2, 8, 15]) {
+    it(`accepts arcSteps ${arcSteps}`, () => {
+      expect(keptFor(arcSteps).length).toBe(1);
+    });
+  }
+});

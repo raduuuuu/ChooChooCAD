@@ -240,7 +240,7 @@ export function VerdictLine({
   /*
    * EMPTY IS ITS OWN STATE (task X2a, Y1 decision 1, gate d5 = b).
    *
-   * It used to render `verdict-unknown` with a `?` mark, identical to the four
+   * It used to render `verdict-unknown` with a `?` mark, identical to the
    * FailureKinds: "I have not started" and "the solver looked and this is
    * broken" were the same grey with the same glyph.
    *
@@ -331,7 +331,7 @@ export function VerdictLine({
                 * TOO_BIG_TO_CHECK, a NUMERIC and even a HEADING_MISMATCH --
                 * where the engine had just determined the track does NOT come
                 * back aligned. Measured through `viewOf` at rank 7 with one
-                * clash: all four rendered the sentence.
+                * clash: every one of them rendered the sentence.
                 */}
               {e.rank > 0 && e.gapKnown && e.gapMm === 0 &&
                 ' The loop does close; that does not help.'}

@@ -76,13 +76,6 @@ function vertices(graph: Graph): (key: string) => string {
 }
 
 /**
- * Ports that land on the same spot without being welded there.
- *
- * Exact equality in Z[zeta16], no epsilon: two connectors either occupy the
- * same lattice point or they do not. This is a FEASIBILITY fact and never a
- * connectivity one, which is the distinction the chain engine could not draw.
- */
-/**
  * A position's identity as a grouping key: its eight coefficients, exactly.
  *
  * NAMED, AND IN ONE PLACE, BECAUSE NO TEST CAN CATCH THE WRONG CHOICE HERE.
@@ -105,6 +98,13 @@ function latticeKey(pos: Cyc): string {
   return pos.join(',');
 }
 
+/**
+ * Ports that land on the same spot without being welded there.
+ *
+ * Exact equality in Z[zeta16], no epsilon: two connectors either occupy the
+ * same lattice point or they do not. This is a FEASIBILITY fact and never a
+ * connectivity one, which is the distinction the chain engine could not draw.
+ */
 export function findVertexClashes(
   graph: Graph,
   ports: PortsOf,
@@ -162,10 +162,27 @@ export function findVertexClashes(
    * `j`, so the pairs are visited in the identical order and the output is
    * byte-identical rather than merely equivalent.
    *
-   * What this does NOT bound: a layout whose ports genuinely all land in one
-   * place is still quadratic, because the coincidences themselves are. That
-   * is work proportional to the answer rather than to the input, and it is
-   * measured in the spec.
+   * WHAT THIS DOES NOT BOUND, and it is the bigger half. When ports COINCIDE
+   * the group is the whole layout, so the pair walk below is quadratic again
+   * and grouping buys only a constant. An earlier version of this comment
+   * called that "work proportional to the answer" and said it was measured in
+   * the spec. Both were wrong: the answer is itself quadratic in the input,
+   * and NO spec measures it -- the only timed case anchors its rings 100,000
+   * apart precisely so that nothing coincides, and that spec's own `no_claim`
+   * line says so.
+   *
+   * MEASURED, open run of `E` (45 degrees, so eight of them close a circle
+   * and a run laps the same EIGHT places), this function alone:
+   *
+   *     1,000 pieces   0.11MB     59ms      62,124 records
+   *     4,000 pieces   0.44MB    973ms     998,499 records
+   *     8,000 pieces   0.92MB   3912ms   4,191,231 records, 2.35GB resident
+   *
+   * Reachable by clicking one palette button: 800 `add` actions through the
+   * real reducer is 87KB stored and 39,699 records, visible by 200 clicks.
+   * Tracked as its own P0 in `docs/plan/brio-TODOS.md`; the fix is to stop
+   * enumerating pairs, which needs a decision about what a clash IS when
+   * three or more ends meet, so it is not a one-line change.
    */
   const at = new Map<string, number[]>();
   for (let i = 0; i < placed.length; i++) {

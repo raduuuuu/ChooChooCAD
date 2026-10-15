@@ -24,15 +24,21 @@
  * predicate, not a rank, so "EXCEEDS outranks EXACT" is not a true statement
  * about `viewOf` and is not asserted here.
  *
- * The ordering AMONG the five failure kinds is not here at all. It lives in
+ * The ordering AMONG the failure kinds is not here at all. It lives in
  * `engine/src/graph/solve.ts`, which decides `result.reason` before `viewOf`
- * ever sees it: NO_CYCLE, TOO_MANY_LOOPS, HEADING_MISMATCH, NUMERIC. `viewOf`
- * passes that reason straight through, so these tests feed it a reason and
+ * ever sees it, in this order: NO_CYCLE, then TOO_MANY_LOOPS or
+ * TOO_BIG_TO_CHECK by the truncation cause, then NUMERIC for a rank with no
+ * traced cycles, then HEADING_MISMATCH, then NUMERIC again for a non-finite
+ * figure. NUMERIC therefore sits both before and after HEADING_MISMATCH,
+ * which is why naming the order matters more than counting the kinds.
+ * `viewOf` passes the reason straight through, so these tests feed it one and
  * assert the passthrough, never a ranking between them.
  *
  * Also deliberately NOT here: "two free ends meeting is not a clash". That
- * behaviour is `engine/src/graph/feasible.ts` and is already tested at
- * `engine/test/graphFeasible.test.ts:152`. It is not observable from this file,
+ * behaviour is `engine/src/graph/feasible.ts` and is already tested by
+ * `describe('free ends meeting are an invitation, not a clash')` in
+ * `engine/test/graphFeasible.test.ts` -- named, not line-numbered, because a
+ * single added import shifted that line in this very change. It is not observable from this file,
  * which only reads `result.clashes.length`.
  */
 
@@ -478,8 +484,13 @@ describe('gapKnown separates a measured gap from a filler', () => {
    * MUTATION PROOF, run: delete `gapKnown: true` from `base` and this fails
    * with `expected undefined to be true`. UNDEFINED, not false: `base` does
    * not spread `EMPTY`, so the property goes missing rather than reverting to
-   * a default -- and tsc does not object, which is exactly why a spec is
-   * needed here.
+   * a default.
+   *
+   * tsc DOES also object, with three TS2741s at verdictView.ts:116/118/119 --
+   * an earlier version of this note claimed it did not, and offered that as
+   * the reason the spec exists. The real reason is narrower: tsc catches the
+   * property going missing, and this catches it being present and WRONG,
+   * which is the `EMPTY`-spread mutation above.
    */
   it('is true on the solved path, where the engine traced the cycles', () => {
     const tight = cycle({ gapMm: 1.0, withinGive: true });

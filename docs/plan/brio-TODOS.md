@@ -840,11 +840,12 @@ drives it and `TOO_BIG_TO_CHECK` directly through `solveGraph` on graph
 fixtures, which the chain model never had to reach. And the union has six
 return sites now, not five.
 
-**What is actually left:** `NUMERIC` has no spec driving it through
-`solveGraph` -- including the new `rank > 0 && cycles.length === 0` arm, which
-is unreachable today by accident rather than by construction -- and the
-clash-precedence ordering is pinned only at the `viewOf` layer. Both are
-narrow.
+**What is actually left:** the new `rank > 0 && cycles.length === 0` arm has
+no spec driving its FIRING, because nothing can drive it (every fundamental
+traces; a weld naming a missing piece throws first). Its misfire direction is
+pinned. The non-finite `NUMERIC` cause IS covered, at
+`engine/test/differential.test.ts`. The clash-precedence ordering is pinned
+only at the `viewOf` layer. Both narrow.
 
 **Why still deferred:** the branches that mattered got specs as a side effect
 of the work that needed them, which is the principle this project applies: a
@@ -1122,10 +1123,10 @@ Give is still reduced over each cycle's OWN welds, so T6 is untouched, and
 `closesExactly` comes from residuals rather than the enumeration, so the exact
 verdict never depended on the walk.
 
-**Suite: 433 passing, ZERO skipped.** Three trees, three numbers, because the
+**Suite: 446 passing, ZERO skipped.** Three trees, three numbers, because the
 first version of this line conflated two of them: the merge base `0cba762` is
 399 passing with 2 skipped (401 total), the mid-branch commit `11dbfd5` is 405
-passing with none skipped, and HEAD is 433 passing with none skipped. No tree
+passing with none skipped, and HEAD is 446 passing with none skipped. No tree
 has ever had 405 specs with 2 skipped.
 
 **THE REVIEW FOUND MORE IN THE COMMENTS THAN IN THE CODE**, which is this
@@ -1276,7 +1277,63 @@ place at `cc89914` pending this.
 **Effort:** human ~1h / CC ~15m. **Priority:** P1.
 **Depends on / blocked by:** nothing.
 
-## P1 — Nothing bounds a layout's size (filed by /ship, 2026-10-14; the quadratic clash scan half was FIXED 2026-10-15)
+## P0 — The overlap scan is quadratic in COINCIDENT ports, and one palette button reaches it (filed by /review round three, 2026-10-15)
+
+**What:** `findVertexClashes` enumerates PAIRS of coincident vertices. Grouping
+by exact lattice position (added 2026-10-15) made the spread case linear and
+did nothing here, because when ports coincide the group IS the layout.
+
+**It needs no hostile blob.** `E` is a 45 degree curve, so eight of them close a
+circle and an open run laps the same EIGHT places. MEASURED on an open run of
+`E`, this function alone:
+
+```
+   1,000 pieces   0.11MB     59ms      62,124 records
+   4,000 pieces   0.44MB    973ms     998,499 records
+   8,000 pieces   0.92MB   3912ms   4,191,231 records, 2.35GB resident
+```
+
+4x per doubling in both time and memory. Through the REAL reducer: 800
+`reduce({kind:'add',partId:'E'})` calls -- one palette click each -- give 87KB
+stored, 39,699 records, and the growth is visible by 200 clicks. At 16,384
+pieces (1.8MB, a third of a 5MB quota) it is ~16s and ~9GB, which is a renderer
+OOM inside a render `useMemo`: not a catchable throw, so `ErrorBoundary` never
+fires and the storage key is never cleared, so every reload repeats it.
+
+A second, cheaper route needs no curves at all: a blob with NO welds and NO
+anchors puts every component root at the identity, so n pieces stack and all 2n
+ports fall into two groups of size n. 1,000 pieces is a 32KB blob (0.61% of the
+quota), 607ms and 999,000 records; 2,000 is 65KB and 2,858ms.
+
+**None of the bounds added by the cycle work can help.** `findVertexClashes`
+runs at `solve.ts:95`, BEFORE the rank ceiling and before `analyseCycles`, on
+every branch including `rank === 0`. A 1.19MB blob of 1,200 stacked rings that
+the rank ceiling explicitly REFUSES to examine still costs ~20s in this scan.
+
+**Fix, and the decision it needs first.** Stop enumerating pairs: group by
+place, collapse to the distinct VERTICES in it, emit one record per place. The
+only consumers are this array's LENGTH (the "N pairs of track ends land in
+exactly the same spot" sentence) and its distinct `at` values, which
+`clashMarkers` already dedupes to one marker per place -- so the array is
+quadratic cost with no product, and over 582 fixtures the old count already
+disagreed with the number of markers drawn in 142 of the 241 that clash at all.
+
+THE DECISION: what is a clash when THREE or more ends meet in one place? The
+per-piece-pair "two free ends meeting is an invitation" rule does not reduce to
+per-place without answering that, and a first attempt at this collapse
+(2026-10-15, reverted) diverged from the current output on 106 of 582 fixtures
+-- 86 places gained, 20 places LOST. A lost place is a missed overlap, which is
+a false pass, so this is not a mechanical refactor and must not be done as one.
+The `touching` rule, the 16xE case (8 places) and the tangent pair (1 place)
+are the fixtures to hold fixed.
+
+**Effort:** human ~1d / CC ~1h, plus a differential over the 582-fixture set.
+**Priority:** P0. **Depends on / blocked by:** nothing. Deliberately NOT folded
+into the cycle-enumeration branch: that branch tried three times to bound this
+path and each attempt bounded the component in front of it, so this one gets
+its own change and its own review.
+
+## P1 — Nothing bounds a layout's size (filed by /ship, 2026-10-14; the SPREAD-layout half of the clash scan was fixed 2026-10-15, the coincident half is the P0 above)
 
 **What:** `loadGraph` validates every field's type and never bounds
 `pieces.length` or `welds.length`. `findVertexClashes` compares all pairs of
@@ -1400,6 +1457,25 @@ the sharing feature.
 **Depends on / blocked by:** blocks the backend/publish work above.
 
 ## P2 — Documentation: README.md denies most of what this release shipped (filed by /ship's docs audit, 2026-10-14)
+
+**RE-CONFIRMED 2026-10-15 with the exact lines, so this does not need
+re-deriving.** Four claims are flatly false against the shipped code, and the
+README is the first thing a reader checks it against:
+
+- `:96` "The layout verdict has four states" -- there are ten `VerdictKind`s,
+  five of them failure kinds.
+- `:105` "The engine is single-cycle" and `:119` "Single cycle only. A layout
+  is a chain, optionally closed." -- the graph engine ranks up to
+  `CYCLE_RANK_CEILING = 20` independent loops, and the UI renders "N of M
+  loops". This one is the most jarring: the branch that bounded that
+  enumeration left the README saying it cannot happen.
+- `:126` "No inventory, no 3D, no build mode, no library." -- there is an
+  inventory (`inventoryModel.ts`), a library and a submissions pipeline
+  (`engine/data/library.ts`, `SubmitPart`).
+
+Left to this entry rather than patched in passing, because scoping the chain
+engine (`engine/src/solver`) apart from the graph engine is the actual job and
+it is prose, not a one-line correction.
 
 **What:** the docs audit returned `blocked`. It made four factual corrections
 (test count, `bun run typecheck`, the split U7a/U7b reference, the third

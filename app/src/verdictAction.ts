@@ -47,7 +47,7 @@ export const ACTION_FOR_VERDICT: Record<OutcomeKind, string> = {
  * TOO_BIG_TO_CHECK meant editing both in lockstep -- a cost the duplication
  * had already charged before anyone noticed it.
  */
-export type FailureKind = Extract<
+type FailureKind = Extract<
   VerdictKind,
   'NO_CYCLE' | 'HEADING_MISMATCH' | 'TOO_MANY_LOOPS' | 'TOO_BIG_TO_CHECK' | 'NUMERIC'
 >;
@@ -85,7 +85,17 @@ export const ACTION_FOR_FAILURE: Record<FailureKind, string> = {
   TOO_BIG_TO_CHECK: 'Remove some track, or split this into separate layouts.',
   HEADING_MISMATCH:
     'The curves need to add up to a whole turn. Add one, remove one, or mirror one.',
-  NUMERIC: 'Nothing to act on until the check completes.',
+  /*
+   * TWO CAUSES, so this cannot promise a pending check. `solve.ts` returns
+   * NUMERIC both when a figure came out non-finite AND when rank says there
+   * are loops but none traced -- and the second is deterministic and already
+   * finished, so "until the check completes" would be telling the user to
+   * wait for something that is over. Same one-reason-two-causes shape that
+   * TOO_MANY_LOOPS carried until TOO_BIG_TO_CHECK was split out of it; this
+   * one is worded to cover both rather than split, because the second cause
+   * is not reachable today.
+   */
+  NUMERIC: 'Nothing to act on; this layout could not be checked.',
 };
 
 /**

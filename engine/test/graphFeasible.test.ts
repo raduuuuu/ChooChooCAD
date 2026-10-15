@@ -287,9 +287,11 @@ describe('the overlap scan groups by exact position', () => {
    * clash where the rings are anchored apart).
    *
    * MUTATION PROOF, run: restore the all-pairs `for (let j = i + 1; ...)`
-   * loop and this fails at `10000 pieces took 8337ms`, 16x past the bound.
-   * At 1,000 pieces the same mutation is only 162ms, which is why timing the
-   * small case bought nothing but flake.
+   * loop and this fails by two orders of magnitude -- tens of seconds against
+   * the 500ms bound. The exact duration is deliberately NOT quoted: three
+   * measurements of it disagreed by 5x (8.3s, 17s, 46s) because it depends on
+   * GC pressure at that allocation volume, and an earlier version of this
+   * record quoted the lowest of them as if it were the figure.
    */
   it('costs what the layout contains, not the square of it', () => {
     for (const [n, k] of [

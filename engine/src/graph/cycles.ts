@@ -302,12 +302,20 @@ export function sharingGraph(
  *
  * It does NOT bound what happens before the walk. `fundamentals` and
  * `sharingGraph` both run first and both are linear in pieces, so a REFUSAL
- * still costs something. Measured on a dense graph:
+ * still costs something. Measured on DISJOINT loops at rank 20, where a
+ * subset's cost equals its weld count so the budget is spent exactly -- NOT
+ * on a dense graph, which an earlier version of this table claimed and which
+ * cannot produce these rows at all, since a dense bundle refuses at 602
+ * pieces:
  *
- *    10,000 pieces, answered      15ms
- *   150,000 pieces, answered     169ms   (the whole budget, one accepted walk)
- *   200,000 pieces, refused      180ms
- *   400,000 pieces, refused      285ms
+ *    10,000 pieces, answered       15ms
+ *   150,000 pieces, answered      169-189ms  (the whole budget, one walk)
+ *   200,000 pieces, refused       180-286ms
+ *   400,000 pieces, refused       285-493ms
+ *
+ * The refusal rows are ranges because two machines disagreed by about 1.6x;
+ * the shape is what matters, and a refusal at 200,000 cannot be cheaper than
+ * an answer at 150,000, which the single-number version implied.
  *
  * So 150,000 weld-slots buys about 170ms on the answered path, not one frame.
  * A slot costs ~7x more when the subset is ACCEPTED (it then pays

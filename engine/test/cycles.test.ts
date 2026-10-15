@@ -7,22 +7,24 @@
  *
  * EVERY `MUTATION PROOF` BELOW QUOTES A MESSAGE AND A COUNT THAT WERE RUN.
  *
- * That is a correction, not a boast. Across two review rounds, NINE records
- * in this file were written without running them and every one was wrong:
- * two reversed messages (`expected true to be false` written backwards, and
- * `to have a length of 3 but got 2` written backwards and then papered over
- * in prose with "in the other direction"), a predicted `[ 0, 2 ]` that was
- * `[ 1, 2 ]`, a claim that one mutation would HANG when it fails in 9ms, its
- * mirror image where a mutation really does hang the FILE and the record did
- * not say so, four failure counts off by one in both directions, and two
- * suite sizes that match no commit on this branch.
+ * That is a correction, not a boast. Across three review rounds, THIRTEEN
+ * records in this file were written without being run and every one was
+ * wrong: reversed messages, predicted arrays, a claim that one mutation
+ * would HANG when it fails in milliseconds, its mirror where a mutation
+ * really does hang the file, failure counts off in both directions, and
+ * repeated SUITE TOTALS that matched no commit.
  *
- * None of them weakened a test. All of them were records a reader is told to
- * trust instead of re-running, which is the same defect class as a test that
- * cannot fail. Counts are quoted against the suite as it stands (433) and go
- * stale when specs are added -- prefer re-running to patching the number. If
- * a message here does not reproduce, the comment is what is broken: fix it,
- * do not weaken the spec.
+ * The totals are why this rule is written in terms of RELATIVE counts. An
+ * absolute total goes stale the moment a spec is added, so every record
+ * below says "five specs fail" or "exactly one spec fails" and none says how
+ * many remain. Three separate attempts to correct the totals produced three
+ * more wrong totals; the shape of the claim was the defect, not the
+ * arithmetic.
+ *
+ * None of them weakened a test. All were records a reader is told to trust
+ * instead of re-running, which is the same defect class as a test that
+ * cannot fail. If a message here does not reproduce, the comment is what is
+ * broken: fix it, do not weaken the spec.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -456,9 +458,10 @@ describe('forEachConnectedSubset', () => {
  * to throw on finding a shared piece, all 405 specs passed at commit
  * `11dbfd5` (verified by checking it out and running it), because nothing
  * built a layout where two fundamentals share a piece. RE-RUN at HEAD, where
- * the mutation is `(owners.get(id)! & ~(1 << i)) !== 0`: 8 fail, 425 pass of
- * 433. That change in the number IS the hole closing, and it is why the
- * count names the tree it was taken from.
+ * the mutation is `(owners.get(id)! & ~(1 << i)) !== 0`: NINE specs fail.
+ * Going from zero failures to nine IS the hole closing. The pre-review
+ * figure names its commit because that tree is frozen; the current one is
+ * stated relatively because this one is not.
  * Value: seam=`sharingGraph` takes welds and fundamentals as plain data, so
  * a shape the catalogue cannot build is still expressible here. The pieces
  * array is left empty on purpose: this function reads `graph.welds` and
@@ -503,7 +506,10 @@ describe('sharingGraph', () => {
    * THE BRANCH NOTHING ELSE REACHES: piece `c` is in both fundamentals, so
    * both directions of the edge must appear.
    *
-   * MUTATION PROOF, run: change `mask |= 1 << j` to `mask |= 1 << i` and this
+   * MUTATION PROOF, run: in `sharingGraph`, OR the owner mask under the
+   * fundamental's OWN bit instead of the neighbour's -- the inverted build's
+   * equivalent of the old pairwise `mask |= 1 << j` becoming `1 << i` -- and
+   * this
    * fails with `expected [ 1, 2 ] to deeply equal [ 2, 1 ]` -- each
    * fundamental then records ITSELF as the neighbour it found, so the edge
    * points at the wrong vertex and the walk still cannot cross it. The
@@ -550,8 +556,9 @@ describe('sharingGraph', () => {
    * not the value: the ceiling is free to move anywhere at or below 31.
    *
    * MUTATION PROOF, run: set `CYCLE_RANK_CEILING = 32` and exactly one spec
-   * fails, this one, with `expected 32 to be less than or equal to 31`; 432
-   * stay green. That is the point of asserting the relationship here:
+   * fails, this one, with `expected 32 to be less than or equal to 31`, and
+   * every other spec stays green. That is the point of asserting the
+   * relationship here:
    * nothing in the suite builds 32 fundamentals, so the two runtime guards
    * never fire and would not have caught the raised ceiling.
    */
@@ -564,6 +571,41 @@ describe('sharingGraph', () => {
     expect(() => forEachConnectedSubset(Array(32).fill(0), 32, 10, () => 1, () => {})).toThrow(
       'rank 32 outside 0..31',
     );
+  });
+
+  /*
+   * THE ACCEPTED EDGE, which the refusal specs do not cover. Both guards are
+   * pinned at 32, where they throw; 31 is the largest basis they are supposed
+   * to LET THROUGH, and at rank 31 `(1 << rank) - 1` relies on `1 << 31`
+   * being the sign bit and ToInt32 handing back 0x7FFFFFFF. If that reasoning
+   * were wrong the walk would silently emit nothing, which is the
+   * fail-smaller direction.
+   *
+   * MUTATION PROOF, run: change either guard to `>= SUBSET_MASK_BITS` and
+   * this fails with `31 fundamentals exceeds the 31-bit mask` -- from
+   * `sharingGraph`, because that is the first of the two assertions below.
+   * The `forEachConnectedSubset` half reports `rank 31 outside 0..31` if you
+   * change only its guard.
+   */
+  it('accepts the largest basis the 31-bit mask can carry', () => {
+    const g = graph(welds(['a', 'b']));
+    // One weld each; the shape does not matter here, only the count.
+    const basis = Array.from({ length: SUBSET_MASK_BITS }, () => [0]);
+    expect(sharingGraph(g, basis)).toHaveLength(SUBSET_MASK_BITS);
+
+    const got: number[] = [];
+    const complete = forEachConnectedSubset(
+      Array<number>(SUBSET_MASK_BITS).fill(0),
+      SUBSET_MASK_BITS,
+      1 << 22,
+      () => 1,
+      (m) => got.push(m),
+    );
+    expect(complete).toBe(true);
+    // An edgeless graph of 31 vertices: 31 singletons, the highest being
+    // bit 30. A wrapped `allowed` mask would emit fewer, or none.
+    expect(got).toHaveLength(SUBSET_MASK_BITS);
+    expect(Math.max(...got)).toBe(1 << (SUBSET_MASK_BITS - 1));
   });
 
   /*
@@ -583,40 +625,6 @@ describe('sharingGraph', () => {
    * catches every negative rank first, because no array has a negative
    * length. Kept for the message, not for reachability.
    */
-  /*
-   * THE ACCEPTED EDGE, which the refusal specs do not cover. Both guards are
-   * pinned at 32, where they throw; 31 is the largest basis they are supposed
-   * to LET THROUGH, and at rank 31 `(1 << rank) - 1` relies on `1 << 31`
-   * being the sign bit and ToInt32 handing back 0x7FFFFFFF. If that reasoning
-   * were wrong the walk would silently emit nothing, which is the
-   * fail-smaller direction.
-   *
-   * MUTATION PROOF, run: change either guard to `>= SUBSET_MASK_BITS` and
-   * this fails with `31 fundamentals exceeds the 31-bit mask` -- from
-   * `sharingGraph`, because that is the first of the two assertions below.
-   * The `forEachConnectedSubset` half reports `rank 31 outside 0..31` if you
-   * change only its guard.
-   */
-  it('accepts the largest basis the 31-bit mask can carry', () => {
-    const g = graph(welds(['a', 'b']));
-    const basis = Array.from({ length: SUBSET_MASK_BITS }, (_, i) => [0, i % 1]);
-    expect(sharingGraph(g, basis)).toHaveLength(SUBSET_MASK_BITS);
-
-    const got: number[] = [];
-    const complete = forEachConnectedSubset(
-      Array<number>(SUBSET_MASK_BITS).fill(0),
-      SUBSET_MASK_BITS,
-      1 << 22,
-      () => 1,
-      (m) => got.push(m),
-    );
-    expect(complete).toBe(true);
-    // An edgeless graph of 31 vertices: 31 singletons, the highest being
-    // bit 30. A wrapped `allowed` mask would emit fewer, or none.
-    expect(got).toHaveLength(SUBSET_MASK_BITS);
-    expect(Math.max(...got)).toBe(1 << (SUBSET_MASK_BITS - 1));
-  });
-
   it('refuses a neighbours array that does not match the rank, and a negative rank', () => {
     expect(() => forEachConnectedSubset([0, 0], 4, 10, () => 1, () => {})).toThrow(
       'neighbours has 2 entries for rank 4',
@@ -694,8 +702,14 @@ describe('a dense sharing graph is bounded by work, not by subset count', () => 
   };
 
   /*
-   * MUTATION PROOF, run: charge the budget per subset again (`costOf` -> `1`,
-   * budget 20_000) and FOUR specs fail:
+   * MUTATION PROOF, run: charge the budget per subset again by replacing the
+   * CALL's two arguments -- `CYCLE_WORK_BUDGET, costOf` becomes
+   * `20_000, () => 1` -- and leaving the constant itself at 150_000. Stated
+   * that precisely because an independent reviewer applied it by changing the
+   * CONSTANT instead, which makes the shipped-budget spec fail instantly on
+   * its own `expect(CYCLE_WORK_BUDGET).toBe(150_000)` rather than time out,
+   * and reported this table as wrong. Both readings are mutations; only this
+   * one produces the rows below. FOUR specs fail:
    *
    *   this one                            `602 pieces: expected false to be 'work'`
    *   reports no cycles and no worst      `Test timed out in 5000ms`
@@ -814,10 +828,10 @@ describe('a dense sharing graph is bounded by work, not by subset count', () => 
    * `expected 'TOO_MANY_LOOPS' to be 'TOO_BIG_TO_CHECK'`.
    */
   it('refuses a big dense layout as TOO_BIG_TO_CHECK, not as too many loops', () => {
-    // 602 pieces, not 8402: this spec is about the SENTENCE, and solveGraph
-    // also runs the all-pairs clash scan, which is quadratic in ports and has
-    // its own filed P1. At 8402 pieces that scan alone takes ~20s, which
-    // would make this a test of the wrong thing.
+    // 602 pieces, not 8402, because this spec is about the SENTENCE. The
+    // overlap scan `solveGraph` also runs is cheap on a spread layout now,
+    // but it is still quadratic in COINCIDENT ports and that is its own filed
+    // P0 -- sizing this fixture by the sentence keeps the two apart.
     const g = bundle(15, 40);
     const r = solveGraph(g, ports, (id) => base(id), () => 0.8);
     expect(r.ok).toBe(false);
@@ -826,6 +840,47 @@ describe('a dense sharing graph is bounded by work, not by subset count', () => 
     expect(r.reason).toBe('TOO_BIG_TO_CHECK');
     expect(r.detail).toContain('would take too long');
     expect(r.detail).not.toContain('more than this can rank');
+  });
+
+  /**
+   * THE NO-TRACED-CYCLES REFUSAL: its MISFIRE is pinned, its FIRING is not,
+   * and that asymmetry is deliberate and worth stating.
+   *
+   * `solve.ts` refuses with NUMERIC when rank says there are loops and the
+   * enumeration traced none, because `withinBound` is `every` over an empty
+   * array and would otherwise read as "This works" in green. Replacing that
+   * condition with `if (false as boolean)` leaves the whole suite green, so
+   * nothing drives it -- and nothing CAN: every fundamental is a closing weld
+   * plus a simple tree path, so each one has degree 2 everywhere and traces,
+   * including a self-weld and a double edge. The one shape that defeats
+   * `traceSimpleCycle` is a weld naming a piece the graph does not contain,
+   * which `loadGraph` refuses and which throws inside `placeAll` before this
+   * branch is reached (verified).
+   *
+   * So the firing is untestable without a seam, and this spec covers the
+   * direction that can actually hurt a user: the guard must never refuse a
+   * layout that is fine. A false FAILURE here would be invariant 3 broken the
+   * other way round.
+   *
+   * MUTATION PROOF, run: change the condition to `space.cycles.length >= 0`
+   * and this fails with
+   * `one closed loop: expected 'NUMERIC' not to be 'NUMERIC'` -- the
+   * assertion is `.not.toBe`, so that is how it reads -- because every
+   * layout then refuses.
+   */
+  it('never refuses a layout whose cycles did trace', () => {
+    const shapes: ReadonlyArray<readonly [string, Graph]> = [
+      ['one closed loop', loops(1, 8)],
+      ['twenty disjoint loops', loops(20, 8)],
+      ['a long single loop', loops(1, 500)],
+      ['two fundamentals sharing pieces', bundle(3, 2)],
+      ['a dense bundle at the ceiling', bundle(21, 2)],
+    ];
+    for (const [name, g] of shapes) {
+      const r = solveGraph(g, ports, (id) => base(id), () => 0.8);
+      const reason = r.ok ? undefined : r.reason;
+      expect(reason, name).not.toBe('NUMERIC');
+    }
   });
 
   /* The rank ceiling keeps the OTHER sentence, so the two stay told apart. */
