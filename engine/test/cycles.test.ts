@@ -5,15 +5,24 @@
  * layout with a slack loop and a tight loop must not let the slack one pay
  * for the tight one, because the joints are not shared.
  *
- * EVERY `MUTATION PROOF` BELOW QUOTES A MESSAGE THAT WAS RUN, and the quoted
- * failure COUNTS were run too. That is not a boast, it is a correction: the
- * first draft of this file guessed three of them and got all three wrong (a
- * reversed `expected true to be false`, a predicted `[ 0, 2 ]` that was
- * `[ 1, 2 ]`, and a claim that one mutation would HANG when it fails in
- * milliseconds). A mutation comment is a claim about behaviour, so it is
- * worth exactly as much as a run, and guessing one is the same defect class
- * as a test that cannot fail. If a message here does not reproduce, the
- * comment is the thing that is broken -- fix it, do not weaken the spec.
+ * EVERY `MUTATION PROOF` BELOW QUOTES A MESSAGE AND A COUNT THAT WERE RUN.
+ *
+ * That is a correction, not a boast. Across two review rounds, NINE records
+ * in this file were written without running them and every one was wrong:
+ * two reversed messages (`expected true to be false` written backwards, and
+ * `to have a length of 3 but got 2` written backwards and then papered over
+ * in prose with "in the other direction"), a predicted `[ 0, 2 ]` that was
+ * `[ 1, 2 ]`, a claim that one mutation would HANG when it fails in 9ms, its
+ * mirror image where a mutation really does hang the FILE and the record did
+ * not say so, four failure counts off by one in both directions, and two
+ * suite sizes that match no commit on this branch.
+ *
+ * None of them weakened a test. All of them were records a reader is told to
+ * trust instead of re-running, which is the same defect class as a test that
+ * cannot fail. Counts are quoted against the suite as it stands (433) and go
+ * stale when specs are added -- prefer re-running to patching the number. If
+ * a message here does not reproduce, the comment is what is broken: fix it,
+ * do not weaken the spec.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -235,8 +244,8 @@ describe('rotation', () => {
  * THE ENUMERATION COST. This was a SKIPPED spec pinning a P0; the P0 is fixed
  * and it runs.
  *
- * Value: protects=solveGraph stays inside a frame budget at the accepted rank
- * ceiling, so an ordinary layout cannot freeze the tab
+ * Value: protects=analyseCycles stays inside a frame budget at the accepted
+ * rank ceiling, so the ENUMERATION cannot freeze the tab
  * Value: fails_when=the enumeration goes back to walking all 2^rank subsets
  * rather than only the connected ones
  * Value: why_new=nothing in the suite timed anything, so the 26x gap between
@@ -270,13 +279,34 @@ describe('enumeration cost at the accepted ceiling', () => {
     expect(performance.now() - t0).toBeLessThan(100);
   });
 
+  /*
+   * THIS SPEC FLAKED AND THE FLOOR IS WHY. The fix it guards made both
+   * measurements sub-millisecond, so `Math.max(ms(10), 0.5)` collapses to
+   * the 0.5 floor and the bound becomes a flat 10ms against a ~1ms reading.
+   * Reproduced by a reviewer at `expected 17.636 to be less than 10.253` on
+   * a loaded machine, 1 run in 6; 8 runs idle were clean, which is the
+   * difference between a loaded machine and an idle one, not a difference in
+   * the code. A pin that fails at random teaches people to re-run instead of
+   * to look, and this branch makes ci.yml and README both advertise a green
+   * nothing-skipped suite.
+   *
+   * The floor is now 5ms, so the bound is at least 100ms against the same
+   * ~1ms reading. That is noise headroom, NOT a performance target: the
+   * regression it exists to catch is exponential growth, which measured
+   * 11,364ms against 100 when it was last run, so no tightness is lost.
+   *
+   * The deterministic half of this property lives elsewhere and is worth
+   * knowing about: `forEachConnectedSubset` on an edgeless sharing graph
+   * emits exactly `rank` subsets, and `sharingGraph` returns all-zero masks
+   * for disjoint fundamentals. Those two need no clock at all.
+   */
   it('does not grow exponentially in rank', () => {
     const ms = (n: number) => {
       const t0 = performance.now();
       analyse(loops(n));
       return performance.now() - t0;
     };
-    const small = Math.max(ms(10), 0.5);
+    const small = Math.max(ms(10), 5);
     expect(ms(20)).toBeLessThan(small * 20);
   });
 });
@@ -375,9 +405,16 @@ describe('forEachConnectedSubset', () => {
    * 20 has 2^20 - 1 connected subsets, which is the case the budget exists
    * for.
    *
-   * MUTATION PROOF, run: remove the budget's early return and this fails on
-   * `expected true to be false` -- the walk runs the complete rank-20 graph
-   * to completion and reports success.
+   * MUTATION PROOF, run WITH `-t 'stops at the budget'`: remove the budget's
+   * early return and this fails on `expected true to be false` -- the walk
+   * runs the complete rank-20 graph to completion and reports success.
+   *
+   * THE `-t` IS NOT OPTIONAL. Run the whole file under that mutation and it
+   * does not terminate: the dense rank-20 specs below enumerate 2^20 subsets
+   * at O(welds) each, synchronously, and vitest's 5000ms per-test timeout
+   * cannot pre-empt a synchronous walk. An earlier version of this record
+   * said the mutation "fails in 9ms", which is true only of the isolated
+   * run it was taken from.
    *
    * The count is asserted EXACTLY, not as an upper bound: cost is 1 per
    * subset here and `spent` is compared before the visit, so 500 is
@@ -416,11 +453,12 @@ describe('forEachConnectedSubset', () => {
  * Value: fails_when=the piece-set intersection drops an edge, adds a
  * self-edge, or puts an edge on the wrong index
  * Value: why_new=this logic was UNREACHABLE from the rest of the suite. Made
- * to throw on finding a shared piece, all 405 specs of the pre-review suite
- * still passed, because nothing built a layout where two fundamentals share
- * a piece. RE-RUN against the suite as it stands: 7 fail, 416 pass. That
- * change in the number IS the hole closing, and it is why the count is
- * quoted against a suite rather than left as a bare figure.
+ * to throw on finding a shared piece, all 405 specs passed at commit
+ * `11dbfd5` (verified by checking it out and running it), because nothing
+ * built a layout where two fundamentals share a piece. RE-RUN at HEAD, where
+ * the mutation is `(owners.get(id)! & ~(1 << i)) !== 0`: 8 fail, 425 pass of
+ * 433. That change in the number IS the hole closing, and it is why the
+ * count names the tree it was taken from.
  * Value: seam=`sharingGraph` takes welds and fundamentals as plain data, so
  * a shape the catalogue cannot build is still expressible here. The pieces
  * array is left empty on purpose: this function reads `graph.welds` and
@@ -445,11 +483,16 @@ describe('sharingGraph', () => {
    * TODAY'S CATALOGUE. Every mask is 0, which is why the walk visits `rank`
    * subsets and not 2^rank - 1.
    *
-   * MUTATION PROOF, run: delete `if (j === i) continue;` and all FIVE specs
-   * in this block fail, this one with
-   * `expected [ 1, 2 ] to deeply equal [ +0, +0 ]`. Every fundamental shares
-   * every piece with itself, so without the skip each one claims itself as a
-   * neighbour and nothing is ever disjoint.
+   * MUTATION PROOF, run: delete the `& ~(1 << i)` that clears a
+   * fundamental's own bit and all FIVE specs in this block fail, this one
+   * with `expected [ 1, 2 ] to deeply equal [ +0, +0 ]`. A fundamental owns
+   * every piece it touches, so without that clear each one claims itself as
+   * a neighbour and nothing is ever disjoint.
+   *
+   * SECOND MUTATION PROOF, run: stop after the first piece (`break` inside
+   * `for (const id of ids) mask |= owners.get(id)!`) and three specs fail,
+   * the sharing case with `expected [ +0, 1 ] to deeply equal [ 2, 1 ]` --
+   * a fundamental shares through ANY of its pieces, not just its first.
    */
   it('reports no edges when no two fundamentals share a piece', () => {
     const g = graph(welds(['a', 'b'], ['b', 'c'], ['d', 'e'], ['e', 'f']));
@@ -507,10 +550,10 @@ describe('sharingGraph', () => {
    * not the value: the ceiling is free to move anywhere at or below 31.
    *
    * MUTATION PROOF, run: set `CYCLE_RANK_CEILING = 32` and exactly one spec
-   * fails, this one, with `expected 32 to be less than or equal to 31`. The
-   * other 410 stay green, which is the point of asserting the relationship
-   * here: nothing in the suite builds 32 fundamentals, so the two runtime
-   * guards never fire and would not have caught the raised ceiling.
+   * fails, this one, with `expected 32 to be less than or equal to 31`; 432
+   * stay green. That is the point of asserting the relationship here:
+   * nothing in the suite builds 32 fundamentals, so the two runtime guards
+   * never fire and would not have caught the raised ceiling.
    */
   it('refuses a basis too large for the 31-bit mask it is carried in', () => {
     expect(CYCLE_RANK_CEILING).toBeLessThanOrEqual(SUBSET_MASK_BITS);
@@ -524,16 +567,56 @@ describe('sharingGraph', () => {
   });
 
   /*
-   * THE OTHER TWO GUARDS, which nothing reached. Deleting either left all 411
-   * specs of the previous suite green, and the one they protect against is
-   * the silent-UNDERCOUNT direction the docblock measures: `neighbours` of
+   * THE OTHER TWO GUARDS, which nothing reached: deleting either left the
+   * whole suite green before this spec existed. What they protect against is
+   * the silent-UNDERCOUNT direction the docblock measures -- `neighbours` of
    * length 2 at rank 4 emits 14 subsets instead of 15 and still reports a
    * complete walk. A missed subset is a missed loop.
    *
    * MUTATION PROOF, run: delete the `neighbours.length !== rank` check and
-   * the first assertion fails with `expected [Function] to throw an error`;
-   * delete the `rank < 0` half and the second does.
+   * the first assertion fails with `expected [Function] to throw an error`.
+   *
+   * THE `rank < 0` ARM IS SHADOWED, and this spec only pins its MESSAGE.
+   * Delete that half and the second assertion still fails, but with
+   * `expected [Function] to throw error including 'rank -1 outside 0..31'
+   * but got 'neighbours has 0 entries for rank -1'` -- the length guard
+   * catches every negative rank first, because no array has a negative
+   * length. Kept for the message, not for reachability.
    */
+  /*
+   * THE ACCEPTED EDGE, which the refusal specs do not cover. Both guards are
+   * pinned at 32, where they throw; 31 is the largest basis they are supposed
+   * to LET THROUGH, and at rank 31 `(1 << rank) - 1` relies on `1 << 31`
+   * being the sign bit and ToInt32 handing back 0x7FFFFFFF. If that reasoning
+   * were wrong the walk would silently emit nothing, which is the
+   * fail-smaller direction.
+   *
+   * MUTATION PROOF, run: change either guard to `>= SUBSET_MASK_BITS` and
+   * this fails with `31 fundamentals exceeds the 31-bit mask` -- from
+   * `sharingGraph`, because that is the first of the two assertions below.
+   * The `forEachConnectedSubset` half reports `rank 31 outside 0..31` if you
+   * change only its guard.
+   */
+  it('accepts the largest basis the 31-bit mask can carry', () => {
+    const g = graph(welds(['a', 'b']));
+    const basis = Array.from({ length: SUBSET_MASK_BITS }, (_, i) => [0, i % 1]);
+    expect(sharingGraph(g, basis)).toHaveLength(SUBSET_MASK_BITS);
+
+    const got: number[] = [];
+    const complete = forEachConnectedSubset(
+      Array<number>(SUBSET_MASK_BITS).fill(0),
+      SUBSET_MASK_BITS,
+      1 << 22,
+      () => 1,
+      (m) => got.push(m),
+    );
+    expect(complete).toBe(true);
+    // An edgeless graph of 31 vertices: 31 singletons, the highest being
+    // bit 30. A wrapped `allowed` mask would emit fewer, or none.
+    expect(got).toHaveLength(SUBSET_MASK_BITS);
+    expect(Math.max(...got)).toBe(1 << (SUBSET_MASK_BITS - 1));
+  });
+
   it('refuses a neighbours array that does not match the rank, and a negative rank', () => {
     expect(() => forEachConnectedSubset([0, 0], 4, 10, () => 1, () => {})).toThrow(
       'neighbours has 2 entries for rank 4',
@@ -612,13 +695,20 @@ describe('a dense sharing graph is bounded by work, not by subset count', () => 
 
   /*
    * MUTATION PROOF, run: charge the budget per subset again (`costOf` -> `1`,
-   * budget 20_000) and three specs fail -- this one on the 602-piece case
-   * with `expected false to be 'work'`, then the two larger cases as
-   * `Test timed out in 5000ms`. The 602-piece failure is the instructive
-   * one: 2^14-1 = 16,383 subsets falls UNDER a 20,000 subset cap, so the
-   * walk does not truncate at all and simply takes as long as it takes.
-   * The piece-count sweep is the point: a per-subset budget is flat in
-   * subsets and LINEAR in pieces, so only varying pieces catches it.
+   * budget 20_000) and FOUR specs fail:
+   *
+   *   this one                            `602 pieces: expected false to be 'work'`
+   *   reports no cycles and no worst      `Test timed out in 5000ms`
+   *   spends the shipped budget           `Test timed out in 5000ms`
+   *   refuses a big dense layout ...      `expected true to be false`
+   *
+   * The two timeouts belong to those two OTHER specs, not to this one's
+   * larger iterations -- this spec's loop aborts on its 602-piece assertion
+   * and never reaches them. That 602-piece failure is the instructive one:
+   * 2^14-1 = 16,383 subsets falls UNDER a 20,000 subset cap, so the walk
+   * does not truncate at all and simply takes as long as it takes. The
+   * piece-count sweep is the point: a per-subset budget is flat in subsets
+   * and LINEAR in pieces, so only varying pieces catches it.
    */
   it('refuses inside one frame at any piece count', () => {
     for (const [petals, len] of [
@@ -639,11 +729,12 @@ describe('a dense sharing graph is bounded by work, not by subset count', () => 
    * ORDINARY layout in full. On today's catalogue the sharing graph has no
    * edges, so cost is the total weld count rather than a product.
    *
-   * MUTATION PROOF, run: set CYCLE_WORK_BUDGET to 2_000 and three specs fail,
-   * this one with `expected 'work' to be false` -- a 10,000-piece layout of
-   * plain loops stops being answered at all. The shipped-value spec below
-   * fails too, which is the pair working as intended: one spec guards the
-   * budget being too loose, this one guards it being too tight.
+   * MUTATION PROOF, run: set CYCLE_WORK_BUDGET to 2_000 and TWO specs fail --
+   * this one with `expected 'work' to be false`, because a 10,000-piece
+   * layout of plain loops stops being answered at all, and the shipped-value
+   * spec below with `expected 2000 to be 150000`. That pair is the point:
+   * one guards the budget being too loose, this one guards it being too
+   * tight.
    */
   it('still answers a legitimate 10,000-piece layout in full', () => {
     const g = loops(20, 500);
@@ -660,9 +751,14 @@ describe('a dense sharing graph is bounded by work, not by subset count', () => 
    * MUTATION PROOF, run: replace the call with
    * `sharingGraph(graph, fundamentals).map(() => 0)` -- the exact "missing
    * edge" the docblock calls a false pass -- and this fails with
-   * `expected [...] to have a length of 2 but got 3`... in the other
-   * direction: 3 cycles become 2. The combined loop stops being reachable
-   * and a loop the user built is never checked.
+   * `expected [ { …(6) }, { …(6) } ] to have a length of 3 but got 2`.
+   * Five specs fail in all. The combined loop stops being reachable and a
+   * loop the user built is never checked.
+   *
+   * An earlier version of this record quoted that message BACKWARDS ("length
+   * of 2 but got 3") and then corrected itself in prose with "in the other
+   * direction", which is how a reversed quote survives review. The quote is
+   * the measurement; prose cannot repair it.
    */
   it('reaches the combined subset when two fundamentals share pieces', () => {
     const a = analyse(bundle(3, 2));
@@ -693,9 +789,10 @@ describe('a dense sharing graph is bounded by work, not by subset count', () => 
    * cost function and its own 500, so without this the value that actually
    * ships was pinned by nothing.
    *
-   * MUTATION PROOF, run: set CYCLE_WORK_BUDGET to 20_000_000 and two specs
-   * fail: this one with `expected 20000000 to be 150000`, and the frame
-   * spec above with `expected false to be 'work'` on its 602-piece case,
+   * MUTATION PROOF, run: set CYCLE_WORK_BUDGET to 20_000_000 and THREE specs
+   * fail: this one with `expected 20000000 to be 150000`, the frame spec
+   * above with `602 pieces: expected false to be 'work'`, and the
+   * TOO_BIG_TO_CHECK verdict spec with `expected true to be false` --
    * because a budget that large stops bounding anything.
    */
   it('spends the shipped budget, which is what bounds the product', () => {

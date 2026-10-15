@@ -37,6 +37,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { ACTION_FOR_FAILURE, FAILURE_COPY, isFailure } from './verdictAction.js';
 import type { CycleReport } from '../../engine/src/graph/cycles.js';
 import type { VertexClash, WeldPolarityViolation } from '../../engine/src/graph/feasible.js';
 import type { GraphResult } from '../../engine/src/graph/solve.js';
@@ -315,7 +316,7 @@ describe('the figures name ONE loop, never a total', () => {
 describe('completeness', () => {
   it('every VerdictKind is reachable from viewOf', () => {
     // Not a tone assertion: this file returns a KIND and knows nothing about
-    // CSS. X2b owns grey-is-not-green over nine kinds and five tones.
+    // CSS. X2b owns grey-is-not-green over ten kinds and five tones.
     const tight = cycle({ gapMm: 1.0, withinGive: true });
     const over = cycle({ gapMm: 9.0, withinGive: false });
     const reached = new Set<VerdictKind>([
@@ -360,5 +361,133 @@ describe('completeness', () => {
     const all = Object.keys(ALL) as readonly VerdictKind[];
     for (const k of all) expect(reached).toContain(k);
     expect(reached.size).toBe(all.length);
+  });
+});
+
+/**
+ * THE FAILURE REGISTER, which had no coverage at all.
+ *
+ * Value: protects=every VerdictKind that is a failure is classified as one,
+ * so a refusal is rendered as a refusal and never as a near-pass
+ * Value: fails_when=`isFailure` and `FAILURE_COPY` disagree, which is what a
+ * hand-written predicate beside an exhaustive Record invites
+ * Value: why_new=`isFailure` was a five-clause `||` chain inside
+ * `VerdictLine.tsx`. Nothing referenced it or `FAILURE_COPY` from any test,
+ * and nothing could: the suite collects `.test.ts` only in a node
+ * environment with no DOM, so a `.tsx` spec is never even run. Adding
+ * TOO_BIG_TO_CHECK needed three edits and tsc checked two of them; with the
+ * predicate's arm missing, that refusal falls past the grey failure branch
+ * and renders as a near-pass.
+ * Value: seam=both moved to `verdictAction.ts`, a `.ts` module, which is the
+ * whole reason they are reachable from here
+ * Value: no_claim=nothing about how the copy is laid out or styled; this is
+ * the register, not the rendering.
+ */
+describe('the failure register', () => {
+  /*
+   * A Record again, for the same reason the completeness spec above uses one:
+   * an array of kinds is satisfied by a SUBSET, so it goes stale silently.
+   *
+   * MUTATION PROOF, run: delete a key from this literal and `bun run
+   * typecheck` fails with TS2741 naming the missing property.
+   */
+  const ALL_KINDS: Record<VerdictKind, true> = {
+    NOTHING: true,
+    NO_CYCLE: true,
+    HEADING_MISMATCH: true,
+    TOO_MANY_LOOPS: true,
+    TOO_BIG_TO_CHECK: true,
+    NUMERIC: true,
+    IMPOSSIBLE: true,
+    EXACT: true,
+    NEEDS_GIVE: true,
+    EXCEEDS: true,
+  };
+
+  /*
+   * MUTATION PROOF, run: hand-write the predicate again and drop one arm
+   * (`k === 'TOO_BIG_TO_CHECK'`) and this fails with
+   * `expected false to be true // Object.is equality` on that kind.
+   */
+  it('classifies exactly the kinds that have failure copy, and no others', () => {
+    for (const k of Object.keys(ALL_KINDS) as VerdictKind[]) {
+      expect(isFailure(k), k).toBe(Object.hasOwn(FAILURE_COPY, k));
+    }
+  });
+
+  it('every failure kind has non-empty copy and an action', () => {
+    const keys = Object.keys(FAILURE_COPY) as (keyof typeof FAILURE_COPY)[];
+    expect(keys.length).toBeGreaterThan(0);
+    for (const k of keys) {
+      expect(FAILURE_COPY[k].trim(), k).not.toBe('');
+      expect(ACTION_FOR_FAILURE[k].trim(), k).not.toBe('');
+    }
+  });
+
+  /* A pass or a near-pass must never be classified as a failure. */
+  it('does not classify a pass or a near-pass as a failure', () => {
+    for (const k of ['EXACT', 'NEEDS_GIVE', 'EXCEEDS', 'IMPOSSIBLE', 'NOTHING'] as const) {
+      expect(isFailure(k), k).toBe(false);
+    }
+  });
+});
+
+/**
+ * A FILLER ZERO IS NOT A MEASUREMENT.
+ *
+ * Value: protects=nothing claims a loop closes unless the engine measured it
+ * Value: fails_when=`gapKnown` is set on a refusal, or dropped on the solved
+ * path
+ * Value: why_new=`EMPTY` fills `gapMm` with 0 on every refusal, and
+ * `VerdictLine` rendered " The loop does close; that does not help." whenever
+ * `rank > 0 && gapMm === 0`. Measured through `viewOf` at rank 7 with one
+ * clash: TOO_MANY_LOOPS, TOO_BIG_TO_CHECK, NUMERIC and HEADING_MISMATCH all
+ * rendered it -- the last while the engine had just determined the track does
+ * NOT come back aligned. The existing `rank > 0` guard was added after a user
+ * reported the same sentence over a layout with no loop; it fixed the rank-0
+ * case and left every rank-positive refusal asserting closure.
+ * Value: seam=none
+ * Value: no_claim=the sentence itself lives in `VerdictLine.tsx` and cannot
+ * be rendered here. This pins the flag it is now keyed on.
+ */
+describe('gapKnown separates a measured gap from a filler', () => {
+  /*
+   * MUTATION PROOF, run: set `gapKnown: true` in `EMPTY` and this fails with
+   * `expected true to be false // Object.is equality` on NO_CYCLE, the first
+   * refusal in the loop.
+   */
+  it('is false on every refusal, where gapMm is only a filler', () => {
+    for (const reason of [
+      'NO_CYCLE',
+      'TOO_MANY_LOOPS',
+      'TOO_BIG_TO_CHECK',
+      'HEADING_MISMATCH',
+      'NUMERIC',
+    ] as const) {
+      const v = viewOf(refused({ reason, rank: 7 }));
+      expect(v.gapKnown, reason).toBe(false);
+      expect(v.gapMm, reason).toBe(0);
+    }
+    // The clash path too, which is where the sentence was actually rendered.
+    const c = viewOf(refused({ rank: 7, clashes: [clash()] }));
+    expect(c.kind).toBe('IMPOSSIBLE');
+    expect(c.gapKnown).toBe(false);
+  });
+
+  /*
+   * MUTATION PROOF, run: delete `gapKnown: true` from `base` and this fails
+   * with `expected undefined to be true`. UNDEFINED, not false: `base` does
+   * not spread `EMPTY`, so the property goes missing rather than reverting to
+   * a default -- and tsc does not object, which is exactly why a spec is
+   * needed here.
+   */
+  it('is true on the solved path, where the engine traced the cycles', () => {
+    const tight = cycle({ gapMm: 1.0, withinGive: true });
+    for (const v of [
+      viewOf(solved({ closesExactly: true })),
+      viewOf(solved({ closesExactly: false, withinBound: true, worst: tight, cycles: [tight] })),
+    ]) {
+      expect(v.gapKnown).toBe(true);
+    }
   });
 });

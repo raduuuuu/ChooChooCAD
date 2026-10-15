@@ -12,7 +12,8 @@ import { BUILT_IN, makeResolver } from '../data/library.js';
 import { findVertexClashes, findWeldPolarityViolations } from '../src/graph/feasible.js';
 import { placeAll } from '../src/graph/frames.js';
 import { graphFromChain } from '../src/graph/fromChain.js';
-import { portsOf, type Graph, type Piece, type Port } from '../src/graph/model.js';
+import { portsOf, type Graph, type Piece, type Port, type Weld } from '../src/graph/model.js';
+import { type Cyc, equals, scale, zetaPow, add, fromInt } from '../src/geom/cyclotomic.js';
 import type { Layout } from '../src/parts/schema.js';
 
 const resolve = makeResolver(BUILT_IN);
@@ -188,5 +189,124 @@ describe('free ends meeting are an invitation, not a clash', () => {
    */
   it('a free end landing on an existing joint is still a clash', () => {
     expect(openRun(16).length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * THE OVERLAP SCAN IS GROUPED BY EXACT POSITION, not compared all-pairs.
+ *
+ * Value: protects=the overlap scan costs what the layout contains rather than
+ * the square of it, so a large stored layout cannot freeze the tab in the one
+ * function that runs before every other bound
+ * Value: fails_when=the grouping key stops agreeing with `equals`, so two
+ * ports in the same place land in different groups and an overlap is missed
+ * Value: why_new=the all-pairs loop was unbounded and nothing enforced the
+ * 500-port ceiling its own shortcut note named. MEASURED on 20 rings of
+ * ordinary straights, every port claimed once, no duplicate weld, catalogue
+ * parts only -- so no guard anywhere objects: 1,000 pieces 85ms, 5,000
+ * 2,221ms, 10,000 8,337ms, on a 1MB stored layout that still reported "ok".
+ * A freeze is not a throw, so nothing caught it and every reload repeated it.
+ * Value: seam=none
+ * Value: no_claim=nothing about pieces crossing mid-span, which this never
+ * checked and the verdict copy says out loud. Nothing either about a layout
+ * whose ports genuinely all coincide: that stays quadratic in the
+ * coincidences, which is work proportional to the answer.
+ *
+ * The clash SEMANTICS are unchanged and were held fixed while the cost
+ * changed: 582 fixtures (every catalogue part at both turns as open chains
+ * and closed loops, 400 random soups, the 16xE double circle and the 8L8R
+ * tangent pair) produced byte-identical output before and after, 749 clash
+ * records in all. The specs above are what pin the semantics; these two pin
+ * the cost and the one new assumption underneath it.
+ */
+describe('the overlap scan groups by exact position', () => {
+  /*
+   * THE ASSUMPTION THE GROUPING RESTS ON, and the only genuinely new one:
+   * a lattice position's coefficient tuple is an exact equality key. It holds
+   * because a position is eight INTEGERS in a fixed basis and `equals` is
+   * `isZero(sub(a, b))`, so joining cannot merge two different elements and
+   * cannot split one. `-0` is the case worth naming: it stringifies to "0"
+   * and `-0 === 0`, so it keys with `0` exactly as `equals` treats it.
+   *
+   * THIS SPEC DOES NOT PIN THE GROUPING'S CHOICE OF KEY, and saying so is the
+   * point. Keying the scan on `toXY(pos)` instead -- the float projection,
+   * which is what a "spatial grid" usually means -- leaves all 428 specs
+   * green, verified by running it. No fixture here has two distinct lattice
+   * points that collide under the projection, and building one needs
+   * coefficients large enough for double spacing to swallow their
+   * difference. So what this spec pins is the ASSUMPTION the grouping rests
+   * on, not its use; the use is kept honest by `latticeKey` being the one
+   * place the question is asked. Filed as a coverage gap rather than left
+   * implied.
+   */
+  it('a position tuple is an exact equality key, which is what makes grouping sound', () => {
+    const samples: Cyc[] = [];
+    for (let k = 0; k < 16; k++)
+      for (const r of [0, 1, -1, 54, 216, -216, 1000]) samples.push(scale(zetaPow(k), r));
+    samples.push(add(scale(zetaPow(1), 216), scale(zetaPow(3), -54)));
+    samples.push(add(scale(zetaPow(3), -54), scale(zetaPow(1), 216)));
+    samples.push(fromInt(0), scale(fromInt(0), -1));
+
+    let compared = 0;
+    for (const a of samples)
+      for (const b of samples) {
+        compared++;
+        expect(a.join(',') === b.join(','), `${a.join(',')} vs ${b.join(',')}`).toBe(equals(a, b));
+      }
+    expect(compared).toBeGreaterThan(10_000);
+  });
+
+  /** `n` rings of `k` straights, anchored far apart so none of them overlap. */
+  const ringsApart = (n: number, k: number): Graph => {
+    const pieces: Piece[] = [];
+    const welds: Weld[] = [];
+    const anchors = new Map<string, { pos: Cyc; heading: number }>();
+    for (let c = 0; c < n; c++) {
+      for (let i = 0; i < k; i++) pieces.push({ pieceId: `c${c}p${i}`, partId: 'A' });
+      for (let i = 0; i < k; i++)
+        welds.push({ a: { pieceId: `c${c}p${i}`, port: 1 }, b: { pieceId: `c${c}p${(i + 1) % k}`, port: 0 } });
+      anchors.set(`c${c}p0`, { pos: scale(zetaPow(4), 100_000 * (c + 1)), heading: 0 });
+    }
+    return { pieces, welds, anchors };
+  };
+
+  /*
+   * ONE SIZE, TIMED, AND THE BOUND IS SIZED AGAINST THE MUTATION.
+   *
+   * A first version timed both 1,000 and 10,000 pieces against 100ms and
+   * flaked: 107ms on the 10,000-piece case on a loaded machine against a
+   * 16-18ms steady state, which is only 6x of headroom. The lesson is the one
+   * `BOUND_MS` in cycles.test.ts already records -- size the bound against
+   * the distance to the regression, not against the measured pass -- and it
+   * applies here too.
+   *
+   * 500ms is 30x the steady state and still catches the regression by 16x.
+   * Only the 10,000-piece case is timed, because it is the one that catches
+   * the mutation decisively; the small case is kept for its CORRECTNESS
+   * assertion, which is the other failure direction (a scan that invents a
+   * clash where the rings are anchored apart).
+   *
+   * MUTATION PROOF, run: restore the all-pairs `for (let j = i + 1; ...)`
+   * loop and this fails at `10000 pieces took 8337ms`, 16x past the bound.
+   * At 1,000 pieces the same mutation is only 162ms, which is why timing the
+   * small case bought nothing but flake.
+   */
+  it('costs what the layout contains, not the square of it', () => {
+    for (const [n, k] of [
+      [20, 50],
+      [20, 500],
+    ] as const) {
+      const g = ringsApart(n, k);
+      const place = placeAll(g, ports);
+      const t0 = performance.now();
+      const found = findVertexClashes(g, ports, place);
+      const ms = performance.now() - t0;
+      // Anchored apart, so there is genuinely nothing to report. A scan that
+      // invented a clash here would be the other failure direction.
+      expect(found, `${g.pieces.length} pieces`).toEqual([]);
+      if (g.pieces.length >= 10_000) {
+        expect(ms, `${g.pieces.length} pieces took ${ms.toFixed(0)}ms`).toBeLessThan(500);
+      }
+    }
   });
 });

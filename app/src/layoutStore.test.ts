@@ -735,7 +735,8 @@ describe('a stored weld cannot claim a port another weld already holds', () => {
 
   /*
    * MUTATION PROOF, run: delete the `claimed` checks and all four cases below
-   * load cleanly -- `expected undefined to be a string`. The duplicate then
+   * load cleanly -- `expected undefined to be type of 'string'`, quoted as
+   * `toBeTypeOf` prints it rather than paraphrased. The duplicate then
    * becomes a second closing weld, which is what inflated the rank.
    */
   const cases = {

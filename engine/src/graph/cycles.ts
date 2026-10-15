@@ -54,9 +54,13 @@ import { weldGiveMm } from './model.js';
 export const CYCLE_RANK_CEILING = 20;
 
 /**
- * Subsets are carried in an int32 mask, so vertex 31 is the last one `1 << j`
- * can address. Named once because it was a bare literal in two guards and
- * two message strings, and raising it means changing all four together.
+ * How many fundamentals a subset mask can carry.
+ *
+ * Subsets live in an int32, so the usable bit positions are 0..30 and a basis
+ * of 31 is the largest that fits -- `1 << 31` is the sign bit and `1 << 32`
+ * wraps to 1. The COUNT is 31; the last index is 30. Named once because it
+ * was a bare literal in two guards and two message strings, and raising it
+ * means changing all four together.
  */
 export const SUBSET_MASK_BITS = 31;
 
@@ -185,8 +189,8 @@ function traceSimpleCycle(
  * combined subgraph is what decides whether a symmetric difference can be one
  * circuit, and two cycles sharing an edge share its ends anyway.
  *
- * @internal Exported for the test seam below, not as engine API. The only
- * non-test caller is `analyseCycles` in this file.
+ * @internal Exported as a test seam for `engine/test/cycles.test.ts`, not as
+ * engine API. The only non-test caller is `analyseCycles` in this file.
  *
  * Separated from `analyseCycles` so it can be tested on its own, because on
  * today's catalogue it CANNOT be tested through `analyseCycles`: every part
@@ -226,18 +230,39 @@ export function sharingGraph(
     }
     return ids;
   });
-  return piecesOf.map((mine, i) => {
+  /*
+   * INVERTED, not compared pairwise.
+   *
+   * This used to intersect every fundamental's piece set against every
+   * other's, which is O(rank x total pieces) and ALWAYS hit its worst case in
+   * production: the inner `break` fires only when two fundamentals really do
+   * share a piece, and on today's catalogue none ever do, so every call ran
+   * the full rank x (rank-1) scan to return all zeros. Measured 1.94ms of a
+   * 13.2ms answer at 10,000 pieces, and 52.56ms at 150,000.
+   *
+   * One pass records which fundamentals own each piece; a second ORs the
+   * owners of the pieces each fundamental touches. Same condition -- j is a
+   * neighbour of i exactly when some piece of i is also owned by j -- in
+   * O(total pieces).
+   *
+   * MEASURED, old against new, rank 20, mean of 20 runs:
+   *
+   *    10,000 pieces   1.55ms  ->  0.68ms
+   *    40,000 pieces   6.36ms  ->  2.41ms
+   *   150,000 pieces  32.72ms  -> 15.79ms
+   *
+   * and byte-identical masks over 1,202 random fundamental sets.
+   */
+  const owners = new Map<string, number>();
+  piecesOf.forEach((ids, i) => {
+    for (const id of ids) owners.set(id, (owners.get(id) ?? 0) | (1 << i));
+  });
+  return piecesOf.map((ids, i) => {
     let mask = 0;
-    for (let j = 0; j < piecesOf.length; j++) {
-      if (j === i) continue;
-      for (const id of piecesOf[j]!) {
-        if (mine.has(id)) {
-          mask |= 1 << j;
-          break;
-        }
-      }
-    }
-    return mask;
+    for (const id of ids) mask |= owners.get(id)!;
+    // Own bit cleared here rather than skipped in a loop: a fundamental owns
+    // every piece it touches, so it is always its own neighbour otherwise.
+    return (mask & ~(1 << i)) >>> 0;
   });
 }
 
@@ -259,10 +284,46 @@ export function sharingGraph(
  * The first is the worse of the two: a seven-second frozen tab and no
  * refusal at all, which is the same P0 this walk was written to close.
  *
- * In weld-slots the bound no longer depends on layout size. The budget is
- * charged per subset BEFORE that subset's work is done, so a hostile graph is
- * refused rather than paid for -- the same property `CYCLE_RANK_CEILING`
- * claims for the input.
+ * AND THE WALK ALONE DID NOT CLOSE IT. Two other things on the same path had
+ * to change before a large layout stopped freezing the tab: the all-pairs
+ * overlap scan in `feasible.ts`, which ran BEFORE every bound here and cost
+ * 8337ms at 10,000 pieces, and `App.tsx`'s scanning `slop` callback. Any
+ * claim in this file that the enumeration fix closed the freeze means the
+ * enumeration's share of it.
+ *
+ * WHAT THIS BOUNDS, AND WHAT IT DOES NOT. Stated precisely because the first
+ * version of this comment claimed "the bound no longer depends on layout
+ * size", which is true of the WALK and false of `analyseCycles`.
+ *
+ * It bounds the walk. The budget is charged per subset BEFORE that subset's
+ * work is done, so a subset costing more than the whole budget is refused
+ * unvisited and total work inside the walk is at most `budget` -- the same
+ * property `CYCLE_RANK_CEILING` claims for the input.
+ *
+ * It does NOT bound what happens before the walk. `fundamentals` and
+ * `sharingGraph` both run first and both are linear in pieces, so a REFUSAL
+ * still costs something. Measured on a dense graph:
+ *
+ *    10,000 pieces, answered      15ms
+ *   150,000 pieces, answered     169ms   (the whole budget, one accepted walk)
+ *   200,000 pieces, refused      180ms
+ *   400,000 pieces, refused      285ms
+ *
+ * So 150,000 weld-slots buys about 170ms on the answered path, not one frame.
+ * A slot costs ~7x more when the subset is ACCEPTED (it then pays
+ * `giveOfWeld` per edge) than when `traceSimpleCycle` rejects it, and the
+ * dense specs measure the cheap side, so no spec measures within 15x of what
+ * this constant permits. Filed rather than retuned: picking the number from a
+ * frame target needs `giveOfWeld` precomputed per weld first, which is its
+ * own change.
+ *
+ * It also assumes a slot is O(1), which is a contract on the CALLER. The
+ * `slop` and `ports` callbacks are invoked per edge, and a scanning
+ * implementation makes the whole thing quadratic in pieces from outside --
+ * `App.tsx` did exactly that, measured at 2196ms for 32,000 pieces with the
+ * budget never firing. The engine cannot defend itself there: caching inside
+ * does not help, because the first lookup per piece still scans and there
+ * are O(pieces) distinct pieces. Both callers now pass Map lookups.
  */
 export const CYCLE_WORK_BUDGET = 150_000;
 
@@ -288,8 +349,9 @@ export const CYCLE_WORK_BUDGET = 150_000;
  * Returns false when the budget ran out, which the caller reports as
  * `truncated` rather than presenting a partial enumeration as the whole.
  *
- * @internal Exported for the brute-force differential below, not as engine
- * API. The only non-test caller is `analyseCycles` in this file.
+ * @internal Exported as a test seam for the brute-force differential in
+ * `engine/test/cycles.test.ts`, not as engine API. The only non-test caller
+ * is `analyseCycles` in this file.
  */
 export function forEachConnectedSubset(
   neighbours: readonly number[],

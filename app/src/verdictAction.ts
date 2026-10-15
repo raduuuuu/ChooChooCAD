@@ -40,10 +40,45 @@ export const ACTION_FOR_VERDICT: Record<OutcomeKind, string> = {
     'Change a straight for a different length, or rearrange the curves. The gap is larger than the joints can take up.',
 };
 
-type FailureKind = Extract<
+/**
+ * The failure kinds, declared ONCE.
+ *
+ * This was declared identically here and in `VerdictLine.tsx`, and adding
+ * TOO_BIG_TO_CHECK meant editing both in lockstep -- a cost the duplication
+ * had already charged before anyone noticed it.
+ */
+export type FailureKind = Extract<
   VerdictKind,
   'NO_CYCLE' | 'HEADING_MISMATCH' | 'TOO_MANY_LOOPS' | 'TOO_BIG_TO_CHECK' | 'NUMERIC'
 >;
+
+/**
+ * The headline for each failure. Lives here rather than in `VerdictLine.tsx`
+ * because `vitest.config.ts` collects `.test.ts` only, in a node environment
+ * with no DOM: anything in a `.tsx` file is untestable, and this and
+ * `isFailure` below were the one new user-facing branch in the
+ * TOO_BIG_TO_CHECK change with no coverage at all.
+ */
+export const FAILURE_COPY: Record<FailureKind, string> = {
+  NO_CYCLE: 'Not a loop yet.',
+  HEADING_MISMATCH: 'The track does not come back pointing the right way.',
+  TOO_MANY_LOOPS: 'Too many loops in this layout to rank them.',
+  TOO_BIG_TO_CHECK: 'Too much track here to check every loop.',
+  NUMERIC: 'Could not check this layout.',
+};
+
+/**
+ * DERIVED from the copy table, not hand-written beside it.
+ *
+ * This was a five-clause `||` chain maintained in parallel with a Record that
+ * tsc already keeps exhaustive, so a new kind needed three edits and the
+ * compiler only checked two of them. With the arm missing, a refusal falls
+ * past the grey failure branch and renders as a NEAR-PASS -- the same
+ * hand-maintained-list defect that `verdictView.test.ts` fixed with a Record
+ * in this very change, left standing one file over.
+ */
+export const isFailure = (k: VerdictKind): k is FailureKind => Object.hasOwn(FAILURE_COPY, k);
+
 export const ACTION_FOR_FAILURE: Record<FailureKind, string> = {
   NO_CYCLE: 'Click the two free ends you want joined.',
   TOO_MANY_LOOPS: 'Break this into fewer loops, or check them a few at a time.',

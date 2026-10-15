@@ -69,7 +69,8 @@
     ],
     "app/src/verdictAction.ts": [
       "app/src/repro.test.ts",
-      "app/src/verdictAction.test.ts"
+      "app/src/verdictAction.test.ts",
+      "app/src/verdictView.test.ts"
     ],
     "app/src/verdictView.ts": [
       "app/src/repro.test.ts",
@@ -195,6 +196,7 @@
     "engine/src/graph/solve.ts": [
       "app/src/repro.test.ts",
       "app/src/verdictView.test.ts",
+      "engine/test/cycles.test.ts",
       "engine/test/differential.test.ts",
       "engine/test/trustBoundary.test.ts"
     ],

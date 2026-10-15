@@ -82,6 +82,29 @@ function vertices(graph: Graph): (key: string) => string {
  * same lattice point or they do not. This is a FEASIBILITY fact and never a
  * connectivity one, which is the distinction the chain engine could not draw.
  */
+/**
+ * A position's identity as a grouping key: its eight coefficients, exactly.
+ *
+ * NAMED, AND IN ONE PLACE, BECAUSE NO TEST CAN CATCH THE WRONG CHOICE HERE.
+ * Keying on `toXY(pos)` instead -- the float projection, which is what a
+ * "spatial grid" usually means -- passes all 428 specs, verified by running
+ * it. No fixture in the suite has two distinct lattice points that collide
+ * under the float projection, and constructing one needs coefficients large
+ * enough for double spacing to swallow their difference. So the rule that
+ * keeps this sound is not enforced from outside; it is enforced by this
+ * function being the only place the question is asked.
+ *
+ * Sound because a position is eight INTEGERS in a fixed basis and `equals` is
+ * `isZero(sub(a, b))`: joining can neither merge two different elements nor
+ * split one. `-0` keys as `"0"` and `-0 === 0`, so it matches what `equals`
+ * does with it. Decision f333f98f says the replacement for the all-pairs scan
+ * must key on "the exact lattice position, never a tolerance" -- this is that
+ * sentence, as code.
+ */
+function latticeKey(pos: Cyc): string {
+  return pos.join(',');
+}
+
 export function findVertexClashes(
   graph: Graph,
   ports: PortsOf,
@@ -112,15 +135,45 @@ export function findVertexClashes(
   }
 
   /*
-   * gstack-shortcut(dec-f333f98f): all-pairs comparison, O(n^2) in ports.
-   * Ceiling: 25,359 pairs at the measured worst case, which is milliseconds.
-   * Upgrade when a layout exceeds roughly 500 ports, or when profiling puts
-   * this above 16ms in a frame; the replacement is a spatial grid keyed on
-   * the exact lattice position, never a tolerance.
+   * GROUPED BY EXACT POSITION, which is decision f333f98f's own prescribed
+   * replacement for the all-pairs comparison this used to do.
    *
-   * Decision f333f98f SUPERSEDES cae368ab, whose "204,480 conflicting pairs"
-   * was C(640,2), the number of pairs COMPARED, not conflicts found.
+   * The old loop compared every port against every other and threw away
+   * 99.99% of the pairs on `!equals(a.pos, b.pos)`. Its shortcut note said to
+   * upgrade "when a layout exceeds roughly 500 ports", which nothing
+   * enforced: MEASURED on 20 clean rings of ordinary straights, every port
+   * claimed once and no duplicate welds, so no guard anywhere objects --
+   *
+   *     1,000 pieces     85ms
+   *     5,000 pieces   2,221ms
+   *    10,000 pieces   8,337ms   (a 1MB stored layout, verdict "ok")
+   *
+   * -- and a freeze is not a throw, so `ErrorBoundary` never fired and the
+   * key was never cleared. That is the same uncatchable hang the cycle
+   * enumeration used to cause, one function upstream of every bound that was
+   * added to stop it: this runs BEFORE the rank ceiling and before
+   * `analyseCycles`, on every branch including `rank === 0`.
+   *
+   * A lattice position is an exact 8-integer tuple, so grouping on it needs
+   * no tolerance and no grid resolution to tune -- `join` is sound as a key
+   * precisely because `equals` is `isZero(sub(a, b))` over integers. The
+   * comparison below is then the SAME loop with `j` restricted to the ports
+   * that actually coincide with `i`, walked in ascending `i` then ascending
+   * `j`, so the pairs are visited in the identical order and the output is
+   * byte-identical rather than merely equivalent.
+   *
+   * What this does NOT bound: a layout whose ports genuinely all land in one
+   * place is still quadratic, because the coincidences themselves are. That
+   * is work proportional to the answer rather than to the input, and it is
+   * measured in the spec.
    */
+  const at = new Map<string, number[]>();
+  for (let i = 0; i < placed.length; i++) {
+    const key = latticeKey(placed[i]!.pos);
+    const group = at.get(key);
+    if (group) group.push(i);
+    else at.set(key, [i]);
+  }
   /*
    * ONE CLASH PER PAIR OF VERTICES, not per pair of ports.
    *
@@ -139,13 +192,17 @@ export function findVertexClashes(
   /** Free-end coincidences, grouped by the pair of pieces that share them. */
   const touching = new Map<string, VertexClash[]>();
   for (let i = 0; i < placed.length; i++) {
-    for (let j = i + 1; j < placed.length; j++) {
+    for (const j of at.get(latticeKey(placed[i]!.pos))!) {
+      if (j <= i) continue;
       const a = placed[i]!;
       const b = placed[j]!;
       // Same vertex means they are DECLARED to be here together. That is a
       // joint, not a collision, and it is the whole reason the index-based
       // exclusions could go.
       if (a.vertex === b.vertex) continue;
+      // Kept as an assertion of the grouping, not as a filter: `at` already
+      // guarantees it, and if that ever stops being true this is where the
+      // wrong answer would come from.
       if (!equals(a.pos, b.pos)) continue;
       const key = a.vertex < b.vertex ? `${a.vertex}|${b.vertex}` : `${b.vertex}|${a.vertex}`;
       if (reported.has(key)) continue;

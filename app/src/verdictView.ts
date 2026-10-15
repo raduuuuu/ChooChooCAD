@@ -35,8 +35,22 @@ export type VerdictKind =
 export interface VerdictView {
   readonly kind: VerdictKind;
   readonly detail: string;
-  /** The worst loop's gap, millimetres. */
+  /**
+   * The worst loop's gap, millimetres -- ONLY when `gapKnown`.
+   *
+   * On a refusal this is a filler zero, and a zero filler read as a
+   * measurement is what printed "The loop does close" over layouts whose
+   * loops were never examined. Check `gapKnown` before saying anything about
+   * closure.
+   */
   readonly gapMm: number;
+  /**
+   * True when `gapMm` and `giveMm` came from a real measurement.
+   *
+   * False on every refusal, because `EMPTY` fills them with zero. The engine
+   * decides closure from exact residuals; a refusal never got that far.
+   */
+  readonly gapKnown: boolean;
   /** That same loop's OWN give. Never a total across loops. */
   readonly giveMm: number;
   /** Independent loops in the layout: E - V + CC. */
@@ -50,6 +64,7 @@ export interface VerdictView {
 }
 
 const EMPTY: VerdictView = {
+  gapKnown: false,
   kind: 'NOTHING',
   detail: '',
   gapMm: 0,
@@ -87,6 +102,8 @@ export function viewOf(result: GraphResult | null): VerdictView {
 
   const base = {
     detail: '',
+    // Measured: this is the solved branch, so the engine traced the cycles.
+    gapKnown: true,
     gapMm: result.gapMm,
     giveMm: result.totalGiveMm,
     rank: result.rank,

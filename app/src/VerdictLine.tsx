@@ -23,31 +23,19 @@
 
 import type { ReactNode } from 'react';
 import type { TrustIssue } from '../../engine/src/joints/trust.js';
-import type { VerdictKind, VerdictView } from './verdictView.js';
-import { ACTION_FOR_FAILURE, ACTION_FOR_VERDICT } from './verdictAction.js';
+import type { VerdictView } from './verdictView.js';
+import {
+  ACTION_FOR_FAILURE,
+  ACTION_FOR_VERDICT,
+  FAILURE_COPY,
+  isFailure,
+} from './verdictAction.js';
 
 /*
- * Keyed by the kind, not by string: a new one is a compile error here rather
- * than a silent fall-through to generic copy. Verified by deleting a key,
- * which fails with TS2741.
+ * The copy table and the predicate moved to `verdictAction.ts`, which is a
+ * `.ts` module and therefore testable: this file is `.tsx` and the suite
+ * collects `.test.ts` only, in a node environment with no DOM.
  */
-type FailureKind = Extract<
-  VerdictKind,
-  'NO_CYCLE' | 'HEADING_MISMATCH' | 'TOO_MANY_LOOPS' | 'TOO_BIG_TO_CHECK' | 'NUMERIC'
->;
-const FAILURE_COPY: Record<FailureKind, string> = {
-  NO_CYCLE: 'Not a loop yet.',
-  HEADING_MISMATCH: 'The track does not come back pointing the right way.',
-  TOO_MANY_LOOPS: 'Too many loops in this layout to rank them.',
-  TOO_BIG_TO_CHECK: 'Too much track here to check every loop.',
-  NUMERIC: 'Could not check this layout.',
-};
-const isFailure = (k: VerdictKind): k is FailureKind =>
-  k === 'NO_CYCLE' ||
-  k === 'HEADING_MISMATCH' ||
-  k === 'TOO_MANY_LOOPS' ||
-  k === 'TOO_BIG_TO_CHECK' ||
-  k === 'NUMERIC';
 
 /**
  * The trust register.
@@ -336,7 +324,17 @@ export function VerdictLine({
                 * loop does close" over a layout with no loop at all, which a
                 * user read in a bug report.
                 */}
-              {e.rank > 0 && e.gapMm === 0 && ' The loop does close; that does not help.'}
+              {/*
+                * `gapKnown` as well as rank, because `gapMm` is a FILLER zero
+                * on every refusal. Keyed on rank and gap alone, this printed
+                * "the loop does close" over a TOO_MANY_LOOPS, a
+                * TOO_BIG_TO_CHECK, a NUMERIC and even a HEADING_MISMATCH --
+                * where the engine had just determined the track does NOT come
+                * back aligned. Measured through `viewOf` at rank 7 with one
+                * clash: all four rendered the sentence.
+                */}
+              {e.rank > 0 && e.gapKnown && e.gapMm === 0 &&
+                ' The loop does close; that does not help.'}
               <span className="verdict-detail">
                 {' '}Only exact overlaps like this are checked. Pieces crossing mid-span are not.
               </span>
