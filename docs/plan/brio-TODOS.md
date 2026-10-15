@@ -869,6 +869,36 @@ U5 may be about to give it a caller.
 
 ## Completed
 
+## DONE — A recovered orphan could be placed inside a surviving run (P0, fixed 2026-10-15)
+
+**Was:** `loadGraph` re-anchored orphans into lanes chosen by stepping over
+occupied ANCHOR POINTS. An anchor names where a component starts; a run
+marching along the lane axis occupies lanes its root never mentions, so an
+orphan could land on an already-welded joint inside it. A welded end is spoken
+for, so `findVertexClashes` reported it rather than excusing it the way it
+excuses two free ends meeting, and the verdict read "Can't be built" about a
+layout the user built correctly.
+
+**Fix:** the loader clears the FOOTPRINT of everything already placed, which is
+what `layoutModel.nextRunAnchor` has always done for the in-app path. It takes
+port geometry (`PortsOf`) instead of a port count, which it needed anyway to
+validate weld indices, so the parameter got smaller rather than larger.
+
+ONE placement, not one per orphan: moving an anchor along zeta^4 without
+changing its heading translates a component rigidly, so every component's
+height is measured once and the orphans are stacked using those heights.
+MEASURED linear, 400 orphans in 1.4ms and 800 in 2.6ms.
+
+**Verified:** the two specs that pinned this are un-skipped and pass. Reverting
+to the anchor-point rule fails 5 tests including both; never advancing the
+frontier between orphans fails the two-orphan case. In the browser, the exact
+reproducing layout now reads "Not a loop yet. 2 separate runs of track" with
+the position notice still shown, where it used to read "Can't be built".
+
+Also removed on the way: an optional port-count parameter that let the suite
+exercise a weaker branch than production, and an `orphans.indexOf(id)` inside
+the loop over `orphans` that I wrote in the first draft of the fix.
+
 ### P1 — No remote, no backup, no CI
 **Completed:** 2026-10-14 (tasks X1 and X1b)
 
@@ -1043,51 +1073,6 @@ divergence it exists for.
 **Effort:** human ~2d / CC ~3h across all six groups. **Priority:** P2.
 **Depends on / blocked by:** B waits on U5's intent for `breakWeld`; the
 `analytic.test.ts` half of C is K2's job.
-
-## P0 — A recovered orphan can be placed inside a surviving run, which manufactures a false "can't be built" (filed by /ship, 2026-10-14)
-
-**What:** `layoutStore.loadGraph` re-anchors pieces whose stored anchor was
-unreadable into free "lanes" along `zeta^4`. The occupancy check de-duplicates
-ROOT ANCHOR POINTS only. A run that marches along the lane axis occupies lanes
-its root does not name, so an orphan can be dropped into the middle of it.
-
-**Measured at `a95408d`:** two 216mm straights (`D`) welded into a run anchored
-at the identity with `heading: 4`, plus one orphan, yields
-`MANUFACTURED CLASHES = 1` at `[1.3226185430791415e-14, 216]`. p0 spans lane 0
-to lane 1 and p1 spans lane 1 to lane 2; p1's root is at lane 1 but only roots
-are anchored, so `taken` does not contain it. The orphan takes lane 1 and lands
-on p1's already-welded port 0. A welded end is spoken for, so
-`findVertexClashes` pushes it straight to `clashes` rather than excusing it the
-way it excuses two free ends meeting. `viewOf` then returns IMPOSSIBLE and the
-verdict reads "Can't be built" about a layout the user built correctly.
-
-**Why it matters more than a wrong position:** the notice says part of your
-track may be in the wrong place. It never says the verdict below it is wrong.
-The twenty-line comment at the lane search argues explicitly that a visible
-wrong position beats an invisible wrong verdict — and then produces the wrong
-verdict anyway. The product's only output is a trustworthy verdict.
-
-**Fix:** place each orphan past the BOUNDING BOX of everything already placed,
-not past occupied root points. `layoutModel.nextRunAnchor` already does this
-correctly for the in-app path, computing clearance from `maxY - minY`; the
-loader uses a strictly weaker rule for the same decision because it has part
-ids but no port geometry. Either thread a `PortsOf` into `loadGraph`, or return
-the orphan ids and let `App.tsx` place them through `nextRunAnchor`. The second
-is cleaner: the resolver already lives there.
-
-**Regression pin:** `app/src/layoutStore.test.ts`, `describe.skip('an orphan
-lane clears a survivor RUN, not just its anchor')`. Both cases fail when
-un-skipped — 1 clash instead of 0, and lane 1 instead of lane 3. Do not delete
-it to make the suite green.
-
-**Why deferred rather than fixed in the ship:** this is the THIRD attempt at
-this one bug. The first shipped `anchorMap.size + k + 1`, which counted
-survivors; the second shipped the root-point `taken` set, which is this. Both
-were written under ship pressure and both were wrong. The correctness argument
-runs through lattice projections and the fix changes a module signature.
-
-**Effort:** human ~3h / CC ~40m. **Priority:** P0.
-**Depends on / blocked by:** nothing.
 
 ## P1 — `solveGraph` computes a second placement instead of accepting the one App.tsx already made (filed by /ship, 2026-10-14)
 

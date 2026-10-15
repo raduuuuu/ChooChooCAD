@@ -63,9 +63,7 @@ const blob = (v: unknown) => ({ [GRAPH_STORAGE_KEY]: JSON.stringify(v) });
  * helper that omitted them ran a weaker branch than the shipped one -- every
  * pre-existing E2/E9 case included.
  */
-const portCountOf = (partId: string) => portsOf(resolve(partId)).length;
-const load = (seed: Record<string, string>) =>
-  withStore(seed, () => loadGraph(KNOWN, portCountOf));
+const load = (seed: Record<string, string>) => withStore(seed, () => loadGraph(KNOWN, ports));
 
 /** A real two-piece run, built through the model and serialized by `saveGraph`. */
 function storedRun(): string {
@@ -95,7 +93,7 @@ describe('nothing stored', () => {
 
   it('an old chain blob is reported, not silently skipped, and is rescued', () => {
     const r = withStore({ [CHAIN_STORAGE_KEY]: '[{"partId":"E"}]' }, (store) => {
-      const out = loadGraph(KNOWN);
+      const out = loadGraph(KNOWN, ports);
       // The legacy bytes are kept: this is the one migration that cannot be
       // written, so the user needs the original to rebuild from.
       expect(store.get(GRAPH_RESCUE_KEY)).toBe('[{"partId":"E"}]');
@@ -178,7 +176,7 @@ describe('E1: the refused bytes are rescued', () => {
   it('copies the original blob verbatim before refusing it', () => {
     const raw = JSON.stringify({ pieces: [{ pieceId: 'a', partId: 'NOPE' }], welds: [] });
     const r = withStore({ [GRAPH_STORAGE_KEY]: raw }, (store) => {
-      const out = loadGraph(KNOWN);
+      const out = loadGraph(KNOWN, ports);
       expect(store.get(GRAPH_RESCUE_KEY)).toBe(raw);
       return out;
     });
@@ -187,7 +185,7 @@ describe('E1: the refused bytes are rescued', () => {
 
   it('rescues unparseable bytes too, which are exactly the ones a human must read', () => {
     withStore({ [GRAPH_STORAGE_KEY]: '{not json' }, (store) => {
-      loadGraph(KNOWN);
+      loadGraph(KNOWN, ports);
       expect(store.get(GRAPH_RESCUE_KEY)).toBe('{not json');
     });
   });
@@ -199,7 +197,7 @@ describe('E1: the refused bytes are rescued', () => {
       anchors: [['a', { pos: [1, 0, 0, 0, 0, 0, 0, 0], heading: 400 }]],
     });
     const r = withStore({ [GRAPH_STORAGE_KEY]: raw }, (store) => {
-      const out = loadGraph(KNOWN);
+      const out = loadGraph(KNOWN, ports);
       expect(store.get(GRAPH_RESCUE_KEY)).toBe(raw);
       return out;
     });
@@ -209,7 +207,7 @@ describe('E1: the refused bytes are rescued', () => {
 
   it('does not write a rescue copy when the load was clean', () => {
     withStore({ [GRAPH_STORAGE_KEY]: storedRun() }, (store) => {
-      loadGraph(KNOWN);
+      loadGraph(KNOWN, ports);
       expect(store.has(GRAPH_RESCUE_KEY)).toBe(false);
     });
   });
@@ -301,25 +299,21 @@ describe('E2: a dropped anchor keeps the layout and never manufactures a clash',
         ],
         welds: [],
         anchors: [
-          /*
-           * LANE 1, NOT LANE 2, and the difference is the whole test.
-           *
-           * With the survivor parked at lane 2 this case did not pin the
-           * mechanism it names: free lane 1 was handed straight to the orphan
-           * and the `while (taken.has(...))` branch never ran. MEASURED:
-           * deleting the entire occupancy search left all 333 tests green, and
-           * only `noUnusedLocals` noticed. At lane 1 -- exactly what
-           * `nextRunAnchor` returns for a second run over a short first one --
-           * the orphan must step over it.
-           */
           ['p2', { pos: [0, 0, 0, 0, 216, 0, 0, 0], heading: 0 }],
           ['p3', { pos: 'rubbish', heading: 0 }],
         ],
       }),
     );
     expect(r.droppedAnchors).toBe(1);
-    // It stepped PAST the occupied lane, rather than onto it.
-    expect(r.value.anchors?.get('p3')?.pos.join(',')).toBe('0,0,0,0,432,0,0,0');
+    /*
+     * PAST THE FOOTPRINT, not past the anchor point, which is the P0 fix.
+     * MEASURED for this fixture: the unanchored root occupies y 0 to 59.2 and
+     * the survivor at lane 1 occupies 216 to 275.2, so the frontier is 275.2.
+     * The orphan's bottom edge goes one full spacing above that, 491.2, which
+     * rounds up to lane 3. The old rule said 432 -- clear here by luck, since
+     * it only ever looked at where anchors START.
+     */
+    expect(r.value.anchors?.get('p3')?.pos.join(',')).toBe('0,0,0,0,648,0,0,0');
 
     const placement = placeAll(r.value, ports);
     const frames = placement.forest.roots.map((id) => placement.frames.get(id)!);
@@ -329,18 +323,25 @@ describe('E2: a dropped anchor keeps the layout and never manufactures a clash',
   });
 
   /*
-   * THE ORIGINAL COLLISION, which the case above cannot reproduce.
+   * EACH ORPHAN CLEARS THE ONE BEFORE IT, not just the survivors.
    *
-   * A survivor parked at lane 2 and TWO orphans. MEASURED with
-   * `const steps = anchorMap.size + n + 1` restored: the first orphan lands at
-   * `[0,0,0,0,432,0,0,0]`, the survivor's exact frame, and the second at 864 --
-   * one formula producing both a collision and a gap. The occupancy search
-   * gives 216 and 648: the free lanes, in order.
+   * A survivor at lane 2 and TWO orphans. MEASURED: the survivor occupies
+   * y 432 to 491.2, the first orphan is placed at 864 (occupying 864 to
+   * 923.2) and the second at 1296 -- each one a full 216mm spacing clear of
+   * the previous component's TOP edge, not of its anchor.
    *
-   * MUTATION PROOF, run: restore that formula and this fails. It is the only
-   * case in this file that does.
+   * This case used to pin the arithmetic bug that preceded the footprint rule
+   * (`anchorMap.size + n + 1`, which put the first orphan on the survivor's
+   * exact frame). That code no longer exists, so the comment claiming it was
+   * the only case in the file that failed under it would have rotted into
+   * another unrunnable mutation proof. Replaced with two that do run.
+   *
+   * MUTATION PROOF, run: measure the frontier only over survivors and never
+   * advance it between orphans, and this fails -- both orphans land on the
+   * same lane. Revert to clearing anchor POINTS rather than footprints and it
+   * fails too, with the first orphan back at lane 1.
    */
-  it('two orphans take the free lanes in order, around an occupied lane 2', () => {
+  it('two orphans each clear the footprint of everything before them', () => {
     const r = load(
       blob({
         pieces: [
@@ -357,8 +358,8 @@ describe('E2: a dropped anchor keeps the layout and never manufactures a clash',
       }),
     );
     expect(r.droppedAnchors).toBe(2);
-    expect(r.value.anchors?.get('o1')?.pos.join(',')).toBe('0,0,0,0,216,0,0,0');
-    expect(r.value.anchors?.get('o2')?.pos.join(',')).toBe('0,0,0,0,648,0,0,0');
+    expect(r.value.anchors?.get('o1')?.pos.join(',')).toBe('0,0,0,0,864,0,0,0');
+    expect(r.value.anchors?.get('o2')?.pos.join(',')).toBe('0,0,0,0,1296,0,0,0');
 
     const placement = placeAll(r.value, ports);
     const frames = placement.forest.roots.map((id) => placement.frames.get(id)!);
@@ -389,8 +390,13 @@ describe('E2: a dropped anchor keeps the layout and never manufactures a clash',
         anchors: [['p2', { pos: 'rubbish', heading: 0 }]],
       }),
     );
-    // p1 is unanchored, so it lands at the identity; p2 is the orphan.
-    expect(r.value.anchors?.get('p2')?.pos.join(',')).toBe('0,0,0,0,216,0,0,0');
+    /*
+     * p1 is unanchored, so `placeAll` puts it at the identity, where it
+     * occupies y 0 to 59.2. The orphan clears that footprint by a full
+     * spacing, which rounds to lane 2. Under the old anchor-point rule it was
+     * lane 1, which only cleared the identity POINT.
+     */
+    expect(r.value.anchors?.get('p2')?.pos.join(',')).toBe('0,0,0,0,432,0,0,0');
     const placement = placeAll(r.value, ports);
     const frames = placement.forest.roots.map((id) => placement.frames.get(id)!);
     expect(new Set(frames.map((f) => f.pos.join(','))).size).toBe(frames.length);
@@ -512,7 +518,7 @@ describe('E9: the anchor-rejection matrix', () => {
 describe('a stored weld cannot name a port the part does not have', () => {
   /** Port counts, the way App.tsx supplies them. */
   const loadWithCounts = (seed: Record<string, string>) =>
-    withStore(seed, () => loadGraph(KNOWN, portCountOf));
+    withStore(seed, () => loadGraph(KNOWN, ports));
 
   const twoPieces = (port: unknown) => ({
     pieces: [
@@ -557,11 +563,14 @@ describe('a stored weld cannot name a port the part does not have', () => {
   /*
    * THE CHECK IS COUNT-DRIVEN, not hardcoded to two. No switch is seeded in
    * the library yet (`model.ts:8` says so), so the three-port case is proved
-   * with a port count that reports three: port 2 is accepted for that part and
-   * refused for the two-port straight beside it, in the same layout.
+   * with port geometry that reports three ends: port 2 is accepted for that
+   * part and refused for the two-port straight beside it, in the same layout.
    */
   it('port 2 is accepted on a three-port part and refused on a two-port one', () => {
-    const asIfSwitch = (partId: string) => (partId === 'D' ? 3 : portCountOf(partId));
+    // A real third end, not a padded array: the loader now measures geometry
+    // with these, so a fake entry would be placed as well as counted.
+    const asIfSwitch: typeof ports = (piece) =>
+      piece.partId === 'D' ? [...ports(piece), ports(piece)[1]!] : ports(piece);
     const layout = (port: number) =>
       blob({
         pieces: [
@@ -572,7 +581,7 @@ describe('a stored weld cannot name a port the part does not have', () => {
         anchors: [],
       });
     expect(withStore(layout(2), () => loadGraph(KNOWN, asIfSwitch)).discarded).toBeUndefined();
-    expect(withStore(layout(2), () => loadGraph(KNOWN, portCountOf)).discarded).toBeTypeOf('string');
+    expect(withStore(layout(2), () => loadGraph(KNOWN, ports)).discarded).toBeTypeOf('string');
     // Three ports still does not mean four.
     expect(withStore(layout(3), () => loadGraph(KNOWN, asIfSwitch)).discarded).toBeTypeOf('string');
   });
@@ -605,17 +614,21 @@ describe('a stored weld cannot name a port the part does not have', () => {
    * become a no-op.
    */
   /*
-   * The default count is unbounded, for a caller that has part ids and no
-   * geometry. The integer and non-negative checks still apply, so the weak
-   * branch is weaker but never a no-op.
+   * THERE IS NO WEAK BRANCH ANY MORE. `loadGraph` used to take an OPTIONAL
+   * port count defaulting to unbounded, so a caller with only part ids got a
+   * looser check than production, and the suite's own helper took that branch
+   * for every pre-existing case. Port geometry is required now -- the loader
+   * needs it to place orphans clear of real footprints anyway -- so the test
+   * that proved the fallback still bit has nothing left to prove.
+   *
+   * What replaces it: the integer and non-negative checks are exercised by
+   * the refusal matrix above, which runs through the same required parameter
+   * production uses.
    */
-  it('with the default unbounded count, a non-integer or negative port is still refused', () => {
+  it('a non-integer or negative port is refused, on the production path', () => {
     for (const port of [-1, 2.5, Number.NaN]) {
-      const r = withStore(blob(twoPieces(port)), () => loadGraph(KNOWN));
-      expect(r.discarded).toBeTypeOf('string');
+      expect(load(blob(twoPieces(port))).discarded).toBeTypeOf('string');
     }
-    // And an in-range integer is accepted, so the default is not refusing all.
-    expect(withStore(blob(twoPieces(99)), () => loadGraph(KNOWN)).discarded).toBeUndefined();
   });
 });
 
@@ -659,7 +672,7 @@ describe('a stored weld cannot name a port the part does not have', () => {
  *
  * Un-skip this to start the work; do not delete it to make the suite green.
  */
-describe.skip('an orphan lane clears a survivor RUN, not just its anchor', () => {
+describe('an orphan lane clears a survivor RUN, not just its anchor', () => {
   const runAlongTheLaneAxis = () =>
     blob({
       pieces: [

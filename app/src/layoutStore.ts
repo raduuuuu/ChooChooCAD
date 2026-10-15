@@ -38,7 +38,8 @@
  */
 
 import type { Frame, Graph, Piece, Weld } from '../../engine/src/graph/model.js';
-import { scale, zetaPow, type Cyc } from '../../engine/src/geom/cyclotomic.js';
+import { scale, toXY, zetaPow, type Cyc } from '../../engine/src/geom/cyclotomic.js';
+import { placeAll, portFrame, type PortsOf } from '../../engine/src/graph/frames.js';
 import { CHAIN_STORAGE_KEY, GRAPH_RESCUE_KEY, GRAPH_STORAGE_KEY } from './storageKeys.js';
 import { EMPTY_GRAPH, RUN_SPACING_MM } from './layoutModel.js';
 
@@ -98,24 +99,117 @@ function rescue(raw: string): boolean {
 }
 
 /**
- * How many ports a part has.
+ * Where every orphan goes: past the FOOTPRINT of what is already placed, not
+ * past the anchor points.
  *
- * NOT turn-dependent. The first version threaded `turn` through here, through
- * a `turnOf` map and through the port check, on the assumption that a turn
- * could change the COUNT. It cannot: `portsOf` returns a fixed length per kind
- * (2 for a straight, 2 for a curve, 3 for a switch) and `turn` only picks
- * which way an arc bends. A sweep over every part in `BUILT_IN` found none
- * whose count differs between `undefined`, `'left'` and `'right'`. The
- * threading was the only reason the weld loop needed a per-piece lookup.
+ * THE BUG THIS REPLACES (P0, filed 2026-10-14). The previous version kept a set
+ * of occupied anchor POSITIONS and handed each orphan the first lane not in it.
+ * An anchor names where a component STARTS; a run marching along the lane axis
+ * occupies lanes its root never mentions. MEASURED: two 216mm straights welded
+ * into a run anchored at the identity with `heading: 4` span lanes 0 to 2, the
+ * set contained only lane 0, so the orphan took lane 1 -- the middle of the run
+ * -- and landed on an already-welded joint. A welded end is spoken for, so
+ * `findVertexClashes` reported it rather than excusing it the way it excuses
+ * two free ends meeting, and the verdict read "Can't be built" about a layout
+ * the user built correctly. That is the third invariant inverted: a passing
+ * layout styled as a failure, on the one output this product exists to give.
  *
- * If the switch work later makes the count turn-dependent, add the parameter
- * back together with a test that fails without it.
+ * `layoutModel.nextRunAnchor` has always done this correctly for the in-app
+ * path, clearing a new run by the existing layout's own height. The loader used
+ * a weaker rule for the same decision because it had part ids and no geometry.
+ * It has the geometry now.
+ *
+ * ONE PLACEMENT, NOT ONE PER ORPHAN. Moving an anchor along zeta^4 without
+ * changing its heading translates that whole component rigidly, so its height
+ * is the same wherever it is put. Every component is therefore measured once,
+ * and the orphans are stacked using those heights. Re-placing per orphan would
+ * be correct too and would make the loader quadratic in pieces, which is the
+ * shape of a separate filed P1 about this file.
+ *
+ * Every anchor written here is an integer multiple of zeta^4: the lane is
+ * rounded UP to the next whole multiple, so clearance is preserved and the
+ * stored point stays exactly on the lattice. No epsilon enters.
  */
-export type PortCountOf = (partId: string) => number;
+function clearOfEveryFootprint(
+  pieces: readonly Piece[],
+  welds: readonly Weld[],
+  anchors: Map<string, Frame>,
+  orphans: readonly string[],
+  ports: PortsOf,
+): void {
+  if (orphans.length === 0) return;
+
+  // Provisional distinct lanes, so one `placeAll` can measure every component.
+  orphans.forEach((id, i) =>
+    anchors.set(id, { pos: scale(zetaPow(4), RUN_SPACING_MM * (i + 1)), heading: 0 }),
+  );
+  const placement = placeAll({ pieces, welds, anchors }, ports);
+
+  // Piece to the root of its component. `forest.order` visits a parent before
+  // its children, so one pass is enough.
+  const rootOf = new Map<string, string>();
+  for (const id of placement.forest.order) {
+    const link = placement.forest.parent.get(id);
+    rootOf.set(id, link ? rootOf.get(link.from)! : id);
+  }
+
+  // The y-extent each component actually occupies, measured at its provisional
+  // position. Floats are fine here: choosing where to put something is not
+  // computing geometry, and what gets STORED below is an exact lattice point.
+  const byId = new Map(pieces.map((p) => [p.pieceId, p]));
+  const span = new Map<string, { min: number; max: number }>();
+  for (const id of placement.forest.order) {
+    const piece = byId.get(id);
+    const root = rootOf.get(id);
+    if (!piece || root === undefined) continue;
+    const count = ports(piece).length;
+    for (let i = 0; i < count; i++) {
+      const [, y] = toXY(portFrame(placement, ports, piece, i).pos);
+      const seen = span.get(root);
+      if (!seen) span.set(root, { min: y, max: y });
+      else {
+        if (y < seen.min) seen.min = y;
+        if (y > seen.max) seen.max = y;
+      }
+    }
+  }
+
+  // Everything that is NOT an orphan has to be cleared, including components
+  // whose root has no anchor at all -- `placeAll` puts those at the identity,
+  // which is exactly the region an orphan would otherwise be handed.
+  const isOrphan = new Set(orphans);
+  let frontier = 0;
+  for (const [root, s] of span) {
+    if (!isOrphan.has(root) && s.max > frontier) frontier = s.max;
+  }
+
+  for (const [i, id] of orphans.entries()) {
+    // An anchor on a piece that is not a component root is inert: `placeAll`
+    // reads the root's. Leave the provisional one rather than inventing a
+    // position that nothing will use.
+    if (rootOf.get(id) !== id) continue;
+    const s = span.get(id);
+    if (!s) continue;
+    // The index, not `orphans.indexOf(id)`, which would be a quadratic hiding
+    // inside a loop that already has the number it needs.
+    const provisionalY = RUN_SPACING_MM * (i + 1);
+    // Put this component's BOTTOM edge one full spacing above the frontier.
+    const wantedY = frontier + RUN_SPACING_MM - s.min + provisionalY;
+    const lane = Math.max(1, Math.ceil(wantedY / RUN_SPACING_MM));
+    anchors.set(id, { pos: scale(zetaPow(4), RUN_SPACING_MM * lane), heading: 0 });
+    frontier = RUN_SPACING_MM * lane + (s.max - provisionalY);
+  }
+}
 
 export function loadGraph(
   knownPartIds: ReadonlySet<string>,
-  portCountOf: PortCountOf = () => Number.POSITIVE_INFINITY,
+  /**
+   * Port geometry, REQUIRED. It was an optional port COUNT, which left the
+   * suite exercising a weaker branch than production and left the loader
+   * unable to see where a component actually sits. Both holes closed by
+   * taking the real thing.
+   */
+  ports: PortsOf,
 ): GraphLoadResult {
   let raw: string | null = null;
   try {
@@ -182,7 +276,7 @@ export function loadGraph(
      * sizes, and a gratuitous quadratic two lines from proof that the right
      * structure was already in hand.
      */
-    const partOf = new Map(out.map((p) => [p.pieceId, p.partId]));
+    const pieceOf = new Map(out.map((p) => [p.pieceId, p]));
     /*
      * A PORT INDEX GETS THE SAME TREATMENT AS A HEADING (finding B1).
      *
@@ -207,11 +301,12 @@ export function loadGraph(
      * starting empty, which is why this refuses the whole layout rather than
      * dropping the weld -- the same call the missing-piece check below makes.
      */
-    const isPort = (v: unknown, partId: string): v is number =>
-      typeof v === 'number' &&
-      Number.isInteger(v) &&
-      v >= 0 &&
-      v < portCountOf(partId);
+    const isPort = (v: unknown, pieceId: string): v is number => {
+      if (typeof v !== 'number' || !Number.isInteger(v) || v < 0) return false;
+      // Non-null is sound: `ids.has` gated this lookup, and `ids` and
+      // `pieceOf` are filled from the same array in lockstep.
+      return v < ports(pieceOf.get(pieceId)!).length;
+    };
     for (const w of welds) {
       const a = (w as Weld | undefined)?.a;
       const b = (w as Weld | undefined)?.b;
@@ -222,12 +317,7 @@ export function loadGraph(
       if (!ids.has(a.pieceId) || !ids.has(b.pieceId)) {
         return refuse(DISCARDED);
       }
-      // Non-null is sound: `ids.has` above gated both lookups, and `ids` and
-      // `partOf` are filled from the same array in lockstep.
-      if (
-        !isPort(a.port, partOf.get(a.pieceId)!) ||
-        !isPort(b.port, partOf.get(b.pieceId)!)
-      ) {
+      if (!isPort(a.port, a.pieceId) || !isPort(b.port, b.pieceId)) {
         return refuse(DISCARDED);
       }
       // Only the two fields a weld end IS. The stored object may carry extra
@@ -297,49 +387,7 @@ export function loadGraph(
       anchorMap.set(id, { pos, heading });
     }
 
-    /*
-     * Re-anchor the orphans into FREE lanes, so no two components start at the
-     * same frame. `heading: 0` because a lost heading is not recoverable either
-     * and zero is the only non-claim.
-     *
-     * THE LANE IS SEARCHED, NOT COMPUTED, and the first version of this got it
-     * wrong in exactly the way the surrounding comment promises it does not.
-     * It used `anchorMap.size + k + 1`, a COUNT of survivors rather than the
-     * highest lane in use. `nextRunAnchor` hands out lanes 1, 2, 3..., so one
-     * survivor sitting at lane 2 gives size 1, k 0, steps 2 -- the orphan lands
-     * on the survivor's exact frame, `placeAll` stacks them, and
-     * `findVertexClashes` reports the manufactured "can't be built" this whole
-     * passage exists to prevent. Reproduced before fixing: two clashes.
-     *
-     * A survivor's anchor is an arbitrary lattice point (captureAnchors records
-     * wherever a component actually was), so there is no arithmetic that
-     * reliably steps "past" them. Checking occupancy is correct by construction
-     * and costs nothing at these sizes.
-     */
-    const taken = new Set<string>();
-    for (const f of anchorMap.values()) taken.add(f.pos.join(','));
-    /*
-     * Lane 0 IS the identity, where `placeAll` puts an unanchored root, so the
-     * search starts at 1 and `lane` only ever increments. The identity is
-     * therefore unreachable by construction rather than by a Set entry.
-     *
-     * It used to be seeded into `taken` with a ten-line justification, and a
-     * test named the property. MEASURED: removing that seed left all 333 tests
-     * green, because `scale(zetaPow(4), 216 * lane)` is never the zero vector
-     * for lane >= 1. Dead code wearing a justification is worse than no code:
-     * it reads as a guard somebody can rely on.
-     */
-    let lane = 1;
-    for (const id of orphans) {
-      let pos = scale(zetaPow(4), RUN_SPACING_MM * lane);
-      while (taken.has(pos.join(','))) {
-        lane++;
-        pos = scale(zetaPow(4), RUN_SPACING_MM * lane);
-      }
-      taken.add(pos.join(','));
-      anchorMap.set(id, { pos, heading: 0 });
-      lane++;
-    }
+    clearOfEveryFootprint(out, outWelds, anchorMap, orphans, ports);
 
     return {
       value: { pieces: out, welds: outWelds, anchors: anchorMap },

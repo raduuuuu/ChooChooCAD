@@ -156,12 +156,17 @@ export function App() {
    * vanish in silence.
    */
   /*
-   * The loader is handed port COUNTS, not just part ids, so a stored weld
-   * naming a port the part does not have is refused at load (finding B1)
-   * rather than throwing inside render on every reload.
+   * The loader is handed port GEOMETRY, not just part ids. It needs that
+   * twice over: to refuse a stored weld naming a port the part does not have
+   * (finding B1), and to place a piece whose anchor was unreadable clear of
+   * where the surviving track actually sits rather than clear of where its
+   * anchors merely start (the orphan-lane P0).
+   *
+   * Same shape as the `ports` memo below, written out here because this runs
+   * once in a `useState` initialiser, before that memo exists.
    */
   const [graphLoad] = useState(() =>
-    loadGraph(libraryIds, (partId) => portsOf(resolve(partId)).length),
+    loadGraph(libraryIds, (piece: GPiece) => portsOf(resolve(piece.partId), piece.turn)),
   );
   const [inventoryLoad] = useState(() => loadInventory(libraryIds));
 

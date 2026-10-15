@@ -1,7 +1,1 @@
-# gstack's scratch lives here and stays out of the repo. Two files do not:
-# pregate.json is policy /ship reads from the BASE branch, so it is useless
-# uncommitted, and pregate.README explains its empty lane lists.
 *
-!.gitignore
-!pregate.json
-!pregate.README

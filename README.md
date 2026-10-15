@@ -6,8 +6,8 @@ no existing tool answers: **will this layout actually work?**
 ```
 bun install        # once
 bun run dev        # the UI, at http://localhost:5173
-bun run test       # the whole suite; 4 specs are skipped on purpose and all
-                   # four fail when un-skipped -- they pin two filed P0s
+bun run test       # the whole suite; 2 specs are skipped on purpose and both
+                   # fail when un-skipped -- they pin the one remaining P0
 bun try.ts         # one layout from the command line; edit PIECES at the top
 ```
 
