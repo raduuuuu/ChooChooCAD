@@ -80,8 +80,8 @@ function vertices(graph: Graph): (key: string) => string {
  *
  * NAMED, AND IN ONE PLACE, BECAUSE NO TEST CAN CATCH THE WRONG CHOICE HERE.
  * Keying on `toXY(pos)` instead -- the float projection, which is what a
- * "spatial grid" usually means -- passes all 428 specs, verified by running
- * it. No fixture in the suite has two distinct lattice points that collide
+ * "spatial grid" usually means -- leaves the whole suite green, verified by
+ * running it. No fixture in the suite has two distinct lattice points that collide
  * under the float projection, and constructing one needs coefficients large
  * enough for double spacing to swallow their difference. So the rule that
  * keeps this sound is not enforced from outside; it is enforced by this
@@ -156,33 +156,16 @@ export function findVertexClashes(
    *
    * A lattice position is an exact 8-integer tuple, so grouping on it needs
    * no tolerance and no grid resolution to tune -- `join` is sound as a key
-   * precisely because `equals` is `isZero(sub(a, b))` over integers. The
-   * comparison below is then the SAME loop with `j` restricted to the ports
-   * that actually coincide with `i`, walked in ascending `i` then ascending
-   * `j`, so the pairs are visited in the identical order and the output is
-   * byte-identical rather than merely equivalent.
+   * precisely because `equals` is `isZero(sub(a, b))` over integers.
    *
-   * WHAT THIS DOES NOT BOUND, and it is the bigger half. When ports COINCIDE
-   * the group is the whole layout, so the pair walk below is quadratic again
-   * and grouping buys only a constant. An earlier version of this comment
-   * called that "work proportional to the answer" and said it was measured in
-   * the spec. Both were wrong: the answer is itself quadratic in the input,
-   * and NO spec measures it -- the only timed case anchors its rings 100,000
-   * apart precisely so that nothing coincides, and that spec's own `no_claim`
-   * line says so.
-   *
-   * MEASURED, open run of `E` (45 degrees, so eight of them close a circle
-   * and a run laps the same EIGHT places), this function alone:
-   *
-   *     1,000 pieces   0.11MB     59ms      62,124 records
-   *     4,000 pieces   0.44MB    973ms     998,499 records
-   *     8,000 pieces   0.92MB   3912ms   4,191,231 records, 2.35GB resident
-   *
-   * Reachable by clicking one palette button: 800 `add` actions through the
-   * real reducer is 87KB stored and 39,699 records, visible by 200 clicks.
-   * Tracked as its own P0 in `docs/plan/brio-TODOS.md`; the fix is to stop
-   * enumerating pairs, which needs a decision about what a clash IS when
-   * three or more ends meet, so it is not a one-line change.
+   * GROUPING ALONE WAS NOT ENOUGH, and the paragraph that used to sit here
+   * said so correctly: when ports COINCIDE the group is the whole layout, so
+   * a pair walk inside the group is quadratic again. It then went on to say
+   * that no spec measures it and that the case was work proportional to the
+   * answer. Both are now false, and the fix is 150 lines below rather than
+   * outstanding: the rule is counted per PIECE, there is no pair walk left to
+   * be quadratic, and three timed specs cover the coincident case. The
+   * before-and-after measurements live once, in the block at `clashes`.
    */
   const at = new Map<string, number[]>();
   for (let i = 0; i < placed.length; i++) {
@@ -192,7 +175,7 @@ export function findVertexClashes(
     else at.set(key, [i]);
   }
   /*
-   * ONE CLASH PER PAIR OF VERTICES, not per pair of ports.
+   * HOW THE COUNT GOT HERE: ports, then pairs of vertices, now places.
    *
    * The first version counted ports and the number it produced was wrong in
    * the way that matters: the 16xE double circle reported "32 pairs of track
@@ -215,9 +198,9 @@ export function findVertexClashes(
    * circle and an open run laps the same EIGHT places. MEASURED before this,
    * on an open run of `E`:
    *
-   *     1,000 pieces   0.11MB     59ms      62,124 records
-   *     4,000 pieces   0.44MB    973ms     998,499 records
-   *     8,000 pieces   0.92MB   3912ms   4,191,231 records, 2.35GB resident
+   *     1,000 pieces   0.11MB     48ms      62,124 records
+   *     4,000 pieces   0.44MB    825ms     998,499 records
+   *     8,000 pieces   0.92MB   5907ms   3,996,999 records, 2.35GB resident
    *
    * 800 `add` actions through the real reducer is 87KB stored and 39,699
    * records. At 16,384 pieces it is a renderer OOM inside a render `useMemo`,
@@ -246,13 +229,31 @@ export function findVertexClashes(
    * passing layout into a failure is the same invariant as the reverse, and
    * this reformulation needs no such decision.
    *
-   * VERIFIED IDENTICAL, which is the point of reformulating rather than
-   * re-deciding. Against the previous implementation over 1,088 fixtures --
-   * every catalogue part at both turns as chains and loops of 3/4/8/9/16/17/
-   * 24 pieces, 700 random soups, lapped runs of 9/17/33/64 of every part,
-   * piles of 2..60 loose unanchored pieces, mixed-part piles, the 16xE double
-   * circle and the 8L8R tangent pair: the set of reported PLACES is identical
-   * in all 1,088, and no layout changes verdict.
+   * VERIFIED IDENTICAL OVER THE FIXTURES, AND A SUPERSET IN GENERAL. Against
+   * the previous implementation over 1,088 fixtures -- every catalogue part at
+   * both turns as chains and loops of 3/4/8/9/16/17/24 pieces, 700 random
+   * soups, lapped runs of 9/17/33/64 of every part, piles of 2..60 loose
+   * unanchored pieces, mixed-part piles, the 16xE double circle and the 8L8R
+   * tangent pair: the set of reported PLACES is identical in all 1,088, and
+   * no layout changes verdict.
+   *
+   * "Identical in all 1,088" was for a while the whole claim, and it was the
+   * corpus mistaken for the general case. The two sets are NOT equal in
+   * general: the new one is a strict SUPERSET. The old rule deduped on the
+   * vertex PAIR across the whole layout, so when the SAME two vertices
+   * coincided at two distinct places it reported only the first. A piece
+   * whose own two ends are welded together is one vertex at two positions, so
+   * two such pieces stacked coincide twice -- MEASURED: two unanchored
+   * self-welded `A` straights report 2 places here (`0,0` and `144,0`) and
+   * reported 1 before. The corpus has no self-weld, which is why 1,088
+   * fixtures agreed. `graphFeasible.test.ts` now carries that blob as a
+   * fixture so the divergence is pinned rather than rediscovered.
+   *
+   * The direction is always this way round, never the reverse, and that is
+   * what matters: the old rule had already reported ONE place of the pair, so
+   * the verdict was IMPOSSIBLE before and is IMPOSSIBLE after. No layout
+   * passes that used to fail, and none fails that used to pass; only the
+   * count rises, and the extra marker is drawn where something really is.
    *
    * WHAT DOES CHANGE is the COUNT: places, not vertex pairs. That is forced,
    * because a place can hold n vertices and C(n,2) is quadratic in the input.
@@ -271,6 +272,18 @@ export function findVertexClashes(
    *   pile,     2,000 pieces   4922ms -> 16ms, 3,998,000 records -> 2
    *
    * and `solveGraph` end to end on the 8,000-piece lapped run is 63ms.
+   *
+   * THAT NUMBER IS ABOUT THE ENGINE, NOT ABOUT THE TAB, and reading it as
+   * "the tab is fine" is the mistake this comment used to invite. The freeze
+   * this function caused is gone; the freeze has moved one layer out, into
+   * the render that consumes the result in the same synchronous pass.
+   * MEASURED on 120,000 loose straights -- a 3.72M-char blob, inside a ~5MB
+   * quota, which `loadGraph` accepts with nothing discarded: the whole engine
+   * is 576ms and `TrackCanvas` alone is 3,153ms for 1.2M SVG elements, and
+   * that is `renderToStaticMarkup`, which is a FLOOR for what the browser
+   * then does. Filed as its own P0 in `docs/plan/brio-TODOS.md`; it is not
+   * this function's problem any more, which is exactly why it needs saying
+   * here, next to the figure someone would otherwise quote.
    */
 
   /** Places holding two or more distinct vertices, in discovery order. */
@@ -279,6 +292,8 @@ export function findVertexClashes(
     readonly clash: VertexClash;
     /** Some vertex here is welded, which is a clash on its own. */
     readonly welded: boolean;
+    /** ONE piece has two or more free ends here, which is a clash on its own. */
+    readonly selfPileUp: boolean;
     /** Pieces with a FREE end here, when two or more of them meet. */
     readonly freePieces: readonly string[];
   }> = [];
@@ -298,10 +313,27 @@ export function findVertexClashes(
     const reps = [...byVertex.values()].sort((x, y) => x - y);
     const a = placed[reps[0]!]!;
     const b = placed[reps[1]!]!;
-    // Kept as an assertion of the grouping, not as a filter: `at` already
-    // guarantees it, and if that ever stops being true this is where the
-    // wrong answer would come from.
-    if (!equals(a.pos, b.pos)) continue;
+    /*
+     * FAILS CLOSED. This is an assertion of the grouping, not a filter: `at`
+     * already guarantees it.
+     *
+     * It used to be `continue`, which was the wrong direction for the one
+     * function whose job is finding reasons a layout cannot be built. A
+     * `continue` drops the WHOLE site, including the welded clash below,
+     * which does not depend on the grouping at all -- so a broken key would
+     * have turned a real overlap into a silent pass. A throw from render is
+     * caught by `ErrorBoundary` and shown to someone; a dropped clash is a
+     * green verdict on a layout that cannot be built.
+     *
+     * `latticeKey` and `equals` agree on every input except NaN, which is
+     * also the only input that can fire this, so in practice this says: a
+     * coordinate stopped being a number.
+     */
+    if (!equals(a.pos, b.pos)) {
+      throw new Error(
+        'findVertexClashes: positions grouped under one lattice key are not equal; a coordinate is not a number',
+      );
+    }
 
     const [x, y] = toXY(a.pos);
     const clash: VertexClash = {
@@ -324,13 +356,57 @@ export function findVertexClashes(
      * holding one is always free.
      */
     const freeReps = reps.filter((i) => placed[i]!.free);
+    /*
+     * A PIECE WITH TWO FREE ENDS IN ONE PLACE IS A PILE-UP BY ITSELF, and
+     * this is the one corner where the per-piece reformulation could report
+     * LESS than the rule it replaced.
+     *
+     * The span rule asks each piece for the PAIR of places it spans. A piece
+     * whose two free ends sit in the same place names no pair, so it dropped
+     * out of its own pile-up: with a zero-extent part lying on an `A`
+     * straight, 1,120 places went missing over 3,000 generated graphs and 538
+     * flipped from "has a clash" to NO_CYCLE -- the overlap gone from the
+     * sentence AND from the canvas. A false pass, the one direction that is
+     * never acceptable here.
+     *
+     * UNREACHABLE TODAY, and only by accident: `looksLikePart` admits only
+     * `straight` and `curve`, requires `lengthMm > 0`, and bounds `arcSteps`
+     * to 1..15 -- a check this same change added for an unrelated reason --
+     * and no catalogue part has two ports at one local position. `PortsOf` is
+     * an engine seam the suite already drives with other port counts, and
+     * nothing here asserted that the ports of one piece are distinct.
+     *
+     * Counted, not thrown: a throw would refuse the layout instead of
+     * reporting it. Counted here, not in the span rule, because the span rule
+     * cannot see a pair that does not exist. This only ADDS a report, and
+     * only in a case no stored layout can currently reach, so no answer
+     * reachable today changes.
+     */
+    const freeByPiece = new Map<string, number>();
+    for (const i of freeReps) {
+      const id = placed[i]!.pieceId;
+      freeByPiece.set(id, (freeByPiece.get(id) ?? 0) + 1);
+    }
+    let selfPileUp = false;
+    for (const n of freeByPiece.values()) if (n >= 2) selfPileUp = true;
     sites.push({
       key,
       clash,
+      selfPileUp,
       welded: freeReps.length < reps.length,
       // Only two or more free vertices here form a free-free pair, which is
       // what the pile-up rule counts.
       freePieces:
+        /*
+         * `>= 2` is REDUNDANT WITH THE PILE-UP RULE, not a threshold that
+         * decides anything, and saying so is worth four lines because a
+         * reader will otherwise try to tune it. A pair of places is piled up
+         * only when TWO distinct pieces have free ends at BOTH of them, which
+         * already forces two free vertices at each. So relaxing this to `>= 1`
+         * changes no output: MEASURED over 40,000 generated layouts, 3,357 of
+         * them clashing, zero differences in the reported place set. It stays
+         * because it skips building an array that cannot be used.
+         */
         freeReps.length >= 2 ? [...new Set(freeReps.map((i) => placed[i]!.pieceId))] : [],
     });
   }
@@ -342,7 +418,7 @@ export function findVertexClashes(
    */
   const reportedPlaces = new Set<string>();
   for (const site of sites) {
-    if (site.welded) {
+    if (site.welded || site.selfPileUp) {
       clashes.push(site.clash);
       reportedPlaces.add(site.key);
     }
