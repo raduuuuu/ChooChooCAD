@@ -287,10 +287,16 @@ describe('E2: a dropped anchor keeps the layout and never manufactures a clash',
    * docblock below and left here, which is how these survive: you fix the
    * copy you are looking at.
    *
-   * MUTATION PROOF, run: clear anchor POINTS rather than footprints and 5
-   * tests fail, this one among them. Skip unanchored roots when computing the
-   * frontier (`if (!isOrphan.has(root) && anchors.has(root))`) and this one
-   * fails on its own, because `p1` at the identity stops being cleared.
+   * MUTATION PROOF, run: clear anchor POINTS rather than footprints and 6
+   * tests fail, this one among them.
+   *
+   * What this fixture does NOT pin, and a previous version of this comment
+   * wrongly claimed it did: skipping unanchored roots in the frontier. That
+   * mutation fails the NEXT test, not this one, and the arithmetic below says
+   * why -- `p1` spans y 0 to 59.2 while the survivor spans 216 to 275.2, so
+   * the frontier is 275.2 whether `p1` counts or not. The claim was written
+   * from a mental model and never run, in the commit whose whole subject was
+   * that failure mode. It is now stated where it is true.
    *
    * Not pinned, deliberately: `let frontier = 0` versus `-Infinity` is not
    * observable, because `Math.max(1, ...)` already forces lane >= 1. A test
@@ -399,8 +405,11 @@ describe('E2: a dropped anchor keeps the layout and never manufactures a clash',
    * rather than an anchor-point rule for a component that extends BELOW its
    * own anchor. A right-hand curve run marches downward from heading 0.
    *
-   * MUTATION PROOF, run: drop `- s.min` (assume every component's bottom edge
-   * is its anchor) and this fails. Before this case existed that mutation kept
+   * MUTATION PROOF, run: replace `- s.min` with `- provisionalY`, which is
+   * what "assume every component's bottom edge is its anchor" means in code,
+   * and exactly this test fails. Said as "drop `- s.min`" it does NOT
+   * reproduce -- `Math.ceil` puts the correct 836.0 and the mutated 707.2 in
+   * the same lane 4, and four other tests fail instead. Before this case existed that mutation kept
    * the whole suite green while producing a 188mm overlap, because the overlap
    * is mid-span and `findVertexClashes` only compares endpoints.
    *
@@ -438,6 +447,44 @@ describe('E2: a dropped anchor keeps the layout and never manufactures a clash',
     const survivorTop = Math.max(...yOf('s1'));
     const orphanBottom = Math.min(...yOf('o0'), ...yOf('o1'), ...yOf('o2'));
     expect(orphanBottom - survivorTop).toBeGreaterThanOrEqual(216);
+  });
+
+  /*
+   * THE SAME ID TWICE. `anchors` is an ARRAY out of an untrusted blob, so it
+   * can name one piece twice. Each entry is counted and each goes into the
+   * orphan list, and the placement loop recovers a component's provisional
+   * position from its INDEX -- so a duplicate makes the index and the lane
+   * disagree unless the list is de-duplicated first.
+   *
+   * MUTATION PROOF, run: replace `[...new Set(orphans)]` with
+   * `orphans.slice()` and this fails, with the lanes shifted out by one
+   * duplicate. Nothing else in the suite notices.
+   *
+   * Honest about the stakes: the direction is conservative either way. The
+   * last write for a duplicated id uses the matching provisional y, so the
+   * stored anchor is right regardless, and the frontier is over-estimated
+   * rather than under. This pins the lanes, not a near-miss.
+   */
+  it('a duplicated orphan id does not shift the lanes', () => {
+    const r = load(
+      blob({
+        pieces: [
+          { pieceId: 's1', partId: 'E', turn: 'left' },
+          { pieceId: 'o1', partId: 'E', turn: 'left' },
+          { pieceId: 'o2', partId: 'E', turn: 'left' },
+        ],
+        welds: [],
+        anchors: [
+          ['s1', { pos: [0, 0, 0, 0, 216, 0, 0, 0], heading: 0 }],
+          ['o1', { pos: 'rubbish', heading: 0 }],
+          ['o1', { pos: 'rubbish again', heading: 0 }],
+          ['o2', { pos: 'rubbish', heading: 0 }],
+        ],
+      }),
+    );
+    expect(r.value.anchors?.get('o1')?.pos.join(',')).toBe('0,0,0,0,648,0,0,0');
+    expect(r.value.anchors?.get('o2')?.pos.join(',')).toBe('0,0,0,0,1080,0,0,0');
+    expect(findVertexClashes(r.value, ports, placeAll(r.value, ports))).toHaveLength(0);
   });
 
   it('two orphans each clear the footprint of everything before them', () => {
@@ -494,6 +541,12 @@ describe('E2: a dropped anchor keeps the layout and never manufactures a clash',
      * occupies y 0 to 59.2. The orphan clears that footprint by a full
      * spacing, which rounds to lane 2. Under the old anchor-point rule it was
      * lane 1, which only cleared the identity POINT.
+     *
+     * THIS is the case that pins the unanchored-root term. MUTATION PROOF,
+     * run: skip roots with no anchor when computing the frontier
+     * (`if (!isOrphan.has(root) && anchors.has(root) && ...)`) and exactly
+     * this test fails -- nothing else in the suite notices, because every
+     * other fixture has an anchored survivor that dominates the frontier.
      */
     expect(r.value.anchors?.get('p2')?.pos.join(',')).toBe('0,0,0,0,432,0,0,0');
     const placement = placeAll(r.value, ports);
@@ -544,6 +597,21 @@ describe('E9: the anchor-rejection matrix', () => {
      */
     ['a pos too large to sum without overflowing', { pos: Array(8).fill(1e308), heading: 0 }],
     ['a pos above the safe-integer bound', { pos: [2 ** 53, 0, 0, 0, 0, 0, 0, 0], heading: 0 }],
+    /*
+     * A SAFE INTEGER THAT STILL BREAKS EXACTNESS. 2^53 - 1 passes every
+     * integrality and finiteness check, and composing poses from it loses
+     * precision: MEASURED, an eight-curve loop that closes EXACTLY reports
+     * `closesExactly: false` with a non-zero gap when anchored there, and
+     * closes exactly at 2^31. A false "can't be built", which is the same
+     * invariant the orphan-lane P0 inverted.
+     *
+     * MUTATION PROOF, run: drop `Math.abs(n) <= COEFFICIENT_CEILING` and 2
+     * rows fail -- this one and the negative one below it. The two above
+     * still pass, caught by the safe-integer half, which is why these are
+     * separate rows rather than a tighter version of those.
+     */
+    ['a safe integer still too large to compose exactly', { pos: [2 ** 53 - 1, 0, 0, 0, 0, 0, 0, 0], heading: 0 }],
+    ['a large NEGATIVE coefficient', { pos: [-(2 ** 53 - 1), 0, 0, 0, 0, 0, 0, 0], heading: 0 }],
     ['a non-integer heading', { pos: [1, 0, 0, 0, 0, 0, 0, 0], heading: 1.5 }],
     ['a heading above 15', { pos: [1, 0, 0, 0, 0, 0, 0, 0], heading: 400 }],
     ['a negative heading', { pos: [1, 0, 0, 0, 0, 0, 0, 0], heading: -1 }],

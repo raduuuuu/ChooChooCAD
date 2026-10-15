@@ -889,9 +889,26 @@ changing its heading translates a component rigidly, so every component's
 height is measured once and the orphans are stacked using those heights.
 MEASURED linear, 400 orphans in 1.4ms and 800 in 2.6ms.
 
-**Verified:** the two specs that pinned this are un-skipped and pass. Reverting
-to the anchor-point rule fails 5 tests including both; never advancing the
-frontier between orphans fails the two-orphan case. In the browser, the exact
+**It took three commits, and the first two were wrong.** The footprint rule
+landed in `57b891e`, which then left a stale provisional anchor on orphans
+that are not component roots. `captureAnchors` prefers an existing anchor over
+the frame a piece was actually at, so the first "Remove last" promoted that
+piece to a root and the stale lane won: measured 0 clashes at load and 2 after
+one edit, at the same coordinate as the original P0. `06e513f` deletes the
+anchor instead, and a differential sweep of 3205 app-built layouts with every
+single-edit follow-up found 0 violations against 298 on its parent.
+
+The same commit found `isCyc` accepting any finite coefficient, so a stored
+anchor of eight 1e308s produced NaN coordinates that make every closure and
+clash test silently answer "no". Tightened to safe integers, then tightened
+again: 2^53 - 1 is a safe integer and still breaks exactness, reporting an
+eight-curve loop that closes exactly as `closesExactly: false`. The ceiling is
+2^31.
+
+**Verified:** the two specs that pinned the original are un-skipped and pass.
+Reverting to the anchor-point rule fails 6 tests including both; never
+advancing the frontier between orphans fails the two-orphan case; deleting the
+non-root anchor deletion fails the lifecycle spec. In the browser, the exact
 reproducing layout now reads "Not a loop yet. 2 separate runs of track" with
 the position notice still shown, where it used to read "Can't be built".
 
@@ -1353,3 +1370,47 @@ tests a claim about the product rather than a restatement of the code.
 
 **Effort:** human ~2h / CC ~25m. **Priority:** P3.
 **Depends on / blocked by:** nothing.
+
+## P2 — `droppedAnchors` counts entries, and a valid anchor can lose to a bad one (filed 2026-10-15)
+
+**What:** two small defects in the same loop, both pre-existing and both
+surfaced by the review of the orphan-lane fix.
+
+`droppedAnchors` counts stored ENTRIES, not affected pieces. The anchors field
+is an array out of an untrusted blob and may name an id twice, so two
+unreadable entries for one piece report "2 had unreadable positions" when one
+piece is affected. The notice overstates the loss.
+
+Worse: when an id has BOTH an unreadable entry and a VALID one, the valid
+position is discarded. The good entry is taken into `anchorMap`, then the id
+is in `orphans` regardless, so it is re-laned anyway. Measured: a valid
+`[0,0,0,0,432,0,0,0]` replaced by lane 3. Safe -- no clash results -- but a
+recoverable position is thrown away for no reason.
+
+**Fix:** count `new Set` of affected ids for the notice, and skip the
+provisional lane for any id `anchorMap` already holds a valid frame for.
+
+**Effort:** human ~45m / CC ~10m. **Priority:** P2.
+**Depends on / blocked by:** nothing.
+
+## P2 — `captureAnchors` honours a stale anchor on any demoted root, not just orphans (filed 2026-10-15)
+
+**What:** the orphan-lane fix closed one case of a general problem.
+`weldEnds` appends a weld without touching anchors, so merging two components
+leaves the demoted component's root anchor in place. `clickPort` is the
+user-facing path that does it, and `undo` or a future `breakWeld` is the
+promotion that makes `captureAnchors` read that anchor again.
+
+**Why it is milder than the P0 it resembles:** the stale anchor is a real
+position the component once held, not a manufactured lane, so the measured
+simple case (add, add, add, add, weld, break) reports 0 clashes. It is wrong
+rather than dangerous. But `layoutStore.ts`'s comment that "something does
+read it" applies verbatim to valid non-root anchors too.
+
+**Fix:** have `weldEnds` drop the anchor of any root it demotes, or have
+`captureAnchors` prefer the measured frame for a root whose anchor predates
+its last topology change.
+
+**Effort:** human ~2h / CC ~25m. **Priority:** P2.
+**Depends on / blocked by:** relates to U5, which wires `breakWeld` to the UI
+and makes the promotion path reachable deliberately rather than only via undo.

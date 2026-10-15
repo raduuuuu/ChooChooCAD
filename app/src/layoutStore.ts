@@ -79,20 +79,36 @@ interface StoredGraph {
  * adds is the BOUND -- and the two checks are folded into one here rather
  * than left in two places claiming the same thing.
  *
- * The bound matters on its own: a coefficient can be a perfectly good integer
- * and still be large enough that summing the eight terms OVERFLOWS. MEASURED:
- *   a stored anchor of eight 1e308s makes `toXY` return Infinity, which made
- *   the orphan placement below compute an infinite lane and store
- *   `[NaN, ..., Infinity, ...]`. `equals` and `isZero` are false for NaN, so
- *   every closure and clash test downstream would quietly answer "no" --
- *   a layout that reports no problems because the arithmetic stopped working.
+ * SAFE-INTEGER IS NOT TIGHT ENOUGH, which is why there is a magnitude ceiling
+ * as well. Two separate failures live above it:
  *
- * Nothing legitimate comes close to 2^53: these are millimetres, and a layout
- * that filled a room is five digits.
+ * - Eight 1e308s make `toXY` return Infinity, the orphan placement computes
+ *   an infinite lane, and the stored anchor becomes `[NaN, ..., Infinity]`.
+ *   `equals` and `isZero` are false for NaN, so every closure and clash test
+ *   downstream quietly answers "no" -- a layout reporting no problems because
+ *   the arithmetic stopped working.
+ * - A coefficient that IS a safe integer can still break exactness, because
+ *   composing two poses multiplies and adds before anything checks the
+ *   result. MEASURED: an eight-curve loop that closes exactly, anchored at
+ *   2^53 - 1, comes back `closesExactly: false` with a non-zero gap. That is
+ *   a false "can't be built" -- the same invariant the orphan-lane P0
+ *   inverted, reached a different way. The identical loop at 2^31 closes
+ *   exactly, gap zero.
+ *
+ * Nothing legitimate comes near the ceiling: these are millimetres,
+ * `nextRunAnchor` scales zeta^4 by 216 per lane, and 2^31 is about ten
+ * million lanes.
  */
+/** Past this, composing two poses stops being exact. */
+const COEFFICIENT_CEILING = 2 ** 31;
+
 function isCyc(v: unknown): v is Cyc {
   return (
-    Array.isArray(v) && v.length === 8 && v.every((n) => typeof n === 'number' && Number.isSafeInteger(n))
+    Array.isArray(v) &&
+    v.length === 8 &&
+    v.every(
+      (n) => typeof n === 'number' && Number.isSafeInteger(n) && Math.abs(n) <= COEFFICIENT_CEILING,
+    )
   );
 }
 
@@ -250,17 +266,11 @@ function clearOfEveryFootprint(
     const provisionalY = RUN_SPACING_MM * (i + 1);
     // Put this component's BOTTOM edge one full spacing above the frontier.
     const wantedY = frontier + RUN_SPACING_MM - s.min + provisionalY;
-    /*
-     * A STORED ANCHOR IS ALWAYS AN EXACT LATTICE POINT, including when the
-     * measurement that chose it was not finite. `isCyc` is tightened to
-     * `Number.isSafeInteger` below, which is the real guard, but the
-     * arithmetic here is belt and braces: `scale(zetaPow(4), 216 * Infinity)`
-     * yields NaN coefficients, and `equals`/`isZero` answer false for NaN, so
-     * every closure and clash test downstream would silently say "no".
-     */
-    const lane = Number.isFinite(wantedY)
-      ? Math.max(1, Math.ceil(wantedY / RUN_SPACING_MM))
-      : 1;
+    // `isCyc` bounds every coefficient, so `wantedY` is finite by
+    // construction. A `Number.isFinite` ternary stood here and was
+    // unreachable the moment that bound existed -- a guard nobody can trip is
+    // the dead code this file's own comments argue against.
+    const lane = Math.max(1, Math.ceil(wantedY / RUN_SPACING_MM));
     anchors.set(id, { pos: scale(zetaPow(4), RUN_SPACING_MM * lane), heading: 0 });
     frontier = RUN_SPACING_MM * lane + (s.max - provisionalY);
   }
@@ -454,26 +464,25 @@ export function loadGraph(
     }
 
     /*
-     * A THROW HERE MUST NOT COST THE WHOLE LAYOUT.
+     * NOT WRAPPED IN A try/catch, and that is the considered choice.
      *
-     * The code this replaced was pure arithmetic and could not throw. This
-     * calls `placeAll` and `portFrame`, both of which throw on a port index
-     * the part does not have. Inside the outer `try` that would become
-     * `refuse(DISCARDED)` -- the user loses everything rather than having one
-     * piece drawn in the wrong place, which is exactly the trade the comment
-     * on this whole passage argues against.
+     * A previous version caught here, reasoning that a throw should cost one
+     * misplaced piece rather than the whole layout. That reasoning was
+     * backwards. `clearOfEveryFootprint` can only throw out of `placeAll` or
+     * `portFrame`, and both depend solely on pieces, welds and `ports` --
+     * never on the anchors map. So anything that throws here throws again at
+     * `App.tsx`'s own `placeAll` on the very next line of the render. Catching
+     * converts a clean `refuse(DISCARDED)` -- empty canvas, rescue copy
+     * written, inventory and submissions untouched -- into an unavoidable
+     * crash screen whose only exit deletes the inventory and the submissions,
+     * which is the data this file singles out as impossible to recreate.
      *
-     * I could not reach it: the same `ports` function already gated every
-     * weld index above. So this is latent, and the catch keeps it latent
-     * instead of resting on that argument staying true. The provisional lanes
-     * are already assigned when it runs, so the fallback is the old
-     * behaviour: positions that may be wrong, and the notice that says so.
+     * The half-caught state was worse still: a throw partway leaves every
+     * orphan on a raw provisional lane, and lane 1 is exactly where a
+     * survivor sits in the fixture this whole function exists for. The
+     * fallback would have been the P0, not "positions that may be wrong".
      */
-    try {
-      clearOfEveryFootprint(out, outWelds, anchorMap, orphans, ports);
-    } catch {
-      // Keep the layout. The provisional lanes stand.
-    }
+    clearOfEveryFootprint(out, outWelds, anchorMap, orphans, ports);
 
     return {
       value: { pieces: out, welds: outWelds, anchors: anchorMap },
