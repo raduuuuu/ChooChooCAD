@@ -23,7 +23,12 @@ import { placeAll, residuals, type PortsOf, type WeldResidual } from './frames.j
 import type { Graph } from './model.js';
 import type { Part } from '../parts/schema.js';
 
-export type GraphFailure = 'NO_CYCLE' | 'HEADING_MISMATCH' | 'TOO_MANY_LOOPS' | 'NUMERIC';
+export type GraphFailure =
+  | 'NO_CYCLE'
+  | 'HEADING_MISMATCH'
+  | 'TOO_MANY_LOOPS'
+  | 'TOO_BIG_TO_CHECK'
+  | 'NUMERIC';
 
 export type GraphResult =
   | {
@@ -126,11 +131,84 @@ export function solveGraph(
   const portsById = (id: string) => ports(byId.get(id)!);
   const space = analyseCycles(graph, placement, rs, portsById, slop);
 
+  /*
+   * TWO LIMITS, TWO ANSWERS. `truncated` names which one stopped the walk,
+   * and they are different things to tell someone.
+   *
+   * 'rank' is too many independent loops: the ceiling refused before any work
+   * and the advice is to use fewer loops. 'work' is too much track to check
+   * every loop in, at a rank that may be well UNDER the ceiling -- measured
+   * at rank 14 over 8402 pieces. Both used to report TOO_MANY_LOOPS, so that
+   * case told the user to break a layout into fewer loops when the loop count
+   * was never the problem.
+   *
+   * TOO_BIG_TO_CHECK IS A BACKSTOP, and it is deliberately kept.
+   *
+   * Spending the work budget needs either a dense fundamental-sharing graph
+   * or an enormous one. The dense route is shut: `weldEnds` only ever welds
+   * FREE ports, `loadGraph` refuses a stored weld on an already-claimed
+   * port, and no catalogue part has a third port, so every component is a
+   * path or a cycle and no piece sits in two fundamentals. The large route is
+   * open in principle and impractical in fact -- 150,000 welds is roughly
+   * 14MB of JSON against a ~5MB storage quota.
+   *
+   * WHAT THAT DOES NOT LICENSE. An earlier version of this comment went on to
+   * conclude that the route to an expensive solve was therefore shut, and
+   * that inference is what let two real freezes through review: the all-pairs
+   * overlap scan upstream of here (seconds at ten thousand pieces; the
+   * figures are in the DONE entry in `docs/plan/brio-TODOS.md`) and a scanning
+   * `slop` callback in `App.tsx` (quadratic in pieces; measured at the
+   * callback). Neither needed a dense
+   * graph, a duplicate weld, or anything this branch bounds. "The input this
+   * guard refuses is unreachable" is a claim about this guard only, never
+   * about the cost of a solve.
+   *
+   * Do not delete the branch as dead code: the dense route reopens the day a
+   * switch part lands.
+   */
   if (space.truncated) {
+    const tooMany = space.truncated === 'rank';
     return {
       ok: false,
-      reason: 'TOO_MANY_LOOPS',
-      detail: `${rank} independent loops is more than this can rank`,
+      reason: tooMany ? 'TOO_MANY_LOOPS' : 'TOO_BIG_TO_CHECK',
+      detail: tooMany
+        ? `${rank} independent loops is more than this can rank`
+        : `checking all ${rank} loops across ${graph.pieces.length} pieces would take too long`,
+      rank,
+      clashes,
+      polarityViolations,
+      residuals: rs,
+    };
+  }
+
+  /*
+   * RANK SAYS THERE ARE LOOPS; THE ENUMERATION TRACED NONE. Refuse.
+   *
+   * This was a false pass with nothing guarding it. `withinBound` below is
+   * `space.cycles.every(...)`, which is vacuously TRUE on an empty array, and
+   * `gapMm`/`totalGiveMm` come from `space.worst?.… ?? 0`, so a report with
+   * rank 3 and no traced cycles rendered as EXACT: "This works. Closes
+   * exactly, no give needed at any joint.", tone pass, green, over three
+   * loops that were never examined.
+   *
+   * It is unreachable today only by accident: every fundamental is a closing
+   * weld plus a simple tree path, so every vertex has degree exactly 2 and
+   * `traceSimpleCycle` accepts it (a self-weld traces as a valid one-edge
+   * loop). Nothing asserted that, and it stops being automatic the moment
+   * `traceSimpleCycle` starts rejecting things -- which a third port makes
+   * routine. The cheap guard is better than the accident.
+   *
+   * NUMERIC rather than a new reason, because its headline "Could not check
+   * this layout." fits. Its ADVICE did not -- it promised a check still in
+   * progress, and this refusal is deterministic and already finished -- so
+   * the advice was reworded to cover both causes rather than split the
+   * reason, since this arm is not reachable today.
+   */
+  if (space.cycles.length === 0) {
+    return {
+      ok: false,
+      reason: 'NUMERIC',
+      detail: `${rank} ${rank === 1 ? 'loop' : 'loops'} in this layout, but the check could not follow ${rank === 1 ? 'it' : 'them'} round`,
       rank,
       clashes,
       polarityViolations,

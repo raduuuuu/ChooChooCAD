@@ -222,7 +222,19 @@ function looksLikePart(v: unknown): v is Part {
   const finite = (x: unknown) => typeof x === 'number' && Number.isFinite(x) && x > 0;
   if (!finite(p.gaugeWidthMm) || !finite(p.plankWidthMm) || !finite(p.plankThicknessMm)) return false;
   if (p.kind === 'straight') return finite(p.lengthMm);
-  return finite(p.innerRadiusMm) && typeof p.arcSteps === 'number' && Number.isInteger(p.arcSteps);
+  if (!finite(p.innerRadiusMm)) return false;
+  if (typeof p.arcSteps !== 'number' || !Number.isInteger(p.arcSteps)) return false;
+  /*
+   * A CURVE TURNS SOME OF THE WAY ROUND, so its arc is 1..15 of the 16
+   * headings. This checked only that the value was an integer, which let a
+   * submission declare a 360 degree "curve": MEASURED, `arcSteps` of 0, 16,
+   * 32 or -16 all give displacement exactly ZERO and heading 0, so the piece
+   * occupies no length and makes no turn, and a chain of them puts every
+   * port of every piece on one lattice point. Bounded the same way `slop` is
+   * a few lines up, because a value this engine could not have written
+   * belongs refused rather than drawn.
+   */
+  return p.arcSteps >= 1 && p.arcSteps <= 15;
 }
 
 /**

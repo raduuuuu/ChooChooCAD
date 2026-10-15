@@ -175,10 +175,11 @@ if (graph) {
     anchors: new Map((graph as never as { anchors?: [string, unknown][] }).anchors ?? []),
   } as never;
   const ports = (piece: never) => portsOf(resolve((piece as { partId: string }).partId), (piece as { turn?: never }).turn);
-  const slop = (pieceId: string) => {
-    const piece = (g as { pieces: { pieceId: string; partId: string }[] }).pieces.find((x) => x.pieceId === pieceId);
-    return piece ? resolve(piece.partId).slop.axialMm : 0;
-  };
+  // Built once, for the same reason App.tsx builds it once: a scanning slop
+  // callback makes the solve quadratic in pieces, and a repro script runs on
+  // exactly the oversized layouts where that matters most.
+  const slopById = new Map((g as { pieces: { pieceId: string; partId: string }[] }).pieces.map((x) => [x.pieceId, resolve(x.partId).slop.axialMm]));
+  const slop = (pieceId: string) => slopById.get(pieceId) ?? 0;
   console.log('verdict', solveGraph(g, ports as never, resolve, slop));
   console.log('trust', layoutTrust({ placements: (g as { pieces: never[] }).pieces, closed: false } as never, resolve, brandFit));
 } else if (Array.isArray(chain) && chain.length > 0) {

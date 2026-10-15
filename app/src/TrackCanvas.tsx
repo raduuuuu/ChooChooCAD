@@ -21,6 +21,15 @@ import type { PortRef } from '../../engine/src/graph/model.js';
 import type { Part } from '../../engine/src/parts/schema.js';
 import { clashMarkers, gapAnnotations, segmentPath, type GapMark } from './trackPath.js';
 
+/**
+ * How many pieces this canvas will draw before it says there are too many.
+ *
+ * Exported so a spec can pin the boundary rather than restate the number, and
+ * so the entry in `docs/plan/brio-TODOS.md` can cite one place. The measured
+ * cost behind the value is at the guard that uses it.
+ */
+export const CANVAS_SEGMENT_CEILING = 10_000;
+
 export interface TrackCanvasProps {
   /** Everything drawable, already placed exactly by the graph engine. */
   readonly render: GraphRender;
@@ -116,8 +125,29 @@ export function TrackCanvas({
    * Per-segment `layers()` still decides what each piece gets; this only sets
    * how many passes to make.
    */
-  const maxLayers =
-    segments.length === 0 ? 0 : Math.max(...segments.map((s) => layers(s.partId).length));
+  /*
+   * `reduce`, NOT `Math.max(...segments.map(...))`, and the runtime this
+   * suite uses cannot catch the difference.
+   *
+   * A spread passes one argument per segment. MEASURED: node/V8 -- the engine
+   * Chrome runs -- throws `RangeError: Maximum call stack size exceeded` at
+   * 125,000 arguments, while bun/JSC, which is what `vitest` runs under here,
+   * returns fine at 161,000. So every spec in this repo would pass while the
+   * browser threw.
+   *
+   * 161,000 loose pieces is a 4.99M-char blob, inside a ~5MB quota, and
+   * `loadGraph` accepts it with nothing discarded. The throw lands INSIDE
+   * render, so `ErrorBoundary` catches it and paints the crash screen -- and
+   * its only exit, `clearAndReload`, also deletes the inventory and the
+   * submitted parts, which `library.ts` says cannot be recreated. A reload
+   * repeats it forever. One line to avoid, so it is avoided rather than
+   * filed.
+   */
+  let maxLayers = 0;
+  for (const s of segments) {
+    const n = layers(s.partId).length;
+    if (n > maxLayers) maxLayers = n;
+  }
 
   const dedupedClashes = useMemo(() => clashMarkers(clashes), [clashes]);
   /*
@@ -149,6 +179,58 @@ export function TrackCanvas({
    * breakpoint and nothing asserts that dependency, so the position is left
    * out instead of branched on.
    */
+  /*
+   * TOO MUCH TRACK TO DRAW IS A STATE, NOT A FREEZE.
+   *
+   * This canvas emits about 20 SVG tags per piece -- `maxLayers x segments`
+   * paths plus three circles per FREE port -- with no virtualisation, so its
+   * cost is linear in pieces with a large constant. MEASURED here through
+   * `renderToStaticMarkup`, which is a FLOOR for what a browser then does
+   * (reconciliation, SVG layout and paint, plus a click and key handler on
+   * every free port):
+   *
+   *     2,000 pieces     76ms    40,000 tags    1.6MB
+   *     5,000 pieces    169ms   100,000 tags    4.0MB
+   *    10,000 pieces    453ms   200,000 tags    8.0MB
+   *    20,000 pieces    793ms   400,000 tags   16.1MB
+   *    40,000 pieces   1474ms   800,000 tags   32.2MB
+   *
+   * and at 120,000 pieces -- a 3.72M-char stored layout, inside a ~5MB quota,
+   * which `loadGraph` accepts with nothing discarded -- it is 3,153ms for 1.2M
+   * elements. That happens INSIDE render, so there is no throw for
+   * `ErrorBoundary` to catch: the tab simply stops, the "Clear saved data"
+   * escape is never painted, and every reload does it again. It is the same
+   * uncatchable hang the solver used to cause, one layer downstream of every
+   * bound that was added to stop it.
+   *
+   * 10,000 is a product line, not a performance target, and it is set where
+   * the drawing stays under about half a second. Real layouts are hundreds of
+   * pieces; the filed cap entry puts a big floor at a few hundred, so this
+   * leaves more than an order of magnitude of room. Above it the canvas says
+   * so in words and keeps the app usable -- the palette, the verdict and
+   * Clear all still work, so this is recoverable where a freeze is not.
+   *
+   * This is the CHEAP HALF of the P0 in `docs/plan/brio-TODOS.md`. The real
+   * half is virtualisation: draw what the viewport covers and no layout is
+   * ever too big to open. Until then, refusing to draw is the honest answer,
+   * and it is the one that never lies about what was checked -- the verdict is
+   * still computed and still shown, because `solveGraph` does not depend on
+   * this.
+   */
+  if (segments.length > CANVAS_SEGMENT_CEILING) {
+    return (
+      <div className="canvas-empty">
+        <p className="canvas-empty-lead">
+          Too much track to draw: {segments.length.toLocaleString()} pieces.
+        </p>
+        <p className="canvas-empty-hint">
+          The layout is still here and still checked, and the verdict below
+          applies to all of it. Remove some track to see the picture again.
+        </p>
+      </div>
+    );
+  }
+
   if (segments.length === 0) {
     return (
       <div className="canvas-empty">
@@ -190,9 +272,14 @@ export function TrackCanvas({
         {/*
           * THE CLASH MARKERS.
           *
-          * Deduplicated by position, because a clash is reported per PAIR and
-          * a point where three ends meet would otherwise be drawn three times
-          * at full opacity, reading as something worse than it is.
+          * Deduplicated by position, which is now belt-and-braces:
+          * `findVertexClashes` emits one record per PLACE, so one marker per
+          * place falls out of that contract rather than out of this dedupe.
+          * It used to report one per PAIR of vertices, and a point where
+          * three ends met was drawn three times at full opacity, reading as
+          * something worse than it is. Kept because the agreement between
+          * the verdict's count and this picture should not depend on a
+          * caller's guarantee staying true.
           *
           * Drawn inside the flipped group so the coordinates are the model's
           * own millimetres, the same ones the verdict counted. Radius is in

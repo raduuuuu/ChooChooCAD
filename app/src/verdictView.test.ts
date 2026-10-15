@@ -24,19 +24,26 @@
  * predicate, not a rank, so "EXCEEDS outranks EXACT" is not a true statement
  * about `viewOf` and is not asserted here.
  *
- * The ordering AMONG the four failure kinds is not here at all. It lives in
+ * The ordering AMONG the failure kinds is not here at all. It lives in
  * `engine/src/graph/solve.ts`, which decides `result.reason` before `viewOf`
- * ever sees it: NO_CYCLE, TOO_MANY_LOOPS, HEADING_MISMATCH, NUMERIC. `viewOf`
- * passes that reason straight through, so these tests feed it a reason and
+ * ever sees it, in this order: NO_CYCLE, then TOO_MANY_LOOPS or
+ * TOO_BIG_TO_CHECK by the truncation cause, then NUMERIC for a rank with no
+ * traced cycles, then HEADING_MISMATCH, then NUMERIC again for a non-finite
+ * figure. NUMERIC therefore sits both before and after HEADING_MISMATCH,
+ * which is why naming the order matters more than counting the kinds.
+ * `viewOf` passes the reason straight through, so these tests feed it one and
  * assert the passthrough, never a ranking between them.
  *
  * Also deliberately NOT here: "two free ends meeting is not a clash". That
- * behaviour is `engine/src/graph/feasible.ts` and is already tested at
- * `engine/test/graphFeasible.test.ts:152`. It is not observable from this file,
+ * behaviour is `engine/src/graph/feasible.ts` and is already tested by
+ * `describe('free ends meeting are an invitation, not a clash')` in
+ * `engine/test/graphFeasible.test.ts` -- named, not line-numbered, because a
+ * single added import shifted that line in this very change. It is not observable from this file,
  * which only reads `result.clashes.length`.
  */
 
 import { describe, expect, it } from 'vitest';
+import { ACTION_FOR_FAILURE, FAILURE_COPY, isFailure } from './verdictAction.js';
 import type { CycleReport } from '../../engine/src/graph/cycles.js';
 import type { VertexClash, WeldPolarityViolation } from '../../engine/src/graph/feasible.js';
 import type { GraphResult } from '../../engine/src/graph/solve.js';
@@ -178,11 +185,17 @@ describe('precedence 1 again, on the FAILED branch: a separate check in a separa
   });
 });
 
-describe('the four failure kinds are passed THROUGH, never ranked here', () => {
+describe('the five failure kinds are passed THROUGH, never ranked here', () => {
   // The ordering among these lives in engine/src/graph/solve.ts, which picks
   // one before viewOf runs. All this file does is carry it, so that is all
   // these cases assert.
-  const kinds = ['NO_CYCLE', 'TOO_MANY_LOOPS', 'HEADING_MISMATCH', 'NUMERIC'] as const;
+  const kinds = [
+    'NO_CYCLE',
+    'TOO_MANY_LOOPS',
+    'TOO_BIG_TO_CHECK',
+    'HEADING_MISMATCH',
+    'NUMERIC',
+  ] as const;
 
   for (const reason of kinds) {
     it(`${reason} arrives as ${reason}`, () => {
@@ -309,13 +322,14 @@ describe('the figures name ONE loop, never a total', () => {
 describe('completeness', () => {
   it('every VerdictKind is reachable from viewOf', () => {
     // Not a tone assertion: this file returns a KIND and knows nothing about
-    // CSS. X2b owns grey-is-not-green over nine kinds and five tones.
+    // CSS. X2b owns grey-is-not-green over ten kinds and five tones.
     const tight = cycle({ gapMm: 1.0, withinGive: true });
     const over = cycle({ gapMm: 9.0, withinGive: false });
     const reached = new Set<VerdictKind>([
       viewOf(null).kind,
       viewOf(refused({ reason: 'NO_CYCLE' })).kind,
       viewOf(refused({ reason: 'TOO_MANY_LOOPS' })).kind,
+      viewOf(refused({ reason: 'TOO_BIG_TO_CHECK' })).kind,
       viewOf(refused({ reason: 'HEADING_MISMATCH' })).kind,
       viewOf(refused({ reason: 'NUMERIC' })).kind,
       viewOf(refused({ clashes: [clash()] })).kind,
@@ -324,18 +338,207 @@ describe('completeness', () => {
       viewOf(solved({ closesExactly: false, withinBound: false, worst: over, cycles: [over] })).kind,
     ]);
 
-    const all: readonly VerdictKind[] = [
-      'NOTHING',
-      'NO_CYCLE',
-      'HEADING_MISMATCH',
-      'TOO_MANY_LOOPS',
-      'NUMERIC',
-      'IMPOSSIBLE',
-      'EXACT',
-      'NEEDS_GIVE',
-      'EXCEEDS',
-    ];
+    /*
+     * A RECORD, NOT AN ARRAY, and that is the whole point of this line.
+     *
+     * This was `readonly VerdictKind[]`, which a SUBSET satisfies, so the
+     * list was hand-maintained and silently stopped being exhaustive. Adding
+     * TOO_BIG_TO_CHECK to `VerdictKind` left this spec green while the new
+     * kind was reachable from `viewOf` and covered by nothing. A Record over
+     * the union cannot be short: tsc fails the file instead.
+     *
+     * MUTATION PROOF, run: delete the TOO_BIG_TO_CHECK line below and
+     * `bun run typecheck` fails with TS2741, "Property 'TOO_BIG_TO_CHECK' is
+     * missing in type ...". That is the failure the array shape could not
+     * produce.
+     */
+    const ALL: Record<VerdictKind, true> = {
+      NOTHING: true,
+      NO_CYCLE: true,
+      HEADING_MISMATCH: true,
+      TOO_MANY_LOOPS: true,
+      TOO_BIG_TO_CHECK: true,
+      NUMERIC: true,
+      IMPOSSIBLE: true,
+      EXACT: true,
+      NEEDS_GIVE: true,
+      EXCEEDS: true,
+    };
+    const all = Object.keys(ALL) as readonly VerdictKind[];
     for (const k of all) expect(reached).toContain(k);
     expect(reached.size).toBe(all.length);
+  });
+});
+
+/**
+ * THE FAILURE REGISTER, which had no coverage at all.
+ *
+ * Value: protects=every VerdictKind that is a failure is classified as one,
+ * so a refusal is rendered as a refusal and never as a near-pass
+ * Value: fails_when=`isFailure` and `FAILURE_COPY` disagree, which is what a
+ * hand-written predicate beside an exhaustive Record invites
+ * Value: why_new=`isFailure` was a five-clause `||` chain inside
+ * `VerdictLine.tsx`. Nothing referenced it or `FAILURE_COPY` from any test,
+ * and nothing could: the suite collects `.test.ts` only in a node
+ * environment with no DOM, so a `.tsx` spec is never even run. Adding
+ * TOO_BIG_TO_CHECK needed three edits and tsc checked two of them; with the
+ * predicate's arm missing, that refusal falls past the grey failure branch
+ * and renders as a near-pass.
+ * Value: seam=both moved to `verdictAction.ts`, a `.ts` module, which is the
+ * whole reason they are reachable from here
+ * Value: no_claim=nothing about how the copy is laid out or styled; this is
+ * the register, not the rendering.
+ */
+describe('the failure register', () => {
+  /*
+   * A Record again, for the same reason the completeness spec above uses one:
+   * an array of kinds is satisfied by a SUBSET, so it goes stale silently.
+   *
+   * MUTATION PROOF, run: delete a key from this literal and `bun run
+   * typecheck` fails with TS2741 naming the missing property.
+   */
+  const ALL_KINDS: Record<VerdictKind, true> = {
+    NOTHING: true,
+    NO_CYCLE: true,
+    HEADING_MISMATCH: true,
+    TOO_MANY_LOOPS: true,
+    TOO_BIG_TO_CHECK: true,
+    NUMERIC: true,
+    IMPOSSIBLE: true,
+    EXACT: true,
+    NEEDS_GIVE: true,
+    EXCEEDS: true,
+  };
+
+  /*
+   * MUTATION PROOF, run: hand-write the predicate again and drop one arm
+   * (`k === 'TOO_BIG_TO_CHECK'`) and this fails with
+   * `expected false to be true // Object.is equality` on that kind.
+   */
+  it('classifies exactly the kinds that have failure copy, and no others', () => {
+    for (const k of Object.keys(ALL_KINDS) as VerdictKind[]) {
+      expect(isFailure(k), k).toBe(Object.hasOwn(FAILURE_COPY, k));
+    }
+  });
+
+  it('every failure kind has non-empty copy and an action', () => {
+    const keys = Object.keys(FAILURE_COPY) as (keyof typeof FAILURE_COPY)[];
+    expect(keys.length).toBeGreaterThan(0);
+    for (const k of keys) {
+      expect(FAILURE_COPY[k].trim(), k).not.toBe('');
+      expect(ACTION_FOR_FAILURE[k].trim(), k).not.toBe('');
+    }
+  });
+
+  /* A pass or a near-pass must never be classified as a failure. */
+  it('does not classify a pass or a near-pass as a failure', () => {
+    for (const k of ['EXACT', 'NEEDS_GIVE', 'EXCEEDS', 'IMPOSSIBLE', 'NOTHING'] as const) {
+      expect(isFailure(k), k).toBe(false);
+    }
+  });
+
+  /*
+   * TWO LIMITS, TWO SENTENCES, and nothing held them apart.
+   *
+   * Value: protects=each failure kind reads as its own refusal, so splitting
+   * TOO_BIG_TO_CHECK out of TOO_MANY_LOOPS actually reaches the person
+   * Value: fails_when=a new kind is given a copy-paste headline, which is how
+   * the two limits came to say the same wrong thing in the first place
+   * Value: why_new=the spec above checks each headline is non-EMPTY, which a
+   * duplicate passes. `verdictAction.test.ts` pins distinctness for the
+   * ACTIONS and there was no equivalent for the headlines, so the entire
+   * user-visible point of this branch -- that a layout refused at rank 14 is
+   * not told it has too many loops -- rested on nothing.
+   * Value: seam=none
+   * Value: no_claim=nothing about the wording itself. A headline may be
+   * rewritten freely; it may not be a copy of another kind's.
+   *
+   * MUTATION PROOF, run against a relocated copy of `verdictAction.ts` --
+   * imports rewritten, nothing else touched -- because this audit may not
+   * write to `app/src/verdictAction.ts`: give TOO_BIG_TO_CHECK the
+   * TOO_MANY_LOOPS headline and this fails with
+   * `expected [ [ 'TOO_BIG_TO_CHECK', …(1) ] ] to deeply equal []` -- quoted
+   * as vitest abbreviates it, the elided member being TOO_MANY_LOOPS. Exactly
+   * one spec fails: every other spec in the register only asks whether the
+   * copy is non-empty.
+   */
+  it('no two failures share a headline, so a refusal says which one it is', () => {
+    const byCopy = new Map<string, string[]>();
+    for (const [kind, text] of Object.entries(FAILURE_COPY)) {
+      byCopy.set(text, [...(byCopy.get(text) ?? []), kind]);
+    }
+    const shared = [...byCopy.values()].filter((ks) => ks.length > 1).map((ks) => ks.sort());
+    expect(shared).toEqual([]);
+    // Named, because this is the pair the split exists for: at rank 14, inside
+    // a ceiling of 20, "too many loops to rank" is simply untrue.
+    expect(FAILURE_COPY.TOO_BIG_TO_CHECK).not.toBe(FAILURE_COPY.TOO_MANY_LOOPS);
+  });
+});
+
+/**
+ * A FILLER ZERO IS NOT A MEASUREMENT.
+ *
+ * Value: protects=nothing claims a loop closes unless the engine measured it
+ * Value: fails_when=`gapKnown` is set on a refusal, or dropped on the solved
+ * path
+ * Value: why_new=`EMPTY` fills `gapMm` with 0 on every refusal, and
+ * `VerdictLine` rendered " The loop does close; that does not help." whenever
+ * `rank > 0 && gapMm === 0`. Measured through `viewOf` at rank 7 with one
+ * clash: TOO_MANY_LOOPS, TOO_BIG_TO_CHECK, NUMERIC and HEADING_MISMATCH all
+ * rendered it -- the last while the engine had just determined the track does
+ * NOT come back aligned. The existing `rank > 0` guard was added after a user
+ * reported the same sentence over a layout with no loop; it fixed the rank-0
+ * case and left every rank-positive refusal asserting closure.
+ * Value: seam=none
+ * Value: no_claim=the sentence itself lives in `VerdictLine.tsx` and cannot
+ * be rendered here. This pins the flag it is now keyed on.
+ */
+describe('gapKnown separates a measured gap from a filler', () => {
+  /*
+   * MUTATION PROOF, run: set `gapKnown: true` in `EMPTY` and this fails with
+   * `expected true to be false // Object.is equality` on NO_CYCLE, the first
+   * refusal in the loop.
+   */
+  it('is false on every refusal, where gapMm is only a filler', () => {
+    for (const reason of [
+      'NO_CYCLE',
+      'TOO_MANY_LOOPS',
+      'TOO_BIG_TO_CHECK',
+      'HEADING_MISMATCH',
+      'NUMERIC',
+    ] as const) {
+      const v = viewOf(refused({ reason, rank: 7 }));
+      expect(v.gapKnown, reason).toBe(false);
+      expect(v.gapMm, reason).toBe(0);
+    }
+    // The clash path too, which is where the sentence was actually rendered.
+    const c = viewOf(refused({ rank: 7, clashes: [clash()] }));
+    expect(c.kind).toBe('IMPOSSIBLE');
+    expect(c.gapKnown).toBe(false);
+  });
+
+  /*
+   * MUTATION PROOF, run: delete `gapKnown: true` from `base` and this fails
+   * with `expected undefined to be true`. UNDEFINED, not false: `base` does
+   * not spread `EMPTY`, so the property goes missing rather than reverting to
+   * a default.
+   *
+   * tsc DOES also object: three TS2741s, one per `{ ...base, kind }` return
+   * in `viewOf`. No line numbers here on purpose. An earlier version of this
+   * note claimed tsc did not object at all and offered that as the reason the
+   * spec exists; the version that repaired it then cited three line numbers
+   * that were themselves wrong by two. A citation that cannot rot is the only
+   * one worth writing. The real reason is narrower: tsc catches the
+   * property going missing, and this catches it being present and WRONG,
+   * which is the `EMPTY`-spread mutation above.
+   */
+  it('is true on the solved path, where the engine traced the cycles', () => {
+    const tight = cycle({ gapMm: 1.0, withinGive: true });
+    for (const v of [
+      viewOf(solved({ closesExactly: true })),
+      viewOf(solved({ closesExactly: false, withinBound: true, worst: tight, cycles: [tight] })),
+    ]) {
+      expect(v.gapKnown).toBe(true);
+    }
   });
 });

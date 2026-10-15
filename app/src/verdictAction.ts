@@ -1,5 +1,14 @@
 /**
- * The ACTION register: the third of the verdict's three (task K4).
+ * The ACTION register, plus the failure HEADLINE copy that has nowhere else
+ * testable to live: the third of the verdict's three (task K4).
+ *
+ * Strictly this file is now verdict copy AND actions. `FAILURE_COPY` and
+ * `isFailure` are headline and branch selection rather than advice, and they
+ * sit here because `vitest.config.ts` collects `.test.ts` only, so a `.tsx`
+ * home for them is a home with no coverage. The honest options are to rename
+ * this module for what it holds or to split them out; both are filed rather
+ * than done, because moving them is a rename across three call sites and
+ * this branch is already large.
  *
  * The three answer three different questions, and they were tangled:
  *
@@ -22,7 +31,7 @@
  * is a claim about a layout nobody evaluated. This is the same rule the verdict
  * copy lives under, applied to advice rather than to findings.
  *
- * Both maps are keyed by their union, not by string. A new verdict state or a
+ * The three registers are keyed by their unions, not by string. A new verdict state or a
  * new failure reason is a compile error here, so a state cannot ship with no
  * guidance attached.
  */
@@ -40,16 +49,73 @@ export const ACTION_FOR_VERDICT: Record<OutcomeKind, string> = {
     'Change a straight for a different length, or rearrange the curves. The gap is larger than the joints can take up.',
 };
 
+/**
+ * The failure kinds, declared ONCE.
+ *
+ * This was declared identically here and in `VerdictLine.tsx`, and adding
+ * TOO_BIG_TO_CHECK meant editing both in lockstep -- a cost the duplication
+ * had already charged before anyone noticed it.
+ */
 type FailureKind = Extract<
   VerdictKind,
-  'NO_CYCLE' | 'HEADING_MISMATCH' | 'TOO_MANY_LOOPS' | 'NUMERIC'
+  'NO_CYCLE' | 'HEADING_MISMATCH' | 'TOO_MANY_LOOPS' | 'TOO_BIG_TO_CHECK' | 'NUMERIC'
 >;
+
+/**
+ * The headline for each failure. Lives here rather than in `VerdictLine.tsx`
+ * because `vitest.config.ts` collects `.test.ts` only, in a node environment
+ * with no DOM: anything in a `.tsx` file is untestable, and this and
+ * `isFailure` below were the one new user-facing branch in the
+ * TOO_BIG_TO_CHECK change with no coverage at all.
+ */
+export const FAILURE_COPY: Record<FailureKind, string> = {
+  NO_CYCLE: 'Not a loop yet.',
+  HEADING_MISMATCH: 'The track does not come back pointing the right way.',
+  TOO_MANY_LOOPS: 'Too many loops in this layout to rank them.',
+  TOO_BIG_TO_CHECK: 'Too much track here to check every loop.',
+  NUMERIC: 'Could not check this layout.',
+};
+
+/**
+ * DERIVED from the copy table, not hand-written beside it.
+ *
+ * This was a hand-maintained `||` chain kept in parallel with a Record that
+ * tsc already keeps exhaustive, so a new kind needed three edits and the
+ * compiler only checked two of them. With the arm missing, a refusal falls
+ * past the grey failure branch and renders as a NEAR-PASS -- the same
+ * hand-maintained-list defect that `verdictView.test.ts` fixed with a Record
+ * in this very change, left standing one file over.
+ */
+export const isFailure = (k: VerdictKind): k is FailureKind => Object.hasOwn(FAILURE_COPY, k);
+
 export const ACTION_FOR_FAILURE: Record<FailureKind, string> = {
   NO_CYCLE: 'Click the two free ends you want joined.',
   TOO_MANY_LOOPS: 'Break this into fewer loops, or check them a few at a time.',
+  /*
+   * ONLY LEVERS THAT EXIST. This said "or split this into separate layouts",
+   * and there are none: one storage key, and the only layout controls are
+   * Remove last, Clear and the three presets.
+   */
+  TOO_BIG_TO_CHECK: 'Remove some track.',
   HEADING_MISMATCH:
     'The curves need to add up to a whole turn. Add one, remove one, or mirror one.',
-  NUMERIC: 'Nothing to act on until the check completes.',
+  /*
+   * TWO CAUSES, so this cannot promise a pending check. `solve.ts` returns
+   * NUMERIC both when a figure came out non-finite AND when rank says there
+   * are loops but none traced -- and the second is deterministic and already
+   * finished, so "until the check completes" would be telling the user to
+   * wait for something that is over. Same one-reason-two-causes shape that
+   * TOO_MANY_LOOPS carried until TOO_BIG_TO_CHECK was split out of it; this
+   * one is worded to cover both rather than split, because the second cause
+   * is not reachable today.
+   */
+  /*
+   * An imperative, not the headline again. The headline already says "Could
+   * not check this layout."; repeating it in the one register whose job is
+   * "what do I do now?" leaves the builder with nothing. Both controls named
+   * here exist.
+   */
+  NUMERIC: 'Remove the last piece you added, or clear the canvas and start again.',
 };
 
 /**

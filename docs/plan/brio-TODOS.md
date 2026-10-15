@@ -404,6 +404,29 @@ the existing single-cycle machinery run once per component. Switches are exactly
 what breaks that property. Revisit once K0c's repair has proven itself on one
 cycle, with the gauge sweep passing across every cut point at four sizes.
 
+**WHAT THE 2026-10-15 ENUMERATION FIX LEFT FOR THIS TASK.** One thing, and it
+is smaller than the first version of this note claimed.
+
+`CYCLE_WORK_BUDGET` is unpinned against a frame target, the same gap
+`CYCLE_RANK_CEILING` has (eng finding E13). 150,000 weld-slots was chosen by
+measurement -- it refuses the worst dense layout in 12-22ms and still answers a
+legitimate 10,000-piece layout in full -- but not derived from a frame budget.
+A real switch catalogue is what makes it measurable against something.
+
+**CORRECTED, SAME DAY.** This note first said that the dense-sharing-graph
+regime and the budget were "unreachable until a part carries a third port", and
+that the refusal wording could therefore wait for this task. Both were wrong,
+and the reasoning error is worth keeping: shared pieces do NOT require extra
+ports. Two fundamentals share a piece whenever that piece sits in both of them,
+and a second weld on ONE port is enough to put it there. `loadGraph` validated
+a weld's port RANGE and never its OCCUPANCY, so a stored layout could claim the
+same track end many times over and reach the dense regime with nothing but
+ordinary two-port parts. Measured: 11,058ms of frozen main thread from a
+303,940-byte blob the loader accepted without a word. The port count was never
+the gate; the trust boundary was. Both were fixed on the branch instead of
+deferred here.
+
+
 **Effort:** human ~3-4 weeks / CC ~4 hours
 **Priority:** P1 for v2
 **Depends on:** K0c engine repair proven; K4's switch part with its centreline shift
@@ -808,16 +831,26 @@ which noted deployment has gone untouched across six reviews.
 
 ## P3 — A direct `solveGraph` suite (filed by the eng review, 2026-10-14)
 
-**What:** `engine/src/graph/solve.ts` has exactly one importer among the 15 test
-files: `engine/test/differential.test.ts`. So the verdict union's five return
-sites are exercised only where the chain engine can follow, and `TOO_MANY_LOOPS`
-by construction cannot be: the chain model has no concept of rank above 1.
+**MOSTLY OVERTAKEN 2026-10-15. Re-checked before trusting it; three of its
+facts no longer hold.** It said `solve.ts` had "exactly one importer among the
+15 test files"; it now has four (`differential`, `trustBoundary`, `cycles`,
+`verdictView`). It said `TOO_MANY_LOOPS` "by construction cannot be" exercised
+because the chain model has no rank above 1; `engine/test/cycles.test.ts` now
+drives it and `TOO_BIG_TO_CHECK` directly through `solveGraph` on graph
+fixtures, which the chain model never had to reach. And the union has six
+return sites now, not five.
 
-**Why deferred rather than scheduled:** the branch is guarded by
-`CYCLE_RANK_CEILING = 20`, which is tested directly in `engine/test/cycles.test.ts`
-one layer down, and no defect points at it. The principle this project has been
-applying holds: a test earns its place by catching something the existing layers
-cannot. Pick this up with K1, when nine more parts widen the union's input space.
+**What is actually left:** the new `rank > 0 && cycles.length === 0` arm has
+no spec driving its FIRING, because nothing can drive it (every fundamental
+traces; a weld naming a missing piece throws first). Its misfire direction is
+pinned. The non-finite `NUMERIC` cause IS covered, at
+`engine/test/differential.test.ts`. The clash-precedence ordering is pinned
+only at the `viewOf` layer. Both narrow.
+
+**Why still deferred:** the branches that mattered got specs as a side effect
+of the work that needed them, which is the principle this project applies: a
+test earns its place by catching something the existing layers cannot. Pick
+the remainder up with K1.
 
 **Effort:** human M / CC S. **Priority:** P3.
 **Depends on / blocked by:** nothing. Scheduled with K1's wave by preference.
@@ -935,65 +968,279 @@ Verified by deliberate breakage, not by assumption: `PLANK_WIDTH_MM` 40 -> 41
 failed CI red at `engine/test/analytic.test.ts:341`.
 
 A first attempt at that proof is worth recording, because it found something.
-`CYCLE_RANK_CEILING` 20 -> 3 passed CI green: `engine/test/cycles.test.ts`
-imports the constant and builds fixtures as `CYCLE_RANK_CEILING + 5`, which is
-right for the behaviour under test but pins no VALUE. Changing it to 3 silently
-narrows what the product will rank, with no test objecting. Tracked as eng
+`CYCLE_RANK_CEILING` 20 -> 3 passed CI green at the time: cycles.test.ts
+imported the constant and built fixtures as `CYCLE_RANK_CEILING + 5`, which is
+right for the behaviour under test but pinned no VALUE. Changing it to 3
+silently narrowed what the product will rank, with no test objecting.
+
+**NO LONGER SILENT, re-run 2026-10-15: that mutation now fails five specs**,
+because the dense-sharing-graph block added with the work budget builds
+fixtures at fixed ranks (14 and 20) rather than relative to the constant, and
+a ceiling of 3 refuses them. The ceiling's VALUE is still unpinned against a
+frame target, which is the part of E13 that remains; what is closed is the
+"no test objecting" half. Tracked as eng
 finding E13 in `docs/plan/2026-10-13-open-work.md`.
 
 The distribution and font-licence half of the old entry is NOT done and stays
 open above.
 
-## P0 — The cycle enumeration freezes the tab for 12 seconds (filed by /ship, 2026-10-14)
+### DONE — The cycle enumeration froze the tab for 12 seconds (P0, fixed 2026-10-15)
 
-**What:** `engine/src/graph/cycles.ts:186` walks `for (let mask = 1; mask < 1 << rank; mask++)`
-with per-subset work proportional to the selected fundamentals' total length. Every
-edit re-solves synchronously inside render, so the cost lands on the main thread with
-no timeout, no cancel and no worker. A freeze is not a throw, so `ErrorBoundary`
-cannot catch it.
+**Was:** `cycles.ts` walked `for (let mask = 1; mask < 1 << rank; mask++)` with
+per-subset work proportional to the selected fundamentals' total length. At the
+accepted `CYCLE_RANK_CEILING = 20` that is 1,048,575 subsets, and the solve runs
+synchronously inside render, so the cost landed on the main thread with no
+timeout and no cancel. A freeze is not a throw, so `ErrorBoundary` could not
+catch it.
 
-**Measured on the committed tree, twice, by two independent probes** (the second was
-this session re-deriving the first rather than trusting it):
+**Fixed in two parts, because the first part was not enough.**
+
+**Part one, the enumeration.** `forEachConnectedSubset` visits only the
+CONNECTED subsets of the fundamental-sharing graph (fundamental i adjacent to j
+when their piece sets intersect). Lossless, not a heuristic: a disconnected
+subset's symmetric difference is a disconnected even subgraph, and
+`traceSimpleCycle` already rejects anything that is not one simple circuit, so
+every subset skipped could only ever have been discarded. On today's catalogue
+the sharing graph has no edges at all, so the walk yields `rank` subsets instead
+of 2^rank - 1:
 
 ```
-  rank 12 /  96 pieces      48ms     cycles kept 12
-  rank 16 / 128 pieces     569ms     cycles kept 16
-  rank 18 / 144 pieces    2563ms     cycles kept 18
-  rank 20 / 160 pieces   12179ms     cycles kept 20
+  rank 12 /  96 pieces      41ms  ->  0.75ms
+  rank 16 / 128 pieces     521ms  ->  0.33ms
+  rank 18 / 144 pieces    2348ms  ->  0.37ms
+  rank 20 / 160 pieces   12289ms  ->  1.65ms
 ```
 
-The recorded figures the rank-20 ceiling was chosen against (2ms@12, 15ms@16,
-471ms@20) understate the shipped worst case by up to 26x, because rank alone does
-not determine cost: piece count does, and nothing caps pieces or welds. The same
-rank 20 costs about 1.1s at 20 pieces and 12.2s at 160.
+**Part two, the budget, which the review caught.** Part one shipped with a cap
+of 20,000 SUBSETS, and subsets are the wrong axis. A subset costs the total
+length of the fundamentals it selects, and a fundamental is as long as the tree
+path between its closing weld's ends, so cost scales with PIECE count while the
+rank ceiling bounds only rank. Measured on a dense sharing graph built from
+ordinary two-port parts:
 
-**Why the work is provably wasted, which is what makes this cheap to fix:** every
-part in the catalogue has exactly 2 ports, and both `weldEnds` and `addPiece` only
-weld FREE ports, so no piece can carry a third weld. Every fundamental cycle is
-therefore vertex-disjoint from every other, `traceSimpleCycle`'s degree-2 filter
-rejects every mask of popcount >= 2, and `cycles kept == rank` in every topology
-probed. At rank 20 that is 1,048,555 subsets of pure waste out of 1,048,575.
+```
+  rank 14,  8402 pieces   16,383 subsets, UNDER the 20,000 cap, so nothing
+                          truncated at all: 6905ms and then a normal verdict
+  rank 20,  6302 pieces   capped, but only after spending 8875ms getting there
+```
 
-**Fix:** build the fundamental-sharing graph once (fundamental i adjacent to j when
-their piece sets intersect) and enumerate only its CONNECTED subsets. On today's
-catalogue that collapses to `rank` iterations and costs nothing. The full cycle space
-is still covered the moment a 3-port switch lands, so T6's no-pooling guarantee is
-unchanged — which matters, because "give is never pooled across cycles" is one of the
-three invariants no task may weaken.
+The first is the worse one: a seven-second frozen tab and no refusal. So the
+budget is now `CYCLE_WORK_BUDGET = 150_000` counted in weld-slots and charged
+BEFORE each subset's work, which makes it independent of layout size:
 
-Separately worth doing: move `solveGraph` off the synchronous render path, and give
-it the placement `App.tsx` already memoized (`solve.ts:85` recomputes `placeAll`, so
-the drawing and the verdict build two separate forests and rely on determinism rather
-than construction to agree).
+```
+  analyseCycles on a dense graph    602 pieces 14ms   2102 12ms
+                                   5102 pieces 11ms   8402 20ms
+  a legitimate 10,000-piece layout at rank 20   answered in full, 10ms
+```
 
-**A failing timing test is already written and SKIPPED** at
-`engine/test/cycles.test.ts`, so the spec is in the repo rather than in this entry.
-Un-skip it to start.
+Flat in piece count, which is the property that was missing.
 
-**Effort:** human ~1d / CC ~1h. **Priority:** P0.
-**Depends on / blocked by:** nothing. Deferred from the 2026-10-14 ship by owner
-decision D5, to keep a core-engine algorithm change out of a PR already carrying six
-critical fixes.
+**Part three, the trust boundary.** The dense regime was reachable because
+`loadGraph` validated a weld's port RANGE and never its OCCUPANCY, so a stored
+layout could weld the same track end twenty times. Each duplicate becomes
+another closing weld, which inflates the rank AND makes the sharing graph
+dense. Measured end to end before the check existed: a 303,940-byte blob loaded
+with NO discarded sentence and the solve then blocked for 11,058ms, with
+`ErrorBoundary` unable to fire and the key never cleared, so every reload did it
+again. `loadGraph` now refuses the whole layout, the same call it already makes
+for an out-of-range port index, because a weld is a declared intent about two
+specific ends and there is no way to tell which duplicate was meant.
+
+**Part four, the sentence.** Both limits used to report `TOO_MANY_LOOPS` with
+`${rank} independent loops is more than this can rank`, and `verdictAction` then
+advised "Break this into fewer loops". At rank 14 that is simply untrue -- 14 is
+inside the ceiling of 20 -- and the advice points at loops that are not the
+problem. `CycleSpace.truncated` is now `false | 'rank' | 'work'` and the work
+case gets its own reason, `TOO_BIG_TO_CHECK`.
+
+**Part five, the two things that were actually freezing the tab.** Round two
+found that bounding `analyseCycles` had not stopped a large layout freezing,
+because two other things on the same path were unbounded and BOTH ran outside
+every bound added above.
+
+`findVertexClashes` compared all pairs of ports, and it runs before the rank
+ceiling and before `analyseCycles`, on every branch including `rank === 0`. Its
+own `gstack-shortcut(dec-f333f98f)` note said to upgrade "when a layout exceeds
+roughly 500 ports" and nothing enforced it. Measured on 20 clean rings of
+ordinary straights -- every port claimed once, no duplicate weld, catalogue
+parts only, so no guard anywhere objects -- a 1MB stored layout of 10,000
+pieces took 8337ms in that scan alone and still reported "ok". It now groups
+ports by their exact lattice position, which is the replacement that decision
+note already prescribed: 8337ms becomes 16-18ms across runs, and the output is byte-identical
+across 582 fixtures (every catalogue part at both turns as chains and loops,
+400 random soups, the 16xE double circle, the 8L8R tangent pair; 749 clash
+records in all).
+
+`App.tsx` passed a `slop` callback that did `graph.pieces.find(...)`, and
+`giveOfWeld` calls it once per edge, so the solve was O(welds x pieces) at the
+only call site that matters. Clean quadratic -- 23ms at 4,000 pieces rising
+to 1,426ms at 32,000, against 0.4ms and 2.2ms with a Map -- with the budget
+never firing, because the engine prices weld-slots assuming a slot is O(1)
+and a scanning callback breaks that from outside. Both callers now pass a
+Map. (Measured as the lookup mechanism, one call per weld end, which is what
+`App.tsx`'s comment records and what anyone can re-run; an earlier version of
+this paragraph quoted `analyseCycles` timings on a fixture it never named.)
+
+End to end on the same fixture, `solveGraph`:
+
+```
+   1,000 pieces   101ms  ->    8ms
+   5,000 pieces  2332ms  ->   21ms
+  10,000 pieces  9114ms  ->   45ms
+  20,000 pieces      --   ->   86ms
+```
+
+**STILL OPEN, and this is the honest limit of the fix.** Nothing caps
+`pieces.length` or `welds.length` at load, so the remaining cost is linear
+rather than bounded. `solveGraph` also still runs on the synchronous render
+path and still recomputes `placeAll` instead of taking the placement
+`App.tsx` memoized: its own P1, still open.
+
+**CORRECTION, 2026-10-15.** This entry used to end the paragraph above with
+"a layout whose ports genuinely all coincide is still quadratic in the
+coincidences (792ms at 1,000 stacked pieces, which produces 999,000 clash
+records -- work proportional to the answer)". That was true of the grouping
+fix alone, and grouping is exactly why: when every port is at ONE position,
+every port lands in one group and the comparison inside that group is still
+all-pairs. A later commit on this same branch removed it, by reformulating
+the rule per PIECE instead of per pair (`graph/feasible.ts`, which now
+retracts the same phrase in its own comment). MEASURED on this branch at
+1,000 stacked pieces: **2.2ms and 2 records**, against the 792ms and 999,000
+this paragraph claimed. The coincident case is no longer the quadratic
+exception to the fix; there is no quadratic exception left.
+
+**Correctness evidence, and WHERE IT LIVES, which the first version of this
+entry got wrong.** It cited three differential runs -- 33,867 graphs on 6 or
+fewer vertices, 5,054 hostile random graphs, 3,315 graphs comparing `gapMm`,
+`giveMm` and `withinGive` -- as though they were repo artifacts. They were
+review-time measurements made by reviewers in scratch directories and they
+exist nowhere in the tree. Citing them here as evidence was the same defect
+as a mutation comment nobody ran, one level up: a durable document asserting a
+run a reader cannot reproduce.
+
+What IS committed and reproducible:
+
+- `engine/test/cycles.test.ts`, `forEachConnectedSubset` vs a brute-force
+  subset walk over 660 random sharing graphs: identical sets, no duplicates.
+- `sharingGraph`'s five specs, including the shared-piece branch that no
+  catalogue layout can reach.
+- The `analyseCycles`-level spec that loses a real loop (3 cycles become 2)
+  the moment the sharing graph is replaced with zeros.
+
+What was measured during review and is NOT in the tree, recorded as such: the
+three runs above, plus a 582-fixture byte-identical check of
+`findVertexClashes` and a 1,202-set byte-identical check of `sharingGraph`,
+both done at the terminal while changing those two functions. Worth redoing as
+committed differentials; filed below rather than claimed here.
+
+Give is still reduced over each cycle's OWN welds, so T6 is untouched, and
+`closesExactly` comes from residuals rather than the enumeration, so the exact
+verdict never depended on the walk.
+
+**Suite: 446 passing, ZERO skipped.** Three trees, three numbers, because the
+first version of this line conflated two of them: the merge base `0cba762` is
+399 passing with 2 skipped (401 total), the mid-branch commit `11dbfd5` is 405
+passing with none skipped, and HEAD is 446 passing with none skipped. No tree
+has ever had 405 specs with 2 skipped.
+
+**THE REVIEW FOUND MORE IN THE COMMENTS THAN IN THE CODE**, which is this
+repo's recurring defect and the reason the test file now opens with a note
+about it. Four mutation claims I wrote were wrong and all four were caught by
+running them: a reversed `expected false to be true` (really
+`expected true to be false`), a predicted `[ 0, 2 ]` that was `[ 1, 2 ]`, a
+claim that one mutation would HANG when it fails in 9ms, and a failure count of
+four that was really five. A fifth was wrong only because I truncated the
+output. None of them weakened a test; all of them were records a reader is told
+to trust instead of re-running.
+
+**Two coverage holes the review closed.** The sharing graph's edge-finding
+branch was unreachable from the whole suite -- made to throw, all 405 specs
+passed -- and so was `analyseCycles`' USE of it: replacing the adjacency with
+all zeros, the exact "missing edge" false-pass direction, also left everything
+green. Both are now pinned, the second by a theta graph that loses a real loop
+(3 cycles become 2) the moment the wiring breaks. Separately,
+`verdictView.test.ts` claimed to check that every `VerdictKind` is reachable
+while holding a hand-maintained array, which a SUBSET satisfies; adding a kind
+left it green. It is a `Record<VerdictKind, true>` now, so tsc fails instead.
+
+**And one spec of mine that flaked.** The first dense-graph timing specs timed
+the whole `analyse()` -- including `placeAll` over 8402 pieces -- against a
+100ms bound, and failed 2 runs in 8 at 162ms and 100.19ms. They now time
+`analyseCycles` alone against 250ms, which still catches the regression by 27x,
+and 10 consecutive runs are clean.
+
+
+### DONE — The overlap scan was quadratic in coincident ports (P0, fixed 2026-10-15)
+
+**Was:** `findVertexClashes` emitted one record per PAIR of vertices in a
+place, which is C(k,2) when k of them land together. Grouping by exact lattice
+position (earlier the same day) made the SPREAD case linear and did nothing
+here, because when ports coincide the group is the layout.
+
+**It needed no hostile input.** `E` turns 45 degrees, so eight close a circle
+and an open run laps the same EIGHT places. 800 `add` actions through the real
+reducer -- one palette click each -- reached 39,699 records, visible by 200
+clicks. A second route needed no curves at all: a blob with no welds and no
+anchors stacks every piece at the identity, 32KB for 999,000 records.
+
+```
+  lapped run of E     old       new    old records   new records
+    1,000 pieces     48ms       3ms        62,124              8
+    4,000 pieces    825ms       8ms       998,499              8
+    8,000 pieces   5907ms      29ms     3,996,999              8
+
+  pile at identity
+    1,000 pieces    968ms       8ms       999,000              2
+    2,000 pieces   4922ms      16ms     3,998,000              2
+```
+
+`solveGraph` end to end on the 8,000-piece lapped run is 63ms. In the browser a
+446KB layout of 4,000 lapped curves renders a verdict in 333ms.
+
+**Fixed by REFORMULATING the rule, not re-deciding it.** The old rule reported
+a place when either some vertex there was welded, or some pair of pieces had
+free ends in two or more places. The second half is what cost C(k,2), and it
+does not need pairs: two pieces share two all-free places exactly when both
+SPAN the same pair of places, and a piece has two ports, so it spans at most
+one pair. Counting per piece instead of per pair gives the identical answer in
+one linear pass.
+
+**VERIFIED IDENTICAL over 1,088 fixtures** -- every catalogue part at both
+turns as chains and loops of 3/4/8/9/16/17/24 pieces, 700 random soups, lapped
+runs of 9/17/33/64 of every part, piles of 2..60 loose pieces, mixed-part
+piles, the 16xE double circle and the 8L8R tangent pair. The set of reported
+PLACES is identical in all 1,088 and no layout changes verdict.
+
+**A FIRST ATTEMPT WAS WRONG IN BOTH DIRECTIONS AND WAS REVERTED**, which is
+why the differential above is the headline. It read the file's "a third thing
+landing on it is a clash" as covering loose ends and reported any place holding
+three or more vertices: measured, that flipped 84 layouts from fine to
+impossible -- three loose ends meeting at one point, which the product calls an
+invitation. A second attempt classified each place as either welded or free,
+losing 30 places, because a place can hold a welded vertex AND two or more free
+ones, and the old pair walk let the welded pairs become clashes while the
+free-free pairs there still counted toward the pile-up. Both were caught by the
+differential, not by reasoning.
+
+**What changed for the user:** the count is PLACES, not pairs of ends. That is
+forced -- a place can hold n vertices and C(n,2) is quadratic in the input --
+and it is also the right number, because `clashMarkers` already dedupes to one
+marker per place and over 582 of those fixtures the old count disagreed with
+the markers drawn in 142 of the 241 that clash at all. The copy follows it:
+"8 spots have track ends in exactly the same place" rather than "8 pairs of
+track ends land in...". This is the same defect `feasible.ts` records being
+half-fixed once before, when the 16xE double circle said 32 over 8 markers:
+counting vertex pairs matched that case only because each place held exactly
+two vertices. 16xE still reports 8, verified in the browser, and the tangent
+pair still reports 1. The mechanism lives in `feasible.ts`; this entry keeps
+the history.
+
+**Specs:** the lapped run and the pile each have one, asserting the place count
+and a 300ms backstop. The record COUNT is the primary assertion, because
+restoring the pair walk fails it by five orders of magnitude
+(`1000 pieces, 62124 records: expected 62124 to be 8`) long before any clock.
+
 
 ## P2 — The review backlog: findings that need judgement, not a keystroke (filed by /ship, 2026-10-14)
 
@@ -1094,7 +1341,7 @@ divergence it exists for.
 ## P1 — `solveGraph` computes a second placement instead of accepting the one App.tsx already made (filed by /ship, 2026-10-14)
 
 **What:** `App.tsx` builds `placement = placeAll(graph, ports)` and passes it to
-`renderGraph`. `solveGraph` does not take it — `solve.ts:85` calls
+`renderGraph`. `solveGraph` does not take it — `solve.ts:90` calls
 `placeAll(graph, ports)` itself. So the canvas draws from placement A and the
 verdict, including `findVertexClashes` whose `at` coordinates `TrackCanvas`
 draws markers at, is computed from placement B.
@@ -1108,15 +1355,170 @@ exact failure T4's single forest was built to make impossible. It also repeats
 the forest and placement work on every edit, plus twice more per delete in
 `captureAnchors`.
 
+**What it costs, MEASURED 2026-10-15** (this entry carried no price when it was
+filed, which is why it sat at P1 without anyone being able to weigh it). On a
+42,000-piece layout, one `placeAll` is the dominant term of a ~191ms
+`solveGraph`, and the per-edit sequence recomputes `portFrame` across three to
+four callers. The duplicate placement is real work, not a theoretical tidy-up.
+
+**A THIRD placement nobody filed: `nextRunAnchor`.** `layoutModel.ts:84` runs
+its own `placeAll` AND then scans every port through `portFrame` to find the
+vertical extent, and `addPiece` calls it whenever a piece does NOT attach
+(`layoutModel.ts:134`, gated on `!attaching && graph.pieces.length > 0`) — that
+is every palette click with nothing selected. MEASURED, as the delta between an
+unattached and an attached add:
+
+```
+   1,000 pieces    1.9ms
+   5,000 pieces    8.9ms
+  20,000 pieces   31.2ms
+  42,000 pieces   58.5ms   (vs 1.1ms for an attached add at the same size)
+```
+
+Linear per click, so O(k·n) across a session: the cost is paid again, in full,
+on every unattached add. At 42,000 pieces an unattached add is ~53x an attached
+one. This is the most expensive thing on the add path and it appears in no other
+entry; the two placements named above are `App.tsx`'s and `captureAnchors`'.
+
 **Fix:** `solveGraph(graph, ports, resolve, slop, placement)` — accept it, do
 not derive it. `App.tsx`'s comment then becomes true by construction rather
 than by convention; it currently says so and is wrong, which is corrected in
-place at `cc89914` pending this.
+place at `cc89914` pending this. `nextRunAnchor` is a separate half: it needs
+the placement passed in too, and its port scan wants the extent it already
+computed rather than a fresh `portFrame` per port.
 
-**Effort:** human ~1h / CC ~15m. **Priority:** P1.
+**Effort:** human ~1h / CC ~15m for the `solveGraph` half; human ~2h / CC ~20m
+for the `nextRunAnchor` half. **Priority:** P1.
 **Depends on / blocked by:** nothing.
 
-## P1 — Nothing bounds a layout's size, and the clash scan is quadratic in ports, so a large stored layout hangs render uncatchably (filed by /ship, 2026-10-14)
+## P1 — `TrackCanvas` is not virtualised (filed by /ship as a P0, 2026-10-15; the freeze was bounded the same day)
+
+**What:** this branch made the engine linear and the freeze relocated one
+layer out, into the render that consumes the engine's answer in the SAME
+synchronous pass. MEASURED on 120,000 loose straights -- 3.72M stored chars,
+inside a ~5MB quota, which `loadGraph` accepts with `discarded=none` and
+`droppedAnchors=0`:
+
+```
+  loadGraph                        29ms
+  placeAll      (canvas memo)      58ms
+  renderGraph   (canvas memo)     185ms
+  solveGraph    (verdict memo)    274ms   <- the whole engine
+  layoutTrust                       5ms
+  saveGraph     (per-edit effect)  25ms
+  TrackCanvas render             3153ms   <- 1.2M SVG elements, 96MB markup
+```
+
+At 161,000 pieces (4.99M chars, exactly at quota) the canvas is 5,172ms and
+1.6M elements. The 3,153ms figure is `renderToStaticMarkup`, which is a FLOOR:
+client-side reconciliation plus SVG layout and paint of 1.2M nodes, each free
+port carrying `onClick`/`onKeyDown`/`tabIndex`, is strictly worse and is an
+OOM candidate.
+
+**Why it is worse than slow:** it is inside render, so it is an uncatchable
+frozen tab. `ErrorBoundary` never fires, `GRAPH_STORAGE_KEY` is never cleared,
+and every reload repeats it. That is the identical shape of the two P0s this
+branch just closed.
+
+**THIS IS THE FOURTH TIME THE BOUND HAS MOVED ONE LAYER OUT, and that is the
+finding, not the milliseconds.** Round one capped subsets while per-subset
+cost still scaled with pieces. Round two capped enumeration work while the
+all-pairs clash scan ran upstream of it. Round three grouped that scan while
+the coincident case stayed quadratic. This round made the clash scan linear in
+every case, and the render downstream of it is now the binding constraint. The
+engine comment that says "`solveGraph` end to end on the 8,000-piece lapped
+run is 63ms" was and is true, and it invited exactly the inference that the
+tab was fine; it now carries this measurement beside it.
+
+**Mechanism:** `app/src/TrackCanvas.tsx` emits roughly 10 DOM nodes per piece
+-- `maxLayers x segments` `<path>` plus 3 `<circle>` per FREE port -- with no
+cap and no virtualisation. `maxLayers` and the inner `layers(s.partId)` are
+computed in the render body rather than a `useMemo`, so every render repeats
+`4 x segments` `resolve()` calls and allocations on top.
+
+**Pre-existing:** `TrackCanvas` is untouched by this branch. It is filed as a
+P0 anyway because the branch is what made it binding, and because a reader of
+the engine's own numbers would now conclude the opposite.
+
+**HALF FIXED 2026-10-15. The freeze is gone; virtualisation is not done.**
+
+`CANVAS_SEGMENT_CEILING` is 10,000 pieces (`app/src/TrackCanvas.tsx`). Above
+it the canvas renders "Too much track to draw: N pieces" with a line saying
+the layout is still there and still checked, instead of drawing. The verdict
+is unaffected, because `solveGraph` does not depend on the canvas -- so a
+layout too big to draw is still CHECKED, which keeps the refusal honest.
+
+The value is set from measurement rather than taste. MEASURED through
+`renderToStaticMarkup`, which is a floor for what a browser then does:
+
+```
+   2,000 pieces     76ms    40,000 tags    1.6MB
+   5,000 pieces    169ms   100,000 tags    4.0MB
+  10,000 pieces    453ms   200,000 tags    8.0MB
+  20,000 pieces    793ms   400,000 tags   16.1MB
+  40,000 pieces   1474ms   800,000 tags   32.2MB
+```
+
+About 20 tags per piece, linear. 10,000 is where the draw stays under about
+half a second, and it is more than an order of magnitude above the few
+hundred pieces the cap entry below calls a big floor. Three specs pin the
+boundary at exactly the ceiling, one piece above it, and the copy.
+
+A note on the number first proposed: 20,000 was offered as "about 200,000
+SVG nodes, measured ~250ms", which was an extrapolation from a LAPPED run --
+fewer free ports per piece, so fewer circles per piece. Measured directly on
+loose pieces, 20,000 is 400,000 tags and 793ms, and 200,000 tags is 10,000
+pieces at 453ms. The measurement moved the value.
+
+**WHAT REMAINS:** virtualisation -- draw what the viewport covers, so no
+layout is ever too big to open and the ceiling can go away rather than being
+tuned. Also `maxLayers` and the inner `layers(s.partId)` are still computed
+in the render body rather than a `useMemo`, so every render repeats
+`4 x segments` `resolve()` calls under the ceiling as well as over it.
+
+**Effort:** human ~3d / CC ~4h for virtualisation; human ~1h / CC ~10m for
+the render-body memo. **Priority:** P1 now the freeze is bounded (was P0).
+**Depends on / blocked by:** nothing; the ceiling makes it safe to take later.
+
+**FIXED IN THIS BRANCH, the one part that was one line:**
+`Math.max(...segments.map(...))` passed one argument per segment. MEASURED:
+node/V8, the engine Chrome runs, throws `RangeError: Maximum call stack size
+exceeded` at 125,000 arguments; bun/JSC, which is what `vitest` runs under,
+returns fine at 161,000 -- so every spec in this repo passed while the browser
+threw. A 161,000-piece blob is 4.99M chars and loads clean, so the throw
+landed inside render, `ErrorBoundary` painted the crash screen, and its only
+exit (`clearAndReload`) also deletes the inventory and the submitted parts,
+which `library.ts` records as impossible to recreate. Replaced with a loop.
+
+### DONE — `CYCLE_RANK_CEILING` refused layouts the work budget answers in microseconds (P2, fixed 2026-10-15)
+
+**What:** MEASURED -- 21 separate 8-curve circles, 168 pieces, every loop
+closing exactly, reachable by 21 weld clicks with no stored layout involved:
+`TOO_MANY_LOOPS`, "21 independent loops is more than this can rank", in 1.1ms.
+Twenty of the same circles answer `ok` with `closesExactly: true` in 4.8ms.
+
+**Why it matters:** the ceiling was sized when the enumeration was `2^rank`
+subsets, and this branch deleted that justification -- the comment saying
+`2^rank` "no longer describes anything" -- while keeping the number. On a
+two-port catalogue `sharingGraph` is all zeros, the walk emits exactly `rank`
+singletons, and those 21 circles spend 168 of a 150,000-slot budget. The
+work budget is the real bound now; 20 is a leftover.
+
+`SUBSET_MASK_BITS` is 31, so the int32 mask supports a ceiling of 31 with no
+representation change. Invariant 3 is not broken -- the verdict is a grey "?"
+rather than a green pass, and clashes are still reported on this branch -- but
+refusing a correct, ordinary layout is the mirror of it, and 21 loops on a big
+floor is not an exotic shape.
+
+**FIXED 2026-10-15.** `CYCLE_RANK_CEILING` is now `SUBSET_MASK_BITS`, so the
+ceiling IS the representation and the two can no longer drift apart. MEASURED
+after: 21 circles answer `closesExactly` in 5.4ms, 31 circles in 2.1ms, and 32
+are refused in 1.4ms. The work budget does the bounding, which is the only
+bound with a measurement behind it.
+
+**Effort:** spent, CC ~20m. **Priority:** done.
+
+## P1 — Nothing bounds a layout's size (filed by /ship, 2026-10-14; the clash scan itself was fixed 2026-10-15, both halves)
 
 **What:** `loadGraph` validates every field's type and never bounds
 `pieces.length` or `welds.length`. `findVertexClashes` compares all pairs of
@@ -1135,6 +1537,45 @@ P0):
 Clean quadratic. A ~5MB `localStorage` budget holds roughly 50,000 pieces,
 which is about 5x10^9 pairs, on the order of minutes per render, doubled by
 StrictMode in development.
+
+**HALF FIXED 2026-10-15. The quadratic is gone; the absence of a cap is not.**
+
+`findVertexClashes` now groups ports by their exact lattice position instead
+of comparing all pairs -- the replacement `gstack-shortcut(dec-f333f98f)`
+already prescribed -- so the figures above no longer reproduce. Measured on 20
+rings of ordinary straights, anchored apart so nothing overlaps:
+
+```
+   1,000 pieces   clash scan  85ms ->  3ms   solveGraph  101ms ->  8ms
+   5,000 pieces               2221 ->  8                 2332  -> 21
+  10,000 pieces               8337 -> 16-18              9114  -> 45
+  20,000 pieces                 --  -> 33                  --  -> 86
+```
+
+Byte-identical output over 582 fixtures. `App.tsx`'s scanning `slop` callback
+was the other half of the end-to-end figure and is now a Map.
+
+**WHAT REMAINS, which is what this entry is now about.** Linear is not
+bounded. Both halves of the clash scan are now linear -- the spread case by
+grouping on the exact lattice position, the coincident case by counting
+pile-ups per piece rather than per pair -- so what is left here is purely the
+absence of a size cap. Nothing caps `pieces.length` or `welds.length` in `loadGraph`, so a
+large enough stored layout still costs whatever it costs, and a freeze is
+still not a throw. Two specifics for whoever takes it:
+
+1. **The cap is unwritten.** It is the cheap half and it converts an
+   unrecoverable hang into the recoverable refusal every other loader failure
+   already gets (notice, `GRAPH_RESCUE_KEY` copy, suppressed save). The
+   port-occupancy refusal added the same day does NOT help: it rejects a weld
+   on an already-claimed port, and this needs only a large number of
+   perfectly legal pieces.
+2. **The all-coincident case is FIXED** (2026-10-15, see the DONE entry): a
+   pile of 1,000 stacked pieces was 999,000 records in 968ms and is now 2
+   records in 8ms, because the count is places rather than pairs of ends.
+
+Also still open and unrelated to the cap: `solveGraph` runs synchronously
+inside a render `useMemo`, and `App.tsx` calls `placeAll` once itself and
+`solve.ts` calls it again.
 
 **Why it is worse than slow:** it is a HANG, not a throw.
 `getDerivedStateFromError` never fires, so the crash screen never paints and
@@ -1203,6 +1644,25 @@ the sharing feature.
 **Depends on / blocked by:** blocks the backend/publish work above.
 
 ## P2 — Documentation: README.md denies most of what this release shipped (filed by /ship's docs audit, 2026-10-14)
+
+**RE-CONFIRMED 2026-10-15 with the exact lines, so this does not need
+re-deriving.** Four claims are flatly false against the shipped code, and the
+README is the first thing a reader checks it against:
+
+- `:96` "The layout verdict has four states" -- there are ten `VerdictKind`s,
+  five of them failure kinds.
+- `:105` "The engine is single-cycle" and `:119` "Single cycle only. A layout
+  is a chain, optionally closed." -- the graph engine ranks up to
+  `CYCLE_RANK_CEILING = 20` independent loops, and the UI renders "N of M
+  loops". This one is the most jarring: the branch that bounded that
+  enumeration left the README saying it cannot happen.
+- `:126` "No inventory, no 3D, no build mode, no library." -- there is an
+  inventory (`inventoryModel.ts`), a library and a submissions pipeline
+  (`engine/data/library.ts`, `SubmitPart`).
+
+Left to this entry rather than patched in passing, because scoping the chain
+engine (`engine/src/solver`) apart from the graph engine is the actual job and
+it is prose, not a one-line correction.
 
 **What:** the docs audit returned `blocked`. It made four factual corrections
 (test count, `bun run typecheck`, the split U7a/U7b reference, the third

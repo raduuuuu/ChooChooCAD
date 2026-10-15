@@ -701,6 +701,92 @@ describe('E9: the anchor-rejection matrix', () => {
  * escape the crash screen offers also deletes the inventory and the
  * submissions.
  */
+/**
+ * A PORT HOLDS ONE WELD, and the loader was the one place that did not say so.
+ *
+ * Value: protects=a stored layout cannot claim the same track end twice, so it
+ * cannot inflate the cycle rank or make the fundamental-sharing graph dense
+ * Value: fails_when=the occupancy check goes away, or it stops refusing the
+ * whole layout and starts dropping welds instead
+ * Value: why_new=`isPort` checked a port index's RANGE and never its
+ * OCCUPANCY. `weldEnds` refuses a port that is not free and `addPiece` welds
+ * only free ports, so this is a value the engine could not have written --
+ * but every claim that the dense-sharing-graph case was "unreachable" rested
+ * on the in-app path alone, and storage is how layouts actually arrive.
+ * Value: seam=none
+ * Value: no_claim=nothing about the cycle enumeration's own cost, which is
+ * bounded by `CYCLE_WORK_BUDGET` whatever arrives. This closes the route, not
+ * the bound: both are needed and neither replaces the other.
+ *
+ * MEASURED before the check existed, through this loader: 3000 pieces with 20
+ * duplicate welds on one port is a 303,940-byte blob that loaded with NO
+ * discarded sentence, after which the solve blocked the main thread for
+ * 11,058ms. A freeze is not a throw, so `ErrorBoundary` never fired and the
+ * key was never cleared, so every reload did it again.
+ */
+describe('a stored weld cannot claim a port another weld already holds', () => {
+  const load = (seed: Record<string, string>) => withStore(seed, () => loadGraph(KNOWN, ports));
+
+  const base = [
+    { pieceId: 'p0', partId: 'D' },
+    { pieceId: 'p1', partId: 'D' },
+    { pieceId: 'p2', partId: 'D' },
+  ];
+
+  /*
+   * MUTATION PROOF, run: delete the `claimed` checks and all four cases below
+   * load cleanly -- `expected undefined to be type of 'string'`, quoted as
+   * `toBeTypeOf` prints it rather than paraphrased. The duplicate then
+   * becomes a second closing weld, which is what inflated the rank.
+   */
+  const cases = {
+    'the very same weld twice': [
+      { a: { pieceId: 'p0', port: 1 }, b: { pieceId: 'p1', port: 0 } },
+      { a: { pieceId: 'p0', port: 1 }, b: { pieceId: 'p1', port: 0 } },
+    ],
+    'the same end reused by a different weld': [
+      { a: { pieceId: 'p0', port: 1 }, b: { pieceId: 'p1', port: 0 } },
+      { a: { pieceId: 'p0', port: 1 }, b: { pieceId: 'p2', port: 0 } },
+    ],
+    'the same end reached from the other side of the weld': [
+      { a: { pieceId: 'p0', port: 1 }, b: { pieceId: 'p1', port: 0 } },
+      { a: { pieceId: 'p2', port: 1 }, b: { pieceId: 'p0', port: 1 } },
+    ],
+    'an end welded to itself': [{ a: { pieceId: 'p0', port: 1 }, b: { pieceId: 'p0', port: 1 } }],
+  };
+
+  for (const [name, welds] of Object.entries(cases)) {
+    it(`refuses the whole layout for ${name}, and rescues the bytes`, () => {
+      const r = load(blob({ pieces: base, welds, anchors: [] }));
+      expect(r.discarded).toBeTypeOf('string');
+      expect(r.value.pieces).toHaveLength(0);
+      expect(r.value.welds).toHaveLength(0);
+      expect(r.rescued).toBe(true);
+    });
+  }
+
+  it('still accepts a chain that uses each end once, so this is not a blanket refusal', () => {
+    const welds = [
+      { a: { pieceId: 'p0', port: 1 }, b: { pieceId: 'p1', port: 0 } },
+      { a: { pieceId: 'p1', port: 1 }, b: { pieceId: 'p2', port: 0 } },
+    ];
+    const r = load(blob({ pieces: base, welds, anchors: [] }));
+    expect(r.discarded).toBeUndefined();
+    expect(r.value.welds).toHaveLength(2);
+  });
+
+  it('accepts a closed loop, where every end is used exactly once', () => {
+    const welds = [
+      { a: { pieceId: 'p0', port: 1 }, b: { pieceId: 'p1', port: 0 } },
+      { a: { pieceId: 'p1', port: 1 }, b: { pieceId: 'p2', port: 0 } },
+      { a: { pieceId: 'p2', port: 1 }, b: { pieceId: 'p0', port: 0 } },
+    ];
+    const r = load(blob({ pieces: base, welds, anchors: [] }));
+    expect(r.discarded).toBeUndefined();
+    expect(r.value.welds).toHaveLength(3);
+  });
+});
+
 describe('a stored weld cannot name a port the part does not have', () => {
   /** Port counts, the way App.tsx supplies them. */
   const loadWithCounts = (seed: Record<string, string>) =>
@@ -819,22 +905,22 @@ describe('a stored weld cannot name a port the part does not have', () => {
 });
 
 /**
- * THE ORPHAN LANE STILL COLLIDES WITH A SURVIVOR'S FOOTPRINT, pinned as a
- * SKIPPED spec (P0 in brio-TODOS.md).
+ * THE ORPHAN LANE AND THE SURVIVOR'S FOOTPRINT. This was a SKIPPED spec
+ * pinning a P0; the P0 is fixed (`06e513f`) and it runs.
  *
  * Value: protects=a recovered layout never manufactures a "can't be built"
  * verdict about track the user built correctly
- * Value: fails_when=orphans are placed by stepping over OCCUPIED ROOT POINTS
- * rather than past the bounding box of everything already placed, which is
- * what the loader does today
+ * Value: fails_when=orphans go back to being placed by stepping over
+ * OCCUPIED ROOT POINTS rather than past the bounding box of everything
+ * already placed
  * Value: why_new=the occupancy search de-duplicates root anchor points; a run
  * marching along the lane axis occupies lanes its root does not name
  * Value: seam=none
  * Value: no_claim=nothing about pieces that cross mid-span, which
  * findVertexClashes does not check and the verdict copy says so
  *
- * SKIPPED ON PURPOSE, and it fails when un-skipped. MEASURED at this commit:
- * MANUFACTURED CLASHES = 1, at [1.3226185430791415e-14, 216].
+ * MEASURED on the parent of the fix: MANUFACTURED CLASHES = 1, at
+ * [1.3226185430791415e-14, 216]. Zero now.
  *
  * Two 216mm straights are welded into a run anchored at the identity pointing
  * ALONG the lane axis (heading 4), so p0 spans lane 0 to lane 1 and p1 spans
@@ -848,15 +934,24 @@ describe('a stored weld cannot name a port the part does not have', () => {
  * verdict below it is wrong, which is the harm the lane comment argues it is
  * trading away.
  *
- * `layoutModel.nextRunAnchor` already does this correctly for the in-app path:
- * it computes real clearance from `maxY - minY`. The loader uses a strictly
- * weaker rule for the same decision, because it has part ids but no port
- * geometry. The fix is to give it the geometry, or to return the orphan ids
- * and let App.tsx place them through `nextRunAnchor`. Deferred on 2026-10-14
- * rather than patched a third time under ship pressure: this is the third
- * attempt at this one bug and the first two both shipped wrong.
+ * HOW IT WAS FIXED: the loader was given the port geometry it lacked
+ * (`PortsOf` instead of a port count) and now clears the FOOTPRINT of
+ * everything already placed, which is what `layoutModel.nextRunAnchor` has
+ * always done for the in-app path.
  *
- * Un-skip this to start the work; do not delete it to make the suite green.
+ * It took three commits and the first two were wrong, which is why this
+ * docblock is long: the footprint rule landed in `57b891e` and left a stale
+ * provisional anchor on orphans that are not component roots, re-manufacturing
+ * the same clash one user action later. `06e513f` deletes the anchor instead.
+ *
+ * MUTATION PROOF, run: restore the anchor-point rule in
+ * `clearOfEveryFootprint` -- take the frontier from each non-orphan root's own
+ * ANCHOR y instead of its measured footprint -- and SIX specs fail, two here
+ * and four in E2 below. This one reports
+ * `expected [ { ...(3) } ] to have a length of +0 but got 1`, which is the
+ * manufactured clash, and its sibling reports
+ * `expected '0,0,0,0,216,0,0,0' to be '0,0,0,0,648,0,0,0'`: the orphan is
+ * handed a lane inside the run instead of past it.
  */
 describe('an orphan lane clears a survivor RUN, not just its anchor', () => {
   const runAlongTheLaneAxis = () =>
@@ -1201,5 +1296,71 @@ describe('the suppression wiring is present in App.tsx', () => {
      */
     expect(inv).not.toContain('noRescueCopy');
     expect(subs).not.toContain('noRescueCopy');
+  });
+});
+
+/**
+ * THE SOLVE'S SLOP CALLBACK IS A LOOKUP, NOT A SCAN.
+ *
+ * Value: protects=App.tsx hands `solveGraph` a constant-time slop callback, so
+ * the engine's work budget -- which is priced in weld-slots on the assumption
+ * that a slot is O(1) -- is not made quadratic in pieces from outside it
+ * Value: fails_when=the callback goes back to scanning `graph.pieces` for each
+ * lookup, or rebuilds the map on every call, either of which reintroduces the
+ * measured stall
+ * Value: why_new=nothing in the suite could see this. Every spec passes
+ * `() => slopMm` or `() => 0.8`, which is O(1), so the engine specs measure a
+ * cost the product did not pay. A scanning callback is quadratic in pieces
+ * and the budget never fires, because the cost sits outside the slots being
+ * charged, so the user got a normal verdict after the stall rather than a
+ * refusal. The measurement lives once, in `App.tsx` beside the callback
+ * itself; this spec reads source text and asserts no timing of its own.
+ * Value: seam=none
+ * Value: no_claim=nothing about the rendered component, which needs a DOM this
+ * suite does not have, and no timing claim of its own: this reads source text,
+ * so it pins the SHAPE of the call. A behaviour-preserving rewrite of the memo
+ * has to keep a `<map>.get(pieceId)` callback or update this spec, which is
+ * the price of pinning a `.tsx` file at all. It is the same price
+ * `describe('the suppression wiring is present in App.tsx')` above pays, and
+ * the same one the crash-screen specs in `repro.test.ts` pay.
+ *
+ * MUTATION PROOF, run: both specs below, applied to `App.tsx` exactly as it
+ * stands at `origin/main` -- the scanning callback this change replaced, which
+ * is the real regression rather than a synthetic one -- fail. TWO specs, with
+ * these messages:
+ *
+ *   expected 'const result = useMemo(\n    () =>\n …' to match
+ *   /=>\s*\w+\.get\(pieceId\)/
+ *
+ *   expected '/**\n * Layout-as-home.\n *\n * You a…' to match
+ *   /useMemo\(\s*\(\)\s*=>\s*new Map\(grap…/
+ *
+ * The POSITIVE assertion is what fires on that text, not the `.find(` one:
+ * vitest stops at the first failure and the lookup match comes first. The two
+ * negative assertions are for the variants the positive one would let past --
+ * a `.get(pieceId)` callback that also scans, or one that builds its map
+ * inside itself. Nothing else in the suite moves under this mutation, because
+ * nothing else reads this call.
+ */
+describe('the solve is handed a constant-time slop lookup', () => {
+  const source = readFileSync(join(import.meta.dirname, 'App.tsx'), 'utf8');
+
+  it('the callback looks the piece up, and does not scan or rebuild per call', () => {
+    const at = source.indexOf('const result = useMemo(');
+    expect(at, 'the solve is no longer computed in a useMemo').toBeGreaterThan(-1);
+    const block = source.slice(at, source.indexOf('\n  );', at));
+    expect(block).toContain('solveGraph(graph, ports, resolve,');
+    // Anchored at BOTH ends: the dependency list is the memo's last line, so a
+    // slice that stopped early would fail here rather than go vacuously green
+    // on the two negative assertions below.
+    expect(block, 'the slice did not reach the dependency list').toMatch(/\[graph, ports, resolve/);
+    // A lookup on something that has one, whatever it is called.
+    expect(block).toMatch(/=>\s*\w+\.get\(pieceId\)/);
+    expect(block, 'the slop callback scans the pieces array').not.toContain('.find(');
+    expect(block, 'the slop callback rebuilds its map per call').not.toContain('new Map(');
+  });
+
+  it('the map is built once per graph, in its own memo', () => {
+    expect(source).toMatch(/useMemo\(\s*\(\)\s*=>\s*new Map\(graph\.pieces\.map\(/);
   });
 });

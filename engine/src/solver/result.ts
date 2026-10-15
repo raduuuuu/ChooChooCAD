@@ -50,9 +50,11 @@ import type { Layout, Part } from '../parts/schema.js';
  * The old name was a chain artifact and says something false about a graph:
  * a layout can be a tree, a forest, or four loose pieces on the table, none
  * of which is "an open chain". What is true in every case is that there is
- * no loop to check. `Record<SolveFailure, string>` on FAILURE_COPY and
- * ACTION_FOR_FAILURE means a missed rename is a compile error, not a
- * fallthrough to generic copy.
+ * no loop to check. FAILURE_COPY and ACTION_FOR_FAILURE are each a `Record`
+ * over the app's own `FailureKind` union, so a missed rename is a compile
+ * error there rather than a fallthrough to generic copy. Note that union is
+ * WIDER than `SolveFailure`: it carries the two kinds the app adds on top of
+ * the three below, so the two types are related by intent, not by code.
  */
 export type SolveFailure = 'NO_CYCLE' | 'HEADING_MISMATCH' | 'NUMERIC';
 

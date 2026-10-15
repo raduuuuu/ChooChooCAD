@@ -23,26 +23,19 @@
 
 import type { ReactNode } from 'react';
 import type { TrustIssue } from '../../engine/src/joints/trust.js';
-import type { VerdictKind, VerdictView } from './verdictView.js';
-import { ACTION_FOR_FAILURE, ACTION_FOR_VERDICT } from './verdictAction.js';
+import type { VerdictView } from './verdictView.js';
+import {
+  ACTION_FOR_FAILURE,
+  ACTION_FOR_VERDICT,
+  FAILURE_COPY,
+  isFailure,
+} from './verdictAction.js';
 
 /*
- * Keyed by the kind, not by string: a new one is a compile error here rather
- * than a silent fall-through to generic copy. Verified by deleting a key,
- * which fails with TS2741.
+ * The copy table and the predicate moved to `verdictAction.ts`, which is a
+ * `.ts` module and therefore testable: this file is `.tsx` and the suite
+ * collects `.test.ts` only, in a node environment with no DOM.
  */
-type FailureKind = Extract<
-  VerdictKind,
-  'NO_CYCLE' | 'HEADING_MISMATCH' | 'TOO_MANY_LOOPS' | 'NUMERIC'
->;
-const FAILURE_COPY: Record<FailureKind, string> = {
-  NO_CYCLE: 'Not a loop yet.',
-  HEADING_MISMATCH: 'The track does not come back pointing the right way.',
-  TOO_MANY_LOOPS: 'Too many loops in this layout to rank them.',
-  NUMERIC: 'Could not check this layout.',
-};
-const isFailure = (k: VerdictKind): k is FailureKind =>
-  k === 'NO_CYCLE' || k === 'HEADING_MISMATCH' || k === 'TOO_MANY_LOOPS' || k === 'NUMERIC';
 
 /**
  * The trust register.
@@ -247,7 +240,7 @@ export function VerdictLine({
   /*
    * EMPTY IS ITS OWN STATE (task X2a, Y1 decision 1, gate d5 = b).
    *
-   * It used to render `verdict-unknown` with a `?` mark, identical to the four
+   * It used to render `verdict-unknown` with a `?` mark, identical to the
    * FailureKinds: "I have not started" and "the solver looked and this is
    * broken" were the same grey with the same glyph.
    *
@@ -322,16 +315,41 @@ export function VerdictLine({
             </span>
           ) : (
             <span className="verdict-text">
+              {/*
+                * SPOTS, because that is what is counted. `findVertexClashes`
+                * reports one record per PLACE where ends land together, which
+                * is also what `clashMarkers` draws, so the number and the
+                * picture agree. It used to count pairs of joined-up ends,
+                * which matched the dots only when each spot held exactly two
+                * of them; `graph/feasible.ts` records how the count got
+                * from ports to pairs to places, with the fixtures and
+                * the figures.
+                */}
               Can&rsquo;t be built. <span className="num">{e.clashCount}</span>{' '}
-              {e.clashCount === 1 ? 'pair of track ends lands' : 'pairs of track ends land'}{' '}
-              in exactly the same spot, so two pieces would have to share it.
+              {e.clashCount === 1
+                ? 'spot has two or more track ends on top of each other, so pieces would have to share it.'
+                : 'spots have two or more track ends on top of each other, so pieces would have to share them.'}
               {/*
                 * Only when there IS a loop. `viewOf` reports a gap of 0 on the
                 * failure branch, so keying this on gapMm alone printed "the
                 * loop does close" over a layout with no loop at all, which a
                 * user read in a bug report.
                 */}
-              {e.rank > 0 && e.gapMm === 0 && ' The loop does close; that does not help.'}
+              {/*
+                * `gapKnown` as well as rank, because `gapMm` is a FILLER zero
+                * on every refusal. Keyed on rank and gap alone, this printed
+                * "the loop does close" over a TOO_MANY_LOOPS, a
+                * TOO_BIG_TO_CHECK, a NUMERIC and even a HEADING_MISMATCH --
+                * where the engine had just determined the track does NOT come
+                * back aligned. Measured through `viewOf` at rank 7 with one
+                * clash: every one of them rendered the sentence.
+                */}
+              {e.rank > 0 &&
+                e.gapKnown &&
+                e.gapMm === 0 &&
+                (e.rank === 1
+                  ? ' The loop does close; that does not help.'
+                  : ' The loops do close; that does not help.')}
               <span className="verdict-detail">
                 {' '}Only exact overlaps like this are checked. Pieces crossing mid-span are not.
               </span>
