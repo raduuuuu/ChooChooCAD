@@ -271,6 +271,92 @@ describe('the overlap scan groups by exact position', () => {
   };
 
   /*
+   * THE CLOCK IS THE BACKSTOP HERE, not the primary assertion.
+   *
+   * What catches a regression in these two specs is the RECORD COUNT: the
+   * pair walk produced 998,499 records for 4,000 lapped pieces where the
+   * place rule produces 8, so the count fails by five orders of magnitude
+   * before any timer is consulted. The bound exists so a future rule that
+   * keeps the count small but walks the pairs anyway cannot pass, and it is
+   * 300ms against a 3-8ms steady state -- generous on purpose, because this
+   * branch flaked two wall-clock specs already by sizing bounds against the
+   * measured pass instead of the distance to the regression.
+   */
+  const SCAN_BOUND_MS = 300;
+
+  /** An OPEN run of `n` Large curves. `E` turns 45 degrees, so eight close a
+   *  circle and the run laps the same EIGHT places however long it gets. */
+  const lappedRun = (n: number): Graph => {
+    const pieces: Piece[] = [];
+    const welds: Weld[] = [];
+    for (let i = 0; i < n; i++) pieces.push({ pieceId: `l${i}`, partId: 'E', turn: 'left' });
+    for (let i = 0; i + 1 < n; i++)
+      welds.push({ a: { pieceId: `l${i}`, port: 1 }, b: { pieceId: `l${i + 1}`, port: 0 } });
+    return { pieces, welds, anchors: new Map() };
+  };
+
+  /*
+   * THE SHAPE THAT NO SPEC COVERED, and the one the whole P0 was about.
+   *
+   * Grouping ports by place made the SPREAD case linear and did nothing here,
+   * because when ports coincide the group is the layout. The scan emitted one
+   * record per PAIR of vertices in a place, so a lapped run put C(k,2) records
+   * in eight places: MEASURED before the fix, 4,000 pieces gave 998,499
+   * records in 825ms and 8,000 gave 3,996,999 in 5,907ms with 2.35GB
+   * resident. 800 `add` actions through the real reducer reach 39,699 records.
+   *
+   * Counting per PIECE rather than per pair of pieces gives the identical set
+   * of places in one pass. The record count becomes the number of places,
+   * which is what `clashMarkers` draws.
+   *
+   * MUTATION PROOF, run: restore the pair walk (one record per vertex pair,
+   * accumulated per piece-pair) and this fails on the RECORD COUNT, not the
+   * clock: `1000 pieces, 62124 records: expected 62124 to be 8`, on the FIRST
+   * iteration -- the loop aborts there and never reaches 4,000, where the
+   * same mutation would be 998,499. The pile spec below fails the same way,
+   * `expected [...] to have a length of 2 but got 999000`.
+   */
+  it('reports places, not pairs, when a run laps the same spots', () => {
+    for (const n of [1000, 4000]) {
+      const g = lappedRun(n);
+      const place = placeAll(g, ports);
+      const t0 = performance.now();
+      const found = findVertexClashes(g, ports, place);
+      const ms = performance.now() - t0;
+      // Eight places, however long the run gets. The laps genuinely collide,
+      // so this must still REPORT -- just once per place.
+      expect(
+        new Set(found.map((c) => c.at.join(','))).size,
+        `${n} pieces, distinct places`,
+      ).toBe(8);
+      expect(found.length, `${n} pieces, ${found.length} records`).toBe(8);
+      expect(ms, `${n} lapped pieces took ${ms.toFixed(0)}ms`).toBeLessThan(SCAN_BOUND_MS);
+    }
+  });
+
+  /*
+   * A PILE AT THE IDENTITY, the cheapest route to the same explosion: a
+   * stored blob with no welds and no anchors, so `placeAll` puts every
+   * component root at the identity and all of them stack. 1,000 pieces is a
+   * 32KB blob -- 0.6% of a ~5MB quota -- and used to be 999,000 records in
+   * 968ms. Two places now: one per end of the stack.
+   */
+  it('reports two places for a pile of loose pieces, not one per pair', () => {
+    const n = 1000;
+    const g: Graph = {
+      pieces: Array.from({ length: n }, (_, i) => ({ pieceId: `s${i}`, partId: 'A' })),
+      welds: [],
+      anchors: new Map(),
+    };
+    const place = placeAll(g, ports);
+    const t0 = performance.now();
+    const found = findVertexClashes(g, ports, place);
+    const ms = performance.now() - t0;
+    expect(found).toHaveLength(2);
+    expect(ms, `${n} stacked pieces took ${ms.toFixed(0)}ms`).toBeLessThan(SCAN_BOUND_MS);
+  });
+
+  /*
    * ONE SIZE, TIMED, AND THE BOUND IS SIZED AGAINST THE MUTATION.
    *
    * A first version timed both 1,000 and 10,000 pieces against 100ms and

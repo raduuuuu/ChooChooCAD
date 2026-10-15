@@ -315,9 +315,19 @@ export function VerdictLine({
             </span>
           ) : (
             <span className="verdict-text">
+              {/*
+                * SPOTS, because that is what is counted. `findVertexClashes`
+                * reports one record per PLACE where ends land together, which
+                * is also what `clashMarkers` draws, so the number and the
+                * picture agree. It used to count pairs of joined-up ends,
+                * which matched the dots only when each spot held exactly two
+                * of them -- the 16xE double circle said 32 over 8 markers,
+                * and a lapped run of curves said 998,499 over 8.
+                */}
               Can&rsquo;t be built. <span className="num">{e.clashCount}</span>{' '}
-              {e.clashCount === 1 ? 'pair of track ends lands' : 'pairs of track ends land'}{' '}
-              in exactly the same spot, so two pieces would have to share it.
+              {e.clashCount === 1
+                ? 'spot has track ends in exactly the same place, so two pieces would have to share it.'
+                : 'spots have track ends in exactly the same place, so pieces would have to share them.'}
               {/*
                 * Only when there IS a loop. `viewOf` reports a gap of 0 on the
                 * failure branch, so keying this on gapMm alone printed "the

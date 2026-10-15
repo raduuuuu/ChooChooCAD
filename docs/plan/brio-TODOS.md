@@ -1156,6 +1156,77 @@ the whole `analyse()` -- including `placeAll` over 8402 pieces -- against a
 and 10 consecutive runs are clean.
 
 
+### DONE — The overlap scan was quadratic in coincident ports (P0, fixed 2026-10-15)
+
+**Was:** `findVertexClashes` emitted one record per PAIR of vertices in a
+place, which is C(k,2) when k of them land together. Grouping by exact lattice
+position (earlier the same day) made the SPREAD case linear and did nothing
+here, because when ports coincide the group is the layout.
+
+**It needed no hostile input.** `E` turns 45 degrees, so eight close a circle
+and an open run laps the same EIGHT places. 800 `add` actions through the real
+reducer -- one palette click each -- reached 39,699 records, visible by 200
+clicks. A second route needed no curves at all: a blob with no welds and no
+anchors stacks every piece at the identity, 32KB for 999,000 records.
+
+```
+  lapped run of E     old       new    old records   new records
+    1,000 pieces     48ms       3ms        62,124              8
+    4,000 pieces    825ms       8ms       998,499              8
+    8,000 pieces   5907ms      29ms     3,996,999              8
+
+  pile at identity
+    1,000 pieces    968ms       8ms       999,000              2
+    2,000 pieces   4922ms      16ms     3,998,000              2
+```
+
+`solveGraph` end to end on the 8,000-piece lapped run is 63ms. In the browser a
+446KB layout of 4,000 lapped curves renders a verdict in 333ms.
+
+**Fixed by REFORMULATING the rule, not re-deciding it.** The old rule reported
+a place when either some vertex there was welded, or some pair of pieces had
+free ends in two or more places. The second half is what cost C(k,2), and it
+does not need pairs: two pieces share two all-free places exactly when both
+SPAN the same pair of places, and a piece has two ports, so it spans at most
+one pair. Counting per piece instead of per pair gives the identical answer in
+one linear pass.
+
+**VERIFIED IDENTICAL over 1,088 fixtures** -- every catalogue part at both
+turns as chains and loops of 3/4/8/9/16/17/24 pieces, 700 random soups, lapped
+runs of 9/17/33/64 of every part, piles of 2..60 loose pieces, mixed-part
+piles, the 16xE double circle and the 8L8R tangent pair. The set of reported
+PLACES is identical in all 1,088 and no layout changes verdict.
+
+**A FIRST ATTEMPT WAS WRONG IN BOTH DIRECTIONS AND WAS REVERTED**, which is
+why the differential above is the headline. It read the file's "a third thing
+landing on it is a clash" as covering loose ends and reported any place holding
+three or more vertices: measured, that flipped 84 layouts from fine to
+impossible -- three loose ends meeting at one point, which the product calls an
+invitation. A second attempt classified each place as either welded or free,
+losing 30 places, because a place can hold a welded vertex AND two or more free
+ones, and the old pair walk let the welded pairs become clashes while the
+free-free pairs there still counted toward the pile-up. Both were caught by the
+differential, not by reasoning.
+
+**What changed for the user:** the count is PLACES, not pairs of ends. That is
+forced -- a place can hold n vertices and C(n,2) is quadratic in the input --
+and it is also the right number, because `clashMarkers` already dedupes to one
+marker per place and over 582 of those fixtures the old count disagreed with
+the markers drawn in 142 of the 241 that clash at all. The copy follows it:
+"8 spots have track ends in exactly the same place" rather than "8 pairs of
+track ends land in...". This is the same defect `feasible.ts` records being
+half-fixed once before -- the 16xE double circle said 32 "when there are EIGHT
+such spots ... the verdict and the picture disagreed, and the verdict was the
+wrong one". Counting vertex pairs matched that case only because each place
+held exactly two vertices. 16xE still reports 8, in the browser, and the
+tangent pair still reports 1.
+
+**Specs:** the lapped run and the pile each have one, asserting the place count
+and a 300ms backstop. The record COUNT is the primary assertion, because
+restoring the pair walk fails it by five orders of magnitude
+(`1000 pieces, 62124 records: expected 62124 to be 8`) long before any clock.
+
+
 ## P2 — The review backlog: findings that need judgement, not a keystroke (filed by /ship, 2026-10-14)
 
 The /ship pre-landing review ran six specialists over this branch. Seven criticals
@@ -1277,63 +1348,7 @@ place at `cc89914` pending this.
 **Effort:** human ~1h / CC ~15m. **Priority:** P1.
 **Depends on / blocked by:** nothing.
 
-## P0 — The overlap scan is quadratic in COINCIDENT ports, and one palette button reaches it (filed by /review round three, 2026-10-15)
-
-**What:** `findVertexClashes` enumerates PAIRS of coincident vertices. Grouping
-by exact lattice position (added 2026-10-15) made the spread case linear and
-did nothing here, because when ports coincide the group IS the layout.
-
-**It needs no hostile blob.** `E` is a 45 degree curve, so eight of them close a
-circle and an open run laps the same EIGHT places. MEASURED on an open run of
-`E`, this function alone:
-
-```
-   1,000 pieces   0.11MB     59ms      62,124 records
-   4,000 pieces   0.44MB    973ms     998,499 records
-   8,000 pieces   0.92MB   3912ms   4,191,231 records, 2.35GB resident
-```
-
-4x per doubling in both time and memory. Through the REAL reducer: 800
-`reduce({kind:'add',partId:'E'})` calls -- one palette click each -- give 87KB
-stored, 39,699 records, and the growth is visible by 200 clicks. At 16,384
-pieces (1.8MB, a third of a 5MB quota) it is ~16s and ~9GB, which is a renderer
-OOM inside a render `useMemo`: not a catchable throw, so `ErrorBoundary` never
-fires and the storage key is never cleared, so every reload repeats it.
-
-A second, cheaper route needs no curves at all: a blob with NO welds and NO
-anchors puts every component root at the identity, so n pieces stack and all 2n
-ports fall into two groups of size n. 1,000 pieces is a 32KB blob (0.61% of the
-quota), 607ms and 999,000 records; 2,000 is 65KB and 2,858ms.
-
-**None of the bounds added by the cycle work can help.** `findVertexClashes`
-runs at `solve.ts:95`, BEFORE the rank ceiling and before `analyseCycles`, on
-every branch including `rank === 0`. A 1.19MB blob of 1,200 stacked rings that
-the rank ceiling explicitly REFUSES to examine still costs ~20s in this scan.
-
-**Fix, and the decision it needs first.** Stop enumerating pairs: group by
-place, collapse to the distinct VERTICES in it, emit one record per place. The
-only consumers are this array's LENGTH (the "N pairs of track ends land in
-exactly the same spot" sentence) and its distinct `at` values, which
-`clashMarkers` already dedupes to one marker per place -- so the array is
-quadratic cost with no product, and over 582 fixtures the old count already
-disagreed with the number of markers drawn in 142 of the 241 that clash at all.
-
-THE DECISION: what is a clash when THREE or more ends meet in one place? The
-per-piece-pair "two free ends meeting is an invitation" rule does not reduce to
-per-place without answering that, and a first attempt at this collapse
-(2026-10-15, reverted) diverged from the current output on 106 of 582 fixtures
--- 86 places gained, 20 places LOST. A lost place is a missed overlap, which is
-a false pass, so this is not a mechanical refactor and must not be done as one.
-The `touching` rule, the 16xE case (8 places) and the tangent pair (1 place)
-are the fixtures to hold fixed.
-
-**Effort:** human ~1d / CC ~1h, plus a differential over the 582-fixture set.
-**Priority:** P0. **Depends on / blocked by:** nothing. Deliberately NOT folded
-into the cycle-enumeration branch: that branch tried three times to bound this
-path and each attempt bounded the component in front of it, so this one gets
-its own change and its own review.
-
-## P1 — Nothing bounds a layout's size (filed by /ship, 2026-10-14; the SPREAD-layout half of the clash scan was fixed 2026-10-15, the coincident half is the P0 above)
+## P1 — Nothing bounds a layout's size (filed by /ship, 2026-10-14; the clash scan itself was fixed 2026-10-15, both halves)
 
 **What:** `loadGraph` validates every field's type and never bounds
 `pieces.length` or `welds.length`. `findVertexClashes` compares all pairs of
@@ -1371,7 +1386,10 @@ Byte-identical output over 582 fixtures. `App.tsx`'s scanning `slop` callback
 was the other half of the end-to-end figure and is now a Map.
 
 **WHAT REMAINS, which is what this entry is now about.** Linear is not
-bounded. Nothing caps `pieces.length` or `welds.length` in `loadGraph`, so a
+bounded. Both halves of the clash scan are now linear -- the spread case by
+grouping on the exact lattice position, the coincident case by counting
+pile-ups per piece rather than per pair -- so what is left here is purely the
+absence of a size cap. Nothing caps `pieces.length` or `welds.length` in `loadGraph`, so a
 large enough stored layout still costs whatever it costs, and a freeze is
 still not a throw. Two specifics for whoever takes it:
 
@@ -1381,10 +1399,9 @@ still not a throw. Two specifics for whoever takes it:
    port-occupancy refusal added the same day does NOT help: it rejects a weld
    on an already-claimed port, and this needs only a large number of
    perfectly legal pieces.
-2. **The all-coincident case is still quadratic**, because the coincidences
-   themselves are: 1,000 pieces stacked at the identity produce 999,000 clash
-   records in 792ms. That is work proportional to the answer, so the fix is a
-   cap on what gets reported, not a better scan.
+2. **The all-coincident case is FIXED** (2026-10-15, see the DONE entry): a
+   pile of 1,000 stacked pieces was 999,000 records in 968ms and is now 2
+   records in 8ms, because the count is places rather than pairs of ends.
 
 Also still open and unrelated to the cap: `solveGraph` runs synchronously
 inside a render `useMemo`, and `App.tsx` calls `placeAll` once itself and

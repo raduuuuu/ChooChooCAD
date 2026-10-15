@@ -205,37 +205,146 @@ export function findVertexClashes(
    * is one problem to fix, however many connectors that involves.
    */
   const clashes: VertexClash[] = [];
-  const reported = new Set<string>();
-  /** Free-end coincidences, grouped by the pair of pieces that share them. */
-  const touching = new Map<string, VertexClash[]>();
-  for (let i = 0; i < placed.length; i++) {
-    for (const j of at.get(latticeKey(placed[i]!.pos))!) {
-      if (j <= i) continue;
-      const a = placed[i]!;
-      const b = placed[j]!;
-      // Same vertex means they are DECLARED to be here together. That is a
-      // joint, not a collision, and it is the whole reason the index-based
-      // exclusions could go.
-      if (a.vertex === b.vertex) continue;
-      // Kept as an assertion of the grouping, not as a filter: `at` already
-      // guarantees it, and if that ever stops being true this is where the
-      // wrong answer would come from.
-      if (!equals(a.pos, b.pos)) continue;
-      const key = a.vertex < b.vertex ? `${a.vertex}|${b.vertex}` : `${b.vertex}|${a.vertex}`;
-      if (reported.has(key)) continue;
-      reported.add(key);
-      const [x, y] = toXY(a.pos);
-      const pair = a.pieceId < b.pieceId ? `${a.pieceId}|${b.pieceId}` : `${b.pieceId}|${a.pieceId}`;
-      const clash: VertexClash = {
-        a: { pieceId: a.pieceId, port: a.port },
-        b: { pieceId: b.pieceId, port: b.port },
-        at: [x, y],
-      };
-      if (a.free && b.free) {
-        touching.set(pair, [...(touching.get(pair) ?? []), clash]);
-      } else {
-        clashes.push(clash);
-      }
+  /*
+   * ONE RECORD PER PLACE, AND NO PAIR ENUMERATION ANYWHERE.
+   *
+   * It used to emit one record per PAIR of vertices in a place, which is
+   * C(k,2) when k of them land together -- and grouping by position did not
+   * help, because when ports coincide the group IS the layout. Reachable by
+   * clicking one palette button: `E` turns 45 degrees, so eight close a
+   * circle and an open run laps the same EIGHT places. MEASURED before this,
+   * on an open run of `E`:
+   *
+   *     1,000 pieces   0.11MB     59ms      62,124 records
+   *     4,000 pieces   0.44MB    973ms     998,499 records
+   *     8,000 pieces   0.92MB   3912ms   4,191,231 records, 2.35GB resident
+   *
+   * 800 `add` actions through the real reducer is 87KB stored and 39,699
+   * records. At 16,384 pieces it is a renderer OOM inside a render `useMemo`,
+   * which is not a catchable throw, so nothing clears the storage key and
+   * every reload repeats it.
+   *
+   * THE SAME PLACES ARE REPORTED, by reformulating the rule rather than
+   * changing it. The old walk reported a place when EITHER some vertex there
+   * was welded, OR some pair of pieces had free vertices in two or more
+   * places -- the "two pieces lying on top of each other share BOTH of their
+   * ends" rule. The second half is what cost C(k,2): it accumulated per pair
+   * of PIECES.
+   *
+   * It does not need pairs. Two pieces share two all-free places exactly when
+   * both of them SPAN that same pair of places, and a piece has two ports, so
+   * it spans at most one pair. Counting per piece instead of per pair gives
+   * the identical answer in one linear pass: for each piece, take the pair of
+   * all-free places its ports sit in, and if two pieces ever name the same
+   * pair, both of those places are a pile-up.
+   *
+   * A first attempt reported any place holding three or more vertices
+   * outright, reading the note below's "a third thing landing on it is a
+   * clash" as covering loose ends too. MEASURED over 1,023 fixtures, that
+   * flipped 84 layouts from fine to impossible -- three loose ends meeting at
+   * one point, which the product calls an invitation. Rejected: turning a
+   * passing layout into a failure is the same invariant as the reverse, and
+   * this reformulation needs no such decision.
+   *
+   * VERIFIED IDENTICAL, which is the point of reformulating rather than
+   * re-deciding. Against the previous implementation over 1,088 fixtures --
+   * every catalogue part at both turns as chains and loops of 3/4/8/9/16/17/
+   * 24 pieces, 700 random soups, lapped runs of 9/17/33/64 of every part,
+   * piles of 2..60 loose unanchored pieces, mixed-part piles, the 16xE double
+   * circle and the 8L8R tangent pair: the set of reported PLACES is identical
+   * in all 1,088, and no layout changes verdict.
+   *
+   * WHAT DOES CHANGE is the COUNT: places, not vertex pairs. That is forced,
+   * because a place can hold n vertices and C(n,2) is quadratic in the input.
+   * It is also the right number. `clashMarkers` already dedupes to one marker
+   * per place, and over 582 of those fixtures the old count disagreed with
+   * the markers drawn in 142 of the 241 that clash at all. The note below
+   * records this defect being half-fixed once already: the 16xE double circle
+   * said 32 "when there are EIGHT such spots ... the verdict and the picture
+   * disagreed, and the verdict was the wrong one". Counting vertex pairs
+   * matched that case only because each place held exactly two vertices.
+   * 16xE still reports 8 and the tangent pair still reports 1.
+   *
+   * MEASURED after, on the shapes above:
+   *
+   *   lapped E, 8,000 pieces   5907ms -> 29ms, 3,996,999 records -> 8
+   *   pile,     2,000 pieces   4922ms -> 16ms, 3,998,000 records -> 2
+   *
+   * and `solveGraph` end to end on the 8,000-piece lapped run is 63ms.
+   */
+
+  /** Places holding two or more distinct vertices, in discovery order. */
+  const sites: Array<{
+    readonly key: string;
+    readonly clash: VertexClash;
+    /** Some vertex here is welded, which is a clash on its own. */
+    readonly welded: boolean;
+    /** Pieces with a FREE end here, when two or more of them meet. */
+    readonly freePieces: readonly string[];
+  }> = [];
+
+  for (const [key, idxs] of at) {
+    if (idxs.length < 2) continue;
+
+    // The distinct vertices here, each remembered by its first port. One
+    // vertex is a DECLARED joint, not a collision.
+    const byVertex = new Map<string, number>();
+    for (const i of idxs) {
+      const v = placed[i]!.vertex;
+      if (!byVertex.has(v)) byVertex.set(v, i);
+    }
+    if (byVertex.size < 2) continue;
+
+    const reps = [...byVertex.values()].sort((x, y) => x - y);
+    const a = placed[reps[0]!]!;
+    const b = placed[reps[1]!]!;
+    // Kept as an assertion of the grouping, not as a filter: `at` already
+    // guarantees it, and if that ever stops being true this is where the
+    // wrong answer would come from.
+    if (!equals(a.pos, b.pos)) continue;
+
+    const [x, y] = toXY(a.pos);
+    const clash: VertexClash = {
+      a: { pieceId: a.pieceId, port: a.port },
+      b: { pieceId: b.pieceId, port: b.port },
+      at: [x, y],
+    };
+
+    /*
+     * TWO INDEPENDENT QUESTIONS ABOUT ONE PLACE, and conflating them lost 30
+     * places on the first attempt. A place can hold a welded vertex AND two
+     * or more free ones, and the old pair walk treated each PAIR separately:
+     * the pairs touching the welded vertex became clashes, while the
+     * free-free pairs there still counted toward the pile-up. So a place is
+     * reported for being welded, and ALSO contributes its free pieces.
+     *
+     * Free-ness is read off the VERTEX, which is sound: a port is claimed
+     * exactly when a weld names it, and welds are what the union-find joins,
+     * so a vertex holding two or more ports is always welded and a vertex
+     * holding one is always free.
+     */
+    const freeReps = reps.filter((i) => placed[i]!.free);
+    sites.push({
+      key,
+      clash,
+      welded: freeReps.length < reps.length,
+      // Only two or more free vertices here form a free-free pair, which is
+      // what the pile-up rule counts.
+      freePieces:
+        freeReps.length >= 2 ? [...new Set(freeReps.map((i) => placed[i]!.pieceId))] : [],
+    });
+  }
+
+  /*
+   * A welded end is spoken for: a third thing landing on it is a clash
+   * however few places are shared. That case never reaches the pile-up count
+   * below, exactly as it never reached the old pair accumulation.
+   */
+  const reportedPlaces = new Set<string>();
+  for (const site of sites) {
+    if (site.welded) {
+      clashes.push(site.clash);
+      reportedPlaces.add(site.key);
     }
   }
 
@@ -253,19 +362,52 @@ export function findVertexClashes(
    * COUNT DISCRIMINATES. Two pieces that meet share exactly ONE point. Two
    * pieces lying on top of each other share BOTH of their ends, and that is
    * not an invitation, it is a pile-up: no weld makes their middles stop
-   * overlapping. So a single touching point between a pair of pieces is
-   * excused and two or more are reported.
+   * overlapping. So a single shared point between a pair of pieces is excused
+   * and two or more are reported.
    *
-   * This is an endpoint test, not a body test. Pieces that cross mid-span
-   * are still not checked, which the verdict copy says out loud.
+   * COUNTED PER PIECE, NOT PER PAIR, which is what makes it linear. Two
+   * pieces share two all-free places exactly when both SPAN the same pair of
+   * places, so each piece names the pair its own free ends sit in and a pair
+   * named twice is a pile-up. Identical answer, one pass.
+   *
+   * This is an endpoint test, not a body test. Pieces that cross mid-span are
+   * still not checked, which the verdict copy says out loud.
    */
-  for (const group of touching.values()) {
-    if (group.length > 1) clashes.push(...group);
+  const placesOfPiece = new Map<string, string[]>();
+  for (const site of sites) {
+    for (const pieceId of site.freePieces) {
+      const list = placesOfPiece.get(pieceId);
+      if (list) list.push(site.key);
+      else placesOfPiece.set(pieceId, [site.key]);
+    }
+  }
+  const spanCount = new Map<string, number>();
+  for (const keys of placesOfPiece.values()) {
+    // Two ports per piece on this catalogue, so at most one pair; written as
+    // a loop so a part with a third port cannot quietly fall through it.
+    const sorted = [...new Set(keys)].sort();
+    for (let i = 0; i < sorted.length; i++)
+      for (let j = i + 1; j < sorted.length; j++) {
+        const pairKey = `${sorted[i]!}~${sorted[j]!}`;
+        spanCount.set(pairKey, (spanCount.get(pairKey) ?? 0) + 1);
+      }
+  }
+  const piledUp = new Set<string>();
+  for (const [pairKey, n] of spanCount) {
+    if (n < 2) continue;
+    const sep = pairKey.lastIndexOf('~');
+    piledUp.add(pairKey.slice(0, sep));
+    piledUp.add(pairKey.slice(sep + 1));
+  }
+  // Emitted in discovery order, so the array reads the way the old one did,
+  // and never twice for one place.
+  for (const site of sites) {
+    if (piledUp.has(site.key) && !reportedPlaces.has(site.key)) {
+      clashes.push(site.clash);
+      reportedPlaces.add(site.key);
+    }
   }
 
-  // If either end is already welded, it is spoken for: a third thing landing
-  // on it is a clash however few points are shared. That case never reaches
-  // `touching`, because it is pushed straight to `clashes` above.
   return clashes;
 }
 
