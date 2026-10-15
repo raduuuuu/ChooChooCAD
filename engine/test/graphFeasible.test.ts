@@ -190,6 +190,128 @@ describe('free ends meeting are an invitation, not a clash', () => {
   it('a free end landing on an existing joint is still a clash', () => {
     expect(openRun(16).length).toBeGreaterThan(0);
   });
+
+  /*
+   * THREE LOOSE ENDS MEETING IS STILL AN INVITATION, and until this spec
+   * existed that decision was pinned by NOTHING.
+   *
+   * MUTATION PROOF, run: change the per-place emit to
+   * `site.welded || site.freePieces.length >= 3` and only this spec fails,
+   * with `expected [ { ... } ] to deeply equal []`. Before it existed that
+   * same mutation left the WHOLE SUITE GREEN -- verified by running it --
+   * even though `feasible.ts` records the identical change flipping 84 of
+   * 1,023 fixtures from fine to IMPOSSIBLE when it was tried for real. The
+   * fixtures nearby cover two free ends (invitation), two pieces stacked
+   * (pile-up) and a free end on a joint; none of them put THREE distinct
+   * free ends in one place, which is the shape a user reaches by laying
+   * three curves so their ends converge.
+   *
+   * The three far ends must stay apart. If two of them coincided, those two
+   * pieces would share a SECOND place and the pile-up rule would report it
+   * correctly, which would make this spec pass for the wrong reason.
+   */
+  it('three loose ends meeting at one point is still an invitation', () => {
+    const straight = resolve('A');
+    if (straight.kind !== 'straight') throw new Error('part A is no longer a straight');
+    const len = straight.lengthMm;
+    const g: Graph = {
+      pieces: [
+        { pieceId: 'a', partId: 'A' },
+        { pieceId: 'b', partId: 'A' },
+        { pieceId: 'c', partId: 'A' },
+      ],
+      welds: [],
+      // Port 1 of each lands on the origin; port 0 fans out to -len, -len*i
+      // and +len, which are three distinct places holding one end each.
+      anchors: new Map([
+        ['a', { pos: scale(zetaPow(0), -len), heading: 0 }],
+        ['b', { pos: scale(zetaPow(4), -len), heading: 4 }],
+        ['c', { pos: scale(zetaPow(8), -len), heading: 8 }],
+      ]),
+    };
+    expect(clashes(g)).toEqual([]);
+  });
+
+  /*
+   * WHERE THE NEW RULE REPORTS MORE THAN THE OLD ONE, which the docblock in
+   * `feasible.ts` used to claim could not happen.
+   *
+   * A piece whose own two ends are welded to each other is one VERTEX at two
+   * POSITIONS. Two such pieces, unanchored, both fall to the identity, so the
+   * same two vertices coincide at the origin AND at `len`. The old rule
+   * deduped on the vertex PAIR across the whole layout, so it reported the
+   * first place and silently dropped the second; this one reports per place,
+   * so it reports both.
+   *
+   * The verdict is IMPOSSIBLE either way, so this is neither a new false
+   * refusal nor a false pass -- only a count that went from 1 to 2, and the
+   * second marker is now drawn where there is really something to see. Pinned
+   * here because the equivalence argument the reformulation rests on is
+   * otherwise stated only in prose, and stated too strongly.
+   *
+   * MUTATION PROOF, run: dedupe `clashes` on the sorted pair of pieceIds
+   * before returning. THREE specs fail, not one -- this one, `reports two
+   * places for a pile of loose pieces, not one per pair`, and `reports both
+   * places, once each, and the welded one is not doubled` -- all three with
+   * `expected [ { ...(3) } ] to have a length of 2 but got 1`. The first
+   * draft of this record said one spec and quoted a message that never
+   * appeared; it is written out here because the count and the text are the
+   * two things this file's header forbids guessing.
+   */
+  /*
+   * A PIECE WHOSE TWO FREE ENDS SHARE A PLACE IS ITS OWN PILE-UP.
+   *
+   * Not buildable from storage -- `looksLikePart` admits only straights and
+   * curves, needs `lengthMm > 0`, and bounds `arcSteps` -- so this drives
+   * `PortsOf` directly, which is a seam the specs above already use. The
+   * span rule asks a piece for the PAIR of places it spans, and a piece with
+   * both ends in one place names no pair, so it used to drop out of its own
+   * pile-up and the overlap vanished from the sentence and the canvas.
+   *
+   * MUTATION PROOF, run: drop `|| site.selfPileUp` from the emit and this
+   * fails with `expected [] to have a length of 1 but got +0`. Measured
+   * against the code before the fix, the same fixture returned 0 records --
+   * a false pass, which is the direction that is never acceptable here.
+   */
+  it('a piece with both free ends in one place is reported', () => {
+    const zero: readonly Port[] = [
+      { kind: 'end', at: { pos: fromInt(0), heading: 0 } },
+      { kind: 'end', at: { pos: fromInt(0), heading: 8 } },
+    ];
+    const withZero = (piece: Piece): readonly Port[] =>
+      piece.partId === 'ZERO' ? zero : ports(piece);
+    const g: Graph = {
+      pieces: [
+        { pieceId: 'a', partId: 'A' },
+        { pieceId: 'z', partId: 'ZERO' },
+      ],
+      welds: [],
+      anchors: new Map(),
+    };
+    const found = findVertexClashes(g, withZero, placeAll(g, withZero));
+    expect(found).toHaveLength(1);
+    expect(found[0]!.at.join(',')).toBe('0,0');
+  });
+
+  it('two self-welded pieces stacked report BOTH shared places, not one', () => {
+    const straight = resolve('A');
+    if (straight.kind !== 'straight') throw new Error('part A is no longer a straight');
+    const len = straight.lengthMm;
+    const g: Graph = {
+      pieces: [
+        { pieceId: 'u', partId: 'A' },
+        { pieceId: 'v', partId: 'A' },
+      ],
+      welds: [
+        { a: { pieceId: 'u', port: 0 }, b: { pieceId: 'u', port: 1 } },
+        { a: { pieceId: 'v', port: 0 }, b: { pieceId: 'v', port: 1 } },
+      ],
+      anchors: new Map(),
+    };
+    const found = clashes(g);
+    expect(found).toHaveLength(2);
+    expect(found.map((c) => c.at.join(',')).sort()).toEqual(['0,0', `${len},0`]);
+  });
 });
 
 /**
@@ -208,16 +330,20 @@ describe('free ends meeting are an invitation, not a clash', () => {
  * A freeze is not a throw, so nothing caught it and every reload repeated it.
  * Value: seam=none
  * Value: no_claim=nothing about pieces crossing mid-span, which this never
- * checked and the verdict copy says out loud. Nothing either about a layout
- * whose ports genuinely all coincide: that stays quadratic in the
- * coincidences, which is work proportional to the answer.
+ * checked and the verdict copy says out loud. Nothing either about three or
+ * more LOOSE ends meeting in one place, which stays an invitation rather
+ * than a clash. The all-coincident case used to be disclaimed here as
+ * "quadratic in the coincidences, work proportional to the answer"; two
+ * specs below now pin it by record count instead, so that disclaimer is
+ * retired rather than merely stale.
  *
  * The clash SEMANTICS are unchanged and were held fixed while the cost
  * changed: 582 fixtures (every catalogue part at both turns as open chains
  * and closed loops, 400 random soups, the 16xE double circle and the 8L8R
  * tangent pair) produced byte-identical output before and after, 749 clash
- * records in all. The specs above are what pin the semantics; these two pin
- * the cost and the one new assumption underneath it.
+ * records in all. The specs above are what pin the semantics; the four
+ * below pin the cost, the one new assumption underneath it, and the
+ * coincident case the two later ones were added for.
  */
 describe('the overlap scan groups by exact position', () => {
   /*
@@ -230,7 +356,7 @@ describe('the overlap scan groups by exact position', () => {
    *
    * THIS SPEC DOES NOT PIN THE GROUPING'S CHOICE OF KEY, and saying so is the
    * point. Keying the scan on `toXY(pos)` instead -- the float projection,
-   * which is what a "spatial grid" usually means -- leaves all 428 specs
+   * which is what a "spatial grid" usually means -- leaves the whole suite
    * green, verified by running it. No fixture here has two distinct lattice
    * points that collide under the projection, and building one needs
    * coefficients large enough for double spacing to swallow their
@@ -277,12 +403,22 @@ describe('the overlap scan groups by exact position', () => {
    * pair walk produced 998,499 records for 4,000 lapped pieces where the
    * place rule produces 8, so the count fails by five orders of magnitude
    * before any timer is consulted. The bound exists so a future rule that
-   * keeps the count small but walks the pairs anyway cannot pass, and it is
-   * 300ms against a 3-8ms steady state -- generous on purpose, because this
-   * branch flaked two wall-clock specs already by sizing bounds against the
-   * measured pass instead of the distance to the regression.
+   * keeps the count small but walks the pairs anyway cannot pass.
+   *
+   * 1,000ms, RAISED FROM 300 after measuring it under the run that actually
+   * happens. 300 was sized against the file-isolated steady state of 3-8ms,
+   * but `vitest` runs files in parallel: measured that way the 4,000-piece
+   * case reaches 53ms, and under ten CPU spinners on eight cores it reaches
+   * 134ms, which is 2.2x of a 300ms bound. This branch has already flaked
+   * two wall-clock specs by sizing against the measured pass rather than the
+   * distance to the regression, and 300 was the third instance waiting to
+   * happen. At 1,000ms the headroom is ~7x under load while the regression
+   * below still overshoots by 15x, so both directions stay true.
    */
-  const SCAN_BOUND_MS = 300;
+  const SCAN_BOUND_MS = 1000;
+  /** The rings case has its own bound: a different shape and a different
+   *  regression distance, named rather than left as a literal 110 lines on. */
+  const RINGS_BOUND_MS = 500;
 
   /** An OPEN run of `n` Large curves. `E` turns 45 degrees, so eight close a
    *  circle and the run laps the same EIGHT places however long it gets. */
@@ -366,18 +502,23 @@ describe('the overlap scan groups by exact position', () => {
    * the distance to the regression, not against the measured pass -- and it
    * applies here too.
    *
-   * 500ms is 30x the steady state and still catches the regression by 16x.
-   * Only the 10,000-piece case is timed, because it is the one that catches
-   * the mutation decisively; the small case is kept for its CORRECTNESS
+   * `RINGS_BOUND_MS` is 500, which is 30x the steady state. Only the
+   * 10,000-piece case is timed, because it is the one that catches the
+   * mutation decisively; the small case is kept for its CORRECTNESS
    * assertion, which is the other failure direction (a scan that invents a
    * clash where the rings are anchored apart).
    *
    * MUTATION PROOF, run: restore the all-pairs `for (let j = i + 1; ...)`
-   * loop and this fails by two orders of magnitude -- tens of seconds against
-   * the 500ms bound. The exact duration is deliberately NOT quoted: three
-   * measurements of it disagreed by 5x (8.3s, 17s, 46s) because it depends on
-   * GC pressure at that allocation volume, and an earlier version of this
-   * record quoted the lowest of them as if it were the figure.
+   * loop. This fails by one to one-and-a-half orders of magnitude: 4.8s
+   * measured with the file run on its own, and 15.6-16.0s under the full
+   * parallel suite, against the 500ms bound. An earlier version of this
+   * record said "two orders of magnitude -- tens of seconds", which only the
+   * loaded figure comes close to, and before that it quoted 8.3s as if a
+   * single number were available. The spread across runs is 5x (8.3s, 17s,
+   * 46s observed) and this record no longer offers a cause for it: it
+   * previously blamed GC pressure from the clash records, but `ringsApart`
+   * anchors its rings so that nothing coincides, so the mutation allocates
+   * no records at all.
    */
   it('costs what the layout contains, not the square of it', () => {
     for (const [n, k] of [
@@ -392,8 +533,12 @@ describe('the overlap scan groups by exact position', () => {
       // Anchored apart, so there is genuinely nothing to report. A scan that
       // invented a clash here would be the other failure direction.
       expect(found, `${g.pieces.length} pieces`).toEqual([]);
-      if (g.pieces.length >= 10_000) {
-        expect(ms, `${g.pieces.length} pieces took ${ms.toFixed(0)}ms`).toBeLessThan(500);
+      // Timed only on the big case, identified by the loop's own k rather
+      // than by re-deriving 20 * 500 as a literal.
+      if (k === 500) {
+        expect(ms, `${g.pieces.length} pieces took ${ms.toFixed(0)}ms`).toBeLessThan(
+          RINGS_BOUND_MS,
+        );
       }
     }
   });

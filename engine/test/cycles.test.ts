@@ -457,11 +457,26 @@ describe('forEachConnectedSubset', () => {
  * Value: why_new=this logic was UNREACHABLE from the rest of the suite. Made
  * to throw on finding a shared piece, all 405 specs passed at commit
  * `11dbfd5` (verified by checking it out and running it), because nothing
- * built a layout where two fundamentals share a piece. RE-RUN at HEAD, where
- * the mutation is `(owners.get(id)! & ~(1 << i)) !== 0`: NINE specs fail.
- * Going from zero failures to nine IS the hole closing. The pre-review
- * figure names its commit because that tree is frozen; the current one is
- * stated relatively because this one is not.
+ * built a layout where two fundamentals share a piece.
+ *
+ * RE-RUN at HEAD, with the mutation named as an EDIT rather than as an
+ * expression: change `return (mask & ~(1 << i)) >>> 0` to `return mask >>> 0`,
+ * so a fundamental stays its own neighbour. FIVE specs fail -- all five in
+ * this describe -- with `expected [ 1, 2 ] to deeply equal [ +0, +0 ]`,
+ * `[ 3, 3 ]` vs `[ 2, 1 ]`, `[ 3, 7, 6 ]` vs `[ 2, 5, 2 ]`, `[ 7, 7, 7 ]`
+ * vs `[ 6, 5, 3 ]` and `[ 1 ]` vs `[ +0 ]`. Going from zero failures to five
+ * IS the hole closing.
+ *
+ * An earlier version of this record said NINE, and a reviewer re-measured it
+ * as TEN; neither is reproducible, because what both quoted --
+ * `(owners.get(id)! & ~(1 << i)) !== 0` -- is a fragment that names no
+ * single edit. Two edits it could mean were run: clearing the own bit
+ * per-id inside the loop leaves the whole suite green, and it must, since
+ * `(a & m) | (b & m)` is `(a | b) & m`; gating the OR on that test is also
+ * green. A mutation record has to be an edit someone can apply.
+ *
+ * The pre-review figure names its commit because that tree is frozen; the
+ * current one names the edit and its messages because this tree is not.
  * Value: seam=`sharingGraph` takes welds and fundamentals as plain data, so
  * a shape the catalogue cannot build is still expressible here. The pieces
  * array is left empty on purpose: this function reads `graph.welds` and
@@ -675,7 +690,20 @@ describe('a dense sharing graph is bounded by work, not by subset count', () => 
    * 6834ms and 5000ms vitest timeouts, 27x past this bound -- so the
    * separation is kept in the headroom rather than in the tightness.
    */
-  const BOUND_MS = 250;
+  /*
+   * 1,000ms, RAISED FROM 250 after measuring it under the run that actually
+   * happens rather than file-isolated.
+   *
+   * Isolated this spec takes 15-22ms. Under the full parallel suite it was
+   * measured at 21-57ms, and under ten CPU spinners on eight cores at 169ms
+   * -- which is 1.5x of a 250ms bound, well inside flake range and below the
+   * 6x this branch itself rejected as too thin when it sized the scan bound.
+   * No mutation needs this clock: every one of them trips the `truncated`
+   * assertions first, so the number buys regression cover against a future
+   * change that stays correct and gets slow, and nothing else. At 1,000ms
+   * that cover survives a loaded CI box.
+   */
+  const BOUND_MS = 1000;
 
   /**
    * `petals` parallel paths of `len` pieces between two hub pieces. Rank is

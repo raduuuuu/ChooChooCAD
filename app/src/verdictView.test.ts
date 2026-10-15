@@ -523,9 +523,12 @@ describe('gapKnown separates a measured gap from a filler', () => {
    * not spread `EMPTY`, so the property goes missing rather than reverting to
    * a default.
    *
-   * tsc DOES also object, with three TS2741s at verdictView.ts:116/118/119 --
-   * an earlier version of this note claimed it did not, and offered that as
-   * the reason the spec exists. The real reason is narrower: tsc catches the
+   * tsc DOES also object: three TS2741s, one per `{ ...base, kind }` return
+   * in `viewOf`. No line numbers here on purpose. An earlier version of this
+   * note claimed tsc did not object at all and offered that as the reason the
+   * spec exists; the version that repaired it then cited three line numbers
+   * that were themselves wrong by two. A citation that cannot rot is the only
+   * one worth writing. The real reason is narrower: tsc catches the
    * property going missing, and this catches it being present and WRONG,
    * which is the `EMPTY`-spread mutation above.
    */
