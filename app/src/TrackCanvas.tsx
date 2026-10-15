@@ -116,8 +116,29 @@ export function TrackCanvas({
    * Per-segment `layers()` still decides what each piece gets; this only sets
    * how many passes to make.
    */
-  const maxLayers =
-    segments.length === 0 ? 0 : Math.max(...segments.map((s) => layers(s.partId).length));
+  /*
+   * `reduce`, NOT `Math.max(...segments.map(...))`, and the runtime this
+   * suite uses cannot catch the difference.
+   *
+   * A spread passes one argument per segment. MEASURED: node/V8 -- the engine
+   * Chrome runs -- throws `RangeError: Maximum call stack size exceeded` at
+   * 125,000 arguments, while bun/JSC, which is what `vitest` runs under here,
+   * returns fine at 161,000. So every spec in this repo would pass while the
+   * browser threw.
+   *
+   * 161,000 loose pieces is a 4.99M-char blob, inside a ~5MB quota, and
+   * `loadGraph` accepts it with nothing discarded. The throw lands INSIDE
+   * render, so `ErrorBoundary` catches it and paints the crash screen -- and
+   * its only exit, `clearAndReload`, also deletes the inventory and the
+   * submitted parts, which `library.ts` says cannot be recreated. A reload
+   * repeats it forever. One line to avoid, so it is avoided rather than
+   * filed.
+   */
+  let maxLayers = 0;
+  for (const s of segments) {
+    const n = layers(s.partId).length;
+    if (n > maxLayers) maxLayers = n;
+  }
 
   const dedupedClashes = useMemo(() => clashMarkers(clashes), [clashes]);
   /*
@@ -190,9 +211,14 @@ export function TrackCanvas({
         {/*
           * THE CLASH MARKERS.
           *
-          * Deduplicated by position, because a clash is reported per PAIR and
-          * a point where three ends meet would otherwise be drawn three times
-          * at full opacity, reading as something worse than it is.
+          * Deduplicated by position, which is now belt-and-braces:
+          * `findVertexClashes` emits one record per PLACE, so one marker per
+          * place falls out of that contract rather than out of this dedupe.
+          * It used to report one per PAIR of vertices, and a point where
+          * three ends met was drawn three times at full opacity, reading as
+          * something worse than it is. Kept because the agreement between
+          * the verdict's count and this picture should not depend on a
+          * caller's guarantee staying true.
           *
           * Drawn inside the flipped group so the coordinates are the model's
           * own millimetres, the same ones the verdict counted. Radius is in
