@@ -1387,7 +1387,7 @@ computed rather than a fresh `portFrame` per port.
 for the `nextRunAnchor` half. **Priority:** P1.
 **Depends on / blocked by:** nothing.
 
-## P0 — The freeze moved into `TrackCanvas`, which is bounded by nothing (filed by /ship, 2026-10-15)
+## P1 — `TrackCanvas` is not virtualised (filed by /ship as a P0, 2026-10-15; the freeze was bounded the same day)
 
 **What:** this branch made the engine linear and the freeze relocated one
 layer out, into the render that consumes the engine's answer in the SAME
@@ -1436,15 +1436,45 @@ computed in the render body rather than a `useMemo`, so every render repeats
 P0 anyway because the branch is what made it binding, and because a reader of
 the engine's own numbers would now conclude the opposite.
 
-**Fix:** a piece cap at load is the cheap half and is already filed in the
-entry below. The real half is virtualisation (draw only what the viewport
-covers) or a hard element budget with an explicit "too much track to draw"
-state. Both are product decisions about what the canvas does at size, not
-performance tuning.
+**HALF FIXED 2026-10-15. The freeze is gone; virtualisation is not done.**
 
-**Effort:** human ~3d / CC ~4h for virtualisation; human ~2h / CC ~20m for a
-budget plus a notice. **Priority:** P0. **Depends on / blocked by:** the cap
-value and the at-size behaviour both need an owner's call.
+`CANVAS_SEGMENT_CEILING` is 10,000 pieces (`app/src/TrackCanvas.tsx`). Above
+it the canvas renders "Too much track to draw: N pieces" with a line saying
+the layout is still there and still checked, instead of drawing. The verdict
+is unaffected, because `solveGraph` does not depend on the canvas -- so a
+layout too big to draw is still CHECKED, which keeps the refusal honest.
+
+The value is set from measurement rather than taste. MEASURED through
+`renderToStaticMarkup`, which is a floor for what a browser then does:
+
+```
+   2,000 pieces     76ms    40,000 tags    1.6MB
+   5,000 pieces    169ms   100,000 tags    4.0MB
+  10,000 pieces    453ms   200,000 tags    8.0MB
+  20,000 pieces    793ms   400,000 tags   16.1MB
+  40,000 pieces   1474ms   800,000 tags   32.2MB
+```
+
+About 20 tags per piece, linear. 10,000 is where the draw stays under about
+half a second, and it is more than an order of magnitude above the few
+hundred pieces the cap entry below calls a big floor. Three specs pin the
+boundary at exactly the ceiling, one piece above it, and the copy.
+
+A note on the number first proposed: 20,000 was offered as "about 200,000
+SVG nodes, measured ~250ms", which was an extrapolation from a LAPPED run --
+fewer free ports per piece, so fewer circles per piece. Measured directly on
+loose pieces, 20,000 is 400,000 tags and 793ms, and 200,000 tags is 10,000
+pieces at 453ms. The measurement moved the value.
+
+**WHAT REMAINS:** virtualisation -- draw what the viewport covers, so no
+layout is ever too big to open and the ceiling can go away rather than being
+tuned. Also `maxLayers` and the inner `layers(s.partId)` are still computed
+in the render body rather than a `useMemo`, so every render repeats
+`4 x segments` `resolve()` calls under the ceiling as well as over it.
+
+**Effort:** human ~3d / CC ~4h for virtualisation; human ~1h / CC ~10m for
+the render-body memo. **Priority:** P1 now the freeze is bounded (was P0).
+**Depends on / blocked by:** nothing; the ceiling makes it safe to take later.
 
 **FIXED IN THIS BRANCH, the one part that was one line:**
 `Math.max(...segments.map(...))` passed one argument per segment. MEASURED:
@@ -1456,7 +1486,7 @@ landed inside render, `ErrorBoundary` painted the crash screen, and its only
 exit (`clearAndReload`) also deletes the inventory and the submitted parts,
 which `library.ts` records as impossible to recreate. Replaced with a loop.
 
-## P2 — `CYCLE_RANK_CEILING` refuses layouts the work budget answers in microseconds (filed by /ship, 2026-10-15)
+### DONE — `CYCLE_RANK_CEILING` refused layouts the work budget answers in microseconds (P2, fixed 2026-10-15)
 
 **What:** MEASURED -- 21 separate 8-curve circles, 168 pieces, every loop
 closing exactly, reachable by 21 weld clicks with no stored layout involved:
@@ -1476,12 +1506,13 @@ rather than a green pass, and clashes are still reported on this branch -- but
 refusing a correct, ordinary layout is the mirror of it, and 21 loops on a big
 floor is not an exotic shape.
 
-**Fix:** raise the ceiling to `SUBSET_MASK_BITS` (31) and let the work budget
-do the bounding, or decide a product number and pin it to a reason. Either way
-the ceiling needs a justification it currently does not have.
+**FIXED 2026-10-15.** `CYCLE_RANK_CEILING` is now `SUBSET_MASK_BITS`, so the
+ceiling IS the representation and the two can no longer drift apart. MEASURED
+after: 21 circles answer `closesExactly` in 5.4ms, 31 circles in 2.1ms, and 32
+are refused in 1.4ms. The work budget does the bounding, which is the only
+bound with a measurement behind it.
 
-**Effort:** human ~2h / CC ~20m. **Priority:** P2.
-**Depends on / blocked by:** the number is a product call.
+**Effort:** spent, CC ~20m. **Priority:** done.
 
 ## P1 — Nothing bounds a layout's size (filed by /ship, 2026-10-14; the clash scan itself was fixed 2026-10-15, both halves)
 

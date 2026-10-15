@@ -34,26 +34,6 @@ import type { Graph, Port } from './model.js';
 import { weldGiveMm } from './model.js';
 
 /**
- * Above this rank the cycle space is not enumerated.
- *
- * It bounds the INPUT; `CYCLE_WORK_BUDGET` bounds the WORK. This used to
- * justify 20 with "2^rank subsets, so 20 is about a million", which was the
- * cost model of the enumeration that walked every subset and no longer
- * describes anything: the walk now visits only connected subsets and is
- * charged per weld. 20 is still unpinned against a frame target (eng finding
- * E13); what IS pinned is that it cannot exceed 31, because both the sharing
- * graph and the walk carry subsets in an int32 mask.
- *
- * The point of the ceiling is that
- * exceeding it REPORTS "too many loops to rank" rather than quietly falling
- * back to the fundamental basis: a basis cycle is an arbitrary choice of
- * which loops to look at, and presenting one as "the worst" would be a claim
- * nobody checked. It is a bound on the INPUT, tested before any enumeration
- * begins, so a hostile graph cannot spend the time before being refused.
- */
-export const CYCLE_RANK_CEILING = 20;
-
-/**
  * How many fundamentals a subset mask can carry.
  *
  * Subsets live in an int32, so the usable bit positions are 0..30 and a basis
@@ -63,6 +43,39 @@ export const CYCLE_RANK_CEILING = 20;
  * means changing all four together.
  */
 export const SUBSET_MASK_BITS = 31;
+
+/**
+ * Above this rank the cycle space is not enumerated.
+ *
+ * It bounds the INPUT; `CYCLE_WORK_BUDGET` bounds the WORK.
+ *
+ * 31, RAISED FROM 20, and the number is now the representation rather than a
+ * leftover. 20 was justified with "2^rank subsets, so 20 is about a million",
+ * the cost model of an enumeration that walked every subset; the walk now
+ * visits only connected subsets and is charged per weld, so that sentence
+ * stopped describing anything and 20 kept standing on it.
+ *
+ * What 20 cost, MEASURED: 21 separate 8-curve circles -- 168 pieces, every
+ * loop closing EXACTLY, reachable by 21 weld clicks with no stored layout
+ * involved -- were refused with "21 independent loops is more than this can
+ * rank" in 1.1ms, while 20 of the same circles answered `closesExactly` in
+ * 4.8ms. Those 21 circles spend 168 of `CYCLE_WORK_BUDGET`'s 150,000 slots.
+ * Refusing a correct, ordinary layout the solver can check in a millisecond
+ * is the mirror of never styling a pass as a failure.
+ *
+ * 31 is the hard limit, not a preference: both the sharing graph and the walk
+ * carry subsets in an int32 mask, whose usable positions are 0..30, so a
+ * basis of 31 is the largest that fits. The work budget is what bounds cost
+ * now, and it is measured; this bounds only what can be represented.
+ *
+ * The point of the ceiling is that
+ * exceeding it REPORTS "too many loops to rank" rather than quietly falling
+ * back to the fundamental basis: a basis cycle is an arbitrary choice of
+ * which loops to look at, and presenting one as "the worst" would be a claim
+ * nobody checked. It is a bound on the INPUT, tested before any enumeration
+ * begins, so a hostile graph cannot spend the time before being refused.
+ */
+export const CYCLE_RANK_CEILING = SUBSET_MASK_BITS;
 
 export interface CycleReport {
   /** Weld indices forming this cycle. */
@@ -214,7 +227,8 @@ export function sharingGraph(
   // Same trap as `forEachConnectedSubset`, same reason to be loud about it:
   // `1 << j` wraps past 31, so a 32nd fundamental would quietly take vertex
   // 0's bit and the adjacency would be wrong rather than absent. Unreachable
-  // while `CYCLE_RANK_CEILING` is 20, which the spec pins.
+  // because `CYCLE_RANK_CEILING` IS `SUBSET_MASK_BITS`: the ceiling refuses
+  // rank 32 before this is reached, so these two can no longer drift apart.
   if (fundamentals.length > SUBSET_MASK_BITS) {
     throw new Error(
       `${fundamentals.length} fundamentals exceeds the ${SUBSET_MASK_BITS}-bit mask`,
