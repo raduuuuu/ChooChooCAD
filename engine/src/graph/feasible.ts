@@ -195,17 +195,15 @@ export function findVertexClashes(
    * C(k,2) when k of them land together -- and grouping by position did not
    * help, because when ports coincide the group IS the layout. Reachable by
    * clicking one palette button: `E` turns 45 degrees, so eight close a
-   * circle and an open run laps the same EIGHT places. MEASURED before this,
-   * on an open run of `E`:
+   * circle and an open run laps the same EIGHT places. At a few thousand
+   * pieces that was seconds and millions of records, and at 16,384 it was a
+   * renderer OOM inside a render `useMemo` -- not a catchable throw, so
+   * nothing cleared the storage key and every reload repeated it.
    *
-   *     1,000 pieces   0.11MB     48ms      62,124 records
-   *     4,000 pieces   0.44MB    825ms     998,499 records
-   *     8,000 pieces   0.92MB   5907ms   3,996,999 records, 2.35GB resident
-   *
-   * 800 `add` actions through the real reducer is 87KB stored and 39,699
-   * records. At 16,384 pieces it is a renderer OOM inside a render `useMemo`,
-   * which is not a catchable throw, so nothing clears the storage key and
-   * every reload repeats it.
+   * The before-and-after figures live ONCE, in the `MEASURED` block further
+   * down this comment. They used to be restated here as well, and the two
+   * copies disagreed with each other on the record count -- which is the
+   * whole reason this comment now cites rather than repeats.
    *
    * THE SAME PLACES ARE REPORTED, by reformulating the rule rather than
    * changing it. The old walk reported a place when EITHER some vertex there
@@ -259,12 +257,9 @@ export function findVertexClashes(
    * because a place can hold n vertices and C(n,2) is quadratic in the input.
    * It is also the right number. `clashMarkers` already dedupes to one marker
    * per place, and over 582 of those fixtures the old count disagreed with
-   * the markers drawn in 142 of the 241 that clash at all. The note below
-   * records this defect being half-fixed once already: the 16xE double circle
-   * said 32 "when there are EIGHT such spots ... the verdict and the picture
-   * disagreed, and the verdict was the wrong one". Counting vertex pairs
-   * matched that case only because each place held exactly two vertices.
-   * 16xE still reports 8 and the tangent pair still reports 1.
+   * the markers drawn in 142 of the 241 that clash at all. This is the same
+   * defect the HOW THE COUNT GOT HERE block above records being half-fixed
+   * once already, told once there rather than twice in one function.
    *
    * MEASURED after, on the shapes above:
    *

@@ -326,7 +326,9 @@ describe('free ends meeting are an invitation, not a clash', () => {
  * 500-port ceiling its own shortcut note named. MEASURED on 20 rings of
  * ordinary straights, every port claimed once, no duplicate weld, catalogue
  * parts only -- so no guard anywhere objects: 1,000 pieces 85ms, 5,000
- * 2,221ms, 10,000 8,337ms, on a 1MB stored layout that still reported "ok".
+ * seconds by ten thousand, on a 1MB stored layout that still reported "ok"
+ * -- the figures themselves live in the DONE entry in
+ * `docs/plan/brio-TODOS.md`, so this docblock cannot drift from them.
  * A freeze is not a throw, so nothing caught it and every reload repeated it.
  * Value: seam=none
  * Value: no_claim=nothing about pieces crossing mid-span, which this never

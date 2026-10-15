@@ -155,8 +155,10 @@ export function solveGraph(
    * WHAT THAT DOES NOT LICENSE. An earlier version of this comment went on to
    * conclude that the route to an expensive solve was therefore shut, and
    * that inference is what let two real freezes through review: the all-pairs
-   * overlap scan upstream of here (8337ms at 10,000 pieces) and a scanning
-   * `slop` callback in `App.tsx` (2196ms at 32,000). Neither needed a dense
+   * overlap scan upstream of here (seconds at ten thousand pieces; the
+   * figures are in the DONE entry in `docs/plan/brio-TODOS.md`) and a scanning
+   * `slop` callback in `App.tsx` (quadratic in pieces; measured at the
+   * callback). Neither needed a dense
    * graph, a duplicate weld, or anything this branch bounds. "The input this
    * guard refuses is unreachable" is a claim about this guard only, never
    * about the cost of a solve.

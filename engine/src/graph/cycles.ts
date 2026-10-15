@@ -301,7 +301,9 @@ export function sharingGraph(
  * AND THE WALK ALONE DID NOT CLOSE IT. Two other things on the same path had
  * to change before a large layout stopped freezing the tab: the all-pairs
  * overlap scan in `feasible.ts`, which ran BEFORE every bound here and cost
- * 8337ms at 10,000 pieces, and `App.tsx`'s scanning `slop` callback. Any
+ * seconds at ten thousand pieces, and `App.tsx`'s scanning `slop` callback
+ * (both measured in the overlap-scan DONE entry of `docs/plan/brio-TODOS.md`,
+ * which is the one place those figures live). Any
  * claim in this file that the enumeration fix closed the freeze means the
  * enumeration's share of it.
  *
@@ -342,8 +344,10 @@ export function sharingGraph(
  * It also assumes a slot is O(1), which is a contract on the CALLER. The
  * `slop` and `ports` callbacks are invoked per edge, and a scanning
  * implementation makes the whole thing quadratic in pieces from outside --
- * `App.tsx` did exactly that, measured at 2196ms for 32,000 pieces with the
- * budget never firing. The engine cannot defend itself there: caching inside
+ * `App.tsx` did exactly that: a scanning lookup is quadratic in pieces and
+ * the budget never fires, because the cost is outside the slots being
+ * charged. The figures are in `App.tsx`'s own comment at the callback, which
+ * is where they live. The engine cannot defend itself there: caching inside
  * does not help, because the first lookup per piece still scans and there
  * are O(pieces) distinct pieces. Both callers now pass Map lookups.
  */

@@ -1310,11 +1310,11 @@ describe('the suppression wiring is present in App.tsx', () => {
  * measured stall
  * Value: why_new=nothing in the suite could see this. Every spec passes
  * `() => slopMm` or `() => 0.8`, which is O(1), so the engine specs measure a
- * cost the product did not pay. MEASURED on App.tsx's own callback,
- * `analyseCycles` alone: 4,000 pieces 48ms, 8,000 197ms, 16,000 766ms, 32,000
- * 2196ms, every one of them returning `truncated: false` -- so the budget
- * never fired and the user got a normal verdict after the stall rather than a
- * refusal. With the map it is 4/7/13/23ms.
+ * cost the product did not pay. A scanning callback is quadratic in pieces
+ * and the budget never fires, because the cost sits outside the slots being
+ * charged, so the user got a normal verdict after the stall rather than a
+ * refusal. The measurement lives once, in `App.tsx` beside the callback
+ * itself; this spec reads source text and asserts no timing of its own.
  * Value: seam=none
  * Value: no_claim=nothing about the rendered component, which needs a DOM this
  * suite does not have, and no timing claim of its own: this reads source text,

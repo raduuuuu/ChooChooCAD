@@ -368,16 +368,24 @@ export function App() {
    * inside it does not help, because the first lookup per piece still scans
    * and there are O(pieces) distinct pieces.
    *
-   * MEASURED, analyseCycles alone, the two callbacks on identical graphs:
+   * MEASURED, the mechanism rather than a layout, one lookup per weld end on
+   * a two-port catalogue:
    *
-   *     4,000 pieces     48ms  ->   4ms
-   *     8,000 pieces    197ms  ->   7ms
-   *    16,000 pieces    766ms  ->  13ms
-   *    32,000 pieces   2196ms  ->  23ms
+   *     4,000 pieces,  4,000 lookups     23ms  ->  0.4ms
+   *     8,000 pieces,  8,000 lookups     84ms  ->  0.8ms
+   *    16,000 pieces, 16,000 lookups    357ms  ->  1.7ms
+   *    32,000 pieces, 32,000 lookups   1426ms  ->  2.2ms
    *
-   * Every one of those returned `truncated: false`, so the budget never fired
-   * and the user got a normal verdict after the stall. The suite could not
-   * see it: its specs pass `() => slopMm`, which is O(1).
+   * Clean quadratic against linear: four times the cost per doubling on the
+   * left, and the budget never fires, so the user got a normal verdict after
+   * the stall rather than a refusal. The suite could not see it: its specs
+   * pass `() => slopMm`, which is O(1).
+   *
+   * This is deliberately the MECHANISM and not a layout. The table that stood
+   * here before quoted `analyseCycles` on "identical graphs" at four piece
+   * counts and named no fixture, so no row could be re-measured -- and four
+   * other comments restated it. This version is reproducible from its own
+   * description, and it is the only copy: the others now cite it.
    */
   const slopById = useMemo(
     () => new Map(graph.pieces.map((p: GPiece) => [p.pieceId, resolve(p.partId).slop.axialMm])),

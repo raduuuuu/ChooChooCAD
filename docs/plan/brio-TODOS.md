@@ -1074,9 +1074,13 @@ records in all).
 
 `App.tsx` passed a `slop` callback that did `graph.pieces.find(...)`, and
 `giveOfWeld` calls it once per edge, so the solve was O(welds x pieces) at the
-only call site that matters. 2196ms at 32,000 pieces with the budget never
-firing, because the engine prices weld-slots assuming a slot is O(1) and a
-scanning callback breaks that from outside. Both callers now pass a Map.
+only call site that matters. Clean quadratic -- 23ms at 4,000 pieces rising
+to 1,426ms at 32,000, against 0.4ms and 2.2ms with a Map -- with the budget
+never firing, because the engine prices weld-slots assuming a slot is O(1)
+and a scanning callback breaks that from outside. Both callers now pass a
+Map. (Measured as the lookup mechanism, one call per weld end, which is what
+`App.tsx`'s comment records and what anyone can re-run; an earlier version of
+this paragraph quoted `analyseCycles` timings on a fixture it never named.)
 
 End to end on the same fixture, `solveGraph`:
 
@@ -1226,11 +1230,11 @@ marker per place and over 582 of those fixtures the old count disagreed with
 the markers drawn in 142 of the 241 that clash at all. The copy follows it:
 "8 spots have track ends in exactly the same place" rather than "8 pairs of
 track ends land in...". This is the same defect `feasible.ts` records being
-half-fixed once before -- the 16xE double circle said 32 "when there are EIGHT
-such spots ... the verdict and the picture disagreed, and the verdict was the
-wrong one". Counting vertex pairs matched that case only because each place
-held exactly two vertices. 16xE still reports 8, in the browser, and the
-tangent pair still reports 1.
+half-fixed once before, when the 16xE double circle said 32 over 8 markers:
+counting vertex pairs matched that case only because each place held exactly
+two vertices. 16xE still reports 8, verified in the browser, and the tangent
+pair still reports 1. The mechanism lives in `feasible.ts`; this entry keeps
+the history.
 
 **Specs:** the lapped run and the pile each have one, asserting the place count
 and a 300ms backstop. The record COUNT is the primary assertion, because

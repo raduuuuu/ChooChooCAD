@@ -321,8 +321,9 @@ export function VerdictLine({
                 * is also what `clashMarkers` draws, so the number and the
                 * picture agree. It used to count pairs of joined-up ends,
                 * which matched the dots only when each spot held exactly two
-                * of them -- the 16xE double circle said 32 over 8 markers,
-                * and a lapped run of curves said 998,499 over 8.
+                * of them; `graph/feasible.ts` records how the count got
+                * from ports to pairs to places, with the fixtures and
+                * the figures.
                 */}
               Can&rsquo;t be built. <span className="num">{e.clashCount}</span>{' '}
               {e.clashCount === 1
