@@ -944,56 +944,55 @@ finding E13 in `docs/plan/2026-10-13-open-work.md`.
 The distribution and font-licence half of the old entry is NOT done and stays
 open above.
 
-## P0 — The cycle enumeration freezes the tab for 12 seconds (filed by /ship, 2026-10-14)
+### DONE — The cycle enumeration froze the tab for 12 seconds (P0, fixed 2026-10-15)
 
-**What:** `engine/src/graph/cycles.ts:186` walks `for (let mask = 1; mask < 1 << rank; mask++)`
-with per-subset work proportional to the selected fundamentals' total length. Every
-edit re-solves synchronously inside render, so the cost lands on the main thread with
-no timeout, no cancel and no worker. A freeze is not a throw, so `ErrorBoundary`
-cannot catch it.
+**Was:** `cycles.ts` walked `for (let mask = 1; mask < 1 << rank; mask++)` with
+per-subset work proportional to the selected fundamentals' total length. At the
+accepted `CYCLE_RANK_CEILING = 20` that is 1,048,575 subsets, and the solve runs
+synchronously inside render, so the cost landed on the main thread with no timeout
+and no cancel. A freeze is not a throw, so `ErrorBoundary` could not catch it.
 
-**Measured on the committed tree, twice, by two independent probes** (the second was
-this session re-deriving the first rather than trusting it):
+**Fix:** `forEachConnectedSubset` enumerates only the CONNECTED subsets of the
+fundamental-sharing graph (fundamental i adjacent to j when their piece sets
+intersect), bounded by `CYCLE_SUBSET_BUDGET = 20_000`. Lossless, not a heuristic:
+a disconnected subset's symmetric difference is a disconnected even subgraph, and
+`traceSimpleCycle` already rejects anything that is not one simple circuit, so
+every subset skipped was one that could only have been discarded. The full cycle
+space is still reached the moment a 3-port switch lands, so T6's no-pooling
+guarantee is untouched.
+
+**Measured, same machine, same topologies:**
 
 ```
-  rank 12 /  96 pieces      48ms     cycles kept 12
-  rank 16 / 128 pieces     569ms     cycles kept 16
-  rank 18 / 144 pieces    2563ms     cycles kept 18
-  rank 20 / 160 pieces   12179ms     cycles kept 20
+  rank 12 /  96 pieces      41ms  ->  0.75ms
+  rank 16 / 128 pieces     521ms  ->  0.33ms
+  rank 18 / 144 pieces    2348ms  ->  0.37ms
+  rank 20 / 160 pieces   12289ms  ->  1.65ms
 ```
 
-The recorded figures the rank-20 ceiling was chosen against (2ms@12, 15ms@16,
-471ms@20) understate the shipped worst case by up to 26x, because rank alone does
-not determine cost: piece count does, and nothing caps pieces or welds. The same
-rank 20 costs about 1.1s at 20 pieces and 12.2s at 160.
+In the browser, a stored rank-20 / 160-piece layout goes from frozen to 132ms for
+navigate plus first verdict, with the correct verdict and no console errors.
 
-**Why the work is provably wasted, which is what makes this cheap to fix:** every
-part in the catalogue has exactly 2 ports, and both `weldEnds` and `addPiece` only
-weld FREE ports, so no piece can carry a third weld. Every fundamental cycle is
-therefore vertex-disjoint from every other, `traceSimpleCycle`'s degree-2 filter
-rejects every mask of popcount >= 2, and `cycles kept == rank` in every topology
-probed. At rank 20 that is 1,048,555 subsets of pure waste out of 1,048,575.
+**Correctness evidence, not just timing.** 660 random sharing graphs checked
+against a brute-force subset walk: identical sets, no duplicates. 35 topologies
+run through main's `cycles.ts` and the new one side by side: identical cycles,
+gaps, give and worst joint. Both skipped specs are un-skipped and pass, so the
+suite is 405 passing and ZERO skipped.
 
-**Fix:** build the fundamental-sharing graph once (fundamental i adjacent to j when
-their piece sets intersect) and enumerate only its CONNECTED subsets. On today's
-catalogue that collapses to `rank` iterations and costs nothing. The full cycle space
-is still covered the moment a 3-port switch lands, so T6's no-pooling guarantee is
-unchanged — which matters, because "give is never pooled across cycles" is one of the
-three invariants no task may weaken.
+**Mutations run, not asserted:** enumerating all subsets again fails the frame
+budget spec; deleting the budget stop fails the budget spec; passing `0` instead
+of `seen` as the child's `banned` yields duplicate subsets at rank 3.
 
-Separately worth doing: move `solveGraph` off the synchronous render path, and give
-it the placement `App.tsx` already memoized (`solve.ts:85` recomputes `placeAll`, so
-the drawing and the verdict build two separate forests and rely on determinism rather
-than construction to agree).
+**One thing I got wrong and fixed:** the first version masked candidates with
+`& ~seen` as well as handing `seen` down as `banned`. Deleting that mask left all
+405 specs green, which means it was redundant rather than pinned. It is gone, and
+the recorded mutation is the one that actually fails.
 
-**A failing timing test is already written and SKIPPED** at
-`engine/test/cycles.test.ts`, so the spec is in the repo rather than in this entry.
-Un-skip it to start.
-
-**Effort:** human ~1d / CC ~1h. **Priority:** P0.
-**Depends on / blocked by:** nothing. Deferred from the 2026-10-14 ship by owner
-decision D5, to keep a core-engine algorithm change out of a PR already carrying six
-critical fixes.
+**Still open, and NOT fixed by this:** `solveGraph` still runs on the synchronous
+render path and still recomputes `placeAll` instead of taking the placement
+`App.tsx` memoized (its own P1 below), and nothing yet bounds a layout's size or
+de-quadratifies the clash scan (also its own P1). Those were listed as "separately
+worth doing" in this entry and they stay open.
 
 ## P2 — The review backlog: findings that need judgement, not a keystroke (filed by /ship, 2026-10-14)
 

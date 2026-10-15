@@ -29,15 +29,14 @@
 #   bun run typecheck   exit 0, no diagnostics, under noUnusedLocals.
 #   bun run build       vite build green.
 #
-# Two specs are skipped ON PURPOSE and both FAIL when un-skipped. They pin the
-# one remaining P0 in docs/plan/brio-TODOS.md: the cycle enumeration's cost at
-# the accepted rank ceiling (engine/test/cycles.test.ts). A skip count that
-# moves without that P0 closing is the thing to look at.
+# NOTHING is skipped. It was four specs pinning two P0s, then two pinning one,
+# and now zero. Both P0s -- a recovered layout manufacturing a false "can't be
+# built", and the cycle enumeration's cost at the accepted rank ceiling -- are
+# fixed, so all four specs run normally. That is what closing one of these
+# looks like: the skip count goes DOWN and the specs stay.
 #
-# It was four, pinning two P0s. The orphan-lane P0 -- a recovered layout
-# manufacturing a false "can't be built" -- is fixed, so its two specs run
-# normally now. That is what closing one of these looks like: the count goes
-# DOWN and the specs stay.
+# A skip that reappears is the thing to look at. `it.skip` in this repo means a
+# known-failing pin, never a quarantined flake.
 #
 # All three run as declared package scripts, never inlined here, so CI and a
 # person at a keyboard invoke the same command. That is E15's point: an inlined

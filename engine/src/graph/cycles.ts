@@ -149,6 +149,84 @@ function traceSimpleCycle(
   return { pieces, forward };
 }
 
+/**
+ * How many subsets the enumeration will look at before it gives up.
+ *
+ * The CONNECTED-subset walk below collapses today's catalogue to `rank`
+ * iterations, but a graph whose fundamentals all share pieces can still have
+ * exponentially many connected subsets, and a three-port switch is what makes
+ * that reachable. This is the bound that turns "slow" into "refused": a
+ * budget on WORK, where `CYCLE_RANK_CEILING` is a bound on INPUT. Exceeding
+ * it reports `truncated` for the same reason the rank ceiling does -- naming
+ * one basis cycle "the worst" would be a claim nobody checked.
+ *
+ * 20,000 at the measured ~12us per subset is about a quarter of a second in
+ * the worst case the old code took 12 seconds on.
+ */
+export const CYCLE_SUBSET_BUDGET = 20_000;
+
+/**
+ * Every CONNECTED subset of the fundamental-sharing graph, each exactly once.
+ *
+ * WHY CONNECTED IS LOSSLESS, which is the whole basis of this optimisation.
+ * `traceSimpleCycle` accepts an edge set only when a single walk covers all
+ * of it (`forward.size !== edges.length` rejects otherwise). Take a subset
+ * whose fundamentals split into two groups sharing no piece: their edge sets
+ * are vertex-disjoint, each group contributes at least one edge -- no
+ * fundamental can cancel entirely, since each owns a closing weld no other
+ * contains -- so the symmetric difference is two or more disjoint circuits
+ * and the walk covers only one. Every subset the old loop could ACCEPT is
+ * therefore connected here. Nothing is lost; the full cycle space is still
+ * covered, so T6's no-pooling guarantee is unchanged.
+ *
+ * Each subset is emitted once, identified by its lowest member: the outer
+ * loop fixes that minimum and the walk may only add higher vertices, and
+ * within a walk a candidate that has already been branched on is banned from
+ * later branches of the same frame.
+ *
+ * Returns false when the budget ran out, which the caller reports as
+ * `truncated` rather than presenting a partial enumeration as the whole.
+ */
+export function forEachConnectedSubset(
+  neighbours: readonly number[],
+  rank: number,
+  budget: number,
+  visit: (mask: number) => void,
+): boolean {
+  let spent = 0;
+  let exhausted = false;
+
+  const grow = (sub: number, ext: number, banned: number, allowed: number): void => {
+    if (++spent > budget) {
+      exhausted = true;
+      return;
+    }
+    visit(sub);
+    let cand = ext & allowed & ~sub & ~banned;
+    let seen = banned;
+    while (cand !== 0) {
+      const bit = cand & -cand;
+      cand &= ~bit;
+      const i = 31 - Math.clz32(bit);
+      // `seen` goes in as the child's `banned`, which is what stops a subset
+      // being reached twice; masking `ext` with it here as well would be
+      // redundant, since the child filters its own candidates by `banned`.
+      grow(sub | bit, (ext | neighbours[i]!) & ~bit, seen, allowed);
+      if (exhausted) return;
+      seen |= bit;
+    }
+  };
+
+  for (let v = 0; v < rank; v++) {
+    // Bits v and above, so each connected subset is reached once, from its
+    // own lowest member.
+    const allowed = (~((1 << v) - 1) & ((1 << rank) - 1)) >>> 0;
+    grow(1 << v, neighbours[v]! & allowed, 0, allowed);
+    if (exhausted) return false;
+  }
+  return true;
+}
+
 export function analyseCycles(
   graph: Graph,
   placement: Placement,
@@ -183,11 +261,44 @@ export function analyseCycles(
     return weldGiveMm(pa, pb, slop(w.a.pieceId), slop(w.b.pieceId));
   };
 
+  /*
+   * THE SHARING GRAPH: fundamental i is adjacent to j when they pass through
+   * a common PIECE. Vertex-sharing, not edge-sharing, because connectivity of
+   * the combined subgraph is what decides whether a symmetric difference can
+   * be one circuit, and two cycles sharing an edge share its ends anyway.
+   *
+   * On today's catalogue this graph has no edges at all. Every part has two
+   * ports and both `weldEnds` and `addPiece` weld only FREE ports, so no
+   * piece can carry a third weld and every fundamental is vertex-disjoint
+   * from every other. The walk below then yields exactly `rank` subsets
+   * instead of 2^rank - 1. At the rank-20 ceiling that is 20 iterations in
+   * place of 1,048,575, which is the 12-second freeze this replaces.
+   */
+  const piecesOf = fundamentals.map((edges) => {
+    const ids = new Set<string>();
+    for (const e of edges) {
+      const w = graph.welds[e]!;
+      ids.add(w.a.pieceId);
+      ids.add(w.b.pieceId);
+    }
+    return ids;
+  });
+  const neighbours = piecesOf.map((mine, i) => {
+    let mask = 0;
+    for (let j = 0; j < rank; j++) {
+      if (j === i) continue;
+      for (const id of piecesOf[j]!) {
+        if (mine.has(id)) {
+          mask |= 1 << j;
+          break;
+        }
+      }
+    }
+    return mask;
+  });
+
   const cycles: CycleReport[] = [];
-  // Every non-empty subset of the fundamental basis. Their symmetric
-  // difference spans the whole cycle space, so no loop a user can see is
-  // missed, including ones no basis contains.
-  for (let mask = 1; mask < 1 << rank; mask++) {
+  const complete = forEachConnectedSubset(neighbours, rank, CYCLE_SUBSET_BUDGET, (mask) => {
     const counts = new Map<number, number>();
     for (let i = 0; i < rank; i++) {
       if ((mask & (1 << i)) === 0) continue;
@@ -195,7 +306,7 @@ export function analyseCycles(
     }
     const edges = [...counts.entries()].filter(([, n]) => n % 2 === 1).map(([e]) => e);
     const traced = traceSimpleCycle(graph, edges);
-    if (!traced) continue;
+    if (!traced) return;
 
     let gap: Cyc = ZERO;
     if (!rotationBroken) {
@@ -215,7 +326,7 @@ export function analyseCycles(
       giveMm,
       withinGive: !rotationBroken && gapMm <= giveMm,
     });
-  }
+  });
 
   // Worst = furthest over its OWN give. Ties go to the larger gap, so the
   // reported cycle is stable rather than whichever the enumeration hit first.
@@ -231,5 +342,5 @@ export function analyseCycles(
           return b.gapMm > a.gapMm ? b : a;
         });
 
-  return { rank, truncated: false, rotationBroken, cycles, worst };
+  return { rank, truncated: !complete, rotationBroken, cycles, worst };
 }

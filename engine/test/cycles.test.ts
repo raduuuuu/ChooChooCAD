@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../data/library.js';
-import { CYCLE_RANK_CEILING, analyseCycles } from '../src/graph/cycles.js';
+import { CYCLE_RANK_CEILING, analyseCycles, forEachConnectedSubset } from '../src/graph/cycles.js';
 import { placeAll, residuals } from '../src/graph/frames.js';
 import { graphFromChain } from '../src/graph/fromChain.js';
 import { portsOf, type Graph, type Piece, type Port, type Weld } from '../src/graph/model.js';
@@ -183,28 +183,37 @@ describe('rotation', () => {
 });
 
 /**
- * THE ENUMERATION COST, pinned as a SKIPPED spec (P0 in brio-TODOS.md).
+ * THE ENUMERATION COST. This was a SKIPPED spec pinning a P0; the P0 is fixed
+ * and it runs.
  *
  * Value: protects=solveGraph stays inside a frame budget at the accepted rank
  * ceiling, so an ordinary layout cannot freeze the tab
- * Value: fails_when=the enumeration walks all 2^rank subsets rather than only
- * the connected ones, which is what it does today
- * Value: why_new=nothing in the suite times anything, so the 26x gap between
+ * Value: fails_when=the enumeration goes back to walking all 2^rank subsets
+ * rather than only the connected ones
+ * Value: why_new=nothing in the suite timed anything, so the 26x gap between
  * the recorded figures and the measured ones was undetectable
  * Value: seam=none
  * Value: no_claim=nothing about the browser's own scheduling; these are bun
  * numbers and Chrome is within about 2x
  *
- * SKIPPED ON PURPOSE, and it fails when un-skipped: 12179ms measured against a
- * 100ms budget. The owner deferred the fix on 2026-10-14 so a core engine
- * change would not ride along in a ship already carrying six critical fixes;
- * the record is the P0 in `docs/plan/brio-TODOS.md`, which carries the
- * measured 48/569/2563/12179ms table. Cited by date and file rather than by
- * a bare "D5", which already names three other decisions in the plan corpus.
- * Un-skip this to start the work; do not delete it to make the suite look
- * green.
+ * MEASURED, old implementation against new, same graphs, same results:
+ *
+ *   rank 12 /  96 pieces      41ms  ->  0.75ms
+ *   rank 16 / 128 pieces     521ms  ->  0.33ms
+ *   rank 18 / 144 pieces    2348ms  ->  0.37ms
+ *   rank 20 / 160 pieces   12289ms  ->  1.65ms
+ *
+ * The cycle count is identical at every rank, which is the point: the subsets
+ * that were dropped could never have been accepted. `traceSimpleCycle` takes
+ * an edge set only when one walk covers all of it, and a subset of
+ * fundamentals sharing no piece is two or more disjoint circuits. See
+ * `forEachConnectedSubset` for the argument in full.
+ *
+ * The second case is the one that would catch a regression to exponential
+ * growth even if the constant improved: it compares rank 20 against rank 10
+ * rather than against a wall-clock number.
  */
-describe.skip('enumeration cost at the accepted ceiling', () => {
+describe('enumeration cost at the accepted ceiling', () => {
   const loops = (n: number, k = 8): Graph => {
     const pieces: Piece[] = [];
     const welds: Weld[] = [];
@@ -231,5 +240,126 @@ describe.skip('enumeration cost at the accepted ceiling', () => {
     };
     const small = Math.max(ms(10), 0.5);
     expect(ms(20)).toBeLessThan(small * 20);
+  });
+});
+
+/**
+ * The connected-subset walk, pinned directly rather than only through its
+ * effect on cycle counts.
+ *
+ * Value: protects=the enumeration visits exactly the connected subsets, each
+ * once, and stops rather than hanging when a graph has too many
+ * Value: fails_when=the walk emits a disconnected subset, emits a duplicate,
+ * misses a connected one, or ignores the budget
+ * Value: why_new=the old enumeration had no structure to pin; this one is
+ * the whole fix, and a cycle-count assertion cannot tell "visited the right
+ * subsets" from "visited too many and filtered them"
+ * Value: seam=none
+ * Value: no_claim=nothing about which subsets `traceSimpleCycle` then
+ * accepts; that is its own contract and tested above
+ */
+describe('forEachConnectedSubset', () => {
+  /** Every non-empty subset that is connected, found the slow obvious way. */
+  const bruteForce = (nb: readonly number[], rank: number): number[] => {
+    const out: number[] = [];
+    for (let mask = 1; mask < 1 << rank; mask++) {
+      const members = [];
+      for (let i = 0; i < rank; i++) if (mask & (1 << i)) members.push(i);
+      const seen = new Set([members[0]!]);
+      const stack = [members[0]!];
+      while (stack.length) {
+        const v = stack.pop()!;
+        for (const u of members) {
+          if (!seen.has(u) && (nb[v]! & (1 << u)) !== 0) {
+            seen.add(u);
+            stack.push(u);
+          }
+        }
+      }
+      if (seen.size === members.length) out.push(mask);
+    }
+    return out;
+  };
+
+  const collect = (nb: readonly number[], rank: number, budget = 1 << 22) => {
+    const got: number[] = [];
+    const complete = forEachConnectedSubset(nb, rank, budget, (m) => got.push(m));
+    return { got, complete };
+  };
+
+  /*
+   * MUTATION PROOF, run: pass `0` instead of `seen` as the child's `banned`
+   * and this fails on duplicates at rank 3 (8 emitted where 7 are connected).
+   * That argument is the whole duplicate-avoidance mechanism.
+   *
+   * A first version of this comment claimed that masking `ext` with `~seen`
+   * was also load-bearing. It is not -- removing it left all 405 green,
+   * because the child filters its own candidates by `banned` anyway. The
+   * redundant mask is gone rather than left wearing a false justification.
+   */
+  it('matches brute force exactly over 660 random graphs, with no duplicates', () => {
+    let rng = 12345;
+    const rand = () => (rng = (rng * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+    for (let rank = 1; rank <= 11; rank++) {
+      for (let trial = 0; trial < 60; trial++) {
+        const density = rand();
+        const nb = Array<number>(rank).fill(0);
+        for (let i = 0; i < rank; i++) {
+          for (let j = i + 1; j < rank; j++) {
+            if (rand() < density) {
+              nb[i]! |= 1 << j;
+              nb[j]! |= 1 << i;
+            }
+          }
+        }
+        const { got, complete } = collect(nb, rank);
+        expect(complete).toBe(true);
+        expect(new Set(got).size, `duplicate at rank ${rank} trial ${trial}`).toBe(got.length);
+        expect([...got].sort((a, b) => a - b), `mismatch at rank ${rank} trial ${trial}`).toEqual(
+          bruteForce(nb, rank).sort((a, b) => a - b),
+        );
+      }
+    }
+  });
+
+  /*
+   * TODAY'S CATALOGUE IS THE NO-EDGE CASE, which is where the 12-second
+   * freeze went. Every part has two ports, so no piece can take a third weld
+   * and no two fundamentals share one.
+   */
+  it('a sharing graph with no edges yields exactly rank subsets', () => {
+    for (const rank of [1, 5, 20]) {
+      const { got } = collect(Array<number>(rank).fill(0), rank);
+      expect(got).toHaveLength(rank);
+      expect(new Set(got.map((m) => m.toString(2).split('1').length - 1))).toEqual(new Set([1]));
+    }
+  });
+
+  /*
+   * THE BUDGET IS A REAL STOP, not advice. A complete sharing graph at rank
+   * 20 has 2^20 - 1 connected subsets, which is the case the budget exists
+   * for.
+   *
+   * MUTATION PROOF, run: remove the `if (++spent > budget)` early return and
+   * this test hangs rather than failing -- so it is written with a small
+   * budget and an assertion on the COUNT, which fails fast instead.
+   */
+  it('stops at the budget and says so, instead of running to completion', () => {
+    const rank = 20;
+    const complete = (1 << rank) - 1;
+    const nb = Array.from({ length: rank }, (_, i) => complete & ~(1 << i));
+    let visits = 0;
+    const done = forEachConnectedSubset(nb, rank, 500, () => {
+      visits++;
+    });
+    expect(done).toBe(false);
+    expect(visits).toBeLessThanOrEqual(500);
+  });
+
+  it('reports completion when it finishes inside the budget', () => {
+    const { complete, got } = collect([0b10, 0b01], 2, 1000);
+    expect(complete).toBe(true);
+    // {0}, {1}, {0,1}: all three are connected when the two share a piece.
+    expect(got.sort((a, b) => a - b)).toEqual([1, 2, 3]);
   });
 });
