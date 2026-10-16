@@ -4,6 +4,7 @@
   "dependencies": {
     "*.md": [],
     ".github/workflows/ci.yml": [],
+    ".github/workflows/pages.yml": [],
     ".gitignore": [],
     ".gstack-redact-allowlist": [],
     ".gstack/**": [],
