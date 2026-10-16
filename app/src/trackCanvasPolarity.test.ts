@@ -41,33 +41,7 @@ const markupFor = (partId: string): string => {
 
 const count = (html: string, needle: string): number => html.split(needle).length - 1;
 
-/*
- * THE CLASS HAS TO DO SOMETHING, and until this spec existed nothing checked
- * that it did.
- *
- * MEASURED: deleting `.port-dot.is-peg { fill: var(--ink-soft); }` from
- * app.css left the WHOLE SUITE green. Every spec above asserts the class is
- * EMITTED; none asserted it changes a pixel. So the one line that makes a peg
- * look different from a socket could be deleted, or overridden, and the
- * reported bug would come straight back with no red test.
- *
- * This reads the stylesheet as text, which is a blunt instrument. It is here
- * because the alternative is nothing: `vitest.config.ts` runs in node with no
- * DOM and no CSS engine, so no test in this project can resolve a computed
- * style. A source check that fails when the rule is removed beats a rendering
- * check that cannot exist.
- *
- * MUTATION PROOF, run: delete the `.port-dot.is-peg` rule from app.css. This
- * spec fails with `expected false to be true`, and it is the only one that
- * fails -- which is exactly the hole it was written to close.
- */
-/*
- * THE STATES THAT USED TO HIDE THE POLARITY, AND THE JOINT THAT SHOWED
- * NOTHING. Both were found by the pre-landing red team, both confirmed by
- * reading the cascade and the canvas before being fixed.
- */
 describe('polarity survives the states layered on top of it', () => {
-  const css = readFileSync(new URL('./app.css', import.meta.url), 'utf8');
 
   /*
    * MUTATION PROOF, run: put `fill: var(--ink);` back into
@@ -81,11 +55,22 @@ describe('polarity survives the states layered on top of it', () => {
    * this node environment, so the stylesheet is the only place to look.
    */
   it('arming an end does not repaint over its polarity', () => {
-    const armed = /\.port\.is-armed\s+\.port-dot\s*\{([^}]*)\}/.exec(css);
-    expect(armed !== null, 'the armed rule must exist').toBe(true);
-    expect(/fill:/.test(armed![1] ?? ''), 'the armed rule must not set a fill').toBe(false);
-    // The ring is what carries armed, so it has to still be there.
-    expect(/\.port-ring\s*\{[^}]*stroke:/.test(css)).toBe(true);
+    /*
+     * EVERY rule mentioning `is-armed`, not just the one selector the bug
+     * happened to use. The first version of this spec read
+     * `.port.is-armed .port-dot` alone, which would have passed if the fill
+     * came back through any other selector -- and a cascade override through
+     * a different selector is exactly the bug it is guarding.
+     */
+    const armedRules = [...bare.matchAll(/([^{}]*is-armed[^{}]*)\{([^}]*)\}/g)];
+    expect(armedRules.length, 'at least one is-armed rule must exist').toBeGreaterThan(0);
+    for (const [, selector, body] of armedRules) {
+      expect(/fill\s*:/.test(body ?? ''), `${(selector ?? '').trim()} must not set a fill`).toBe(
+        false,
+      );
+    }
+    // The ring is what carries armed once the fill is gone.
+    expect(/\.port-ring\s*\{[^}]*stroke\s*:/.test(bare)).toBe(true);
   });
 });
 
@@ -116,9 +101,10 @@ describe('a refused joint is marked on the canvas', () => {
         badJoints: [[0, 0] as const],
       } as never),
     );
-    // r=18 with a bar, not r=28 with an X.
-    expect(count(html, 'r="18"')).toBe(1);
-    expect(count(html, 'r="28"')).toBe(0);
+    // Counted by CLASS, not by radius: `r="18"` would also match any future
+    // element of that size, and would break if the marker were retuned.
+    expect(count(html, 'bad-joint-mark')).toBe(1);
+    expect(count(html, 'clash-mark')).toBe(0);
   });
 
   it('draws nothing when no joint is refused', () => {
@@ -127,32 +113,103 @@ describe('a refused joint is marked on the canvas', () => {
     const html = renderToStaticMarkup(
       createElement(TrackCanvas, { render, resolve, clashes: [], gaps: [], badJoints: [] } as never),
     );
-    expect(count(html, 'r="18"')).toBe(0);
+    expect(count(html, 'bad-joint-mark')).toBe(0);
   });
 });
 
+/*
+ * THE CLASS HAS TO DO SOMETHING, and until this spec existed nothing checked
+ * that it did.
+ *
+ * MEASURED: deleting `.port-dot.is-peg { fill: var(--ink-soft); }` from
+ * app.css left the WHOLE SUITE green. Every spec above asserts the class is
+ * EMITTED; none asserted it changes a pixel. So the one line that makes a peg
+ * look different from a socket could be deleted, or overridden, and the
+ * reported bug would come straight back with no red test.
+ *
+ * This reads the stylesheet as text, which is a blunt instrument. It is here
+ * because the alternative is nothing: `vitest.config.ts` runs in node with no
+ * DOM and no CSS engine, so no test in this project can resolve a computed
+ * style. A source check that fails when the rule is removed beats a rendering
+ * check that cannot exist.
+ *
+ * MUTATION PROOF, run: delete the `.port-dot.is-peg` rule from app.css. The
+ * peg-fill spec below fails with
+ * `.is-peg must declare a fill: expected 0 to be greater than 0`. Before
+ * these specs existed the same deletion left the whole suite green, which is
+ * the hole they were written to close.
+ *
+ * And the armed spec above catches the ORIGINAL cascade bug returning
+ * through a different selector: adding `.port.is-armed circle.port-dot {
+ * fill: var(--ink); }` fails it with
+ * `.port.is-armed circle.port-dot must not set a fill: expected true to be
+ * false`. The first draft of that spec read one selector and would have
+ * passed.
+ */
+/*
+ * THE STATES THAT USED TO HIDE THE POLARITY, AND THE JOINT THAT SHOWED
+ * NOTHING. Both were found by the pre-landing red team, both confirmed by
+ * reading the cascade and the canvas before being fixed.
+ */
+/*
+ * Comments stripped before matching: a `/* ... *\/` block quoting a rule
+ * would otherwise satisfy a regex looking for that rule, so a comment ABOUT
+ * the fill could stand in for the fill.
+ */
+const bare = readFileSync(new URL('./app.css', import.meta.url), 'utf8').replace(
+  /\/\*[\s\S]*?\*\//g,
+  '',
+);
 describe('the peg class changes how a peg is drawn', () => {
-  const css = readFileSync(new URL('./app.css', import.meta.url), 'utf8');
 
   it('gives a peg a fill, so it is not drawn like a socket', () => {
-    const rule = /\.port-dot\.is-peg\s*\{[^}]*fill:\s*var\(--([a-z-]+)\)/.exec(css);
-    expect(rule !== null, '.port-dot.is-peg must declare a fill').toBe(true);
-    // Not --ink: that is the ARMED fill, and a peg must not be drawn as a
-    // pending choice. Not --paper: that is the socket's own fill.
-    expect(rule![1]).not.toBe('ink');
-    expect(rule![1]).not.toBe('paper');
+    /*
+     * The LAST fill declared for `.is-peg`, not the first. A later rule
+     * overriding it back to the socket's own fill would restore the reported
+     * bug, and reading only the first match would call that green.
+     */
+    const pegFills = [...bare.matchAll(/[^{}]*\.is-peg[^{}]*\{([^}]*)\}/g)].flatMap((m) =>
+      [...(m[1] ?? '').matchAll(/fill\s*:\s*([^;]+)/g)].map((f) => (f[1] ?? '').trim()),
+    );
+    expect(pegFills.length, '.is-peg must declare a fill').toBeGreaterThan(0);
+    const effective = pegFills[pegFills.length - 1]!;
+    /*
+     * Exact token names. `--ink-soft` is the correct peg fill and a `\b`
+     * boundary after "ink" matches inside it, so a looser pattern rejects the
+     * right answer -- which is how this assertion first failed.
+     */
+    const token = /var\(\s*--([a-z0-9-]+)/.exec(effective)?.[1];
+    expect(token, 'the peg fill must be a token from tokens.css').toBeTruthy();
+    // Not --ink: that is the armed signal. Not --paper: that is the socket.
+    expect(token).not.toBe('ink');
+    expect(token).not.toBe('paper');
   });
 
-  it('leaves the socket hollow, which is the base rule and needs no override', () => {
-    expect(/\.port-dot\.is-socket\s*\{[^}]*fill:/.test(css)).toBe(false);
+  it('does not give the socket the same fill as the peg', () => {
+    /*
+     * Stated as "different from the peg", not "has no rule at all". A socket
+     * may legitimately gain a rule one day (dark mode, a contrast pass); what
+     * must never happen is the two ends resolving to the same fill.
+     */
+    const socketFills = [...bare.matchAll(/[^{}]*\.is-socket[^{}]*\{([^}]*)\}/g)].flatMap((m) =>
+      [...(m[1] ?? '').matchAll(/fill\s*:\s*([^;]+)/g)].map((f) => (f[1] ?? '').trim()),
+    );
+    const pegFills = [...bare.matchAll(/[^{}]*\.is-peg[^{}]*\{([^}]*)\}/g)].flatMap((m) =>
+      [...(m[1] ?? '').matchAll(/fill\s*:\s*([^;]+)/g)].map((f) => (f[1] ?? '').trim()),
+    );
+    if (socketFills.length > 0) {
+      expect(socketFills[socketFills.length - 1]).not.toBe(pegFills[pegFills.length - 1]);
+    }
   });
 });
 
 describe('a peg and a socket are drawn differently', () => {
   /*
-   * MUTATION PROOF, run: drop the `is-${p.polarity}` class so every dot is
-   * plain `port-dot`. ALL FOUR specs in this file fail; this one with
-   * `expected +0 to be 1`.
+   * MUTATION PROOF, run: point both entries of `POLARITY_CLASS` at plain
+   * `'port-dot'`, so no dot carries a polarity class. The specs in this
+   * describe fail, this one first with `expected +0 to be 1`. No total here:
+   * the file has grown twice since this record was written and the earlier
+   * count went stale both times.
    */
   it('an ordinary straight shows one of each', () => {
     const html = markupFor('A2');

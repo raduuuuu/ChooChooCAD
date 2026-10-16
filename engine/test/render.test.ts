@@ -157,13 +157,20 @@ describe('a rendered end knows whether it is a peg or a socket', () => {
 
   /*
    * MUTATION PROOF, run: return `part.ends.start` for every index in
-   * `portPolarity`. This spec fails with
-   * `expected [ 'socket', 'socket' ] to deeply equal [ 'socket', 'peg' ]`, and
-   * so do the polarity-violation specs and the canvas specs. No count here on
-   * purpose: an earlier version of this record gave one, and its groups did
-   * not add up to it. What matters is the SHAPE -- that function is the one
-   * source both the check and the drawing read, so breaking it breaks both
-   * together rather than letting them disagree.
+   * `portPolarity`. RE-RUN after the de-circularising fix below. This spec
+   * fails with `expected [ 'socket', 'socket' ] to deeply equal
+   * [ 'socket', 'peg' ]`; the agreement sweep fails with `A2 port 1: expected
+   * 'socket' to be 'peg'`; the switch spec with `expected
+   * [ null, 'socket', 'socket' ] to deeply equal [ null, 'peg', 'peg' ]`; and
+   * the polarity-violation and canvas specs fail with their own messages,
+   * which are all different. An earlier version of this record said they
+   * shared one message; they do not, and it also gave a failing count whose
+   * groups did not add up. No total here on purpose.
+   *
+   * The agreement sweep failing is the point of that fix: while it computed
+   * its expectation with `portPolarity` itself, this mutation moved both
+   * sides together and left it GREEN. Reading `ends` directly is what makes
+   * it red.
    */
   it('an ordinary straight alternates socket then peg', () => {
     expect(renderOf('A2').ports.map((p) => p.polarity)).toEqual(['socket', 'peg']);

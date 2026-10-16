@@ -28,6 +28,8 @@ import { clashMarkers, gapAnnotations, segmentPath, type GapMark } from './track
  * so the entry in `docs/plan/brio-TODOS.md` can cite one place. The measured
  * cost behind the value is at the guard that uses it.
  */
+export const CANVAS_SEGMENT_CEILING = 10_000;
+
 /**
  * The class for each polarity, as a closed map rather than a template string.
  *
@@ -40,8 +42,6 @@ const POLARITY_CLASS: Record<Polarity, string> = {
   peg: 'port-dot is-peg',
   socket: 'port-dot is-socket',
 };
-
-export const CANVAS_SEGMENT_CEILING = 10_000;
 
 export interface TrackCanvasProps {
   /** Everything drawable, already placed exactly by the graph engine. */
@@ -438,14 +438,22 @@ export function TrackCanvas({
           * are gone, which is exactly why this mark has to exist.
           */}
         {badJoints.map(([x, y], i) => (
-          <g key={`badjoint-${i}`}>
+          /*
+           * `pointer-events: none` because a marker is ink, not a target. The
+           * bar is 4 units thick and sits above the r=26 hit circles, so
+           * without this it can swallow a click on a free end underneath it.
+           * The class is what the specs count: a radius is a number someone
+           * will retune, and a spec pinned to `r="18"` would then fail for a
+           * reason that has nothing to do with the marker existing.
+           */
+          <g key={`badjoint-${i}`} className="bad-joint-mark" pointerEvents="none">
             <circle cx={x} cy={y} r={18} fill="none" stroke="var(--fail)" strokeWidth={4} />
             <line x1={x - 10} y1={y} x2={x + 10} y2={y}
               stroke="var(--fail)" strokeWidth={4} />
           </g>
         ))}
         {dedupedClashes.map(([x, y], i) => (
-          <g key={`clash-${i}`}>
+          <g key={`clash-${i}`} className="clash-mark" pointerEvents="none">
             <circle
               cx={x}
               cy={y}

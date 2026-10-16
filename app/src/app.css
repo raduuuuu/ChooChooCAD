@@ -919,7 +919,7 @@
  */
 .port-dot.is-peg { fill: var(--ink-soft); }
 /*
- * ARMED: a small solid dot inside a ring (task W3, decision D5).
+ * ARMED: a ring, and a darker thinner stroke (task W3, decision D5).
  *
  * Was `fill: --ink; stroke: --ink` on a dot grown to r=13, which is a solid
  * 15mm disc of the darkest ink on the page. On a canvas whose only red is a
@@ -927,14 +927,17 @@
  * signal by weight: something is wrong here. Nothing is wrong; the user is
  * halfway through an action.
  *
- * Now the dot stays r=8 and only its fill changes, and a separate thin ring
- * says armed. Inked area drops from ~707 to ~555 square mm and, more to the
- * point, most of the new mark is empty space, which is what "pending" looks
- * like. The ring is --ink because it IS the signal; the dot's own stroke drops
- * to 2 so the centre does not re-thicken what the ring already states.
+ * Now the dot stays r=8, a separate thin ring says armed, and the dot's own
+ * stroke darkens and drops to 2 so the centre does not re-thicken what the
+ * ring already states. Inked area drops from ~707 to ~555 square mm and, more
+ * to the point, most of the new mark is empty space, which is what "pending"
+ * looks like. The ring is --ink because it IS the signal.
  *
- * Still distinct from focus, which is the other state that darkens this dot:
- * focus is a thick stroke with no ring, armed is a thin stroke with one.
+ * Still distinct from focus, the other state that darkens this dot: focus is
+ * a thick stroke with no ring, armed is a thin stroke with one. The two can
+ * STACK -- Enter keeps focus on an element it just armed -- and then the
+ * focus stroke (w7) wins over armed's (w2) at equal specificity while the
+ * ring stays, which still reads as armed.
  *
  * ARMED NO LONGER OVERRIDES THE FILL, and that is a correctness fix rather
  * than a taste change. It used to set `fill: var(--ink)`, which at (0,3,0)

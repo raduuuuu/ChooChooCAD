@@ -713,6 +713,46 @@ and it was taken with the consequences stated. What follows from it:
 
 # Deferred by /plan-ceo-review 2026-10-13 (SELECTIVE EXPANSION)
 
+## P2 — The polarity marker, and three things it does not yet do (filed by /ship, 2026-10-16)
+
+A refused joint is now marked on the canvas (`App.tsx`'s `badJoints`, drawn by
+`TrackCanvas` as a ring and bar). Three limits were found in review and left
+deliberately, rather than widened mid-branch:
+
+**1. The marker sits at end `a`, which is not always both ends.** For a tree
+weld the two ends coincide and one mark is the whole truth. A CLOSING weld can
+have a gap -- that is exactly what the `gaps` annotation exists to draw -- and
+then end `b` is somewhere else and unmarked, with `a` chosen by click order
+rather than by meaning. Fix: mark both ends when they differ, or the midpoint
+with a leader.
+
+**2. When a layout has BOTH a polarity violation and a clash, only the
+polarity sentence prints.** `VerdictLine`'s IMPOSSIBLE branch is a ternary on
+`polarityCount > 0`, so the clash rings on the canvas are named by no number.
+This PREDATES the polarity marker (the ternary is unchanged on `main`), but
+the marker makes it visible: the canvas now carries two kinds of red mark and
+the words account for one. Fix: render both sentences when both counts are
+above zero, and add a `viewOf`/`VerdictLine` spec for the both-present case,
+which nothing covers today.
+
+**3. The two red marks differ only by size and glyph.** A clash is r=28 with
+an X, a refused joint r=18 with a bar, both in `--fail` at the same stroke
+width. In greyscale they differ by shape alone, the bar is outside the
+canvas's existing glyph vocabulary, and when both land on one spot the result
+is a bar inside an X inside two rings. Fix: make the difference structural (a
+dashed ring, say), or suppress the inner mark where they coincide.
+
+**Also unfiled until now:** `render.ts` tests `kind === 'heel'` inline, while
+the polarity check reaches the same exemption through `weldHasPolarity`. They
+agree today and nothing enforces it; the spec sweep cannot catch a divergence
+because no catalogue part is a switch. Fix: one shared predicate called by
+both. **And** the `badJoints` resolution in `App.tsx` (weld lookup, guards,
+end choice) has no spec of its own -- only its rendering is covered. Fix:
+extract it beside `gapAnnotations` in `trackPath.ts` and spec it.
+
+**Effort:** human ~1d / CC ~1h for all of it. **Priority:** P2, except item 2
+which is P1 because it is user-visible today.
+
 ## P2 — Offer only polarity-compatible free ends in the editor
 
 **What:** When one free end is armed, grey out or ignore the free ends that
