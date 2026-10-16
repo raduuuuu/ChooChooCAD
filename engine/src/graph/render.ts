@@ -43,15 +43,16 @@ export interface RenderedPort {
   /**
    * Which half of a joint this end is, or null for a heel.
    *
-   * CARRIED SO THE PICTURE CANNOT DISAGREE WITH THE VERDICT. A two-peg piece
-   * and a two-socket piece are the same length and drew the same geometry, so
-   * a layout that `findWeldPolarityViolations` refuses looked exactly like one
-   * it accepts, and the only difference reached the user as a sentence after
-   * the join. This field is what lets the canvas show the difference BEFORE
-   * the click.
+   * Carried so the canvas can draw what the polarity check already knows;
+   * the history is in the DONE entry in `docs/plan/brio-TODOS.md`.
    *
-   * It is derived with `portPolarity` and gated on `kind === 'heel'`, which
-   * are the same two rules the check uses, so the two cannot drift. A heel is
+   * It is derived with `portPolarity` and gated on `kind === 'heel'` -- the
+   * same two rules the check applies, though NOT the same code: the check
+   * reaches the heel case through `weldHasPolarity`, and this is a third
+   * inline copy of that test. Sharing one predicate would make drift
+   * impossible; today it is only unlikely, and the spec sweep cannot catch a
+   * divergence because no catalogue part is a switch. Filed rather than
+   * claimed away. A heel is
    * exempt from polarity (it is the point inside one moulded piece where its
    * two roads meet, with no plug and no socket), and null is that exemption
    * rather than a third polarity.
@@ -84,9 +85,8 @@ export function renderGraph(
     if (!frame) continue;
     const part = resolve(piece.partId);
     const from = pose(frame);
-    const count = ports(piece).length;
-
     const portList = ports(piece);
+    const count = portList.length;
     for (let i = 0; i < count; i++) {
       const world = portFrame(placement, ports, piece, i);
       const p = pose(world);

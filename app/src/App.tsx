@@ -469,6 +469,38 @@ export function App() {
     });
   }, [result, render, graph]);
 
+  /*
+   * THE REFUSED JOINTS, DRAWN.
+   *
+   * `findWeldPolarityViolations` refuses a joint where two ends of the same
+   * kind meet, and the verdict says so in words -- but until this existed the
+   * canvas marked nothing, so "1 joint puts two ends of the same kind
+   * together" pointed nowhere. An overlap got a red ring and a bad joint got
+   * a sentence, which is the same split between the words and the picture
+   * that the port polarity drawing was added to close.
+   *
+   * Resolved exactly the way `gaps` above resolves a weld: both ends of a
+   * weld sit in one place, so one marker per violation, taken from end `a`.
+   * `render.ports` carries claimed ports too (the canvas filters to free ones
+   * only when drawing dots), so a welded end is still found here.
+   *
+   * ONE MARKER PER VIOLATION, which is what the verdict counts. Reusing the
+   * clash marker would have put N rings on screen under a sentence naming a
+   * different N, and a count that disagrees with the picture is the defect
+   * this file has now shipped twice.
+   */
+  const badJoints = useMemo(() => {
+    if (!result) return [];
+    const byPort = new Map(render.ports.map((p) => [`${p.pieceId}#${p.port}`, p]));
+    return result.polarityViolations.flatMap((v) => {
+      const w = graph.welds[v.weld];
+      if (!w) return [];
+      const a = byPort.get(`${w.a.pieceId}#${w.a.port}`);
+      if (!a) return [];
+      return [[a.x, a.y] as const];
+    });
+  }, [result, render, graph]);
+
   const counts = usedCounts(graph.pieces.map((p) => p.partId));
   const shortfalls = computeShortfalls(inventory, counts);
 
@@ -598,6 +630,7 @@ export function App() {
             */
           clashes={result ? result.clashes : []}
           gaps={gaps}
+          badJoints={badJoints}
           emptyAction={
             <>
               <button

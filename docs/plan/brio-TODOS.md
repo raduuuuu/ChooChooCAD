@@ -746,7 +746,8 @@ The check was never broken: A2+B2 reports one violation and says so. What was
 missing was the picture. `RenderedPort` now carries `polarity`, derived with
 the same `portPolarity` and the same heel exemption the check uses, so the two
 cannot drift; the canvas draws a peg filled and a socket hollow at the same
-radius, which adds no ink to a dense layout. Six specs, three mutations run.
+radius, which adds no ink to a dense layout. Every new spec carries a mutation
+proof that was RUN, recorded beside the spec itself rather than counted here.
 
 This does NOT close the entry above. Showing which end is which is not the
 same as declining to offer a join that cannot work, and the deferral reason

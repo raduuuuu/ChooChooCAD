@@ -910,19 +910,12 @@
 }
 .port:hover .port-dot { stroke: var(--ink); }
 /*
- * PEG IS FILLED, SOCKET IS HOLLOW.
+ * PEG IS FILLED, SOCKET IS HOLLOW. The base `.port-dot` above is already the
+ * hollow one, so a socket needs no rule.
  *
- * The base `.port-dot` above is already the hollow one, so a socket needs no
- * rule and a peg is the single declaration below. Real track joins a peg to a
- * socket and nothing else, and until this rule existed the canvas drew a
- * two-peg piece exactly like an ordinary one: the difference only arrived as
- * a sentence after the user had already made the join.
- *
- * `--ink-soft` and not `--ink`: the ARMED dot below fills with `--ink`, and
- * the heaviest mark on the canvas has to stay the thing the user is in the
- * middle of doing, not a property every piece on the floor has. A peg reads
- * as a solid mid-tone, armed still reads as darker, and a clash ring is the
- * only red.
+ * `--ink-soft` and not `--ink`, because `--ink` is the ARMED fill and the
+ * heaviest mark on this canvas has to stay the thing the user is in the
+ * middle of doing, not a property every piece on the floor has.
  */
 .port-dot.is-peg { fill: var(--ink-soft); }
 /*
@@ -941,8 +934,15 @@
  * to 2 so the centre does not re-thicken what the ring already states.
  *
  * Still distinct from focus, which is the other state that darkens this dot:
- * focus is a thick stroke around a PAPER centre with no ring, armed is a thin
- * stroke around an INK centre with one.
+ * focus is a thick stroke with no ring, armed is a thin stroke with one.
+ *
+ * ARMED NO LONGER OVERRIDES THE FILL, and that is a correctness fix rather
+ * than a taste change. It used to set `fill: var(--ink)`, which at (0,3,0)
+ * beat `.port-dot.is-peg` at (0,2,0) -- so arming an end erased its polarity
+ * at the one moment the user is choosing what to join, and an armed SOCKET
+ * drew as a solid dot, which is how a peg reads. The ring above is the armed
+ * signal, as this comment already said it was; the fill was a second channel
+ * saying the same thing, and it was the channel polarity needs.
  */
 .port-ring {
   fill: none;
@@ -950,7 +950,6 @@
   stroke-width: 3;
 }
 .port.is-armed .port-dot {
-  fill: var(--ink);
   stroke: var(--ink);
   stroke-width: 2;
 }

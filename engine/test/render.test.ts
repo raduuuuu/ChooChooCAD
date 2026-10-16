@@ -19,10 +19,10 @@ import { BUILT_IN, makeResolver } from '../data/library.js';
 import { walkFloat } from '../src/geom/fk.js';
 import { placeAll } from '../src/graph/frames.js';
 import { graphFromChain } from '../src/graph/fromChain.js';
-import { portPolarity, portsOf, type Graph, type Piece, type Port } from '../src/graph/model.js';
+import { portsOf, type Graph, type Piece, type Port } from '../src/graph/model.js';
 import { renderBounds, renderGraph } from '../src/graph/render.js';
 import { centrelineRadiusMm } from '../src/parts/schema.js';
-import type { Layout, Part } from '../src/parts/schema.js';
+import type { Layout, Part, SwitchPart } from '../src/parts/schema.js';
 
 const loop = (ids: string[]): Layout => ({
   placements: ids.map((partId) => ({ partId, turn: 'left' as const })),
@@ -157,12 +157,13 @@ describe('a rendered end knows whether it is a peg or a socket', () => {
 
   /*
    * MUTATION PROOF, run: return `part.ends.start` for every index in
-   * `portPolarity`. FIVE specs fail, this one with
-   * `expected [ 'socket', 'socket' ] to deeply equal [ 'socket', 'peg' ]`.
-   * The other four are the polarity-violation specs and two canvas specs,
-   * which is the point: that function is the single source both the check and
-   * the drawing read, so breaking it breaks both together rather than letting
-   * them disagree.
+   * `portPolarity`. This spec fails with
+   * `expected [ 'socket', 'socket' ] to deeply equal [ 'socket', 'peg' ]`, and
+   * so do the polarity-violation specs and the canvas specs. No count here on
+   * purpose: an earlier version of this record gave one, and its groups did
+   * not add up to it. What matters is the SHAPE -- that function is the one
+   * source both the check and the drawing read, so breaking it breaks both
+   * together rather than letting them disagree.
    */
   it('an ordinary straight alternates socket then peg', () => {
     expect(renderOf('A2').ports.map((p) => p.polarity)).toEqual(['socket', 'peg']);
@@ -172,11 +173,11 @@ describe('a rendered end knows whether it is a peg or a socket', () => {
    * The two parts the user cannot otherwise tell apart. Both are 54mm, both
    * draw the same four paths; only this differs.
    *
-   * MUTATION PROOF, run: drop the `polarity` field from the pushed port.
-   * `tsc --noEmit` refuses the file with TS2345 at the `rendered.push` call
-   * ("not assignable to parameter of type 'RenderedPort'"), plus two TS6133s
-   * for the now-unused imports, so this field cannot silently stop being
-   * carried.
+   * The field cannot silently stop being carried: dropping it from the pushed
+   * port fails `tsc --noEmit`, because the object no longer satisfies
+   * `RenderedPort`. That is a compiler check, not this spec's -- this spec
+   * would still pass -- so it is stated as a property, not as a count of
+   * diagnostics that would rot.
    */
   it('B2 is two pegs and C2 is two sockets', () => {
     expect(renderOf('B2').ports.map((p) => p.polarity)).toEqual(['peg', 'peg']);
@@ -200,11 +201,87 @@ describe('a rendered end knows whether it is a peg or a socket', () => {
         const r = renderGraph(graph, portsOfPiece, resolveBuiltIn, placeAll(graph, portsOfPiece));
         const list = portsOfPiece({ pieceId: 'one', partId: part.id, turn });
         r.ports.forEach((rendered, i) => {
+          /*
+           * READ FROM `ends`, NOT FROM `portPolarity`. Computing the expected
+           * value with the same function the renderer calls made this a
+           * tautology: both sides moved together, so swapping `start` and
+           * `end` inside `portPolarity` left it green. Reading the part's own
+           * data is one level less circular and catches that swap.
+           */
           const expected =
-            list[i]!.kind === 'heel' ? null : portPolarity(part, i);
+            list[i]!.kind === 'heel' ? null : i === 0 ? part.ends.start : part.ends.end;
           expect(rendered.polarity, `${part.id} port ${i}`).toBe(expected);
         });
+        // No catalogue part is a switch, so none of them may yield null.
+        // Stated here rather than implied, so the heel-exemption claim does
+        // not rest on a sweep that never reaches a heel.
+        expect(r.ports.every((rp) => rp.polarity !== null), part.id).toBe(true);
       }
     }
+  });
+});
+
+/**
+ * THE HEEL BRANCH, which no catalogue part can reach.
+ *
+ * Value: protects=a heel is drawn as neither a peg nor a socket, matching the
+ * exemption the polarity check already makes for it
+ * Value: fails_when=the `kind === 'heel'` gate is dropped, so a heel takes
+ * `portPolarity(part, 0)` and the canvas asserts a polarity the check refuses
+ * to judge
+ * Value: why_new=`BUILT_IN` contains no switch, so the agreement spec above
+ * iterates the whole catalogue WITHOUT ever reaching this branch. A heel that
+ * wrongly took a polarity passed every other spec in this file.
+ * Value: seam=none. `renderGraph` already takes `ports` and `resolve` as
+ * parameters, so a locally declared switch needs no production change;
+ * `switches.test.ts` drives the engine the same way.
+ * Value: no_claim=nothing about how the CANVAS draws a heel. That branch of
+ * the className ternary stays uncovered and is filed as such: a switch has no
+ * placement flow yet, so it is unreachable from the product.
+ *
+ * MUTATION PROOF, run: drop the `kind === 'heel' ? null :` gate in
+ * `render.ts` so the heel takes `portPolarity(part, 0)`. ONE spec fails, this
+ * one, with `expected [ 'socket', 'peg', 'peg' ] to deeply equal
+ * [ null, 'peg', 'peg' ]`.
+ */
+const SWITCH_ID = 'TEST-SWITCH';
+const switchBase = makeResolver(BUILT_IN);
+const E_PART = switchBase('E');
+const A1_PART = switchBase('A1');
+/*
+ * `SwitchPart`, not `Part` with a cast. A cast would let a missing or
+ * misnamed field through silently, and this fixture exists precisely to prove
+ * the three-port shape reaches the renderer.
+ */
+const TEST_SWITCH: SwitchPart = {
+  id: SWITCH_ID,
+  brand: 'BRIO',
+  kind: 'switch',
+  name: 'Test switch',
+  throughLengthMm: 108,
+  arcSteps: E_PART.kind === 'curve' ? E_PART.arcSteps : 2,
+  innerRadiusMm: E_PART.kind === 'curve' ? E_PART.innerRadiusMm : 182,
+  dimensions: A1_PART.dimensions,
+  slop: A1_PART.slop,
+  ends: A1_PART.ends,
+  heightMm: 0,
+  gaugeWidthMm: A1_PART.gaugeWidthMm,
+  plankWidthMm: A1_PART.plankWidthMm,
+  plankThicknessMm: A1_PART.plankThicknessMm,
+};
+
+describe('a switch heel is exempt from polarity in the picture too', () => {
+  it('the heel is null and both roads carry a polarity', () => {
+    const resolveSw = (id: string): Part =>
+      id === SWITCH_ID ? TEST_SWITCH : switchBase(id);
+    const portsSw = (piece: Piece): readonly Port[] =>
+      portsOf(resolveSw(piece.partId), piece.turn);
+    const graph: Graph = { pieces: [{ pieceId: 'one', partId: SWITCH_ID }], welds: [] };
+    const r = renderGraph(graph, portsSw, resolveSw, placeAll(graph, portsSw));
+    // Literals, not `portPolarity(...)`: the roads are the two `end` values
+    // of the A1 this fixture borrows its ends from, and spelling them out
+    // keeps the expectation independent of the function under test.
+    expect(TEST_SWITCH.ends).toEqual({ start: 'socket', end: 'peg' });
+    expect(r.ports.map((p) => p.polarity)).toEqual([null, 'peg', 'peg']);
   });
 });
