@@ -750,6 +750,21 @@ both. **And** the `badJoints` resolution in `App.tsx` (weld lookup, guards,
 end choice) has no spec of its own -- only its rendering is covered. Fix:
 extract it beside `gapAnnotations` in `trackPath.ts` and spec it.
 
+**Found by the Step 11 adversarial pass, after the fix budget closed:**
+`badJoints` builds its `byPort` Map on EVERY edit, including the common case
+where `polarityViolations` is empty. Near the canvas ceiling that is roughly
+20,000 strings and Map entries allocated per keystroke for nothing. One line
+fixes it -- `if (result.polarityViolations.length === 0) return [];` before
+the Map -- and it has no correctness impact, which is why it is filed rather
+than applied: the review's three-cycle fix limit was already reached, and an
+unreviewed edit at that point is what the limit exists to prevent. The same
+guard is worth considering for the `gaps` memo above it.
+
+Also noted: `badJoints` returns `[]` both when nothing is wrong and when the
+layout is above the drawing ceiling. Harmless today, because the canvas shows
+its own notice and the verdict sentence stays truthful, but the empty array is
+ambiguous for anyone who reuses it.
+
 **Effort:** human ~1d / CC ~1h for all of it. **Priority:** P2, except item 2
 which is P1 because it is user-visible today.
 
