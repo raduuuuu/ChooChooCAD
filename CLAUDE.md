@@ -45,4 +45,8 @@ Conventions:
   that restates the constant it claims to pin can never fail; this project shipped
   that defect four times and caught it only by mutation each time. If the mutation
   you documented does not break the test, the comment is wrong -- fix the comment.
+- CSS behaviour is pinned by reading the stylesheet as TEXT (`readFileSync` on `app.css`, comments stripped, then a regex
+  over the rules), because there is no DOM and no CSS engine to resolve a computed style. See the peg-fill specs in
+  `app/src/trackCanvasPolarity.test.ts`. It is a blunt check: it proves a rule exists and what token it names, not
+  that the pixel changed. Assert on the last matching declaration, since a later rule can override an earlier one.
 - Test what the code does, never `expect(x).toBeDefined()`.

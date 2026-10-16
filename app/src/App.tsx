@@ -51,7 +51,7 @@ import { loadGraph, partialLoadNotice, saveGraph, savesSuppressed } from './layo
 import { viewOf } from './verdictView.js';
 import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
 import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
-import { TrackCanvas } from './TrackCanvas.js';
+import { CANVAS_SEGMENT_CEILING, TrackCanvas } from './TrackCanvas.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
 import { VerdictLine } from './VerdictLine.js';
 import { InventoryPanel } from './Inventory.js';
@@ -469,6 +469,52 @@ export function App() {
     });
   }, [result, render, graph]);
 
+  /*
+   * THE REFUSED JOINTS, DRAWN.
+   *
+   * `findWeldPolarityViolations` refuses a joint where two ends of the same
+   * kind meet, and the verdict says so in words -- but until this existed the
+   * canvas marked nothing, so "1 joint puts two ends of the same kind
+   * together" pointed nowhere. An overlap got a red ring and a bad joint got
+   * a sentence, which is the same split between the words and the picture
+   * that the port polarity drawing was added to close.
+   *
+   * Resolved the way `gaps` above resolves a weld. `render.ports` carries
+   * claimed ports too (the canvas filters to free ones only when drawing
+   * dots), so a welded end is still found here.
+   *
+   * THE MARKER GOES AT END `a`, AND THAT IS NOT ALWAYS BOTH ENDS. For a tree
+   * weld the two ends coincide, so one marker is the whole truth. A CLOSING
+   * weld can have a gap -- that is precisely what the `gaps` memo above
+   * exists to draw -- and then end `b` sits somewhere else, unmarked, with
+   * `a` chosen by click order rather than by meaning. Filed rather than
+   * papered over: see the polarity-marker entry in `docs/plan/brio-TODOS.md`.
+   *
+   * ONE MARKER PER VIOLATION, so this count matches the verdict's own.
+   * Reusing the clash marker would have put N rings on screen under a
+   * sentence naming a different N. That is NOT the same as claiming every
+   * mark on this canvas is explained by a sentence: when a layout has both a
+   * violation and a clash, `VerdictLine` prints only the polarity sentence
+   * and the clash rings go unnamed. That ternary predates this change, and it
+   * is filed with the entry above rather than fixed here.
+   */
+  const badJoints = useMemo(() => {
+    if (!result) return [];
+    // Nothing is drawn above the ceiling, so build nothing: the Map below is
+    // over every port in the layout, and that is the size the ceiling exists
+    // to refuse. The notice the canvas shows instead already says the verdict
+    // still applies to the whole layout.
+    if (render.segments.length > CANVAS_SEGMENT_CEILING) return [];
+    const byPort = new Map(render.ports.map((p) => [`${p.pieceId}#${p.port}`, p]));
+    return result.polarityViolations.flatMap((v) => {
+      const w = graph.welds[v.weld];
+      if (!w) return [];
+      const a = byPort.get(`${w.a.pieceId}#${w.a.port}`);
+      if (!a) return [];
+      return [[a.x, a.y] as const];
+    });
+  }, [result, render, graph]);
+
   const counts = usedCounts(graph.pieces.map((p) => p.partId));
   const shortfalls = computeShortfalls(inventory, counts);
 
@@ -598,6 +644,7 @@ export function App() {
             */
           clashes={result ? result.clashes : []}
           gaps={gaps}
+          badJoints={badJoints}
           emptyAction={
             <>
               <button

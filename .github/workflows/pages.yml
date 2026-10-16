@@ -48,6 +48,21 @@ jobs:
 
   deploy:
     needs: gate
+    # ONLY FROM main, and the guard is the point.
+    #
+    # `on:` restricts the PUSH trigger to main, but `workflow_dispatch` has no
+    # such restriction, so before this line a manual dispatch from any branch
+    # ran the gate, uploaded that branch's artifact and published it to the
+    # live site. Nothing announced that; the deploy job simply followed the
+    # gate wherever it ran.
+    #
+    # With the guard, dispatching this workflow on a branch runs the gate and
+    # stops. That is what makes the gate usable as pre-merge evidence: it can
+    # now prove the tests on linux for a branch WITHOUT the proof costing a
+    # deployment. `/ship` derives its remote-lane obligations from these
+    # workflow files mechanically and cannot tell a main-only job from any
+    # other, so before this the obligation was unsatisfiable on a branch.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     permissions:
       pages: write

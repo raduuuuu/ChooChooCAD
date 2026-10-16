@@ -18,7 +18,7 @@
 import { useMemo, type ReactNode } from 'react';
 import { renderBounds, type GraphRender } from '../../engine/src/graph/render.js';
 import type { PortRef } from '../../engine/src/graph/model.js';
-import type { Part } from '../../engine/src/parts/schema.js';
+import type { Part, Polarity } from '../../engine/src/parts/schema.js';
 import { clashMarkers, gapAnnotations, segmentPath, type GapMark } from './trackPath.js';
 
 /**
@@ -29,6 +29,19 @@ import { clashMarkers, gapAnnotations, segmentPath, type GapMark } from './track
  * cost behind the value is at the guard that uses it.
  */
 export const CANVAS_SEGMENT_CEILING = 10_000;
+
+/**
+ * The class for each polarity, as a closed map rather than a template string.
+ *
+ * `is-${p.polarity}` compiled fine and silently dropped the fill if anyone
+ * renamed a `Polarity` member, because the class name was built from the
+ * value's spelling at runtime and `app.css` matches a literal. A `Record`
+ * over the union makes that rename a compile error instead.
+ */
+const POLARITY_CLASS: Record<Polarity, string> = {
+  peg: 'port-dot is-peg',
+  socket: 'port-dot is-socket',
+};
 
 export interface TrackCanvasProps {
   /** Everything drawable, already placed exactly by the graph engine. */
@@ -52,6 +65,15 @@ export interface TrackCanvasProps {
    * question and not a drawing one.
    */
   readonly gaps?: readonly GapMark[];
+  /**
+   * Where a joint was refused because two ends of the same kind meet.
+   *
+   * One entry per violation, already resolved to canvas coordinates by
+   * `App.tsx`. Separate from `clashes` on purpose: the verdict counts the two
+   * separately and says so in different sentences, so they must not share a
+   * marker or the number on screen stops matching the number in the words.
+   */
+  readonly badJoints?: readonly (readonly [number, number])[];
   /** The free end currently armed, if any. */
   readonly selected?: PortRef | null;
   /** Clicking a free end. This is the whole editing interaction (D5). */
@@ -64,6 +86,7 @@ export function TrackCanvas({
   emptyAction,
   clashes = [],
   gaps = [],
+  badJoints = [],
   selected = null,
   onPortClick,
 }: TrackCanvasProps) {
@@ -313,7 +336,22 @@ export function TrackCanvas({
                 onClick={() => onPortClick?.({ pieceId: p.pieceId, port: p.port })}
                 role="button"
                 tabIndex={0}
-                aria-label={armed ? 'Selected free end' : 'Free end'}
+                /*
+                 * The polarity is IN THE NAME, because the drawing that
+                 * carries it is sight-only. A filled dot and a hollow dot are
+                 * the whole distinction on screen, and a screen reader saw
+                 * neither: every end announced as just "Free end", which is
+                 * the same thing a two-peg and a two-socket piece used to
+                 * look like.
+                 *
+                 * "peg end" and "socket end" rather than a direction or a
+                 * colour: the words name the part of the track, so they stay
+                 * true whatever the dot looks like.
+                 */
+                aria-label={
+                  (armed ? 'Selected free ' : 'Free ') +
+                  (p.polarity === null ? 'end' : `${p.polarity} end`)
+                }
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
@@ -334,7 +372,18 @@ export function TrackCanvas({
                   * cannot be mistaken for each other.
                   */}
                 {armed && <circle cx={p.x} cy={p.y} r={16} className="port-ring" />}
-                <circle cx={p.x} cy={p.y} r={8} className="port-dot" />
+                {/*
+                  * Filled is a peg, hollow is a socket; same radius, so this
+                  * adds no ink to a dense layout. A heel takes neither class,
+                  * because the polarity check exempts it too. Why the drawing
+                  * exists at all: the DONE entry in docs/plan/brio-TODOS.md.
+                  */}
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={8}
+                  className={p.polarity === null ? 'port-dot' : POLARITY_CLASS[p.polarity]}
+                />
               </g>
             );
           })}
@@ -373,8 +422,38 @@ export function TrackCanvas({
             </g>
           </g>
         ))}
+        {/*
+          * A REFUSED JOINT, DRAWN, and deliberately NOT the clash marker.
+          *
+          * Both mean "can't be built", so both are `--fail` red. But the
+          * verdict counts them in two different sentences -- "N spots have two
+          * or more track ends on top of each other" and "N joints put two ends
+          * of the same kind together" -- so one shared marker would put a
+          * total on screen that matches neither number. A clash is a ring with
+          * an X at r=28; a refused joint is a smaller ring with a single bar,
+          * which reads as blocked rather than crossed out.
+          *
+          * It is drawn at the joint itself, where no port dot appears: once a
+          * weld claims both ends, the dots that would have shown the polarity
+          * are gone, which is exactly why this mark has to exist.
+          */}
+        {badJoints.map(([x, y], i) => (
+          /*
+           * `pointer-events: none` because a marker is ink, not a target. The
+           * bar is 4 units thick and sits above the r=26 hit circles, so
+           * without this it can swallow a click on a free end underneath it.
+           * The class is what the specs count: a radius is a number someone
+           * will retune, and a spec pinned to `r="18"` would then fail for a
+           * reason that has nothing to do with the marker existing.
+           */
+          <g key={`badjoint-${i}`} className="bad-joint-mark" pointerEvents="none">
+            <circle cx={x} cy={y} r={18} fill="none" stroke="var(--fail)" strokeWidth={4} />
+            <line x1={x - 10} y1={y} x2={x + 10} y2={y}
+              stroke="var(--fail)" strokeWidth={4} />
+          </g>
+        ))}
         {dedupedClashes.map(([x, y], i) => (
-          <g key={`clash-${i}`}>
+          <g key={`clash-${i}`} className="clash-mark" pointerEvents="none">
             <circle
               cx={x}
               cy={y}

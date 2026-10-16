@@ -713,6 +713,61 @@ and it was taken with the consequences stated. What follows from it:
 
 # Deferred by /plan-ceo-review 2026-10-13 (SELECTIVE EXPANSION)
 
+## P2 — The polarity marker, and three things it does not yet do (filed by /ship, 2026-10-16)
+
+A refused joint is now marked on the canvas (`App.tsx`'s `badJoints`, drawn by
+`TrackCanvas` as a ring and bar). Three limits were found in review and left
+deliberately, rather than widened mid-branch:
+
+**1. The marker sits at end `a`, which is not always both ends.** For a tree
+weld the two ends coincide and one mark is the whole truth. A CLOSING weld can
+have a gap -- that is exactly what the `gaps` annotation exists to draw -- and
+then end `b` is somewhere else and unmarked, with `a` chosen by click order
+rather than by meaning. Fix: mark both ends when they differ, or the midpoint
+with a leader.
+
+**2. When a layout has BOTH a polarity violation and a clash, only the
+polarity sentence prints.** `VerdictLine`'s IMPOSSIBLE branch is a ternary on
+`polarityCount > 0`, so the clash rings on the canvas are named by no number.
+This PREDATES the polarity marker (the ternary is unchanged on `main`), but
+the marker makes it visible: the canvas now carries two kinds of red mark and
+the words account for one. Fix: render both sentences when both counts are
+above zero, and add a `viewOf`/`VerdictLine` spec for the both-present case,
+which nothing covers today.
+
+**3. The two red marks differ only by size and glyph.** A clash is r=28 with
+an X, a refused joint r=18 with a bar, both in `--fail` at the same stroke
+width. In greyscale they differ by shape alone, the bar is outside the
+canvas's existing glyph vocabulary, and when both land on one spot the result
+is a bar inside an X inside two rings. Fix: make the difference structural (a
+dashed ring, say), or suppress the inner mark where they coincide.
+
+**Also unfiled until now:** `render.ts` tests `kind === 'heel'` inline, while
+the polarity check reaches the same exemption through `weldHasPolarity`. They
+agree today and nothing enforces it; the spec sweep cannot catch a divergence
+because no catalogue part is a switch. Fix: one shared predicate called by
+both. **And** the `badJoints` resolution in `App.tsx` (weld lookup, guards,
+end choice) has no spec of its own -- only its rendering is covered. Fix:
+extract it beside `gapAnnotations` in `trackPath.ts` and spec it.
+
+**Found by the Step 11 adversarial pass, after the fix budget closed:**
+`badJoints` builds its `byPort` Map on EVERY edit, including the common case
+where `polarityViolations` is empty. Near the canvas ceiling that is roughly
+20,000 strings and Map entries allocated per keystroke for nothing. One line
+fixes it -- `if (result.polarityViolations.length === 0) return [];` before
+the Map -- and it has no correctness impact, which is why it is filed rather
+than applied: the review's three-cycle fix limit was already reached, and an
+unreviewed edit at that point is what the limit exists to prevent. The same
+guard is worth considering for the `gaps` memo above it.
+
+Also noted: `badJoints` returns `[]` both when nothing is wrong and when the
+layout is above the drawing ceiling. Harmless today, because the canvas shows
+its own notice and the verdict sentence stays truthful, but the empty array is
+ambiguous for anyone who reuses it.
+
+**Effort:** human ~1d / CC ~1h for all of it. **Priority:** P2, except item 2
+which is P1 because it is user-visible today.
+
 ## P2 — Offer only polarity-compatible free ends in the editor
 
 **What:** When one free end is armed, grey out or ignore the free ends that
@@ -731,6 +786,32 @@ port kinds has settled.
 
 **Origin:** task C2 of the fourth eng review, second half. The first half,
 polarity in the schema, already shipped.
+
+**A THIRD HALF NOBODY HAD FILED, now shipped (2026-10-16).** This entry is
+about the EDITOR refusing to offer a bad join. It assumed all along that the
+user could see what they were joining, and they could not. Reported from the
+live site: "there is no difference when i place a piece with 2 pegs or 2
+sockets or a normal one." Measured on woodentrain.world, A2, B2 and C2 drew
+BYTE-IDENTICAL geometry -- four paths each, same `d`, same fills, two
+identical hollow dots -- so a layout the polarity check refuses looked exactly
+like one it accepts, and the only difference reached the user as a sentence
+after the join was already made.
+
+The check was never broken: A2+B2 reports one violation and says so. What was
+missing was the picture. `RenderedPort` now carries `polarity`, derived with
+the same `portPolarity` and the same heel exemption the check applies -- though
+NOT the same code: the check reaches the heel case through `weldHasPolarity`
+and `render.ts` holds another inline copy, so the two agree today and nothing
+enforces it. The shared predicate is filed in the polarity-marker entry above.
+(This paragraph said "so the two cannot drift" until the documentation audit
+caught it contradicting `render.ts`, which says plainly that it is a separate
+copy.) The canvas draws a peg filled and a socket hollow at the same radius,
+which adds no ink to a dense layout. Every new spec carries a mutation
+proof that was RUN, recorded beside the spec itself rather than counted here.
+
+This does NOT close the entry above. Showing which end is which is not the
+same as declining to offer a join that cannot work, and the deferral reason
+for that half still stands.
 
 ## P3 — Finish splitting App.tsx
 

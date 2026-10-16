@@ -19,8 +19,8 @@
 import { toXY } from '../geom/cyclotomic.js';
 import type { FPose, Segment } from '../geom/fk.js';
 import { portFrame, type Placement, type PortsOf } from './frames.js';
-import type { Frame, Graph } from './model.js';
-import { centrelineRadiusMm, type Part } from '../parts/schema.js';
+import { portPolarity, type Frame, type Graph } from './model.js';
+import { centrelineRadiusMm, type Part, type Polarity } from '../parts/schema.js';
 
 /** Zeta steps to radians: one step is 22.5 degrees. */
 const RAD = Math.PI / 8;
@@ -40,6 +40,24 @@ export interface RenderedPort {
   readonly h: number;
   /** True when no weld claims it, so a piece can be attached here. */
   readonly free: boolean;
+  /**
+   * Which half of a joint this end is, or null for a heel.
+   *
+   * Carried so the canvas can draw what the polarity check already knows;
+   * the history is in the DONE entry in `docs/plan/brio-TODOS.md`.
+   *
+   * It is derived with `portPolarity` and gated on `kind === 'heel'` -- the
+   * same two rules the check applies, though NOT the same code: the check
+   * reaches the heel case through `weldHasPolarity`, and this is a third
+   * inline copy of that test. Sharing one predicate would make drift
+   * impossible; today it is only unlikely, and the spec sweep cannot catch a
+   * divergence because no catalogue part is a switch. Filed rather than
+   * claimed away. A heel is
+   * exempt from polarity (it is the point inside one moulded piece where its
+   * two roads meet, with no plug and no socket), and null is that exemption
+   * rather than a third polarity.
+   */
+  readonly polarity: Polarity | null;
 }
 
 export interface GraphRender {
@@ -67,8 +85,8 @@ export function renderGraph(
     if (!frame) continue;
     const part = resolve(piece.partId);
     const from = pose(frame);
-    const count = ports(piece).length;
-
+    const portList = ports(piece);
+    const count = portList.length;
     for (let i = 0; i < count; i++) {
       const world = portFrame(placement, ports, piece, i);
       const p = pose(world);
@@ -79,6 +97,7 @@ export function renderGraph(
         y: p.y,
         h: p.h,
         free: !claimed.has(`${piece.pieceId}#${i}`),
+        polarity: portList[i]?.kind === 'heel' ? null : portPolarity(part, i),
       });
     }
 
