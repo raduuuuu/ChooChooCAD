@@ -41,12 +41,25 @@ const markupFor = (partId: string): string => {
 
 const count = (html: string, needle: string): number => html.split(needle).length - 1;
 
+/*
+ * THE STATES THAT USED TO HIDE THE POLARITY, AND THE JOINT THAT SHOWED
+ * NOTHING. Both were found by the pre-landing red team, both confirmed by
+ * reading the cascade and the canvas before being fixed.
+ */
+/*
+ * Comments stripped before matching: a `/* ... *\/` block quoting a rule
+ * would otherwise satisfy a regex looking for that rule, so a comment ABOUT
+ * the fill could stand in for the fill.
+ */
 describe('polarity survives the states layered on top of it', () => {
 
   /*
    * MUTATION PROOF, run: put `fill: var(--ink);` back into
    * `.port.is-armed .port-dot`. This spec fails with
-   * `the armed rule must not set a fill: expected true to be false`.
+   * `.port.is-armed .port-dot must not set a fill: expected true to be false`
+   * -- the message carries the SELECTOR, because the assertion names whichever
+   * rule it caught, and a rule added through any other selector reports that
+   * one instead.
    *
    * Why a source check and not a rendered one: the override was a CASCADE
    * fact, not a markup fact. The armed rule at (0,3,0) beat
@@ -145,16 +158,6 @@ describe('a refused joint is marked on the canvas', () => {
  * `.port.is-armed circle.port-dot must not set a fill: expected true to be
  * false`. The first draft of that spec read one selector and would have
  * passed.
- */
-/*
- * THE STATES THAT USED TO HIDE THE POLARITY, AND THE JOINT THAT SHOWED
- * NOTHING. Both were found by the pre-landing red team, both confirmed by
- * reading the cascade and the canvas before being fixed.
- */
-/*
- * Comments stripped before matching: a `/* ... *\/` block quoting a rule
- * would otherwise satisfy a regex looking for that rule, so a comment ABOUT
- * the fill could stand in for the fill.
  */
 const bare = readFileSync(new URL('./app.css', import.meta.url), 'utf8').replace(
   /\/\*[\s\S]*?\*\//g,
