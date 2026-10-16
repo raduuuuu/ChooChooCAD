@@ -799,9 +799,14 @@ after the join was already made.
 
 The check was never broken: A2+B2 reports one violation and says so. What was
 missing was the picture. `RenderedPort` now carries `polarity`, derived with
-the same `portPolarity` and the same heel exemption the check uses, so the two
-cannot drift; the canvas draws a peg filled and a socket hollow at the same
-radius, which adds no ink to a dense layout. Every new spec carries a mutation
+the same `portPolarity` and the same heel exemption the check applies -- though
+NOT the same code: the check reaches the heel case through `weldHasPolarity`
+and `render.ts` holds another inline copy, so the two agree today and nothing
+enforces it. The shared predicate is filed in the polarity-marker entry above.
+(This paragraph said "so the two cannot drift" until the documentation audit
+caught it contradicting `render.ts`, which says plainly that it is a separate
+copy.) The canvas draws a peg filled and a socket hollow at the same radius,
+which adds no ink to a dense layout. Every new spec carries a mutation
 proof that was RUN, recorded beside the spec itself rather than counted here.
 
 This does NOT close the entry above. Showing which end is which is not the
