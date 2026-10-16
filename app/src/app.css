@@ -910,6 +910,22 @@
 }
 .port:hover .port-dot { stroke: var(--ink); }
 /*
+ * PEG IS FILLED, SOCKET IS HOLLOW.
+ *
+ * The base `.port-dot` above is already the hollow one, so a socket needs no
+ * rule and a peg is the single declaration below. Real track joins a peg to a
+ * socket and nothing else, and until this rule existed the canvas drew a
+ * two-peg piece exactly like an ordinary one: the difference only arrived as
+ * a sentence after the user had already made the join.
+ *
+ * `--ink-soft` and not `--ink`: the ARMED dot below fills with `--ink`, and
+ * the heaviest mark on the canvas has to stay the thing the user is in the
+ * middle of doing, not a property every piece on the floor has. A peg reads
+ * as a solid mid-tone, armed still reads as darker, and a clash ring is the
+ * only red.
+ */
+.port-dot.is-peg { fill: var(--ink-soft); }
+/*
  * ARMED: a small solid dot inside a ring (task W3, decision D5).
  *
  * Was `fill: --ink; stroke: --ink` on a dot grown to r=13, which is a solid

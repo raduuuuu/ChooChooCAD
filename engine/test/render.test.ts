@@ -19,7 +19,7 @@ import { BUILT_IN, makeResolver } from '../data/library.js';
 import { walkFloat } from '../src/geom/fk.js';
 import { placeAll } from '../src/graph/frames.js';
 import { graphFromChain } from '../src/graph/fromChain.js';
-import { portsOf, type Graph, type Piece, type Port } from '../src/graph/model.js';
+import { portPolarity, portsOf, type Graph, type Piece, type Port } from '../src/graph/model.js';
 import { renderBounds, renderGraph } from '../src/graph/render.js';
 import { centrelineRadiusMm } from '../src/parts/schema.js';
 import type { Layout, Part } from '../src/parts/schema.js';
@@ -119,5 +119,92 @@ describe('the graph renderer, which is what the canvas actually draws', () => {
     const empty = render({ pieces: [], welds: [] });
     expect(empty.segments).toEqual([]);
     expect(renderBounds(empty)).toEqual({ minX: 0, minY: 0, maxX: 0, maxY: 0 });
+  });
+});
+
+/**
+ * EVERY DRAWN END CARRIES ITS POLARITY, AND IT IS THE CHECK'S OWN ANSWER.
+ *
+ * Value: protects=a two-peg piece, a two-socket piece and an ordinary one are
+ * distinguishable on the canvas, so a join the solver will refuse can be seen
+ * before it is made rather than explained afterwards
+ * Value: fails_when=`polarity` stops being carried, or stops agreeing with
+ * `portPolarity`, or a heel stops being exempt
+ * Value: why_new=B2 (two pegs), C2 (two sockets) and A2 all drew BYTE-IDENTICAL
+ * geometry -- four paths, same `d`, same fills, two hollow dots -- verified on
+ * the live site. The polarity check worked and the verdict said so in words,
+ * but nothing in the picture differed, so the user could not tell which piece
+ * they had placed or which end of it was which.
+ * Value: seam=`renderGraph` takes `resolve`, so the part's `ends` were always
+ * reachable from here; only the field was missing.
+ * Value: no_claim=nothing about how the canvas STYLES it. That is
+ * `trackCanvasPolarity.test.ts`, and the two are deliberately separate: this
+ * pins the datum, that pins the ink.
+ */
+describe('a rendered end knows whether it is a peg or a socket', () => {
+  const resolveBuiltIn = makeResolver(BUILT_IN);
+  const portsOfPiece = (piece: Piece): readonly Port[] =>
+    portsOf(resolveBuiltIn(piece.partId), piece.turn);
+  const renderOf = (partId: string) => {
+    const graph: Graph = { pieces: [{ pieceId: 'one', partId }], welds: [] };
+    return renderGraph(
+      graph,
+      portsOfPiece,
+      resolveBuiltIn,
+      placeAll(graph, portsOfPiece),
+    );
+  };
+
+  /*
+   * MUTATION PROOF, run: return `part.ends.start` for every index in
+   * `portPolarity`. FIVE specs fail, this one with
+   * `expected [ 'socket', 'socket' ] to deeply equal [ 'socket', 'peg' ]`.
+   * The other four are the polarity-violation specs and two canvas specs,
+   * which is the point: that function is the single source both the check and
+   * the drawing read, so breaking it breaks both together rather than letting
+   * them disagree.
+   */
+  it('an ordinary straight alternates socket then peg', () => {
+    expect(renderOf('A2').ports.map((p) => p.polarity)).toEqual(['socket', 'peg']);
+  });
+
+  /*
+   * The two parts the user cannot otherwise tell apart. Both are 54mm, both
+   * draw the same four paths; only this differs.
+   *
+   * MUTATION PROOF, run: drop the `polarity` field from the pushed port.
+   * `tsc --noEmit` refuses the file with TS2345 at the `rendered.push` call
+   * ("not assignable to parameter of type 'RenderedPort'"), plus two TS6133s
+   * for the now-unused imports, so this field cannot silently stop being
+   * carried.
+   */
+  it('B2 is two pegs and C2 is two sockets', () => {
+    expect(renderOf('B2').ports.map((p) => p.polarity)).toEqual(['peg', 'peg']);
+    expect(renderOf('C2').ports.map((p) => p.polarity)).toEqual(['socket', 'socket']);
+  });
+
+  /*
+   * THE PROPERTY THAT MATTERS, over the whole catalogue at both turns: the
+   * canvas and the solver answer this question the same way. The two
+   * disagreeing is the defect class this canvas has shipped twice, once on
+   * clash counts and once on clash markers.
+   *
+   * MUTATION PROOF, run: compute the field as
+   * `portPolarity(part, i === 0 ? 1 : 0)`. TWO specs fail, this one with
+   * `A2 port 0: expected 'peg' to be 'socket'`.
+   */
+  it('agrees with portPolarity for every catalogue part, both turns', () => {
+    for (const part of BUILT_IN) {
+      for (const turn of ['left', 'right'] as const) {
+        const graph: Graph = { pieces: [{ pieceId: 'one', partId: part.id, turn }], welds: [] };
+        const r = renderGraph(graph, portsOfPiece, resolveBuiltIn, placeAll(graph, portsOfPiece));
+        const list = portsOfPiece({ pieceId: 'one', partId: part.id, turn });
+        r.ports.forEach((rendered, i) => {
+          const expected =
+            list[i]!.kind === 'heel' ? null : portPolarity(part, i);
+          expect(rendered.polarity, `${part.id} port ${i}`).toBe(expected);
+        });
+      }
+    }
   });
 });

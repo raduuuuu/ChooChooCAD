@@ -334,7 +334,33 @@ export function TrackCanvas({
                   * cannot be mistaken for each other.
                   */}
                 {armed && <circle cx={p.x} cy={p.y} r={16} className="port-ring" />}
-                <circle cx={p.x} cy={p.y} r={8} className="port-dot" />
+                {/*
+                  * FILLED IS A PEG, HOLLOW IS A SOCKET, and the dot keeps its
+                  * radius so this adds no ink to a dense layout.
+                  *
+                  * Until this existed, a two-peg piece, a two-socket piece and
+                  * an ordinary one drew BYTE-IDENTICAL geometry -- same four
+                  * paths, same fills, same two hollow dots. So a layout the
+                  * polarity check refuses looked exactly like one it accepts,
+                  * and the only difference reached the user as a sentence
+                  * AFTER the join. You could not tell which piece you had
+                  * placed, or which end of it was which, by looking.
+                  *
+                  * A heel takes neither class: it is exempt from polarity in
+                  * the check, so it is exempt here, and `polarity` is null for
+                  * it rather than a third value. The class comes off the same
+                  * `portPolarity` the check calls, which is what keeps the
+                  * picture and the verdict from disagreeing -- a split this
+                  * canvas has shipped twice before.
+                  */}
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={8}
+                  className={
+                    p.polarity === null ? 'port-dot' : `port-dot is-${p.polarity}`
+                  }
+                />
               </g>
             );
           })}

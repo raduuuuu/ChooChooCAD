@@ -19,8 +19,8 @@
 import { toXY } from '../geom/cyclotomic.js';
 import type { FPose, Segment } from '../geom/fk.js';
 import { portFrame, type Placement, type PortsOf } from './frames.js';
-import type { Frame, Graph } from './model.js';
-import { centrelineRadiusMm, type Part } from '../parts/schema.js';
+import { portPolarity, type Frame, type Graph } from './model.js';
+import { centrelineRadiusMm, type Part, type Polarity } from '../parts/schema.js';
 
 /** Zeta steps to radians: one step is 22.5 degrees. */
 const RAD = Math.PI / 8;
@@ -40,6 +40,23 @@ export interface RenderedPort {
   readonly h: number;
   /** True when no weld claims it, so a piece can be attached here. */
   readonly free: boolean;
+  /**
+   * Which half of a joint this end is, or null for a heel.
+   *
+   * CARRIED SO THE PICTURE CANNOT DISAGREE WITH THE VERDICT. A two-peg piece
+   * and a two-socket piece are the same length and drew the same geometry, so
+   * a layout that `findWeldPolarityViolations` refuses looked exactly like one
+   * it accepts, and the only difference reached the user as a sentence after
+   * the join. This field is what lets the canvas show the difference BEFORE
+   * the click.
+   *
+   * It is derived with `portPolarity` and gated on `kind === 'heel'`, which
+   * are the same two rules the check uses, so the two cannot drift. A heel is
+   * exempt from polarity (it is the point inside one moulded piece where its
+   * two roads meet, with no plug and no socket), and null is that exemption
+   * rather than a third polarity.
+   */
+  readonly polarity: Polarity | null;
 }
 
 export interface GraphRender {
@@ -69,6 +86,7 @@ export function renderGraph(
     const from = pose(frame);
     const count = ports(piece).length;
 
+    const portList = ports(piece);
     for (let i = 0; i < count; i++) {
       const world = portFrame(placement, ports, piece, i);
       const p = pose(world);
@@ -79,6 +97,7 @@ export function renderGraph(
         y: p.y,
         h: p.h,
         free: !claimed.has(`${piece.pieceId}#${i}`),
+        polarity: portList[i]?.kind === 'heel' ? null : portPolarity(part, i),
       });
     }
 

@@ -732,6 +732,26 @@ port kinds has settled.
 **Origin:** task C2 of the fourth eng review, second half. The first half,
 polarity in the schema, already shipped.
 
+**A THIRD HALF NOBODY HAD FILED, now shipped (2026-10-16).** This entry is
+about the EDITOR refusing to offer a bad join. It assumed all along that the
+user could see what they were joining, and they could not. Reported from the
+live site: "there is no difference when i place a piece with 2 pegs or 2
+sockets or a normal one." Measured on woodentrain.world, A2, B2 and C2 drew
+BYTE-IDENTICAL geometry -- four paths each, same `d`, same fills, two
+identical hollow dots -- so a layout the polarity check refuses looked exactly
+like one it accepts, and the only difference reached the user as a sentence
+after the join was already made.
+
+The check was never broken: A2+B2 reports one violation and says so. What was
+missing was the picture. `RenderedPort` now carries `polarity`, derived with
+the same `portPolarity` and the same heel exemption the check uses, so the two
+cannot drift; the canvas draws a peg filled and a socket hollow at the same
+radius, which adds no ink to a dense layout. Six specs, three mutations run.
+
+This does NOT close the entry above. Showing which end is which is not the
+same as declining to offer a join that cannot work, and the deferral reason
+for that half still stands.
+
 ## P3 — Finish splitting App.tsx
 
 **What:** Extract persistence, palette rendering and the inventory/submission
