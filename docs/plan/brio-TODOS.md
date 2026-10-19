@@ -726,6 +726,18 @@ then end `b` is somewhere else and unmarked, with `a` chosen by click order
 rather than by meaning. Fix: mark both ends when they differ, or the midpoint
 with a leader.
 
+MINIMAL REPRODUCTION, from the Codex outside review and verified here. Weld
+the two ends of a SINGLE B2 to each other. Two clicks in the editor: arm port
+0, click port 1 of the same piece (`clickPort` only refuses the identical
+port, so a self-weld is reachable). The engine places the ends at `(0,0)` and
+`(54,0)`, reports ONE polarity violation, and claims both ports -- so both
+polarity dots disappear and the single marker lands on `(0,0)`. Reverse the
+click order and the same violation on the same geometry puts the marker on
+`(54,0)` instead. The verdict stays IMPOSSIBLE throughout, so this is
+misleading fault localisation rather than a false pass. Note the rendering
+specs cannot catch it: they hand `badJoints` coordinates directly and so
+bypass the resolution in `App.tsx` that chooses the end.
+
 **2. When a layout has BOTH a polarity violation and a clash, only the
 polarity sentence prints.** `VerdictLine`'s IMPOSSIBLE branch is a ternary on
 `polarityCount > 0`, so the clash rings on the canvas are named by no number.
