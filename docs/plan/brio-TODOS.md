@@ -1849,6 +1849,96 @@ evidence that the question exists.
 exists. **Priority:** P1.
 **Depends on / blocked by:** the calibration afternoon (`CALIBRATION.md` Q2).
 
+**Partly addressed 2026-10-19, and NOT closed.** This entry asked for one of
+two fixes: model angular give in the bound, or "state in the schema and the
+verdict copy that the bound is axial-only and argue why that is still an upper
+bound". Tasks X7, T1 and T2 did the stating, in `SlopBudget`'s docblock, in
+`totalGiveMm`'s docblock, in the trust register as the `axial-only-give` kind,
+and in the verdict copy. **The argument was not made, because it cannot be:**
+the eng review of 2026-10-19 established that no measurement is needed to know
+the figure is not an upper bound, since a real term is missing AND the
+per-joint value is `Math.max` of two per-part summaries. So the verdict stopped
+claiming a definite non-fit instead: it now says a gap exceeds the MODELLED
+give. This entry stays open on the modelling half.
+
+## P1 — `HEADING_MISMATCH` refuses layouts on the same unproven bound, one branch before give is considered (filed by /plan-eng-review's outside voice, 2026-10-19)
+
+**What:** `solveGraph` returns `HEADING_MISMATCH` whenever
+`space.rotationBroken` is true, which it computes from any nonzero
+`headingSteps` on a closing weld. That return happens BEFORE any give
+assessment, so the angular budget is not consulted even in principle. The user
+is told "The track does not come back pointing the right way."
+(`app/src/verdictAction.ts`).
+
+**Why it matters.** Joints rotate. A dozen small rotations distributed around a
+loop can change the accumulated heading, which is exactly what an angular give
+budget would quantify. With no angular bound anywhere in the engine, the
+product treats every nonzero NOMINAL heading mismatch as physically
+uncorrectable. That does not establish that any particular refused layout
+actually seats, but it does mean the refusal rests on the same unproven
+assumption the sibling entry above describes, and it was never disclosed.
+
+**Why it is filed rather than fixed.** The sibling was fixable by removing a
+claim, because "the gap exceeds the modelled allowance" is a true statement the
+arithmetic supports. There is no equivalent true statement here: the engine has
+no modelled heading allowance to compare against, so there is nothing to scope
+the claim to. Saying so needs a derivation of how much accumulated heading
+error distributed joint rotation can absorb, which is geometry plus a measured
+angular figure.
+
+**Found by:** the Codex outside voice during `/plan-eng-review` on 2026-10-19
+(finding OV3), verified natively against `engine/src/graph/solve.ts` and
+`app/src/verdictAction.ts`. The native review had looked only at the `EXCEEDS`
+path and missed this one.
+
+**Fix:** derive the absorbable heading error, then either consult it in
+`solveGraph` before refusing, or scope the refusal's wording the way `EXCEEDS`
+was scoped. Deleting the check is not an option: a heading mismatch is a real
+failure, and most of them will be gross rather than marginal.
+
+**Effort:** human ~2 days including the geometry / CC ~2h once the bound
+exists. **Priority:** P1.
+**Depends on / blocked by:** the calibration afternoon
+(`CALIBRATION.md` Q2) for the angular figure, and a derivation that does not
+exist yet.
+
+## P1 — `Math.max` and `calibrationStatus: 'measured'` do not establish an upper bound, so the give disclosure can retire on evidence that does not support retiring it (filed by /plan-eng-review's outside voice, 2026-10-19)
+
+**What:** two separate gaps in the same chain.
+
+1. `computeResidual` sets each joint's `axialMaxMm` to `Math.max` of the two
+   parts' `slop.axialMm`. Taking the larger of two per-part summaries avoids
+   the smaller estimate; it does not prove that a real peg in a real socket
+   cannot exceed both. The existing docblock argues max over min on contract
+   grounds, which is correct and is a different claim from being an upper
+   bound.
+2. The `estimated-give` trust disclosure is gated on
+   `parts.some((p) => p.slop.calibrationStatus !== 'measured')`. The day task
+   X3 records measured figures, that disclosure retires. But measuring one
+   joint on one afternoon bounds nothing across brands, specimens, or worn
+   track.
+
+**Why it matters.** Together these mean the product can get QUIETER without
+getting more correct: the caveat disappears on the strength of a measurement
+that does not support the conclusion the caveat was protecting. This is a
+sibling of the defect task X7 fixed, inside the very guard X7 split, and the
+native review did not see it.
+
+**Found by:** the Codex outside voice during `/plan-eng-review` on 2026-10-19
+(finding OV4), verified natively against `engine/src/solver/residual.ts`.
+
+**Fix:** X3's verify list now requires a stated measurement scope and an
+aggregation rule that yields a maximum rather than a mean, which blocks the
+naive path at its source. What remains here is the engine half: decide whether
+`axialMaxMm` should carry a derived upper bound rather than a max of
+summaries, and whether `calibrationStatus` is the right gate for retiring a
+soundness caveat at all.
+
+**Effort:** human ~1 day / CC ~2h. **Priority:** P1.
+**Depends on / blocked by:** X3's measurement scope being defined (done, in the
+task body); the engine half depends on what the measurement actually yields.
+
+
 ## P1 — `loadGraph` reports a rescue for bytes that were never at risk, on the legacy-chain path (filed by /ship, 2026-10-14)
 
 **What:** `loadGraph`'s legacy-blob path returns `rescued: rescue(legacy)`
