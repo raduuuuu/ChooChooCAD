@@ -2057,3 +2057,73 @@ its last topology change.
 **Effort:** human ~2h / CC ~25m. **Priority:** P2.
 **Depends on / blocked by:** relates to U5, which wires `breakWeld` to the UI
 and makes the promotion path reachable deliberately rather than only via undo.
+
+## P3 — Two give caveats ride on a verdict that says no give is needed (filed by /qa, 2026-10-19)
+
+**What:** On the EXACT verdict the headline reads "This works. Closes exactly, no
+give needed at any joint." Directly beneath it the trust register prints two lines
+about the give figure: `estimated-give` ("Joint give is estimated, not measured, so
+the give total and any verdict resting on it are provisional.") and `axial-only-give`
+("The give total counts pull-apart slack only, and the play from joints rotating is
+not modelled."). Observed live in a browser at `localhost` on branch
+`scope-the-exceeds-verdict`; see `.gstack/qa-reports/qa-report-localhost-2026-10-19.md`
+and its `screenshots/exact-state.jpg`.
+
+**Why it matters.** The verdict has just said the give figure is not load-bearing for
+this layout, and then two lines qualify it anyway. That is noise in the one state
+where the engine is most certain, and it is the state a happy user sees most often.
+It also dilutes the caveats where they DO matter: a reader who learns to skip them on
+every exact layout will skip them on the refusal too.
+
+**History.** Half of this predates the change. `estimated-give` has always been gated
+only on `calibrationStatus`, so it fired on EXACT before anything here. The
+`axial-only-give` rule added on 2026-10-19 is unconditional by design, so it doubled
+the line count and made the oddity visible.
+
+**Fix:** a product decision first, not a code change. Either suppress give caveats
+when `closesExactly` is true, on the grounds that a verdict needing no give cannot be
+wrong about the give, or keep them and accept this as the register's standing
+behaviour. Note the first option weakens the `axial-only-give` rule's whole argument,
+which is that the disclosure must survive conditions rather than disappear under them,
+so it is not obviously right. No regression test was written, deliberately: writing
+one would freeze a behaviour nobody has chosen.
+
+**Effort:** human ~1h to decide plus ~30m to implement / CC ~15m once decided.
+**Priority:** P3.
+**Depends on / blocked by:** nothing technical; it needs the product call.
+
+## P3 — The axial-only disclosure is unreadable on any layout holding a third-party part (filed by /qa, 2026-10-19)
+
+**What:** The verdict shows at most `TRUST_INLINE_LIMIT` (2) disclosures, serious
+kinds first. Any unverified third-party part adds a serious `unverified-size` note,
+which takes a slot and pushes `axial-only-give` into the overflow count. Reproduced
+live: with the Near miss preset plus one Playtive 60mm straight, the register rendered
+
+```
+shown:    "PLAYTIVE-60 has a size nobody has measured, so this answer is exact about an estimate."
+          "Joint give is estimated, not measured, so the give total and any verdict resting on it are provisional."
+overflow: "and 1 more note about this layout."
+```
+
+The hidden note is the axial-only one. The overflow sentence is deliberately
+non-interactive (finding E7), and the full list is only reachable through task U7a,
+which is unbuilt. So the engine emits a disclosure the product cannot show.
+
+**Why it matters, and why it is P3 rather than P1.** This was raised during the
+2026-10-19 eng review as finding F5 and was the reason that review first proposed
+raising the inline limit. That proposal was superseded: the EXCEEDS headline now
+scopes its own claim ("Exceeds the modelled give"), so a reader who never sees the
+hidden note is no longer misled by the verdict. Confirmed in the same browser run,
+where the headline kept its scoped wording while the note was truncated away. What
+remains is an information gap, not a wrong claim.
+
+**Fix:** ships with U7a, which makes the full list reachable. Raising
+`TRUST_INLINE_LIMIT` is NOT the fix and was explicitly rejected: `axial-only-give` is
+emitted last and the sort is stable, so it is the first thing truncated at any limit,
+and a four-issue layout hides it again at 3. `app/src/verdictLine.test.ts` already
+pins both the singular overflow wording and that the headline keeps its claim while
+the note is hidden, so the behaviour is protected while this waits.
+
+**Effort:** human 0 here / CC 0 here; absorbed by U7a.
+**Priority:** P3.
+**Depends on / blocked by:** U7a (build the graph listing), currently unscheduled.
