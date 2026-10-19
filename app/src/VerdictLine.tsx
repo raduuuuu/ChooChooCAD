@@ -59,9 +59,23 @@ function Trust({ trust }: { trust: readonly TrustIssue[] }) {
    * SERIOUS FIRST, then the rest, then a count (Y1 decision 4).
    *
    * With five trust kinds present the block was five lines of equal weight
-   * above the action, and task T3b adds a fifth kind. Ordering by seriousness
-   * means the two that make the verdict actively misleading are the two that
-   * survive truncation.
+   * above the action. Ordering by seriousness means the two that make the
+   * verdict actively misleading are the two that survive truncation.
+   *
+   * COUNT CORRECTED 2026-10-19. This read "task T3b adds a fifth kind", which
+   * was true when `TrustIssue` carried four. The axial-only kind took the
+   * fifth slot, so T3b's switch disclosure is the SIXTH. The ordinal is not
+   * load-bearing for any behaviour here, which is exactly why it went stale
+   * unnoticed: nothing reads it and no test could catch it. Stated as a count
+   * rather than an ordinal below so the next addition does not repeat this.
+   *
+   * `TrustIssue` kinds today: `unverified-size`, `single-source`,
+   * `brands-do-not-join`, `estimated-give`, `axial-only-give`. Two of them are
+   * serious, and `TRUST_INLINE_LIMIT` is 2, so on a layout that trips both
+   * serious kinds nothing else is shown. The give qualification no longer
+   * depends on being shown: `verdictLine.test.ts` pins that the EXCEEDS
+   * headline carries it even when this list is truncated to the two serious
+   * lines.
    */
   const ordered = [...trust].sort(
     (a, b) => Number(isSerious(b)) - Number(isSerious(a)),
@@ -383,9 +397,9 @@ export function VerdictLine({
               * The mark is aria-hidden and `verdict-tight` against
               * `verdict-fail` may be a hue-only distinction for low colour
               * discrimination, which is WCAG 1.4.1. Every other kind already
-              * states its severity in words ("This works", "Won't fit",
-              * "Can't be built", "Could not check"); this one opened with a
-              * measurement and left the reader to infer it.
+              * states its severity in words ("This works", "Exceeds the
+              * modelled give", "Can't be built", "Could not check"); this one
+              * opened with a measurement and left the reader to infer it.
               */}
             Tight. Needs <span className="num">{e.gapMm.toFixed(0)}mm</span> absorbed across{' '}
             <span className="num">{e.jointCount}</span> joints, which give{' '}
@@ -397,14 +411,69 @@ export function VerdictLine({
 
     case 'EXCEEDS':
       return (
+        /*
+         * THE GLYPH AND TONE STAY `X` AND `fail`, and that was reviewed rather
+         * than left alone. Recorded so it is not reopened every time the
+         * sentence below changes.
+         *
+         * The worry: `X` shares both glyph and tone with IMPOSSIBLE, which IS
+         * a definite refusal, while this verdict no longer claims to be one.
+         * Does the glyph then overclaim for a reader who cannot use colour?
+         *
+         * No, because DESIGN.md rule 2's channels are CUMULATIVE, not
+         * fallbacks: "The glyph shapes `O`, `/\`, `X` and `?` carry the entire
+         * signal, and the sentence beside them says it in words." The glyph
+         * exists because the four verdict colours flatten into one greyscale
+         * band, so a printed plan or a colour-blind reader loses the COLOUR,
+         * never the text. They read "Exceeds the modelled give" too. The glyph
+         * separates refusals from passes in greyscale; the words carry which
+         * kind of refusal and how certain it is. Encoding certainty in the
+         * glyph would need a fifth shape, and rule 2 enumerates four.
+         *
+         * And rule 3 points the other way from the worry: it forbids
+         * UNDERSTATING ("it never renders as a pass, and it never renders as a
+         * near-pass"). `tight` is NEEDS_GIVE's near-pass tone, so moving this
+         * verdict to it would break rule 3. `fail` is what rule 3 requires;
+         * what rule 3 forbade was the CLAIM, which the sentence below fixes.
+         */
         <Verdict
           tone="fail"
           notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind])}
         >
           <Mark glyph="X" />
           <span className="verdict-text">
-            Won&rsquo;t fit. Needs <span className="num">{e.gapMm.toFixed(0)}mm</span>{' '}
-            absorbed, but the joints give only{' '}
+            {/*
+              * "Won't fit." WAS THE ONE PLACE THIS PRODUCT CLAIMED MORE THAN
+              * IT CHECKED, and DESIGN.md rule 3 already forbade it.
+              *
+              * Rule 3: "never claim more than was checked. The middle verdict
+              * is deliberately hedged, because the engine knows a gap fits
+              * inside the joints' total give and does not know that the give
+              * can be distributed to absorb it." NEEDS_GIVE was hedged for
+              * that reason. EXCEEDS was not, and it is the verdict that needs
+              * it most, because it is the only DEFINITE claim the engine makes.
+              *
+              * `solver/residual.ts:36-42` states the condition: the definite
+              * claim is sound "only if the give figure is an upper bound on
+              * the give really available", and understating give "would turn
+              * the one definite verdict this engine makes into a false one,
+              * which is the worst failure mode here". Nothing establishes that
+              * upper bound. `residual.ts:110` takes `Math.max` of two per-part
+              * summaries, which avoids the smaller estimate without proving a
+              * real peg and socket cannot exceed both, and the angular budget
+              * is written onto every joint and summed nowhere.
+              *
+              * So the headline now states what the arithmetic actually
+              * established -- the gap is past the modelled allowance -- and
+              * stops asserting what it did not, that the track will not go
+              * together. Both millimetre figures stay: they are the useful
+              * part and they were never in doubt. The word "modelled" carries
+              * the scope, and the trust register says what the model leaves
+              * out.
+              */}
+            Exceeds the modelled give. Needs{' '}
+            <span className="num">{e.gapMm.toFixed(0)}mm</span> absorbed, and the
+            joints are modelled to give{' '}
             <span className="num">{e.giveMm.toFixed(0)}mm</span> in total.{loopNote}
           </span>
         </Verdict>

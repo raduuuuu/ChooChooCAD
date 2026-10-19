@@ -45,8 +45,25 @@ export const ACTION_FOR_VERDICT: Record<OutcomeKind, string> = {
   EXACT: 'Nothing to fix. Build it.',
   NEEDS_GIVE:
     'Seat each triangle firmly as you go. If the last piece fights you, the gap is real.',
+  /*
+   * THE SECOND SENTENCE WAS DELETED, and it is the point of this entry.
+   *
+   * It read "The gap is larger than the joints can take up." That restates the
+   * verdict's own claim as a fact and then tells the builder to pull track
+   * apart on the strength of it. `solver/residual.ts:36-42` says the claim is
+   * sound only if the give figure is an upper bound on the give really
+   * available, and `residual.ts:110` builds that figure with `Math.max` over
+   * two per-part summaries, which avoids the smaller estimate without
+   * bounding anything. So the sentence asserted more than was checked, which
+   * is DESIGN.md rule 3, in the one register whose whole job is to be a
+   * suggestion rather than a claim.
+   *
+   * What remains is the suggestion, unchanged. The scoped version of the claim
+   * lives in the verdict headline, where `VerdictLine.tsx` can say what the
+   * number is and is not.
+   */
   EXCEEDS:
-    'Change a straight for a different length, or rearrange the curves. The gap is larger than the joints can take up.',
+    'Change a straight for a different length, or rearrange the curves.',
 };
 
 /**
