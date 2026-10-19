@@ -2127,3 +2127,47 @@ the note is hidden, so the behaviour is protected while this waits.
 **Effort:** human 0 here / CC 0 here; absorbed by U7a.
 **Priority:** P3.
 **Depends on / blocked by:** U7a (build the graph listing), currently unscheduled.
+
+## P2 — Nothing has ever verified what the verdict announces, and the text inside the live region just changed (filed by /qa, 2026-10-19)
+
+**What:** The verdict is announced through a polite, atomic live region:
+`app/src/VerdictLine.tsx:214-216` carries `role="status"`, `aria-live="polite"` and
+`aria-atomic="true"`. On 2026-10-19 the EXCEEDS sentence inside that region was
+rewritten and a fifth disclosure kind was added to the `aria-describedby` sibling.
+**No test, no probe and no human has ever confirmed what a screen reader says when
+that region changes.** The `/qa` browser pass on the same day covered the rendered
+text and the console and explicitly scored Accessibility as untested.
+
+**Why it matters.** `aria-atomic="true"` means the WHOLE region re-announces on every
+change, by design, because a verdict is only true whole. Every piece a builder places
+re-announces the entire sentence. That sentence is now longer than it was, so the
+cost of the atomic choice went up in a change that never measured it. If the
+announcement is too long or repeats on every click, a screen-reader user hears the
+editor talk over itself while placing track.
+
+**What is NOT the gap, so nobody re-investigates it.** The structural half is already
+right and tested in a browser: task W1 moved `<Trust>` and `<Action>` OUT of the live
+region into an `aria-describedby` sibling precisely so they do not re-announce, and
+`aria-describedby` is omitted rather than pointed at an empty element. Confirmed in
+the DOM on 2026-10-19. The gap is the announcement itself, not the markup.
+
+**This is NOT blocked on E11.** E11 (a real DOM test environment) blocks event-driven
+assertions: that Enter activates a free end, focus order, a second Enter welding.
+Hearing what VoiceOver says needs a human with VoiceOver, which this project's own
+machine already has. Thirty minutes with the screen reader on would settle it, and no
+infrastructure has to land first. Note also that the automated tooling cannot close
+this one: `renderToStaticMarkup` dispatches nothing, and gstack's headless browser
+clicks by element ref rather than tabbing, so neither can hear an announcement or
+exercise focus order.
+
+**Fix:** turn VoiceOver on, place pieces until the verdict changes between states, and
+record what is actually announced at each transition, including whether the
+disclosures are reachable on demand through `aria-describedby` and whether the region
+is reachable by keyboard at all. Write the result down. Only then decide whether
+`aria-atomic` is still the right call for a sentence this length, and whether the
+design review's standing decision ("the verdict region gets `aria-live="polite"` and
+nothing else becomes announced") still holds now that the sentence has grown.
+
+**Effort:** human ~30m to listen and record / CC ~0 for the listening, ~30m to act on
+what it finds. **Priority:** P2.
+**Depends on / blocked by:** nothing. Owner-owned because it needs a human ear.
