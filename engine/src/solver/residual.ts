@@ -57,7 +57,13 @@ export interface Joint {
   readonly between: readonly [string, string];
   /** One-sided axial give at this joint, millimetres. Taken from the pair. */
   readonly axialMaxMm: number;
-  /** One-sided angular give at this joint, degrees. Taken from the pair. */
+  /**
+   * One-sided angular give at this joint, degrees. Taken from the pair.
+   *
+   * WRITTEN AND NEVER READ by any give calculation: `totalGiveMm` sums
+   * `axialMaxMm` alone. Kept rather than deleted because deleting it would
+   * erase the evidence that the question exists; see `totalGiveMm`'s docblock.
+   */
   readonly angularMaxDeg: number;
 }
 
@@ -125,11 +131,30 @@ export function computeResidual(layout: Layout, resolve: (id: string) => Part): 
 }
 
 /**
- * The bound: total one-sided axial give available across every joint.
+ * The bound: total one-sided AXIAL give available across every joint.
  *
  * Order-independent by construction, because addition is. The gauge dependence
  * that made the old solver flip a verdict between FAIL and TIGHT depending on
  * which piece was listed first cannot occur here.
+ *
+ * AXIAL ONLY, STATED HERE BECAUSE THE NAME DOES NOT SAY SO. This sums
+ * `axialMaxMm`. `angularMaxDeg` sits on every `Joint` passed in and is NOT
+ * read: not here, and nowhere else that computes give. The minimax LP deleted
+ * at decision R21 did model the angular budget; dropping that solver left the
+ * field in the schema and the term out of this sum.
+ *
+ * SO THIS FIGURE IS NOT ESTABLISHED AS AN UPPER BOUND, which is the condition
+ * the docblock above makes the engine's one definite verdict depend on. Two
+ * reasons, not one. A real term is missing. And the per-joint figure is
+ * `Math.max` of two per-part summaries, which avoids the smaller estimate
+ * without proving a real peg and socket cannot exceed both, so even a measured
+ * axial number would not close it on its own.
+ *
+ * That is why the verdict copy says a gap exceeds the MODELLED give rather than
+ * that the track will not fit: the comparison this function supports is against
+ * a model, not against the world. Filed as P1 in `docs/plan/brio-TODOS.md`.
+ * Closing it needs the measurement (`CALIBRATION.md` Q2) AND an aggregation
+ * rule that yields a maximum rather than a mean, not just a number.
  */
 export function totalGiveMm(joints: readonly Joint[]): number {
   return joints.reduce((sum, j) => sum + j.axialMaxMm, 0);

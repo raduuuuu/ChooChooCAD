@@ -35,7 +35,7 @@ import {
 } from '../data/sources.js';
 import { equals, isZero, scale, toXY } from '../src/geom/cyclotomic.js';
 import { displacement } from '../src/geom/pose.js';
-import { computeResidual } from '../src/solver/residual.js';
+import { computeResidual, totalGiveMm } from '../src/solver/residual.js';
 import { findPolarityViolations } from '../src/feasible.js';
 import { solveLayout } from '../src/solver/result.js';
 import { evaluateLayout } from '../src/joints/evaluate.js';
@@ -148,6 +148,67 @@ describe('the bound: a gap cannot exceed the give', () => {
     // 0.8mm one-sided per joint, from ESTIMATED_SLOP.
     expect(eight.totalGiveMm).toBeCloseTo(6.4, 9);
     expect(sixteen.totalGiveMm).toBeCloseTo(12.8, 9);
+  });
+
+  /*
+   * THE GIVE TOTAL IGNORES ROTATION, WHICH IS WHAT RULE 5 CLAIMS.
+   *
+   * Value: protects=`totalGiveMm` counts axial slack ONLY, which is the premise
+   * that both the unconditional `axial-only-give` disclosure and the EXCEEDS
+   * headline's word "modelled" rest on
+   * Value: fails_when=a give calculation starts counting `angularMaxDeg`, at
+   * which point rule 5 is disclosing an omission the engine no longer makes --
+   * `trust.ts` says exactly that ("the rule stops being true only when the
+   * engine starts reading `angularMaxDeg`, and deleting it is then part of that
+   * change"), and this spec is what forces that deletion to happen in the same
+   * change rather than leaving a false caveat on screen
+   * Value: why_new=`angularMaxDeg` had ONE assertion in the whole repo, that it
+   * is finite ('never returns a non-finite number', below). Nothing pinned that
+   * it does not reach the total, so the premise of an unconditional
+   * user-facing disclosure was unprotected
+   * Value: seam=none. `totalGiveMm` takes a plain `Joint[]`, so the angular
+   * field is varied on the joints directly rather than through part data, where
+   * `looksLikePart`'s degree ceiling would clamp it first
+   * Value: no_claim=nothing about whether ignoring rotation is RIGHT, which
+   * needs CALIBRATION.md Q2's measurement, and nothing about the direction of
+   * the resulting error, which `trust.ts` deliberately refuses to state
+   *
+   * MUTATION PROOF, run: add the angular term to `totalGiveMm`'s reduce
+   * (`sum + j.axialMaxMm + j.angularMaxDeg`) and this fails with
+   * `expected 7.999999999999999 to be 23.000000000000004 // Object.is
+   * equality` -- the zero-factor pass, where the angular term vanishes and the
+   * total does not.
+   *
+   * NOT EXCLUSIVE, AND THAT WAS MEASURED RATHER THAN ASSUMED. Two specs in
+   * this describe go red with it: 'total give is the sum over joints' and
+   * 'documents that the band is narrow for SMALL layouts', both because they
+   * pin a FIGURE (6.4mm, under 10mm) for a fixed layout. That is the reason
+   * this spec is still worth its line. Those two are repaired by editing the
+   * expected number, which a reasonable editor landing CALIBRATION.md Q2 would
+   * do without ever reading `trust.ts`; this one cannot be repaired that way,
+   * because the property it asserts is the omission rule 5 discloses. Its
+   * failure is the instruction to delete rule 5 in the same change.
+   */
+  it('the give total is insensitive to the angular budget rule 5 discloses', () => {
+    const r = solveLayout(loop([...rep('E', 4), 'D', ...rep('E', 4), 'A']));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+
+    // A number being DISCARDED, not a missing one: every joint carries a real
+    // non-zero angular budget, which is why the omission is worth disclosing.
+    expect(r.joints.length).toBeGreaterThan(0);
+    for (const j of r.joints) expect(j.angularMaxDeg).toBeGreaterThan(0);
+
+    const baseline = totalGiveMm(r.joints);
+    for (const factor of [0, 10, 1000]) {
+      const varied = r.joints.map((j) => ({
+        ...j,
+        angularMaxDeg: j.angularMaxDeg * factor,
+      }));
+      expect(totalGiveMm(varied)).toBe(baseline);
+    }
+    // And the total is the axial sum with nothing else folded into it.
+    expect(baseline).toBe(r.joints.reduce((sum, j) => sum + j.axialMaxMm, 0));
   });
 
   it('a 72mm gap exceeds the give and is a definite no', () => {
@@ -424,10 +485,76 @@ describe('the trust register: what the verdict is worth', () => {
     expect(layoutTrust(layoutOf([]), r, brandFit)).toHaveLength(0);
   });
 
-  it('a pure BRIO layout discloses only the estimated give', () => {
+  it('a pure BRIO layout discloses the estimated give and the axial-only bound', () => {
     // Everything else about it is published. This is the best case the product
-    // currently has, and it still is not silent.
-    expect(kinds(rep('E', 8))).toEqual(['estimated-give']);
+    // currently has, and it still is not silent -- about TWO different things.
+    //
+    // This spec read `toEqual(['estimated-give'])` until rule 5 landed. The
+    // old assertion was not wrong, it was incomplete: it pinned that the best
+    // case still discloses something, and silently also pinned that the
+    // axial-only omission was disclosed NOWHERE.
+    //
+    // `toEqual` RATHER THAN `arrayContaining`, AND THE ORDER IS LOAD-BEARING.
+    // Do not relax this to a containment check. `VerdictLine.tsx` sorts the
+    // register serious-first with a STABLE sort, so relative order among the
+    // non-serious kinds decides which one survives `TRUST_INLINE_LIMIT`.
+    // `axial-only-give` is emitted last here, which is why it is the first
+    // disclosure truncated on any layout carrying four issues. Emission order
+    // is therefore a real contract between this file and the renderer, and a
+    // containment check would drop it silently.
+    //
+    // MUTATION PROOF, run: deleting rule 5's `issues.push` fails this with
+    // `expected [ 'estimated-give' ] to deeply equal [ 'estimated-give',
+    // 'axial-only-give' ]`. That is also how this spec read before the rule.
+    expect(kinds(rep('E', 8))).toEqual(['estimated-give', 'axial-only-give']);
+  });
+
+  /*
+   * THE X3 TRAP, which is the whole reason rule 5 is not part of rule 4.
+   *
+   * Rule 4 is gated on `calibrationStatus !== 'measured'`. Task X3 measures the
+   * joint give, which flips every part to 'measured' and correctly silences
+   * rule 4. Before rule 5 existed the axial-only caveat was silenced with it,
+   * so the single act of measuring the give would have DELETED the disclosure
+   * that the give is only half-modelled -- at the exact moment the figure
+   * started carrying the authority of a measurement.
+   *
+   * MUTATION PROOF, run: wrap rule 5's `issues.push` in
+   * `if (parts.some((p) => p.slop.calibrationStatus !== 'measured'))`, the
+   * same guard rule 4 uses, and this fails with
+   * `expected [] to include 'axial-only-give'`. The register is EMPTY under
+   * the mutation, which is the finding stated as plainly as it can be: eight
+   * published BRIO curves with a measured give would have had nothing at all
+   * said about them.
+   */
+  it('a fully measured library still discloses that the bound is axial-only', () => {
+    const measuredGive = lib.map((part) => ({
+      ...part,
+      slop: { ...part.slop, calibrationStatus: 'measured' as const },
+    }));
+    const k = layoutTrust(layoutOf(rep('E', 8)), makeResolver(measuredGive), brandFit)
+      .map((t) => t.kind);
+    // Measuring the give retires rule 4, as it should.
+    expect(k).not.toContain('estimated-give');
+    // It does not retire what the give omits.
+    expect(k).toContain('axial-only-give');
+  });
+
+  it('the axial-only disclosure names rotation, not calibration', () => {
+    /*
+     * The two registers must not say the same thing in different words: rule 4
+     * is about how good the number is, rule 5 about what it counts. If rule 5
+     * ever starts talking about measurement it has collapsed back into rule 4
+     * and the X3 trap reopens with both rules still present.
+     *
+     * MUTATION PROOF, run: change rule 5's copy from "rotating is not
+     * modelled" to "play is not measured" and this fails with
+     * `expected 'The give total counts pull-apart slac...' to match /rotat/i`.
+     */
+    const axial = layoutTrust(layoutOf(rep('E', 8)), r, brandFit)
+      .find((t) => t.kind === 'axial-only-give')!;
+    expect(axial.detail).toMatch(/rotat/i);
+    expect(axial.detail).not.toMatch(/measure/i);
   });
 
   it('an unmeasured third-party part is disclosed as exact-about-an-estimate', () => {

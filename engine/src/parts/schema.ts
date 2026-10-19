@@ -127,11 +127,39 @@ export type BrandFit = 'joins' | 'tight' | 'does-not-join' | 'unknown';
  */
 export type CalibrationStatus = 'measured' | 'published' | 'estimated';
 
-/** Per-joint give. BRIO's Vario System is deliberate slop, not manufacturing error. */
+/**
+ * Per-joint give. BRIO's Vario System is deliberate slop, not manufacturing error.
+ *
+ * ONLY `axialMm` REACHES A VERDICT, and this is the first place that says so.
+ * `totalGiveMm` (`solver/residual.ts`) sums the axial figure and nothing else.
+ * The graph path agrees: `weldGiveMm` (`graph/model.ts`) returns the larger of
+ * the two parts' axial slop with no angular term. `angularDeg` is carried here,
+ * copied onto every `Joint` as `angularMaxDeg`, and consumed by no give
+ * calculation anywhere in the engine.
+ *
+ * That is not a tidy omission. `CALIBRATION.md` argues the lever arms are around
+ * 300mm against axial budgets "around 1mm", so a joint's small rotation moves a
+ * layout's far end much further than its pull-apart does; if that holds, the
+ * ignored term is the LARGER of the two. Nobody has measured it, so the engine
+ * states the omission and claims nothing about its size.
+ *
+ * THE CONSEQUENCE, which is what to know before trusting a figure typed as this.
+ * `totalGiveMm`'s docblock makes the engine's one definite verdict depend on the
+ * give figure being "an upper bound on the give really available". A figure that
+ * drops a real term is not established as one, and `calibrationStatus:
+ * 'measured'` would not establish it either: measuring one specimen bounds
+ * nothing across brands, specimens or wear. So the verdict says a gap exceeds
+ * what was MODELLED, never that track will not fit. Filed as P1 in
+ * `docs/plan/brio-TODOS.md`.
+ */
 export interface SlopBudget {
   /** Axial pull-apart or push-together, millimetres, one-sided. */
   readonly axialMm: number;
-  /** Angular deflection at the joint, degrees, one-sided. */
+  /**
+   * Angular deflection at the joint, degrees, one-sided.
+   *
+   * POPULATED AND READ BY NOTHING THAT COMPUTES GIVE. See the docblock above.
+   */
   readonly angularDeg: number;
   readonly calibrationStatus: CalibrationStatus;
 }
