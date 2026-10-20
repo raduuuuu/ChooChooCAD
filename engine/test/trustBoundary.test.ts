@@ -21,6 +21,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { getPart } from '../data/brio.js';
 import {
   BUILT_IN,
   loadSubmissions,
@@ -99,12 +100,34 @@ describe('trustRank fails closed', () => {
 describe('a stored submission cannot forge provenance', () => {
   for (const status of [undefined, null, '', 'published-ish', 'PUBLISHED', 42]) {
     it(`status ${JSON.stringify(status)} does not override the published part`, () => {
+      /*
+       * CAPTURED BEFORE RESOLUTION, and that ordering is the whole assertion.
+       *
+       * This line has now been wrong twice, in opposite directions. It first
+       * carried the literal 182, which failed on any dimension change in
+       * `brio.ts` and so drowned a real pin in `sources.test.ts` under six
+       * collateral failures. The K2 repair compared against `getPart('E')`
+       * instead, which was WORSE: when the forgery is rejected `resolveLibrary`
+       * returns the same object `getPart` returns, verified by execution
+       * (`e === getPart('E')` is true), so the assertion compared a property
+       * with itself and could not fail in the path this test exercises.
+       *
+       * Reading the number into a primitive BEFORE resolution fixes both. A
+       * forged part that replaces E reads a different radius and fails. A
+       * resolver that mutated the shared built-in in place also fails, because
+       * the captured copy still holds the old value. And a dimension change in
+       * `brio.ts` moves the captured value with the part, so this file stays
+       * quiet and the pin in `sources.test.ts` is the only thing that speaks.
+       */
+      const publishedRadius =
+        (getPart('E') as { innerRadiusMm?: number }).innerRadiusMm;
       const resolved = resolveLibrary([
         submissionWith({ dimensions: { status, source: 'x' } }),
       ]);
       const e = resolved.find((p) => p.id === 'E')!;
       expect(e.name).not.toBe('FORGED');
-      expect((e as { innerRadiusMm?: number }).innerRadiusMm).toBe(182);
+      expect((e as { innerRadiusMm?: number }).innerRadiusMm)
+        .toBe(publishedRadius);
     });
   }
 

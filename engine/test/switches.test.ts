@@ -29,16 +29,41 @@ import { displacement } from '../src/geom/pose.js';
 import type { Part, SwitchPart } from '../src/parts/schema.js';
 
 const base = makeResolver(BUILT_IN);
-const A1 = base('A1'); // 108mm straight
+const A1 = base('A1');
 const E = base('E');
 
-/* A switch whose straight road is one A1 and whose diverging road is one E. */
+/*
+ * Throws rather than falling back. The first version of this read
+ * `A1.kind === 'straight' ? A1.lengthMm : 0`, and a 0 there would have built a
+ * zero-length switch whose specs fail far from the cause. The narrowing exists
+ * for the type checker, not as a real branch: if A1 ever stops being a straight
+ * this fixture is meaningless and should say so at the point of breakage.
+ */
+const a1Length = (): number => {
+  if (A1.kind !== 'straight') {
+    throw new Error(`fixture needs A1 to be a straight, got ${A1.kind}`);
+  }
+  return A1.lengthMm;
+};
+
+/*
+ * A switch whose straight road is one A1 and whose diverging road is one E.
+ *
+ * Every field below is DERIVED from those two catalogue parts, never written
+ * out. `throughLengthMm` used to be the literal 108 while the fields around it
+ * already read from A1, and the spec it feeds claims the switch's straight road
+ * matches "a plain straight of the same length" -- a claim that must hold for
+ * whatever length A1 is, not only for 108. Pinning the number here meant a
+ * dimension change in `brio.ts` failed this file too, which is the collateral
+ * noise task K2 set out to remove: the catalogue is pinned in
+ * `engine/test/sources.test.ts` and nowhere else.
+ */
 const SW: SwitchPart = {
   id: 'TEST-SWITCH',
   brand: 'BRIO',
   kind: 'switch',
   name: 'Test switch',
-  throughLengthMm: 108,
+  throughLengthMm: a1Length(),
   arcSteps: E.kind === 'curve' ? E.arcSteps : 2,
   innerRadiusMm: E.kind === 'curve' ? E.innerRadiusMm : 182,
   dimensions: A1.dimensions,
