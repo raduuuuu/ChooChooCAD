@@ -122,6 +122,8 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { BRIO_PARTS, getPart } from '../data/brio.js';
 import {
@@ -252,44 +254,122 @@ describe('the catalogue and the source stay independent', () => {
    * end to end before this repair: with that import in place, the catalogue
    * reading E1's radius from here, and the source's E1 changed from 90 to 91,
    * the ENTIRE SUITE PASSED while the shipped centreline for E1 moved from 110
-   * to 111. Stripping comments closes that, and closes the mirror-image
-   * false positive where an import mentioned inside a comment failed the spec
-   * for no reason. This repository already learned this lesson once, on the
-   * stylesheet checks in `app/src/trackCanvasPolarity.test.ts`: strip comments
-   * first, because a comment quoting a rule satisfies a naive regex.
+   * to 111.
    *
-   * A real module-graph walk is the honest instrument and is not built. This is
-   * the cheap guard against the plausible accident: a direct import added by
-   * hand during a tidy-up.
+   * PARSED, NOT PATTERN-MATCHED, and that took four tries to accept. Versions
+   * one to four of this spec were regexes, and every one was defeated:
+   *
+   *   1. single-quoted `from` only      double quotes, bare and dynamic
+   *                                     imports, `.ts` suffixes all walked past
+   *   2. widened specifier pattern      a block comment between `from` and the
+   *                                     quote hid the import completely
+   *   3. plus comment stripping         `/*` inside a line comment or a string
+   *                                     opened a comment that ran to the next
+   *                                     `*\/` and DELETED the real import, and
+   *                                     `//` inside a string ate the next line
+   *   4. plus a path-segment anchor     backtick dynamic imports, `?raw`
+   *                                     queries, `.mjs`, and `./Sources.js`
+   *                                     (the same file on this macOS dev box)
+   *
+   * Each patch closed the demonstrated hole and opened another, which is this
+   * repository's logged pattern rather than bad luck. The question "does this
+   * module import that one" is a question about syntax, and the exact answer
+   * comes from a parser. TypeScript is already a dependency here, since `tsc`
+   * runs for typecheck, so using its parser adds nothing to install and ends
+   * the cycle instead of extending it.
+   *
+   * WHAT IT STILL CANNOT SEE, and this list is now short because the parser
+   * handles the rest: a specifier assembled at runtime, such as
+   * `import(base + '/sources.js')`, has no literal to read; and a TRANSITIVE
+   * coupling through another module is out of scope, since this reads one
+   * file's own import list. `brio.ts`'s only value import is `./thirdParty.js`,
+   * checked 2026-10-20 to import nothing but `../src/parts/schema.js`.
+   *
+   * PROVED BY ATTACK, 16 probes RUN against this spec on 2026-10-20, each one
+   * injected into `brio.ts` and then reverted. All fourteen couplings are
+   * caught, including every form that beat a regex version:
+   *
+   *   plain static import, a comment between `from` and the quote, `/*` opened
+   *   inside a line comment with the import between it and a later `*\/`,
+   *   `/*` and `*\/` inside string literals, `//` inside a string on the
+   *   import's own line, double quotes, a bare side-effect import, a
+   *   re-export, `.mjs`, a `?raw` query, `./Sources.js` (the same file on a
+   *   case-insensitive filesystem), a backtick dynamic import, and `require`.
+   *
+   * And the false-positive direction, which three probes confirm stays quiet:
+   * `./resources.js`, `./datasources.js` and the real sibling
+   * `../src/parts/schema.js` are not flagged.
    */
-  it('brio.ts has no import statement naming this file, in any form', () => {
-    const catalogue = readFileSync(
+  it('brio.ts has no import of this file, in any syntactic form', () => {
+    const cataloguePath = fileURLToPath(
       new URL('../data/brio.ts', import.meta.url),
-      'utf8',
     );
+    const source = ts.createSourceFile(
+      cataloguePath,
+      readFileSync(cataloguePath, 'utf8'),
+      ts.ScriptTarget.Latest,
+      /* setParentNodes */ true,
+    );
+
     /*
-     * Every specifier form, not just `from '...'`. The first version matched
-     * single-quoted `from` clauses only, so a double-quoted import, a bare
-     * side-effect `import './sources.js'`, a dynamic `import('./sources.js')`
-     * and a `.ts` suffix all passed it. It also matched the BARE substring
-     * `sources`, so `./resources` and `./datasources` would have failed the
-     * spec for no reason. Anchoring on the path segment fixes both directions.
+     * Collect every module specifier the PARSER recognises: static imports
+     * (including `import type` and bare side-effect imports), re-exports, the
+     * `import x = require(...)` form, and dynamic `import(...)` with a literal
+     * argument, which covers backticks because a no-substitution template is a
+     * string literal to the parser.
      */
-    const code = catalogue
-      // Block comments, including the one that defeated the previous version.
-      .replace(/\/\*[\s\S]*?\*\//g, ' ')
-      // Line comments. Anchored on whitespace so a `https://` inside a string
-      // literal survives; imports sit on their own lines, so nothing real is
-      // lost by clearing to end of line.
-      .replace(/(^|\s)\/\/.*$/gm, '$1');
-    const specifiers = [
-      ...code.matchAll(/(?:from|import)\s*\(?\s*['"]([^'"]+)['"]/g),
-    ].map((m) => m[1]!);
-    expect(specifiers.length, 'found no imports at all, so the scan is broken')
+    const specifiers: string[] = [];
+    const visit = (node: ts.Node): void => {
+      if (
+        (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+        node.moduleSpecifier !== undefined &&
+        ts.isStringLiteralLike(node.moduleSpecifier)
+      ) {
+        specifiers.push(node.moduleSpecifier.text);
+      }
+      if (
+        ts.isImportEqualsDeclaration(node) &&
+        ts.isExternalModuleReference(node.moduleReference) &&
+        ts.isStringLiteralLike(node.moduleReference.expression)
+      ) {
+        specifiers.push(node.moduleReference.expression.text);
+      }
+      if (
+        ts.isCallExpression(node) &&
+        (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+          (ts.isIdentifier(node.expression) &&
+            node.expression.text === 'require')) &&
+        node.arguments[0] !== undefined &&
+        ts.isStringLiteralLike(node.arguments[0])
+      ) {
+        specifiers.push((node.arguments[0] as ts.StringLiteralLike).text);
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(source);
+
+    // If this ever reads zero, the parse silently failed and the spec proves
+    // nothing. brio.ts has imports; a count of zero is the broken-scan signal.
+    expect(specifiers.length, 'parsed no imports at all, so this spec is blind')
       .toBeGreaterThan(0);
-    for (const spec of specifiers) {
-      expect(spec, 'brio.ts must transcribe the figures, never import them')
-        .not.toMatch(/(^|\/)sources(\.[jt]s)?$/);
+
+    /*
+     * Normalised before comparison: lowercased because `./Sources.js` resolves
+     * to the same file on a case-insensitive filesystem, query stripped because
+     * `./sources.js?raw` is still this module, and any JS or TS extension
+     * stripped so `.mjs` and `.cjs` cannot slip past. Compared on the final
+     * path SEGMENT, so `./resources` and `./datasources` are not false hits.
+     */
+    for (const raw of specifiers) {
+      const segment = raw
+        .toLowerCase()
+        .split('?')[0]!
+        .split('#')[0]!
+        .replace(/\.(m|c)?[jt]sx?$/, '')
+        .split('/')
+        .pop();
+      expect(segment, `brio.ts must transcribe the figures, never import them (${raw})`)
+        .not.toBe('sources');
     }
   });
 });
@@ -350,10 +430,12 @@ describe('the published sentences are self-consistent', () => {
      * free; the helper is applied to all three for uniformity, not because it
      * does work on each.
      *
-     * The boundary excludes a leading DOT as well as a digit. An independent
-     * reviewer passed this spec by rewriting the quote to `measuring 1.26mm
-     * from center to center`: a period satisfies `[^0-9]`, so `26` matched the
-     * fractional part of a different number.
+     * A LOOKBEHIND, after two weaker attempts. `(^|[^0-9])` let a decimal
+     * point through, so rewriting the quote to `measuring 1.26mm from center to
+     * center` passed. Adding the dot to the class still let `1,26mm` (a
+     * European decimal), `-26mm`, `$26mm` and `a26mm` through. The lookbehind
+     * rejects a preceding word character, dot, comma, dollar or hyphen, so the
+     * needle has to start a real token.
      *
      * Found by a stable predicate rather than `RESOLVED[2]`, so reordering the
      * audit trail fails this spec by name instead of throwing on an index.
@@ -365,7 +447,7 @@ describe('the published sentences are self-consistent', () => {
       .toBeTruthy();
     const note = profile!.conflict!.note;
     const atDigitBoundary = (text: string): RegExp =>
-      new RegExp(`(^|[^0-9.])${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+      new RegExp(`(?<![\\w.,$-])${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
     expect(note).toMatch(
       atDigitBoundary(
         `two ${TRACK_PROFILE.grooveWidthMm}mm wide grooves that are ` +
