@@ -122,6 +122,7 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
@@ -285,16 +286,18 @@ describe('the catalogue and the source stay independent', () => {
    * file's own import list. `brio.ts`'s only value import is `./thirdParty.js`,
    * checked 2026-10-20 to import nothing but `../src/parts/schema.js`.
    *
-   * PROVED BY ATTACK, 16 probes RUN against this spec on 2026-10-20, each one
-   * injected into `brio.ts` and then reverted. All fourteen couplings are
+   * PROVED BY ATTACK, 19 probes RUN against this spec on 2026-10-20, each one
+   * injected into `brio.ts` and then reverted. All sixteen couplings are
    * caught, including every form that beat a regex version:
    *
    *   plain static import, a comment between `from` and the quote, `/*` opened
    *   inside a line comment with the import between it and a later `*\/`,
    *   `/*` and `*\/` inside string literals, `//` inside a string on the
    *   import's own line, double quotes, a bare side-effect import, a
-   *   re-export, `.mjs`, a `?raw` query, `./Sources.js` (the same file on a
-   *   case-insensitive filesystem), a backtick dynamic import, and `require`.
+   *   re-export, `export *`, `.mjs`, a `?raw` query, `./Sources.js` (the same
+   *   file on a case-insensitive filesystem), a backtick dynamic import,
+   *   `require`, the directory form `./sources/index.js`, and the
+   *   parent-relative spelling `../data/sources.js`.
    *
    * And the false-positive direction, which three probes confirm stays quiet:
    * `./resources.js`, `./datasources.js` and the real sibling
@@ -354,22 +357,30 @@ describe('the catalogue and the source stay independent', () => {
       .toBeGreaterThan(0);
 
     /*
-     * Normalised before comparison: lowercased because `./Sources.js` resolves
-     * to the same file on a case-insensitive filesystem, query stripped because
-     * `./sources.js?raw` is still this module, and any JS or TS extension
-     * stripped so `.mjs` and `.cjs` cannot slip past. Compared on the final
-     * path SEGMENT, so `./resources` and `./datasources` are not false hits.
+     * RESOLVED against the filesystem, not matched as a name. Comparing the
+     * final path segment looked sufficient and was not: `./sources/index.js`
+     * yields `index`, and turning `sources.ts` into `sources/index.ts` is an
+     * ordinary refactor that would have walked straight past such a check.
+     *
+     * So each specifier is resolved relative to `brio.ts`, lowercased (because
+     * `./Sources.js` is the same file on a case-insensitive filesystem),
+     * stripped of any query or fragment and of any JS/TS extension, and then
+     * compared with THIS module's own resolved path. A hit is the exact file or
+     * anything inside a directory that replaced it. `./resources.js` and
+     * `./datasources.js` resolve elsewhere and cannot collide.
      */
+    const target = resolve(dirname(cataloguePath), 'sources').toLowerCase();
     for (const raw of specifiers) {
-      const segment = raw
+      const bare = raw.split('?')[0]!.split('#')[0]!;
+      const resolved = resolve(dirname(cataloguePath), bare)
         .toLowerCase()
-        .split('?')[0]!
-        .split('#')[0]!
-        .replace(/\.(m|c)?[jt]sx?$/, '')
-        .split('/')
-        .pop();
-      expect(segment, `brio.ts must transcribe the figures, never import them (${raw})`)
-        .not.toBe('sources');
+        .replace(/\.(m|c)?[jt]sx?$/, '');
+      const isThisModule =
+        resolved === target || resolved.startsWith(`${target}/`);
+      expect(
+        isThisModule,
+        `brio.ts must transcribe the figures, never import them (${raw})`,
+      ).toBe(false);
     }
   });
 });
