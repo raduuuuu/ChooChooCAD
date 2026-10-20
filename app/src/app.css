@@ -947,14 +947,64 @@
  * signal, as this comment already said it was; the fill was a second channel
  * saying the same thing, and it was the channel polarity needs.
  */
+/*
+ * `vector-effect` for the same reason the cursor ring below has it, and
+ * NEITHER MAY HAVE IT ALONE.
+ *
+ * Two things go wrong when only the cursor gets it. The armed ring keeps
+ * scaling, so on a 40-straight board (scale 0.1616, measured) its stroke
+ * renders at 3 x 0.1616 = 0.48 device px and the mark that "IS the signal"
+ * stops resolving -- the same sub-pixel failure that motivated fixing the
+ * cursor. And because the cursor ring is suppressed while an end is armed,
+ * and arming always targets the port it arms, the user never sees the two
+ * rings at once: they see ONE port change as they click it. So the
+ * comparison is sequential, and it ran backwards. Arming a port on a large
+ * board took its mark from a crisp 2px dashed cursor ring down to a 0.48px
+ * armed ring, making the stronger state look fainter.
+ *
+ * With both fixed the sizes are device pixels at every zoom, and clicking a
+ * free end reads as it should: 2px dashed becomes 3px solid.
+ */
 .port-ring {
   fill: none;
   stroke: var(--ink);
   stroke-width: 3;
+  vector-effect: non-scaling-stroke;
 }
 .port.is-armed .port-dot {
   stroke: var(--ink);
   stroke-width: 2;
+}
+/*
+ * THE CURSOR RING: where the next piece attaches.
+ *
+ * `--ink-soft`, dashed, and thinner than the armed ring, because the armed end
+ * has to stay the heaviest mark on this canvas: that is what the ARMED comment
+ * above is about, and a cursor drawn in `--ink` would take the channel arming
+ * needs. Dashed is the distinguishing channel rather than colour alone, so the
+ * two rings differ for a reader who cannot separate the two inks.
+ *
+ * Emitted only when the end is NOT armed (see TrackCanvas), so this rule and
+ * `.port.is-armed` never paint the same dot.
+ */
+/*
+ * `vector-effect` because the dash IS the channel, and millimetres are not
+ * pixels. The canvas fits the whole board into a fixed box, so the scale
+ * falls as the layout grows, and without this both the 2mm stroke and the
+ * 3mm dashes shrink with it. Measured in the browser at 40 straights:
+ * scale 0.1616, stroke 0.323 device px, dash 0.485 device px. Both under one
+ * pixel, so the dashes stopped resolving and the ring itself almost vanished,
+ * leaving the cursor marked by sub-pixel colour alone -- the colour-only
+ * verdict DESIGN.md rule 2 forbids, appearing only on big boards where the
+ * cursor matters most. `.gap-leader` below already does this for the same
+ * reason.
+ */
+.port-cursor-ring {
+  fill: none;
+  stroke: var(--ink-soft);
+  stroke-width: 2;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
 }
 .port:focus { outline: none; }
 .port:focus-visible .port-dot { stroke: var(--ink); stroke-width: 7; }

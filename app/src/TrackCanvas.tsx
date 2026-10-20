@@ -74,8 +74,14 @@ export interface TrackCanvasProps {
    * marker or the number on screen stops matching the number in the words.
    */
   readonly badJoints?: readonly (readonly [number, number])[];
-  /** The free end currently armed, if any. */
-  readonly selected?: PortRef | null;
+  /**
+   * Where the next piece will attach. Drawn differently from `armed`, because
+   * they used to be one value and a user who clicked the end they had just
+   * built onto silently sent the next piece off to start its own run.
+   */
+  readonly cursor?: PortRef | null;
+  /** The free end currently armed for a weld, if any. */
+  readonly armed?: PortRef | null;
   /** Clicking a free end. This is the whole editing interaction (D5). */
   readonly onPortClick?: (ref: PortRef) => void;
 }
@@ -87,7 +93,8 @@ export function TrackCanvas({
   clashes = [],
   gaps = [],
   badJoints = [],
-  selected = null,
+  cursor = null,
+  armed = null,
   onPortClick,
 }: TrackCanvasProps) {
   const { segments, ports: renderedPorts } = render;
@@ -325,14 +332,28 @@ export function TrackCanvas({
         {renderedPorts
           .filter((p) => p.free)
           .map((p) => {
-            const armed =
-              selected !== null &&
-              selected.pieceId === p.pieceId &&
-              selected.port === p.port;
+            const isArmed =
+              armed !== null &&
+              armed.pieceId === p.pieceId &&
+              armed.port === p.port;
+            const isCursor =
+              cursor !== null &&
+              cursor.pieceId === p.pieceId &&
+              cursor.port === p.port;
+            /*
+             * ONLY `is-armed`, because only `is-armed` has a rule behind it.
+             * This carried an `is-cursor` class too, and nothing in app.css or
+             * tokens.css ever styled it and no spec ever read it: inert
+             * markup, which is the very thing the stylesheet specs in
+             * trackCanvasPolarity.test.ts were written to catch. The cursor is
+             * drawn by the `.port-cursor-ring` circle below and announced in
+             * the accessible name; it needs no class.
+             */
+            const portClass = `port${isArmed ? ' is-armed' : ''}`;
             return (
               <g
                 key={`${p.pieceId}#${p.port}`}
-                className={armed ? 'port is-armed' : 'port'}
+                className={portClass}
                 onClick={() => onPortClick?.({ pieceId: p.pieceId, port: p.port })}
                 role="button"
                 tabIndex={0}
@@ -349,7 +370,36 @@ export function TrackCanvas({
                  * true whatever the dot looks like.
                  */
                 aria-label={
-                  (armed ? 'Selected free ' : 'Free ') +
+                  /*
+                   * THE CURSOR IS IN THE NAME TOO, for the reason the comment
+                   * above gives: the ring and the fill are sight-only, so a
+                   * state a screen reader cannot hear is a state it does not
+                   * have. When the cursor and the armed end were one value
+                   * there was one word to say; now there are two states and
+                   * both are announced.
+                   *
+                   * ARMED WINS AND SAYS ONLY "Selected", which drops no
+                   * information because ARMED IMPLIES THE CURSOR IS ON THE
+                   * SAME PORT. `clickPort` is the only action that ARMS A NEW
+                   * END, and it sets both fields to the same ref. The other
+                   * actions write `armed` too -- `add` narrows it through
+                   * `stillFree`, and `undo`, `clear` and `preset` null it --
+                   * but none of them points it anywhere new. So "selected"
+                   * and "attaches here" are the same end whenever both hold,
+                   * and a second clause would repeat the first.
+                   *
+                   * The walk in editorReducer.test.ts checks this over every
+                   * state reachable in four actions. It cannot check an action
+                   * that does not exist yet: its action list is written out by
+                   * hand, so a NEW `EditorAction` variant that armed an end
+                   * without targeting it would pass unnoticed and this label
+                   * would be wrong. Anyone adding one has to add it there too.
+                   */
+                  (isArmed
+                    ? 'Selected free '
+                    : isCursor
+                      ? 'Next piece attaches here, free '
+                      : 'Free ') +
                   (p.polarity === null ? 'end' : `${p.polarity} end`)
                 }
                 onKeyDown={(e) => {
@@ -371,7 +421,30 @@ export function TrackCanvas({
                   * smaller than the r=28 clash ring below, so the two marks
                   * cannot be mistaken for each other.
                   */}
-                {armed && <circle cx={p.x} cy={p.y} r={16} className="port-ring" />}
+                {isArmed && <circle cx={p.x} cy={p.y} r={16} className="port-ring" />}
+                {/*
+                  * THE CURSOR RING: where the next piece will attach.
+                  *
+                  * Needed because splitting the cursor from the armed end made
+                  * the r=16 ring mean ARMED only. Without this, disarming an
+                  * end left no mark at all while the cursor was still live, so
+                  * the user had less information than before the split, not
+                  * more.
+                  *
+                  * A DASHED ring, in `--ink-soft`, at r=21. Every part of that
+                  * is picked to avoid a channel something else owns: dashes are
+                  * used by nothing else here, `--ink` is the armed ring's stroke
+                  * among the port marks and must stay the heaviest of them
+                  * (the focus ring uses `--ink` too, but focus is transient and
+                  * keyboard-driven, so the two never compete for meaning),
+                  * `fill` carries polarity, and 21 sits between the armed 16
+                  * and the clash 28 so three rings cannot be confused.
+                  * Suppressed when the end is armed, because the armed ring
+                  * already marks it and two rings on one dot is noise.
+                  */}
+                {isCursor && !isArmed && (
+                  <circle cx={p.x} cy={p.y} r={21} className="port-cursor-ring" />
+                )}
                 {/*
                   * Filled is a peg, hollow is a socket; same radius, so this
                   * adds no ink to a dense layout. A heel takes neither class,

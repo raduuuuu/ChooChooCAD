@@ -251,3 +251,175 @@ describe('a peg and a socket are drawn differently', () => {
     expect(new Set(ends).size).toBe(3);
   });
 });
+
+/*
+ * THE CURSOR RING HAS TO DO SOMETHING (reported bug, 2026-10-20).
+ *
+ * Splitting the cursor from the armed end made the r=16 ring mean ARMED only,
+ * so without a rule of its own the cursor would be live and unmarked and the
+ * user would have LESS feedback than before the split. This repository has
+ * shipped a class with no rule behind it before, which is why these specs read
+ * the stylesheet as text rather than trusting the markup.
+ *
+ * MUTATION PROOF, RUN. Deleting the `.port-cursor-ring` block from app.css
+ * fails THREE of the specs below -- the two here and the `vector-effect` one,
+ * which the first version of this note forgot -- observed:
+ *   .port-cursor-ring must declare a stroke: expected 0 to be greater than 0
+ *   the cursor stroke must be a token from tokens.css: expected undefined to
+ *   be truthy
+ * Changing its stroke to `var(--ink)` fails only the second, observed:
+ *   expected 'ink' not to be 'ink'
+ */
+describe('the cursor ring is drawn, and does not steal the armed channel', () => {
+  const strokesFor = (selector: string): string[] =>
+    [...bare.matchAll(new RegExp(`[^{}]*\\${selector}[^{}]*\\{([^}]*)\\}`, 'g'))].flatMap((m) =>
+      [...(m[1] ?? '').matchAll(/stroke\s*:\s*([^;]+)/g)].map((d) => (d[1] ?? '').trim()),
+    );
+
+  it('declares a stroke, so the class is not inert markup', () => {
+    const strokes = strokesFor('.port-cursor-ring');
+    expect(strokes.length, '.port-cursor-ring must declare a stroke').toBeGreaterThan(0);
+  });
+
+  it('does not use the ink reserved for the armed end', () => {
+    /*
+     * The LAST stroke declared, not the first: a later rule promoting the
+     * cursor to `--ink` would make it compete with the armed signal, which is
+     * the one thing the ARMED comment in app.css asks callers not to do.
+     */
+    const strokes = strokesFor('.port-cursor-ring');
+    const effective = strokes[strokes.length - 1]!;
+    const token = /var\(\s*--([a-z0-9-]+)/.exec(effective)?.[1];
+    expect(token, 'the cursor stroke must be a token from tokens.css').toBeTruthy();
+    // Exact name. A `\b` after "ink" matches inside "--ink-soft", which is the
+    // correct value here, so a looser check would reject the right answer.
+    expect(token).not.toBe('ink');
+  });
+
+  /*
+   * THE DASH MUST SURVIVE THE SCALE, or the ring is colour-only on exactly the
+   * boards where the cursor matters most.
+   *
+   * The dash is the non-hue channel DESIGN.md rule 2 requires, and it was
+   * declared in viewBox millimetres. The canvas fits the whole layout into a
+   * fixed box, so the scale falls as the board grows. Measured in a browser
+   * during QA: at 40 straights the scale was 0.1616, which rendered the 2mm
+   * stroke at 0.323 device px and each 3mm dash at 0.485 device px. Under one
+   * pixel both the dashes and the ring itself stop resolving, leaving sub-pixel
+   * colour as the only signal.
+   *
+   * Pinned on the declaration rather than on a rendered pixel because this
+   * suite has no DOM and no CSS engine; the browser measurement above is what
+   * establishes the number, and this spec keeps the fix from being deleted.
+   *
+   * MUTATION PROOF, RUN: remove `vector-effect: non-scaling-stroke` from
+   * `.port-cursor-ring`. Observed:
+   *   the cursor ring's dash must not scale with the board: expected undefined
+   *   to be 'non-scaling-stroke'
+   *
+   * SECOND MUTATION, RUN, the one the first version missed: append
+   * `.port-cursor-ring { vector-effect: none; }` to the end of app.css.
+   * Observed:
+   *   the cursor ring's dash must not scale with the board: expected 'none'
+   *   to be 'non-scaling-stroke'
+   * The pre-fix version of this spec passed that, because `.exec` stopped at
+   * the first block.
+   */
+  it('keeps its stroke and dash at a fixed device size as the board grows', () => {
+    /*
+     * EVERY matching block, not the first. `.exec` returns one match, so an
+     * override appended later in the file -- `.port-cursor-ring {
+     * vector-effect: none; }` -- was invisible and this spec stayed green
+     * while the browser lost the protection. Found in review, and it is the
+     * same rule the stroke spec above follows: the last declaration wins, and
+     * "last" has to mean last in the stylesheet, not last inside one block.
+     */
+    const declarations = [
+      ...bare.matchAll(/[^{}]*\.port-cursor-ring[^{}]*\{([^}]*)\}/g),
+    ].flatMap((block) =>
+      [...(block[1] ?? '').matchAll(/vector-effect\s*:\s*([^;]+)/g)].map((d) =>
+        (d[1] ?? '').trim(),
+      ),
+    );
+    expect(
+      declarations[declarations.length - 1],
+      "the cursor ring's dash must not scale with the board",
+    ).toBe('non-scaling-stroke');
+  });
+
+  /*
+   * THE ARMED RING MUST NOT SCALE EITHER, and this spec exists because fixing
+   * only the cursor left the armed ring with the same defect and reversed what
+   * a click looks like.
+   *
+   * The two rings never appear together: `armed` always implies the cursor is
+   * on that same port, and TrackCanvas suppresses the cursor ring while an end
+   * is armed. Measured on a 40-straight board at scale 0.1616, one ring
+   * visible in each state. So the comparison the user actually makes is
+   * sequential, on one port, as they click it -- and with only the cursor
+   * fixed, arming took that port from a crisp 2px dashed ring to a 0.48px
+   * armed ring, making the stronger state the fainter mark.
+   *
+   * MUTATION PROOF, RUN: remove `vector-effect: non-scaling-stroke` from
+   * `.port-ring`. Observed:
+   *   the armed ring must hold its weight at any zoom, or the cursor ring
+   *   outweighs it: expected undefined to be 'non-scaling-stroke'
+   */
+  it('holds the armed ring to the same fixed device size', () => {
+    const declarations = [
+      ...bare.matchAll(/[^{}]*\.port-ring[^{}]*\{([^}]*)\}/g),
+    ].flatMap((block) =>
+      [...(block[1] ?? '').matchAll(/vector-effect\s*:\s*([^;]+)/g)].map((d) =>
+        (d[1] ?? '').trim(),
+      ),
+    );
+    expect(
+      declarations[declarations.length - 1],
+      'the armed ring must hold its weight at any zoom, or the cursor ring outweighs it',
+    ).toBe('non-scaling-stroke');
+  });
+});
+
+/*
+ * Value: protects=the cursor and armed ends are drawn and announced as two different states
+ * Value: fails_when=a ring or aria-label branch is dropped, or the cursor ring is emitted on an armed end
+ * Value: why_new=only the stylesheet half of the cursor ring is pinned; nothing renders cursor/armed props
+ * Value: seam=`renderToStaticMarkup`, as the specs above; reads markup, dispatches no event
+ * Value: no_claim=nothing about colours or click handling; the DOM-less suite cannot dispatch events
+ *
+ * MUTATION PROOF, RUN: drop the `!isArmed` from the `isCursor && !isArmed` ring condition.
+ */
+describe('the canvas marks the cursor and the armed end differently', () => {
+  const graph: Graph = { pieces: [{ pieceId: 'one', partId: 'E' }], welds: [] };
+  const draw = (cursor: unknown, armed: unknown): string => {
+    const render = renderGraph(graph, ports, resolve, placeAll(graph, ports));
+    return renderToStaticMarkup(
+      createElement(TrackCanvas, { render, resolve, cursor, armed } as never),
+    );
+  };
+  const end = { pieceId: 'one', port: 1 };
+
+  it('a cursor that is not armed gets the dashed ring and its own announcement', () => {
+    const html = draw(end, null);
+    expect(count(html, 'port-cursor-ring')).toBe(1);
+    expect(count(html, 'class="port-ring"')).toBe(0);
+    expect(count(html, 'Next piece attaches here, free')).toBe(1);
+    expect(count(html, 'Selected free')).toBe(0);
+  });
+
+  it('an end that is both armed and cursor shows the armed ring only', () => {
+    const html = draw(end, end);
+    expect(count(html, 'class="port-ring"')).toBe(1);
+    expect(count(html, 'port-cursor-ring')).toBe(0);
+    expect(count(html, 'Selected free')).toBe(1);
+    expect(count(html, 'Next piece attaches here')).toBe(0);
+  });
+
+  it('with neither, no ring is drawn and ends are announced as plain free ends', () => {
+    const html = draw(null, null);
+    expect(count(html, 'port-cursor-ring')).toBe(0);
+    expect(count(html, 'class="port-ring"')).toBe(0);
+    expect(count(html, 'Selected free')).toBe(0);
+    expect(count(html, 'Next piece attaches here')).toBe(0);
+  });
+});
