@@ -237,10 +237,26 @@ describe('the catalogue and the source stay independent', () => {
    *   3. A directory specifier such as `./sources/index.js`. The exclusion is
    *      anchored at the end of the path, so a folder named `sources` would
    *      pass. No such folder exists.
-   *   4. It cannot tell code from prose. The scan reads raw file text, so an
-   *      import written inside a COMMENT in `brio.ts` would fail this spec
-   *      spuriously. That is the one false-positive direction left, and
-   *      `brio.ts` is heavily commented, so it is worth knowing.
+   *   4. A specifier assembled at runtime, such as
+   *      `import(base + '/sources.js')`. Nothing short of a graph walk sees
+   *      that one.
+   *
+   * COMMENTS ARE STRIPPED FIRST, and that is not cosmetic. The second version
+   * of this spec scanned raw text, and an independent reviewer defeated it with
+   * one line of valid TypeScript:
+   *
+   *     import { CURVE_RADII_OURS } from /* published radii *\/ './sources.js';
+   *
+   * The pattern looks for `from` or `import` followed by a quoted string, and a
+   * block comment between them means the specifier is never captured. Verified
+   * end to end before this repair: with that import in place, the catalogue
+   * reading E1's radius from here, and the source's E1 changed from 90 to 91,
+   * the ENTIRE SUITE PASSED while the shipped centreline for E1 moved from 110
+   * to 111. Stripping comments closes that, and closes the mirror-image
+   * false positive where an import mentioned inside a comment failed the spec
+   * for no reason. This repository already learned this lesson once, on the
+   * stylesheet checks in `app/src/trackCanvasPolarity.test.ts`: strip comments
+   * first, because a comment quoting a rule satisfies a naive regex.
    *
    * A real module-graph walk is the honest instrument and is not built. This is
    * the cheap guard against the plausible accident: a direct import added by
@@ -259,8 +275,15 @@ describe('the catalogue and the source stay independent', () => {
      * `sources`, so `./resources` and `./datasources` would have failed the
      * spec for no reason. Anchoring on the path segment fixes both directions.
      */
+    const code = catalogue
+      // Block comments, including the one that defeated the previous version.
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      // Line comments. Anchored on whitespace so a `https://` inside a string
+      // literal survives; imports sit on their own lines, so nothing real is
+      // lost by clearing to end of line.
+      .replace(/(^|\s)\/\/.*$/gm, '$1');
     const specifiers = [
-      ...catalogue.matchAll(/(?:from|import)\s*\(?\s*['"]([^'"]+)['"]/g),
+      ...code.matchAll(/(?:from|import)\s*\(?\s*['"]([^'"]+)['"]/g),
     ].map((m) => m[1]!);
     expect(specifiers.length, 'found no imports at all, so the scan is broken')
       .toBeGreaterThan(0);
@@ -327,6 +350,11 @@ describe('the published sentences are self-consistent', () => {
      * free; the helper is applied to all three for uniformity, not because it
      * does work on each.
      *
+     * The boundary excludes a leading DOT as well as a digit. An independent
+     * reviewer passed this spec by rewriting the quote to `measuring 1.26mm
+     * from center to center`: a period satisfies `[^0-9]`, so `26` matched the
+     * fractional part of a different number.
+     *
      * Found by a stable predicate rather than `RESOLVED[2]`, so reordering the
      * audit trail fails this spec by name instead of throwing on an index.
      */
@@ -337,7 +365,7 @@ describe('the published sentences are self-consistent', () => {
       .toBeTruthy();
     const note = profile!.conflict!.note;
     const atDigitBoundary = (text: string): RegExp =>
-      new RegExp(`(^|[^0-9])${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+      new RegExp(`(^|[^0-9.])${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
     expect(note).toMatch(
       atDigitBoundary(
         `two ${TRACK_PROFILE.grooveWidthMm}mm wide grooves that are ` +
@@ -363,7 +391,8 @@ describe('the published sentences are self-consistent', () => {
     // TypeError on `undefined`, which reports a crash instead of the defect.
     const inner = CURVE_RADII_OURS['E'];
     const outer = CURVE_OUTER_RADII['E'];
-    expect(inner, 'E has no inner radius in the source').toBe(e.innerRadiusMm);
+    expect(inner, "E's source radius is missing or disagrees with the catalogue")
+      .toBe(e.innerRadiusMm);
     expect(typeof outer, 'E has no outer radius in the source').toBe('number');
     expect(outer! - inner!).toBe(TRACK_PROFILE.plankWidthMm);
     expect(centrelineRadiusMm(e)).toBe((inner! + outer!) / 2);
@@ -406,7 +435,15 @@ describe('every figure declares where it came from', () => {
     // promote a third-party transcription above a real measurement.
     for (const p of BRIO_PARTS) {
       expect(p.dimensions.status, p.id).not.toBe('user-measured');
-      expect(p.slop.calibrationStatus, p.id).not.toBe('measured');
+      /*
+       * Pinned to the exact value, not merely away from 'measured'.
+       * `CalibrationStatus` has THREE members ('measured' | 'published' |
+       * 'estimated'), so `not.toBe('measured')` let a BRIO part's give drift to
+       * 'published' with nothing failing. Nothing in the verdict path treats
+       * 'published' give as measured, so that was not an outright upgrade, but
+       * the spec read as a protection it only half provided.
+       */
+      expect(p.slop.calibrationStatus, p.id).toBe('estimated');
     }
   });
 
