@@ -29,22 +29,64 @@ import { displacement } from '../src/geom/pose.js';
 import type { Part, SwitchPart } from '../src/parts/schema.js';
 
 const base = makeResolver(BUILT_IN);
-const A1 = base('A1'); // 108mm straight
+const A1 = base('A1');
 const E = base('E');
 
-/* A switch whose straight road is one A1 and whose diverging road is one E. */
+/*
+ * Throws rather than falling back. The first version of this read
+ * `A1.kind === 'straight' ? A1.lengthMm : 0`, and a 0 there would have built a
+ * zero-length switch whose specs fail far from the cause. The narrowing exists
+ * for the type checker, not as a real branch: if A1 ever stops being a straight
+ * this fixture is meaningless and should say so at the point of breakage.
+ */
+const a1Length = (): number => {
+  if (A1.kind !== 'straight') {
+    throw new Error(`fixture needs A1 to be a straight, got ${A1.kind}`);
+  }
+  return A1.lengthMm;
+};
+
+/*
+ * Same guard for E, added 2026-10-20. The docblock below claimed every field
+ * was derived while `arcSteps` and `innerRadiusMm` still fell back to the
+ * literals 2 and 182, and that 182 was the same hard-coded radius this task
+ * removed from `trustBoundary.test.ts`. Falling back silently also contradicted
+ * the reasoning written directly above for `a1Length`.
+ */
+const eCurve = (): { arcSteps: number; innerRadiusMm: number } => {
+  if (E.kind !== 'curve') {
+    throw new Error(`fixture needs E to be a curve, got ${E.kind}`);
+  }
+  return { arcSteps: E.arcSteps, innerRadiusMm: E.innerRadiusMm };
+};
+
+/*
+ * A switch whose straight road is one A1 and whose diverging road is one E.
+ *
+ * Every DIMENSIONAL field below is derived from those two catalogue parts, with
+ * no written dimension and no silent fallback. The identity fields (`id`,
+ * `brand`, `kind`, `name`) are literals, as a fixture's identity should be; an
+ * earlier version of this sentence said "every field", which was false for
+ * those four. `throughLengthMm` used to be the literal
+ * 108, and the spec it feeds claims the switch's straight road matches "a plain
+ * straight of the same length" -- a claim that must hold for whatever length A1
+ * is, not only for 108. Pinning the number here meant a dimension change in
+ * `brio.ts` failed this file too, which is the collateral noise task K2 set out
+ * to remove: the catalogue is pinned in `engine/test/sources.test.ts` and
+ * nowhere else.
+ */
 const SW: SwitchPart = {
   id: 'TEST-SWITCH',
   brand: 'BRIO',
   kind: 'switch',
   name: 'Test switch',
-  throughLengthMm: 108,
-  arcSteps: E.kind === 'curve' ? E.arcSteps : 2,
-  innerRadiusMm: E.kind === 'curve' ? E.innerRadiusMm : 182,
+  throughLengthMm: a1Length(),
+  arcSteps: eCurve().arcSteps,
+  innerRadiusMm: eCurve().innerRadiusMm,
   dimensions: A1.dimensions,
   slop: A1.slop,
   ends: A1.ends,
-  heightMm: 0,
+  heightMm: A1.heightMm,
   gaugeWidthMm: A1.gaugeWidthMm,
   plankWidthMm: A1.plankWidthMm,
   plankThicknessMm: A1.plankThicknessMm,

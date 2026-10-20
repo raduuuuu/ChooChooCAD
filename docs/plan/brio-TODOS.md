@@ -2171,3 +2171,90 @@ nothing else becomes announced") still holds now that the sentence has grown.
 **Effort:** human ~30m to listen and record / CC ~0 for the listening, ~30m to act on
 what it finds. **Priority:** P2.
 **Depends on / blocked by:** nothing. Owner-owned because it needs a human ear.
+
+## P2 — E1's centreline is derived from an unpublished outer radius, and nothing says so (filed by /ship's adversarial pass, 2026-10-20)
+
+**What:** `centrelineRadiusMm` (`engine/src/parts/schema.ts:391-393`) returns
+`part.innerRadiusMm + part.plankWidthMm / 2`. For part E that derivation has an
+independent published witness: the source states E's inner radius as 182 and its
+outer as 222, their difference is the plank width and their midpoint is the
+centreline, and `engine/test/sources.test.ts` checks exactly that. For E1 there
+is no such witness. The source states E1's inner radius as 90 and **never states
+its outer radius at all**, so E1's centreline is an inference from a published
+plank width, not a published figure.
+
+**Why it matters.** `engine/data/sources.ts` says in its own docblock that E1's
+outer radius "is never published and must not be inferred from the plank width
+silently". The engine then performs precisely that inference for every E1 in
+every layout, and nothing in the verdict path marks the result as derived. The
+source page additionally warns that the printed large-curve diameter "does not
+appear to correspond to any actual measurements on the track", so the figures in
+this family are the ones least safe to extend by arithmetic.
+
+This is the product's cardinal rule, not a test gap: a verdict resting on E1
+geometry is resting on a number nobody published, and the user is not told.
+
+**Scope note.** Pre-existing behaviour, not introduced by K2. K2 made it
+visible by writing down which outer radii are published.
+
+**Candidate shape:** a provenance flag on a derived centreline, surfaced in the
+trust register the way `estimated-give` and `axial-only-give` already are, so a
+layout containing E1 discloses that its curve geometry is partly inferred.
+
+## P3 — The track profile has a third, unpinned copy in thirdParty.ts (filed by /ship's adversarial pass, 2026-10-20)
+
+**What:** K2 made `engine/data/brio.ts` and `engine/data/sources.ts` two
+independent transcriptions, compared in `engine/test/sources.test.ts`. A third
+copy exists: `engine/data/thirdParty.ts` restates `gaugeWidthMm: 26`,
+`plankWidthMm: 40` and `plankThicknessMm: 12` as literals in its seeds, and
+those seeds are merged into the catalogue lookup map (`engine/data/brio.ts:173`).
+The pins iterate `BRIO_PARTS` only, so the seed copies are covered by nothing.
+
+**Why it matters.** A drifted `plankWidthMm` in a seed shifts
+`centrelineRadiusMm` for that part by half the drift, with no spec failing. The
+seeds are `unverified`, so a verdict involving them is already hedged, which
+caps the damage but does not remove it.
+
+## P3 — Remaining holes in the catalogue/source independence guard (filed by /ship's adversarial pass, 2026-10-20)
+
+**What:** `engine/test/sources.test.ts` asserts `brio.ts` does not import
+`sources.ts`, because if it did, every pin in that file would compare one
+constant with itself and the suite would stay green. The guard is now a
+TypeScript AST walk with filesystem resolution, proven against 19 probes. Four
+coupling forms still escape it, each listed in the spec's own docblock:
+
+- a subpath-import alias such as `#sources`, which `split('#')` reduces to the
+  empty specifier. No `imports` map in `package.json`, no `paths` in
+  `tsconfig.json` and no vite or vitest alias exists today, so nothing uses it.
+- an indirected require, `const r = require; r('./sources.js')`.
+- `import.meta.glob('./sources*')`.
+- a transitive coupling through another module. `brio.ts`'s only value import is
+  `./thirdParty.js`, which imports nothing but `../src/parts/schema.js`.
+
+**Why it matters.** This one spec protects every other pin in the file, so its
+holes are leveraged. None is a plausible accident: each requires deliberately
+unusual syntax, whereas the accident the guard was built for, a direct import
+added during a tidy-up, is now caught in sixteen forms. A module-graph walk
+would close all four.
+
+## P3 — Test-quality items left after the K2 review (filed by /ship's review, 2026-10-20)
+
+**What:** four small items, none of which blocks anything:
+
+- `TRACK_PROFILE.grooveDepthMm` and `grooveSpacingMm` have no catalogue
+  counterpart, so their only check is against the verbatim sentence in
+  `RESOLVED[2]`. That catches a typo or a one-sided edit but not a misreading of
+  the source written into both places. The needles are also matched against the
+  whole note rather than being anchored to the `Verbatim:` quote span.
+- `TRACK_PROFILE` and the other source constants are `as const`, which is
+  compile-time only, and are not `Object.freeze`d. No production reach, since
+  only tests import them, but a test that mutated one would corrupt later specs
+  in the same process.
+- `engine/test/analytic.test.ts`'s 18mm-lattice spec still uses
+  `expect(row, ids).toBeDefined()`, which this project's conventions forbid.
+  Pre-existing and outside K2's files.
+- `docs/plan/2026-10-13-open-work.md` carries roughly six stale internal line
+  pointers: `line 458` and `line 460` point at blank lines, and `2058`, `538`
+  and `417-420` point at unrelated content. Two were corrected during this
+  review; the rest need re-deriving, and the convention should move to task ids
+  or heading anchors so they stop rotting.

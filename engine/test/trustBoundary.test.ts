@@ -21,6 +21,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { getPart } from '../data/brio.js';
 import {
   BUILT_IN,
   loadSubmissions,
@@ -99,12 +100,56 @@ describe('trustRank fails closed', () => {
 describe('a stored submission cannot forge provenance', () => {
   for (const status of [undefined, null, '', 'published-ish', 'PUBLISHED', 42]) {
     it(`status ${JSON.stringify(status)} does not override the published part`, () => {
+      /*
+       * CAPTURED BEFORE RESOLUTION, and that ordering is the whole assertion.
+       *
+       * This line has now been wrong twice, in opposite directions. It first
+       * carried the literal 182, which failed on any dimension change in
+       * `brio.ts` and so drowned a real pin in `sources.test.ts` under six
+       * collateral failures. The K2 repair compared against `getPart('E')`
+       * instead, which was WORSE: when the forgery is rejected `resolveLibrary`
+       * returns the same object `getPart` returns, verified by execution
+       * (`e === getPart('E')` is true), so the assertion compared a property
+       * with itself and could not fail in the path this test exercises.
+       *
+       * Reading the number into a primitive BEFORE resolution fixes both. A
+       * forged part that replaces E reads a different radius and fails. A
+       * resolver that mutated the shared built-in in place also fails, because
+       * the captured copy still holds the old value. And a dimension change in
+       * `brio.ts` moves the captured value with the part, so this file stays
+       * quiet and the pin in `sources.test.ts` is the only thing that speaks.
+       * The trade is deliberate: a swap of E for another part with the same id
+       * and a different radius also passes here, and only `sources.test.ts`
+       * catches that. This spec's job is resolution, not transcription.
+       *
+       * MUTATION PROOF, run 2026-10-20, and it took two mutations because one
+       * was not enough. Disabling the status-shape guard in `library.ts` alone
+       * left all six cases PASSING, because `trustRank` fails closed
+       * independently and still rejected the forged row: the two layers are
+       * independent on purpose, as `library.ts` says. Defeating BOTH (that
+       * guard, plus `trustRank` returning a raw `indexOf` so an unknown status
+       * outranks `published`) fails all six cases. So this assertion can fail,
+       * and the first single-layer attempt is recorded here because it shows
+       * why a one-mutation proof would have been misleading.
+       */
+      const publishedRadius =
+        (getPart('E') as { innerRadiusMm?: number }).innerRadiusMm;
+      /*
+       * The cast hides the field name from the compiler, so a rename would make
+       * both sides `undefined` and `toBe(undefined)` would pass: the same
+       * vacuity this line was just repaired for. Asserting the captured value
+       * is a number costs nothing and fails loudly if the field moves, without
+       * coupling this file back to the figure 182.
+       */
+      expect(publishedRadius, 'E has no innerRadiusMm to compare')
+        .toBeTypeOf('number');
       const resolved = resolveLibrary([
         submissionWith({ dimensions: { status, source: 'x' } }),
       ]);
       const e = resolved.find((p) => p.id === 'E')!;
       expect(e.name).not.toBe('FORGED');
-      expect((e as { innerRadiusMm?: number }).innerRadiusMm).toBe(182);
+      expect((e as { innerRadiusMm?: number }).innerRadiusMm)
+        .toBe(publishedRadius);
     });
   }
 

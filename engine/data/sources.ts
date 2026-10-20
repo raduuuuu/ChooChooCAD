@@ -1,28 +1,39 @@
 /**
  * Published figures, their citations, and the conflicts with our own data.
  *
- * WHY THIS FILE EXISTS (task K2)
+ * WHY THIS FILE EXISTS
  *
- * Before this, every absolute dimension in `brio.ts` was pinned to nothing. The
- * tests proved the published RELATIONS exactly (A1 = 2*A2, D = 2*A1, 2*D = 3*A)
- * and those still hold, but a relation is true for a whole family of values: if
- * every straight were 10% longer the relations would still pass. Four separate
- * tests appeared to pin the curve radius and did not; each one restated `182` as
- * its own expected value, so the number was pinned to itself in four places.
- * Changing the datum and the literal together kept the suite green. That is the
- * same circular-pin defect found in the renderer's sweep flag, which a mutation
- * test proved useless on the same day.
+ * The suite proves the published RELATIONS exactly (A1 = 2*A2, D = 2*A1,
+ * 2*D = 3*A), and a relation is true for a whole family of values: scale every
+ * straight by 10% and all of them still pass. Absolute figures therefore need a
+ * citation to be pinned to, which is what this file is. The original defect was
+ * four separate tests that appeared to pin the curve radius and did not, because
+ * each restated `182` as its own expected value, so changing the datum and the
+ * literals together kept the suite green.
  *
- * So this file holds the published figures ONCE, with a citation each, and the
- * tests compare `brio.ts` against it. Correcting a figure is now one edit in one
- * place, and exactly one test tells you the data moved.
+ * CORRECTED 2026-10-20 (task K2). The paragraph here used to claim that every
+ * absolute dimension in `brio.ts` was pinned to nothing and that exactly one
+ * test tells you the data moved. Both were out of date: `STRAIGHT_LENGTHS`,
+ * `CURVE_RADII_OURS` and `CURVE_ARC_STEPS` already existed and the suite already
+ * compared the catalogue against them. What was genuinely unpinned was the track
+ * profile, whose figures lived here only as PROSE inside
+ * `RESOLVED[2].conflict.note`. They are now exported as `TRACK_PROFILE`.
  *
- * WHAT IT ALSO RECORDS: three unresolved conflicts
+ * A CORRECTION TAKES TWO EDITS, AND THAT IS DELIBERATE. `brio.ts` keeps its own
+ * private copies of these figures and does NOT import them from here. If it did,
+ * both sides of every comparison in `engine/test/sources.test.ts` would be the
+ * same object and no assertion there could ever fail. So fix the figure here,
+ * fix it in `brio.ts`, and that test stays red until the two agree. The header
+ * used to say "one edit in one place", which was the opposite of the mechanism.
  *
- * Searching for the published figures immediately contradicted our own data in
- * three places. None is resolved here, because picking a side silently is how
- * the problem started. Each conflict is recorded with both values so the
- * decision is visible and cheap to apply.
+ * WHAT IT ALSO RECORDS: three conflicts, ALL RESOLVED
+ *
+ * Searching for the published figures contradicted our own data in three places.
+ * All three were settled on 2026-10-09 from the primary source and are kept in
+ * `RESOLVED` as the audit trail, with both values and the decisive sentence
+ * quoted. `CONFLICTS` is a declared empty array so "nothing unresolved" is
+ * explicit rather than absent. This section used to say none was resolved, which
+ * left a reader believing 182 and 40 were still disputed.
  *
  * PROVENANCE: these are published third-party figures, not measurements anyone
  * here took. The same open legal question flagged pre-launch over `brio.ts`
@@ -33,8 +44,14 @@
 export interface Citation {
   /** Human-readable source. */
   readonly source: string;
-  /** 'published' at best. Nothing here is 'measured'. */
-  readonly status: 'published' | 'measured' | 'conflicting';
+  /**
+   * 'published' at best, and the type says so rather than trusting the comment.
+   * `'measured'` was removable with no blast radius: `Citation` is used only
+   * inside this file (three constants plus `RESOLVED`/`CONFLICTS`) and the value
+   * was never assigned. Leaving it in meant the one label this file must never
+   * claim was the one the compiler would have accepted silently.
+   */
+  readonly status: 'published' | 'conflicting';
   /** What the figure is measured to, where that is ambiguous. */
   readonly convention?: string;
   /** Set when our data and the source disagree. */
@@ -67,8 +84,21 @@ export const STRAIGHT_CITATION: Citation = {
 };
 
 /**
- * Curve radii as our data currently holds them. NOT agreed with the source.
- * See CONFLICTS below before trusting either number.
+ * Curve INNER radii, millimetres, as published.
+ *
+ * STALE POINTER FIXED (task K2). This docblock used to read "NOT agreed with
+ * the source. See CONFLICTS below", and both halves were wrong by then:
+ * `CONFLICTS` is a declared empty array, and `RESOLVED[0]` and `RESOLVED[1]`
+ * settled these two figures from the primary source on 2026-10-09. 182 and 90
+ * were right all along AS PUBLISHED INNER RADII. What was wrong was the engine
+ * treating an inner radius as a centreline radius, fixed by deriving the
+ * centreline in one place: `centrelineRadiusMm` in `engine/src/parts/schema.ts`,
+ * as `innerRadiusMm + plankWidthMm / 2`. `CURVE_OUTER_RADII` below is NOT that
+ * derivation; it is the independent published figure the test checks it against.
+ * This sentence named the wrong site until 2026-10-20.
+ *
+ * The `_OURS` suffix survives because renaming an export is not this task's
+ * job. Read it as "the radii our catalogue holds", which now agree.
  */
 export const CURVE_RADII_OURS: Readonly<Record<string, number>> = {
   E: 182,
@@ -85,6 +115,58 @@ export const CURVE_ARC_CITATION: Citation = {
   source: 'woodenrailway.info/track/brio-track-guide',
   status: 'published',
   convention: 'curved track divides the circle into eight 45-degree arcs',
+};
+
+/**
+ * Curve OUTER radii, millimetres. Only E's is published.
+ *
+ * Here because the centreline derivation needs two numbers, and the test that
+ * checks it used to declare both as local literals (`const INNER = 182; const
+ * OUTER = 222;`), which pinned them to themselves. The source gives E's pair in
+ * one sentence; E1's outer radius is never stated, so it is absent rather than
+ * computed, and nothing may infer it from the plank width without saying so.
+ */
+export const CURVE_OUTER_RADII: Readonly<Record<string, number>> = {
+  E: 222,
+};
+
+/**
+ * The track profile: the three figures every part shares, plus the groove
+ * figures published in the same breath.
+ *
+ * WHY THESE ARE HERE (task K2). They existed only as PROSE, inside
+ * `RESOLVED[2].conflict.note`, while `brio.ts` held them as its own private
+ * consts and `analytic.test.ts` restated 40, 12 and 26 as literal expectations.
+ * So the figures lived in three places and the test compared the catalogue
+ * against a copy of itself: mutating `brio.ts` failed that test whether or not
+ * any pin worked. Exported here, they have one home and one comparison.
+ *
+ * Source sentence, verbatim:
+ *
+ *   "A typical piece of BRIO track is 40mm wide and 12mm high, with two 6mm
+ *    wide grooves that are 3mm deep, spaced 20mm apart, measuring 26mm from
+ *    center to center."   -- woodenrailway.info/track/brio-track-guide
+ *
+ * The sentence is self-consistent, which is most of why it is trustworthy:
+ * 20mm apart + 6mm wide = 26mm centre to centre. `sources.test.ts` checks that
+ * arithmetic against these fields rather than against restated numbers, so a
+ * bad transcription here cannot pass by agreeing with itself.
+ */
+export const TRACK_PROFILE = {
+  plankWidthMm: 40,
+  plankThicknessMm: 12,
+  gaugeWidthMm: 26,
+  grooveWidthMm: 6,
+  grooveSpacingMm: 20,
+  grooveDepthMm: 3,
+} as const;
+
+export const PROFILE_CITATION: Citation = {
+  source: 'woodenrailway.info/track/brio-track-guide',
+  status: 'published',
+  convention:
+    'plank width and thickness across the piece; gauge is groove spacing, ' +
+    'centre to centre',
 };
 
 /**
