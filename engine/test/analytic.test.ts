@@ -25,14 +25,7 @@ import {
 } from '../data/library.js';
 import { brandFit } from '../data/thirdParty.js';
 import { layoutTrust } from '../src/joints/trust.js';
-import {
-  CONFLICTS,
-  CURVE_ARC_STEPS,
-  CURVE_RADII_OURS,
-  BRIO_PIECE_TABLE,
-  RESOLVED,
-  STRAIGHT_LENGTHS,
-} from '../data/sources.js';
+import { BRIO_PIECE_TABLE } from '../data/sources.js';
 import { equals, isZero, scale, toXY } from '../src/geom/cyclotomic.js';
 import { displacement } from '../src/geom/pose.js';
 import { computeResidual, totalGiveMm } from '../src/solver/residual.js';
@@ -337,92 +330,20 @@ describe('bound contract', () => {
   });
 });
 
-/**
- * Task K2: the catalogue's absolute dimensions, pinned to ONE place.
+/*
+ * The K2 dimension pins MOVED OUT of this file, 2026-10-20.
  *
- * Before this, every absolute figure was pinned to nothing. The relation tests
- * below are exact and still pass, but a relation holds for a whole family of
- * values: scale every straight by 10% and they all still pass. The curve radius
- * looked pinned by four tests and was not; each restated 182 as its own expected
- * value, so the number was pinned to itself. Mutation proved it: changing the
- * datum and the literals together kept the suite green.
+ * A `describe('catalogue data matches its published source')` block lived
+ * here and compared `brio.ts` against `sources.ts`. It also wrote 40, 12, 26,
+ * 182 and 222 out as literal expectations, so mutating a dimension in the
+ * catalogue failed THIS file whether or not the pin worked, and there was no
+ * way to tell a working pin from a collateral failure. The comparison now
+ * lives in `engine/test/sources.test.ts` and only there.
  *
- * So the published figures live in `engine/data/sources.ts` with a citation
- * each, and this is the ONLY test that compares the catalogue against them.
- * Correcting a figure is one edit there, and this test is what tells you.
+ * What stays here is this file's actual job: the published RELATIONS
+ * (A1 = 2*A2, D = 2*A1, 2*D = 3*A), which are exact and hold for a family of
+ * values, which is precisely why they are not a substitute for the pins.
  */
-describe('catalogue data matches its published source', () => {
-  it('every straight length matches the published figure exactly', () => {
-    for (const [id, mm] of Object.entries(STRAIGHT_LENGTHS)) {
-      const part = getPart(id);
-      expect(part.kind, id).toBe('straight');
-      expect((part as Extract<Part, { kind: 'straight' }>).lengthMm, id).toBe(mm);
-    }
-  });
-
-  it('every curve arc matches the published 45-degree division', () => {
-    for (const [id, steps] of Object.entries(CURVE_ARC_STEPS)) {
-      const part = getPart(id) as Extract<Part, { kind: 'curve' }>;
-      expect(part.arcSteps, id).toBe(steps);
-      expect(part.arcSteps * 22.5, id).toBe(45);
-    }
-  });
-
-  it('curve radii match OUR recorded values, which are DISPUTED', () => {
-    // Deliberately pinned to our own values rather than the source, because the
-    // two disagree and the conflict is unresolved. This test exists so that
-    // changing a radius is a visible, single-line decision rather than a silent
-    // edit. See CONFLICTS in sources.ts.
-    for (const [id, mm] of Object.entries(CURVE_RADII_OURS)) {
-      expect((getPart(id) as Extract<Part, { kind: 'curve' }>).innerRadiusMm, id).toBe(mm);
-    }
-  });
-
-  it('records every resolved conflict with its verbatim source', () => {
-    // Was: assert conflicts EXIST. All three resolved on 2026-10-09 from the
-    // primary source, so this now pins the resolutions. CONFLICTS is empty and
-    // stays named, so "nothing unresolved" is explicit rather than absent.
-    expect(CONFLICTS).toHaveLength(0);
-    expect(RESOLVED.length).toBe(3);
-    for (const r of RESOLVED) {
-      expect(r.status).toBe('published');
-      expect(r.conflict).toBeDefined();
-      expect(r.conflict!.ours).not.toBe(r.conflict!.theirs);
-      expect(r.conflict!.note).toMatch(/RESOLVED/);
-      expect(r.source).toContain('woodenrailway.info');
-    }
-  });
-
-  it('the centreline derivation matches the published inner and outer radii', () => {
-    // The whole correction in one assertion. The source states the E curve's
-    // inner radius as 182 and its outer as 222; the centreline is the midpoint,
-    // and the plank width is the difference. If any of the three drifts apart
-    // from the others, this fails.
-    const e = getPart('E') as Extract<Part, { kind: 'curve' }>;
-    const INNER = 182;
-    const OUTER = 222;
-    expect(e.innerRadiusMm).toBe(INNER);
-    expect(e.plankWidthMm).toBe(OUTER - INNER);
-    expect(centrelineRadiusMm(e)).toBe((INNER + OUTER) / 2);
-    expect(centrelineRadiusMm(e)).toBe(202);
-  });
-
-  it('the profile figures come from one published sentence and agree', () => {
-    // "40mm wide and 12mm high, with two 6mm wide grooves that are 3mm deep,
-    //  spaced 20mm apart, measuring 26mm from center to center."
-    for (const p of BRIO_PARTS) {
-      expect(p.plankWidthMm, p.id).toBe(40);
-      expect(p.plankThicknessMm, p.id).toBe(12);
-      expect(p.gaugeWidthMm, p.id).toBe(26);
-      // 20mm apart + 6mm wide = 26mm centre to centre. The sentence is
-      // self-consistent, and this is what makes it trustworthy.
-      expect(p.gaugeWidthMm, p.id).toBe(20 + 6);
-      // And the grooves must fit inside the plank, with wood left on each side.
-      expect(p.gaugeWidthMm + 6, p.id).toBeLessThan(p.plankWidthMm);
-    }
-  });
-
-});
 
 /**
  * The plank is wider than the gauge. Still true, but the story was backwards.

@@ -47,16 +47,30 @@ const a1Length = (): number => {
 };
 
 /*
+ * Same guard for E, added 2026-10-20. The docblock below claimed every field
+ * was derived while `arcSteps` and `innerRadiusMm` still fell back to the
+ * literals 2 and 182, and that 182 was the same hard-coded radius this task
+ * removed from `trustBoundary.test.ts`. Falling back silently also contradicted
+ * the reasoning written directly above for `a1Length`.
+ */
+const eCurve = (): { arcSteps: number; innerRadiusMm: number } => {
+  if (E.kind !== 'curve') {
+    throw new Error(`fixture needs E to be a curve, got ${E.kind}`);
+  }
+  return { arcSteps: E.arcSteps, innerRadiusMm: E.innerRadiusMm };
+};
+
+/*
  * A switch whose straight road is one A1 and whose diverging road is one E.
  *
- * Every field below is DERIVED from those two catalogue parts, never written
- * out. `throughLengthMm` used to be the literal 108 while the fields around it
- * already read from A1, and the spec it feeds claims the switch's straight road
- * matches "a plain straight of the same length" -- a claim that must hold for
- * whatever length A1 is, not only for 108. Pinning the number here meant a
- * dimension change in `brio.ts` failed this file too, which is the collateral
- * noise task K2 set out to remove: the catalogue is pinned in
- * `engine/test/sources.test.ts` and nowhere else.
+ * Every field below is DERIVED from those two catalogue parts, with no written
+ * dimension and no silent fallback. `throughLengthMm` used to be the literal
+ * 108, and the spec it feeds claims the switch's straight road matches "a plain
+ * straight of the same length" -- a claim that must hold for whatever length A1
+ * is, not only for 108. Pinning the number here meant a dimension change in
+ * `brio.ts` failed this file too, which is the collateral noise task K2 set out
+ * to remove: the catalogue is pinned in `engine/test/sources.test.ts` and
+ * nowhere else.
  */
 const SW: SwitchPart = {
   id: 'TEST-SWITCH',
@@ -64,12 +78,12 @@ const SW: SwitchPart = {
   kind: 'switch',
   name: 'Test switch',
   throughLengthMm: a1Length(),
-  arcSteps: E.kind === 'curve' ? E.arcSteps : 2,
-  innerRadiusMm: E.kind === 'curve' ? E.innerRadiusMm : 182,
+  arcSteps: eCurve().arcSteps,
+  innerRadiusMm: eCurve().innerRadiusMm,
   dimensions: A1.dimensions,
   slop: A1.slop,
   ends: A1.ends,
-  heightMm: 0,
+  heightMm: A1.heightMm,
   gaugeWidthMm: A1.gaugeWidthMm,
   plankWidthMm: A1.plankWidthMm,
   plankThicknessMm: A1.plankThicknessMm,

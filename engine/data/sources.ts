@@ -92,7 +92,10 @@ export const STRAIGHT_CITATION: Citation = {
  * settled these two figures from the primary source on 2026-10-09. 182 and 90
  * were right all along AS PUBLISHED INNER RADII. What was wrong was the engine
  * treating an inner radius as a centreline radius, fixed by deriving the
- * centreline in one place from `CURVE_OUTER_RADII` below.
+ * centreline in one place: `centrelineRadiusMm` in `engine/src/parts/schema.ts`,
+ * as `innerRadiusMm + plankWidthMm / 2`. `CURVE_OUTER_RADII` below is NOT that
+ * derivation; it is the independent published figure the test checks it against.
+ * This sentence named the wrong site until 2026-10-20.
  *
  * The `_OURS` suffix survives because renaming an export is not this task's
  * job. Read it as "the radii our catalogue holds", which now agree.

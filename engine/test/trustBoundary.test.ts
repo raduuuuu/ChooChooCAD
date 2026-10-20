@@ -118,9 +118,31 @@ describe('a stored submission cannot forge provenance', () => {
        * the captured copy still holds the old value. And a dimension change in
        * `brio.ts` moves the captured value with the part, so this file stays
        * quiet and the pin in `sources.test.ts` is the only thing that speaks.
+       * The trade is deliberate: a swap of E for another part with the same id
+       * and a different radius also passes here, and only `sources.test.ts`
+       * catches that. This spec's job is resolution, not transcription.
+       *
+       * MUTATION PROOF, run 2026-10-20, and it took two mutations because one
+       * was not enough. Disabling the status-shape guard in `library.ts` alone
+       * left all six cases PASSING, because `trustRank` fails closed
+       * independently and still rejected the forged row: the two layers are
+       * independent on purpose, as `library.ts` says. Defeating BOTH (that
+       * guard, plus `trustRank` returning a raw `indexOf` so an unknown status
+       * outranks `published`) fails all six cases. So this assertion can fail,
+       * and the first single-layer attempt is recorded here because it shows
+       * why a one-mutation proof would have been misleading.
        */
       const publishedRadius =
         (getPart('E') as { innerRadiusMm?: number }).innerRadiusMm;
+      /*
+       * The cast hides the field name from the compiler, so a rename would make
+       * both sides `undefined` and `toBe(undefined)` would pass: the same
+       * vacuity this line was just repaired for. Asserting the captured value
+       * is a number costs nothing and fails loudly if the field moves, without
+       * coupling this file back to the figure 182.
+       */
+      expect(publishedRadius, 'E has no innerRadiusMm to compare')
+        .toBeTypeOf('number');
       const resolved = resolveLibrary([
         submissionWith({ dimensions: { status, source: 'x' } }),
       ]);

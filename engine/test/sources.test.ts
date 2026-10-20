@@ -47,7 +47,7 @@
  * own proof. Those assertions moved here; `trustBoundary.test.ts` lost its
  * literal 182 the same way.
  *
- * MUTATION PROOF, thirteen RUN 2026-10-20, failures as OBSERVED. Catalogue
+ * MUTATION PROOF, thirteen runs on 2026-10-20, failures as OBSERVED. Catalogue
  * side, editing `engine/data/brio.ts`:
  *
  *   E `innerRadiusMm` 182 -> 183     2 specs, both here
@@ -79,7 +79,9 @@
  * constant, and so would every mutation proof above it. One spec stood between
  * a plausible cleanup and a file full of assertions that cannot fail.
  *
- * THREE OF THESE FOUND REAL DEFECTS, which is the only reason to run them.
+ * THREE REAL DEFECTS CAME OUT OF THIS, which is the only reason to run them.
+ * Two were found by the mutations listed above; the third was found separately
+ * and is not one of the thirteen runs.
  * `grooveDepthMm` 3 -> 4 originally failed NOTHING: its only guard was
  * `grooveDepthMm < plankThicknessMm`, and 4 is still under 12, so a wrong depth
  * passed unnoticed until the verbatim-sentence spec was added. The independence
@@ -88,7 +90,7 @@
  * `resolveLibrary` returns, which is the SAME object when a forgery is rejected,
  * so that assertion could not fail either.
  *
- * Two of those need reading rather than counting:
+ * Two of the thirteen runs above need reading rather than counting:
  *
  * The A1 length also fails "published straight-length relations hold exactly"
  * and "the pieces that break the 18mm rule are recorded as such", both in
@@ -207,41 +209,62 @@ describe('the catalogue and the source stay independent', () => {
    * identity, and so does every mutation proof run against `brio.ts`, because
    * the catalogue would simply read the edited value back.
    *
-   * That change would look like an obvious tidy-up. It would be invisible: the
-   * suite would stay green, the coverage report would stay at 100%, and the
-   * mutation records in the header above would still appear to hold while
-   * proving nothing. Until this spec existed, a prose docblock was the only
-   * thing standing in the way.
+   * That change would look like an obvious tidy-up, and it would be invisible:
+   * the suite would stay green and the mutation records in the header above
+   * would still appear to hold while proving nothing. Until this spec existed, a
+   * prose docblock was the only thing standing in the way.
    *
    * Read as TEXT, like the stylesheet checks in
    * `app/src/trackCanvasPolarity.test.ts`, because the thing under test is the
-   * absence of an edge in the module graph, which a runtime value cannot show.
-   * It is a blunt check: it proves no import statement names this module, not
-   * that no figure was copied by hand, which is exactly what we want copied.
+   * absence of an edge in the module graph, which a runtime value cannot show:
+   * by the time a spec runs, the catalogue's parts already hold whichever number
+   * they were built from.
+   *
+   * WHAT IT DOES NOT CATCH, stated because the first version of this spec was
+   * titled "directly or by any path" and three reviewers pointed out that it
+   * checked neither. It reads `brio.ts`'s OWN import statements only, so a
+   * TRANSITIVE coupling is invisible to it: `brio.ts` imports `./thirdParty.js`,
+   * and if that module (or anything it imports) ever re-exported from here, this
+   * spec would stay green. Checked on 2026-10-20: neither `thirdParty.ts` nor
+   * `library.ts` imports this file, so no such path exists today. A true graph
+   * walk is the honest instrument and is not built; this is the cheap guard that
+   * catches the plausible accident, which is a direct import added by hand.
    */
-  it('brio.ts does not import this file, directly or by any path', () => {
+  it('brio.ts has no import statement naming this file, in any form', () => {
     const catalogue = readFileSync(
       new URL('../data/brio.ts', import.meta.url),
       'utf8',
     );
-    const importedModules = [...catalogue.matchAll(/from\s+'([^']+)'/g)]
-      .map((m) => m[1]!);
-    expect(importedModules.length).toBeGreaterThan(0);
-    for (const spec of importedModules) {
+    /*
+     * Every specifier form, not just `from '...'`. The first version matched
+     * single-quoted `from` clauses only, so a double-quoted import, a bare
+     * side-effect `import './sources.js'`, a dynamic `import('./sources.js')`
+     * and a `.ts` suffix all passed it. It also matched the BARE substring
+     * `sources`, so `./resources` and `./datasources` would have failed the
+     * spec for no reason. Anchoring on the path segment fixes both directions.
+     */
+    const specifiers = [
+      ...catalogue.matchAll(/(?:from|import)\s*\(?\s*['"]([^'"]+)['"]/g),
+    ].map((m) => m[1]!);
+    expect(specifiers.length, 'found no imports at all, so the scan is broken')
+      .toBeGreaterThan(0);
+    for (const spec of specifiers) {
       expect(spec, 'brio.ts must transcribe the figures, never import them')
-        .not.toMatch(/sources(\.js)?$/);
+        .not.toMatch(/(^|\/)sources(\.[jt]s)?$/);
     }
   });
 });
 
 describe('the published sentences are self-consistent', () => {
   /*
-   * The first two specs check the SOURCE against itself, which is the one case
-   * where a figure may legitimately be compared with other figures in the same
-   * file: the profile sentence states the gauge twice, once directly and once
-   * as the sum of its parts, so a bad transcription has to be bad twice over to
-   * pass. The third, the centreline, reaches into the CATALOGUE as well, which
-   * is why this comment no longer claims otherwise.
+   * Most of these check the SOURCE against itself or against its own audit
+   * trail, which is the one case where a figure may legitimately be compared
+   * with other figures in the same file: the profile sentence states the gauge
+   * twice, once directly and once as the sum of its parts, so a one-sided
+   * transcription error has to be made twice to pass. The centreline spec is
+   * the exception and reaches into the CATALOGUE as well. No ordinals here on
+   * purpose: the first version of this comment said "the third, the centreline"
+   * and a later spec inserted above it made that wrong.
    */
   it('the gauge equals the groove spacing plus one groove width', () => {
     expect(TRACK_PROFILE.gaugeWidthMm).toBe(
@@ -264,20 +287,42 @@ describe('the published sentences are self-consistent', () => {
      * wrong value satisfies is not a pin.
      *
      * The catalogue holds no groove depth or spacing, so there is nothing on
-     * that side to compare against. The citation itself is the second witness:
-     * `RESOLVED[2].conflict.note` quotes the source sentence verbatim, and it
-     * was transcribed separately from these numeric fields, so matching the
-     * numbers against the prose is not circular. Mutate any of the three and
-     * the sentence stops containing it.
+     * that side to compare against. The quoted sentence is the second witness:
+     * it was transcribed separately from these numeric fields, so a one-sided
+     * edit of either breaks the match.
+     *
+     * EXACTLY WHAT THIS CATCHES, because the first version of this comment
+     * claimed more. It catches a typo or a one-sided edit: change the field or
+     * change the quote and they disagree. It does NOT catch a misreading of the
+     * source written into BOTH places, and it is not evidence of transcription
+     * fidelity against the page itself, which nothing in this repository
+     * checks. `grooveDepthMm` and `grooveSpacingMm` have no catalogue
+     * counterpart, so this spec is the only check they have anywhere.
+     *
+     * Matched on a digit boundary, not as a bare substring, or `20mm apart`
+     * would also be satisfied by `120mm apart`. Found by a stable predicate
+     * rather than `RESOLVED[2]`, so reordering the audit trail fails this spec
+     * by name instead of throwing on a missing index.
      */
-    const note = RESOLVED[2]!.conflict!.note;
-    expect(note).toContain(
-      `two ${TRACK_PROFILE.grooveWidthMm}mm wide grooves that are ` +
-        `${TRACK_PROFILE.grooveDepthMm}mm deep`,
+    const profile = RESOLVED.find((r) =>
+      r.conflict?.note.includes('from center to center'),
     );
-    expect(note).toContain(`spaced ${TRACK_PROFILE.grooveSpacingMm}mm apart`);
-    expect(note).toContain(
-      `${TRACK_PROFILE.gaugeWidthMm}mm from center to center`,
+    expect(profile, 'no resolved conflict quotes the profile sentence')
+      .toBeTruthy();
+    const note = profile!.conflict!.note;
+    const atDigitBoundary = (text: string): RegExp =>
+      new RegExp(`(^|[^0-9])${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+    expect(note).toMatch(
+      atDigitBoundary(
+        `two ${TRACK_PROFILE.grooveWidthMm}mm wide grooves that are ` +
+          `${TRACK_PROFILE.grooveDepthMm}mm deep`,
+      ),
+    );
+    expect(note).toMatch(
+      atDigitBoundary(`spaced ${TRACK_PROFILE.grooveSpacingMm}mm apart`),
+    );
+    expect(note).toMatch(
+      atDigitBoundary(`${TRACK_PROFILE.gaugeWidthMm}mm from center to center`),
     );
   });
 
