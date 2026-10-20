@@ -162,6 +162,7 @@ pieces occupy the same floor. The overlap check is specified and unbuilt.
 ```
 engine/
   data/brio.ts              part data + vehicle scalars, all 'estimated'
+  data/sources.ts           published figures + citations the catalogue is checked against
   src/parts/schema.ts       multi-brand parametric schema, continuous heightMm
   src/geom/cyclotomic.ts    exact Z[zeta16] arithmetic
   src/geom/pose.ts          exact forward kinematics
@@ -170,6 +171,7 @@ engine/
   src/geom/fk.ts            float walker + drawable segments, shared
   src/joints/evaluate.ts    the ONE shared LAYOUT predicate
   test/analytic.test.ts     known-answer fixtures + solver contract properties
+  test/sources.test.ts      the one place brio.ts is compared against sources.ts
   test/render.test.ts       SVG arc centres, so arcs cannot silently bow wrong
 app/
   src/App.tsx               layout-as-home shell
