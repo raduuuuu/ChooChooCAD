@@ -43,10 +43,15 @@ import {
 import { brandFit } from '../../engine/data/thirdParty.js';
 import { layoutTrust } from '../../engine/src/joints/trust.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
-import { portsOf, type Graph, type Piece as GPiece, type Port, type PortRef } from '../../engine/src/graph/model.js';
+import { portsOf, type Piece as GPiece, type Port, type PortRef } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
 import { solveGraph } from '../../engine/src/graph/solve.js';
-import { reduce, type EditorAction } from './editorReducer.js';
+import {
+  initialEditor,
+  reduce,
+  type EditorAction,
+  type EditorState,
+} from './editorReducer.js';
 import { loadGraph, partialLoadNotice, saveGraph, savesSuppressed } from './layoutStore.js';
 import { viewOf } from './verdictView.js';
 import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
@@ -294,14 +299,25 @@ export function App() {
    * updates, so all eight handlers saw the same stale `selected` of null and
    * each started a new run. The pure model was correct throughout; the
    * wiring was not, which is why the unit tests passed and the browser did
-   * not. Attaching a piece MOVES the selection to its far end, so the two
+   * not. Attaching a piece MOVES the cursor to its far end, so the two
    * values change together and must be computed together.
+   *
+   * There are now TWO selections, `cursor` and `armed`, for the reason
+   * `editorReducer.ts` records: one field meaning both "attach here" and
+   * "armed for a weld" sent the next piece off to start its own run whenever
+   * anything cleared it.
    */
-  const [editor, setEditor] = useState<{ graph: Graph; selected: PortRef | null }>(() => ({
-    graph: graphLoad.value,
-    selected: null,
-  }));
-  const { graph, selected } = editor;
+  const [editor, setEditor] = useState<EditorState>(() =>
+    /*
+     * The cursor is DERIVED from the restored graph, not left null. Same
+     * inline `ports` shape `loadGraph` uses above, because the memoised one is
+     * declared below and this initializer runs once.
+     */
+    initialEditor(graphLoad.value, (piece: GPiece) =>
+      portsOf(resolve(piece.partId), piece.turn),
+    ),
+  );
+  const { graph, cursor, armed } = editor;
   // `null` is UNDECLARED, which is not the same as owning none. See inventoryModel.ts.
   const [inventory, setInventory] = useState<Inventory>(inventoryLoad.value);
   const [inventoryOpen, setInventoryOpen] = useState(false);
@@ -631,7 +647,8 @@ export function App() {
         <TrackCanvas
           render={render}
           resolve={resolve}
-          selected={selected}
+          cursor={cursor}
+          armed={armed}
           onPortClick={clickPort}
           /*
             * `result`, not `result?.ok`. The clash list lives on BOTH branches
