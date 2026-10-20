@@ -63,8 +63,11 @@ const eCurve = (): { arcSteps: number; innerRadiusMm: number } => {
 /*
  * A switch whose straight road is one A1 and whose diverging road is one E.
  *
- * Every field below is DERIVED from those two catalogue parts, with no written
- * dimension and no silent fallback. `throughLengthMm` used to be the literal
+ * Every DIMENSIONAL field below is derived from those two catalogue parts, with
+ * no written dimension and no silent fallback. The identity fields (`id`,
+ * `brand`, `kind`, `name`) are literals, as a fixture's identity should be; an
+ * earlier version of this sentence said "every field", which was false for
+ * those four. `throughLengthMm` used to be the literal
  * 108, and the spec it feeds claims the switch's straight road matches "a plain
  * straight of the same length" -- a claim that must hold for whatever length A1
  * is, not only for 108. Pinning the number here meant a dimension change in

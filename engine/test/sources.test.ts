@@ -220,15 +220,31 @@ describe('the catalogue and the source stay independent', () => {
    * by the time a spec runs, the catalogue's parts already hold whichever number
    * they were built from.
    *
-   * WHAT IT DOES NOT CATCH, stated because the first version of this spec was
-   * titled "directly or by any path" and three reviewers pointed out that it
-   * checked neither. It reads `brio.ts`'s OWN import statements only, so a
-   * TRANSITIVE coupling is invisible to it: `brio.ts` imports `./thirdParty.js`,
-   * and if that module (or anything it imports) ever re-exported from here, this
-   * spec would stay green. Checked on 2026-10-20: neither `thirdParty.ts` nor
-   * `library.ts` imports this file, so no such path exists today. A true graph
-   * walk is the honest instrument and is not built; this is the cheap guard that
-   * catches the plausible accident, which is a direct import added by hand.
+   * WHAT IT DOES NOT CATCH, listed in full because the first version of this
+   * spec was titled "directly or by any path" and three reviewers pointed out
+   * that it checked neither, and the second version named only the first gap
+   * below while implying it was the whole list.
+   *
+   *   1. A TRANSITIVE coupling. It reads `brio.ts`'s own import lines only.
+   *      `brio.ts` imports `./thirdParty.js` (its only non-type import), so if
+   *      that module, or anything it imports, ever re-exported from here, this
+   *      spec would stay green. Checked 2026-10-20: `thirdParty.ts` imports
+   *      only `../src/parts/schema.js`, so no such path exists today.
+   *   2. `require('./sources.js')` and `import x = require('./sources.js')`.
+   *      Neither matches the scan, which looks for `from` or `import` followed
+   *      by a quoted string. This codebase is ESM throughout, so neither form
+   *      appears, but the scan would not stop one.
+   *   3. A directory specifier such as `./sources/index.js`. The exclusion is
+   *      anchored at the end of the path, so a folder named `sources` would
+   *      pass. No such folder exists.
+   *   4. It cannot tell code from prose. The scan reads raw file text, so an
+   *      import written inside a COMMENT in `brio.ts` would fail this spec
+   *      spuriously. That is the one false-positive direction left, and
+   *      `brio.ts` is heavily commented, so it is worth knowing.
+   *
+   * A real module-graph walk is the honest instrument and is not built. This is
+   * the cheap guard against the plausible accident: a direct import added by
+   * hand during a tidy-up.
    */
   it('brio.ts has no import statement naming this file, in any form', () => {
     const catalogue = readFileSync(
@@ -299,10 +315,20 @@ describe('the published sentences are self-consistent', () => {
      * checks. `grooveDepthMm` and `grooveSpacingMm` have no catalogue
      * counterpart, so this spec is the only check they have anywhere.
      *
-     * Matched on a digit boundary, not as a bare substring, or `20mm apart`
-     * would also be satisfied by `120mm apart`. Found by a stable predicate
-     * rather than `RESOLVED[2]`, so reordering the audit trail fails this spec
-     * by name instead of throwing on a missing index.
+     * Matched on a digit boundary rather than as a bare substring. Measured,
+     * because the first version of this comment gave an example the code
+     * cannot exhibit: it claimed `20mm apart` would be satisfied by
+     * `120mm apart`, which is false, since the needle is `spaced 20mm apart`
+     * and the space before the digits already separates them. The boundary is
+     * load-bearing for exactly one of the three needles, the gauge: a bare
+     * `26mm from center to center` IS satisfied by `126mm from center to
+     * center`, and with the boundary it is not. The other two needles begin
+     * with a letter-and-space prefix, which gives the same protection for
+     * free; the helper is applied to all three for uniformity, not because it
+     * does work on each.
+     *
+     * Found by a stable predicate rather than `RESOLVED[2]`, so reordering the
+     * audit trail fails this spec by name instead of throwing on an index.
      */
     const profile = RESOLVED.find((r) =>
       r.conflict?.note.includes('from center to center'),
