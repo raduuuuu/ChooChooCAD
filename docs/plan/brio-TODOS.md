@@ -2258,3 +2258,73 @@ would close all four.
   and `417-420` point at unrelated content. Two were corrected during this
   review; the rest need re-deriving, and the convention should move to task ids
   or heading anchors so they stop rotting.
+
+## P2 — Three interaction routes to the cursor bug have no interactive test (filed by /ship's review, 2026-10-20)
+
+**What:** the reported append bug had five routes to a null cursor. All five are
+closed and pinned in `app/src/editorReducer.test.ts`. Review then showed only
+four are reachable: the non-closing preset needs synthetic input, because every
+shipped preset closes exactly. Of the four, two are pinned only at the reducer,
+by constructing the state and calling `reduce` directly: a weld that consumes
+neither end of the cursor, and disarming. The browser QA run drove disarm and
+reload through the real app.
+
+**Why it matters.** The two defects this repository has actually shipped here
+were both WIRING, not model: eight palette clicks building eight runs because
+each handler read a stale `selected` from its render closure, and a reload
+restoring the graph without a cursor. A reducer spec cannot see either. The
+gap is `vitest.config.ts` collecting `.test.ts` only, in the node environment
+with no DOM, so nothing can dispatch a click; `renderToStaticMarkup` renders
+but cannot fire events. This is task E11, and these three routes are concrete
+cases waiting on it.
+
+## P3 — The cursor ring shrinks with the board (filed by /ship's review, 2026-10-20)
+
+**What:** `vector-effect: non-scaling-stroke` now keeps the ring's stroke and
+its dashes at a fixed device size, so the dash channel survives any zoom. The
+ring's RADIUS still scales with the canvas: measured at 40 straights, the r=21
+ring is about 7 device pixels across.
+
+**Why it matters.** It is not wrong, since every port mark scales together and
+the ring still reads as dashed against the armed ring's solid stroke, which is
+what DESIGN.md rule 2 requires. But a 7-pixel ring carrying 3-pixel dashes is
+close to the floor, and a larger layout goes below it. If large boards become
+normal, the port marks need a scale floor rather than another per-rule fix.
+Measurement and method: `.gstack/qa-reports/20261020T163029Z-split-cursor/`.
+
+## P3 — `add` is the one transition that can still hand back a null cursor unchecked (filed by /ship's review, 2026-10-20)
+
+**What:** `undo`, `preset` and `initialEditor` all derive their cursor through
+`resumeCursor`. The `add` branch takes `next.select` straight from `addPiece`,
+which returns null whenever a part has one port or fewer
+(`app/src/layoutModel.ts:137`). That would be a fifth accidental route to the
+reported bug, and no spec watches it.
+
+**Why it matters.** It is unreachable today only because every catalogue part
+has exactly two ports and `looksLikePart` restricts submissions to
+`straight`/`curve`. `layoutModel.ts:118` already names the case that changes
+that: "when a one-port buffer or T2's three-port switch makes the unattached
+step reachable". On the day a buffer stop lands, this fix regresses on a path
+its tests do not cover. Either derive from `resumeCursor` when `next.select` is
+null, or add the spec with a one-port stub part.
+
+**Related, same shape:** `clickPort`'s arming branch sets `cursor` and `armed`
+to the clicked ref with no freeness check, so calling the exported `reduce`
+with a click on an already-welded port yields a stale cursor and the next piece
+starts a new run. Not reachable from the canvas, which only renders free ports,
+so this is defensive only.
+
+## P3 — The App.tsx wiring pin is a source-text check and wants E11 (filed by /ship's review, 2026-10-20)
+
+**What:** `app/src/editorReducer.test.ts` proves the reload fix is WIRED by
+reading `App.tsx` as text. An adversarial review defeated two earlier versions
+of it (a `.slice(0, 1)` on the ports argument, and a wrapper that dropped the
+cursor after the call); both are closed, and the spec now pins the call's
+position and both arguments as one expression.
+
+**Why it matters.** It still cannot prove the initializer runs, that React
+calls it, or that the ports function it receives is right -- only that those
+exact bytes are present. Every further evasion is another regex. The property
+wants one DOM test that mounts `App` with a stored graph and asserts the cursor
+came back, which is task E11. Until then this pin is the only thing between a
+correct `initialEditor` and a call site that ignores it.
