@@ -1296,6 +1296,24 @@ See the F2 row: the crash-screen catch was unnecessary and removed; a spec pins 
 - Touch starts a drag only on the already-selected piece, so a first tap selects and the page scrolls.
 - Walk (ENG-R2): the move actions raised depth 5 from 1.3s to 2.8s; the test carries a 15s ceiling.
 
+### PR 5 (palette drag)
+- Two reducer actions: `floatGhost` stands the preview free at the pointer (snapped to 1 cm, keeping
+  the way it pointed) and `dropGhost` places it if it fits clean, else leaves it pending and red (6A).
+  Near a free end (24 CSS px) the drag reuses `moveGhost`.
+- The fit check moved out of App into `ghostFit` (layoutModel.ts), so the Placing strip's words and the
+  drop's decision cannot disagree. Every existing placing assertion passed unchanged.
+- The canvas answers "where is this pointer?" through a `CanvasProbe` ref it refreshes each render; the
+  palette button holds pointer capture, so the moves keep arriving after it leaves the palette.
+- Deviation from the plan's touch line: `touch-action: none` goes only on the PICKED piece's button,
+  not every palette button. On every button a finger could no longer scroll the palette, whose buttons
+  fill it. Same rule as 16A for placed track: tap to pick, then drag.
+- Found in the browser: the view re-frames when the preview appears (5A freezes it at that moment), so
+  ends move on screen as the drag starts. A user aims at what is drawn, so this is expected; a script
+  must measure after the pick.
+- jsdom has no screen matrix: the hook is specced with a fake probe; the real canvas mapping was checked
+  in a browser (floor drop, drop onto a free end joins, refused drop stays red, release over the palette
+  cancels; no console errors).
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |

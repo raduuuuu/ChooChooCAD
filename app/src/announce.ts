@@ -90,6 +90,10 @@ export function describeAction(
       const other = joint.a.pieceId === piece.pieceId ? joint.b : joint.a;
       return `${head}, joined to ${where(next.graph, other)}.${closed(piece.pieceId)}`;
     }
+    case 'dropGhost':
+      // Still pending means the drop was refused (6A); the strip says why.
+      if (next.ghost) return "Didn't place it: it doesn't fit there. Enter places it anyway, Escape cancels.";
+    // falls through: a clean drop is a Place
     case 'placeGhost': {
       const n = next.graph.pieces.length;
       const piece = next.graph.pieces[n - 1]!;
@@ -110,6 +114,9 @@ export function describeAction(
     case 'moveGhost':
     case 'stepGhost':
       return next.ghost?.at ? `Placing at ${where(next.graph, next.ghost.at)}.` : null;
+    case 'floatGhost':
+      // Every centimetre of a drag would be a sentence; the drop is said instead.
+      return null;
     case 'cancelGhost':
       return 'Cancelled placing the piece.';
     case 'moveRun': {

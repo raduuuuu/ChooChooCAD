@@ -31,7 +31,7 @@ import {
   type PortRef,
   type Weld,
 } from '../../engine/src/graph/model.js';
-import type { Turn } from '../../engine/src/parts/schema.js';
+import type { Polarity, Turn } from '../../engine/src/parts/schema.js';
 
 export const EMPTY_GRAPH: Graph = { pieces: [], welds: [] };
 
@@ -242,6 +242,78 @@ export function frameAt(
   const target = graph.pieces.find((p) => p.pieceId === at.pieceId)!;
   const own = ports({ pieceId: '\u0000fit', partId, turn: fit.turn });
   return frameForPortAt(own[fit.port]!.at, opposed(portFrame(placement, ports, target, at.port)));
+}
+
+/** A piece being placed, as `ghostFit` reads it (the reducer's `Ghost`). */
+export interface PendingPiece {
+  readonly partId: string;
+  readonly at: PortRef | null;
+  readonly frame: Frame | null;
+  readonly turn: Turn;
+  readonly port: number;
+}
+
+/** Why a pending piece would not sit right, in data; the app words it. */
+export type FitConflict =
+  /** The end it goes on by meets an end of its own kind. */
+  | { readonly kind: 'here'; readonly polarity: Polarity }
+  /** Another of its ends lands on a free end of its own kind. */
+  | { readonly kind: 'polarity'; readonly polarity: Polarity; readonly pieceId: string }
+  /** Another of its ends lands where it cannot join (crowded, or not facing). */
+  | { readonly kind: 'crowded'; readonly pieceId: string }
+  /** It would join, but the join re-lays a loop that does not close (eng D6). */
+  | { readonly kind: 'loop' };
+
+/**
+ * WHETHER A PENDING PIECE FITS WHERE IT IS SHOWN (decisions E1, D13, D20, eng
+ * D6, 6A). Its frame, every conflict, and the end it would join. No
+ * conflicts means Place would put it down clean; the preview turns red
+ * otherwise, and a palette drop then leaves it pending instead of placing.
+ *
+ * One function for both readers: the Placing strip words the conflicts, and
+ * the reducer's drop decides on them, so the two cannot disagree.
+ */
+export function ghostFit(
+  graph: Graph,
+  ports: PortsOf,
+  ghost: PendingPiece,
+  placement: ReturnType<typeof placeAll> = placeAll(graph, ports),
+  sites: ReturnType<typeof connectorSites> = connectorSites(graph, ports, placement),
+): { readonly frame: Frame; readonly conflicts: readonly FitConflict[]; readonly joinsTo: PortRef | null } {
+  const piece: Piece = { pieceId: '\u0000ghost', partId: ghost.partId, turn: ghost.turn };
+  const frame = ghost.at
+    ? frameAt(graph, ports, placement, ghost.at, ghost.partId, { port: ghost.port, turn: ghost.turn })
+    : ghost.frame!;
+  const own = placeAll({ pieces: [piece], welds: [], anchors: new Map([[piece.pieceId, frame]]) }, ports);
+  const ends = ports(piece);
+  const conflicts: FitConflict[] = [];
+  let joinsTo: PortRef | null = null;
+  if (ghost.at && fitOptions(graph, ports, ghost.at, ghost.partId).refused) {
+    conflicts.push({ kind: 'here', polarity: ends[ghost.port]!.polarity });
+  }
+  for (let i = 0; i < ends.length; i++) {
+    if (ghost.at && i === ghost.port) continue;
+    const landing = landingOf(sites, portFrame(own, ports, piece, i), ends[i]!.polarity);
+    if (landing.kind === 'joins') joinsTo = landing.with;
+    else if (landing.kind === 'conflict') {
+      const pieceId = landing.with[0]!.pieceId;
+      conflicts.push(
+        landing.reason === 'polarity' ? { kind: 'polarity', polarity: ends[i]!.polarity, pieceId } : { kind: 'crowded', pieceId },
+      );
+    }
+  }
+  if (joinsTo && conflicts.length === 0) {
+    // Would the join move anything? Only then is it refused (eng D6).
+    const placed = ghost.at
+      ? addPiece(graph, ghost.partId, ghost.turn, ends.length, ghost.at, ports, { port: ghost.port, turn: ghost.turn })
+      : addPiece(graph, ghost.partId, ghost.turn, ends.length, null, ports, { port: 0, turn: ghost.turn }, frame);
+    const id = placed.graph.pieces[placed.graph.pieces.length - 1]!.pieceId;
+    if (autoJoin(placed.graph, ports, id).joined === 0) {
+      conflicts.push({ kind: 'loop' });
+      joinsTo = null;
+    }
+  }
+  return { frame, conflicts, joinsTo };
 }
 
 /**

@@ -26,7 +26,7 @@
 
 import type { Cyc } from '../../engine/src/geom/cyclotomic.js';
 import { IDENTITY, norm16, type Frame, type Graph, type Piece as GPiece, type PortRef } from '../../engine/src/graph/model.js';
-import type { PortsOf } from '../../engine/src/graph/frames.js';
+import { placeAll, type PortsOf } from '../../engine/src/graph/frames.js';
 import type { Turn } from '../../engine/src/parts/schema.js';
 import {
   EMPTY_GRAPH,
@@ -36,6 +36,8 @@ import {
   deletePiece,
   isFree,
   fitOptions,
+  frameAt,
+  ghostFit,
   lastPieceId,
   moveRun,
   nextRunAnchor,
@@ -242,8 +244,18 @@ export type EditorAction =
   | { readonly kind: 'moveGhost'; readonly ref: PortRef }
   /** Move the pending piece to the next or previous free end ([ and ]). */
   | { readonly kind: 'stepGhost'; readonly by: 1 | -1 }
+  /**
+   * Stand the pending piece free with its origin at `pos`, keeping the way it
+   * points (a palette drag over open floor, decision E6).
+   */
+  | { readonly kind: 'floatGhost'; readonly pos: Cyc }
   /** Place the pending piece as shown. */
   | { readonly kind: 'placeGhost' }
+  /**
+   * The end of a palette drag (decisions E6, 6A): place the pending piece if
+   * it fits clean, else leave it pending, red, for Place or Cancel.
+   */
+  | { readonly kind: 'dropGhost' }
   /** Drop the pending piece. */
   | { readonly kind: 'cancelGhost' }
   /**
@@ -496,6 +508,24 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf): EditorS
         ghost: null,
         ...remember(state, placed.joined > 0 ? 'placeJoin' : 'place'),
       };
+    }
+
+    case 'floatGhost': {
+      const g = state.ghost;
+      if (!g) return state;
+      const heading = g.at
+        ? frameAt(state.graph, ports, placeAll(state.graph, ports), g.at, g.partId, { port: g.port, turn: g.turn }).heading
+        : g.frame!.heading;
+      return { ...state, ghost: { ...g, at: null, port: 0, frame: { pos: action.pos, heading } } };
+    }
+
+    case 'dropGhost': {
+      const g = state.ghost;
+      if (!g) return state;
+      if (ghostFit(state.graph, ports, g).conflicts.length === 0) return step(state, { kind: 'placeGhost' }, ports);
+      // A drop never puts down a red piece (6A). A fresh object, not `state`,
+      // so the refusal is still said: the same object back means nothing happened.
+      return { ...state };
     }
 
     case 'cancelGhost':
