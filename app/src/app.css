@@ -198,6 +198,19 @@
  * when a size is unmeasured or brands do not physically join, which are the two
  * cases where the verdict above is actively misleading.
  */
+/*
+ * The basis clause (task T3b): what the verdict rests on, above the list of
+ * what discounts it. Same size and ink as the trust notes, so it reads as part
+ * of the notes rather than a second verdict; no marker, because it is not a
+ * discount.
+ */
+.verdict-basis {
+  margin: var(--s1) 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-width: 76ch;
+}
 .verdict-trust {
   margin: var(--s1) 0 0;
   padding: 0;
