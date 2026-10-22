@@ -113,12 +113,21 @@ export function solveGraph(
      * user reads.
      */
     const runs = placement.forest.roots.length;
+    /*
+     * "Both ends" is only true of a run with two. A switch adds a third, and
+     * one run with no loop has exactly (ports - 2 x welds) of them free.
+     */
+    const freeEnds =
+      graph.pieces.reduce((n, p) => n + ports(p).length, 0) - 2 * graph.welds.length;
+    const pieces = `${graph.pieces.length} ${graph.pieces.length === 1 ? 'piece' : 'pieces'}`;
     return {
       ok: false,
       reason: 'NO_CYCLE',
       detail:
         runs <= 1
-          ? `${graph.pieces.length} ${graph.pieces.length === 1 ? 'piece' : 'pieces'}, open at both ends`
+          ? freeEnds === 2
+            ? `${pieces}, open at both ends`
+            : `${pieces}, ${freeEnds} open ends`
           : `${runs} separate runs of track, none of them a loop`,
       rank,
       clashes,

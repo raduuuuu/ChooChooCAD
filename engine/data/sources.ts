@@ -259,7 +259,9 @@ export const KNOWN_ABSENT = [
  * Community 3D-print reproductions exist and several describe a 45-degree
  * diverging leg. They are reproductions of the part, not figures from its
  * maker, so they rank `unverified` exactly like the IKEA and Playtive seeds and
- * cannot carry a switch into the catalogue by themselves.
+ * cannot carry a switch into the catalogue by themselves. Four of them are now
+ * in the library as unverified SEEDS (`switchSeeds.ts`), which is the tier for
+ * exactly that; the published row below is still blocked.
  *
  * CONSEQUENCE: the switch catalogue row is BLOCKED, not scheduled. `SwitchPart`
  * exists in the schema and `portsOf` returns its three ports, both proven by

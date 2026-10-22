@@ -17,13 +17,13 @@
  *   OVERLAP   no two DISTINCT vertices occupy the same position. A vertex is
  *             a set of ports tied together by welds, so a declared join is
  *             one vertex and can never report itself.
- *   POLARITY  a property of each weld, peg against socket, with heels exempt
- *             because a heel is neither (T8).
+ *   POLARITY  a property of each weld, peg against socket. A switch's heel
+ *             is a peg or a socket like any end, so it is checked too.
  */
 
 import { type Cyc, equals, toXY } from '../geom/cyclotomic.js';
 import { portFrame, type Placement, type PortsOf } from './frames.js';
-import { portPolarity, weldHasPolarity, type Graph } from './model.js';
+import { portPolarity, type Graph } from './model.js';
 import type { Part } from '../parts/schema.js';
 
 /** Two separate places on the track asked to be the same place. */
@@ -497,7 +497,6 @@ export function findWeldPolarityViolations(
     const portA = ports(pieceA)[w.a.port];
     const portB = ports(pieceB)[w.b.port];
     if (!portA || !portB) return;
-    if (!weldHasPolarity(portA, portB)) return;
     const pa = portPolarity(resolve(pieceA.partId), w.a.port);
     const pb = portPolarity(resolve(pieceB.partId), w.b.port);
     if (pa !== pb) return;

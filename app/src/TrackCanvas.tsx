@@ -400,7 +400,7 @@ export function TrackCanvas({
                     : isCursor
                       ? 'Next piece attaches here, free '
                       : 'Free ') +
-                  (p.polarity === null ? 'end' : `${p.polarity} end`)
+                  `${p.polarity} end`
                 }
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -447,16 +447,12 @@ export function TrackCanvas({
                 )}
                 {/*
                   * Filled is a peg, hollow is a socket; same radius, so this
-                  * adds no ink to a dense layout. A heel takes neither class,
-                  * because the polarity check exempts it too. Why the drawing
-                  * exists at all: the DONE entry in docs/plan/brio-TODOS.md.
+                  * adds no ink to a dense layout. A switch's heel is drawn the
+                  * same way, because it is a peg or a socket too. Why the
+                  * drawing exists at all: the DONE entry in
+                  * docs/plan/brio-TODOS.md.
                   */}
-                <circle
-                  cx={p.x}
-                  cy={p.y}
-                  r={8}
-                  className={p.polarity === null ? 'port-dot' : POLARITY_CLASS[p.polarity]}
-                />
+                <circle cx={p.x} cy={p.y} r={8} className={POLARITY_CLASS[p.polarity]} />
               </g>
             );
           })}

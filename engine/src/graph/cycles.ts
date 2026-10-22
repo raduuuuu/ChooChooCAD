@@ -477,7 +477,7 @@ export function analyseCycles(
     const pb = ports(w.b.pieceId)[w.b.port];
     if (!pa) throw new Error(`piece ${w.a.pieceId} has no port ${w.a.port}`);
     if (!pb) throw new Error(`piece ${w.b.pieceId} has no port ${w.b.port}`);
-    return weldGiveMm(pa, pb, slop(w.a.pieceId), slop(w.b.pieceId));
+    return weldGiveMm(slop(w.a.pieceId), slop(w.b.pieceId));
   };
 
   const neighbours = sharingGraph(graph, fundamentals);

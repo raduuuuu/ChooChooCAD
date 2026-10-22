@@ -3,7 +3,7 @@
  *
  * Value: protects=you can see which piece you placed and which end of it is
  * which, before making a join the solver would refuse
- * Value: fails_when=the class stops being emitted, or a heel starts taking one
+ * Value: fails_when=the class stops being emitted
  * Value: why_new=reported from the live site: "there is no difference when i
  * place a piece with 2 pegs or 2 sockets or a normal one". Measured on
  * woodentrain.world, A2, B2 and C2 produced byte-identical path geometry --
@@ -15,7 +15,7 @@
  * markup rather than clicking a port.
  * Value: no_claim=nothing about the COLOURS. `app.css` owns whether a peg is
  * filled with `--ink-soft` or something else; what is pinned here is that the
- * two ends are marked differently and that a heel is marked as neither.
+ * two ends are marked differently.
  */
 
 import { readFileSync } from 'node:fs';

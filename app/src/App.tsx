@@ -624,7 +624,7 @@ export function App() {
                   {part.kind === 'straight' ? `${part.lengthMm}mm` : `r${centrelineRadiusMm(part)}`}
                 </span>
               </button>
-              {part.kind === 'curve' && (
+              {part.kind !== 'straight' && (
                 <button
                   className="piece-mirror"
                   onClick={() => add(part.id, 'right')}

@@ -116,7 +116,7 @@ export function layoutTrust(
   // else. `angularMaxDeg` is computed per joint and written onto every one of
   // them (`residual.ts:111`) and read by no give calculation anywhere; the
   // only other reference in the repo asserts it is finite. The graph path
-  // agrees: `weldGiveMm` (`graph/model.ts:216`) returns `Math.max(slopA,
+  // agrees: `weldGiveMm` (`graph/model.ts:224`) returns `Math.max(slopA,
   // slopB)` with no angular term. So the bound ignores a real effect, and
   // `CALIBRATION.md` argues it is the LARGER of the two: lever arms around
   // 300mm against axial budgets "around 1mm", so a joint's small rotation
