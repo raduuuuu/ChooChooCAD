@@ -149,6 +149,33 @@
    */
   --floor: #ece6da;
   --track-edge: #8a7349;
+  /*
+   * THE SEAM: the line across the plank where one piece ends and the next
+   * begins (decision 11A of the 2026-10-22 editing plan).
+   *
+   * Not --track-edge, which is 2.54:1 on the fill: under the 3:1 a seam owes,
+   * because seeing where a piece ends is the reason it is drawn. A deeper wood
+   * tone, so it reads as a joint in the beech and not as chrome laid on it.
+   * Measured (WCAG relative luminance, 2026-10-22): 3.69:1 on --track-fill,
+   * which is most of the 40mm it crosses; 1.75:1 on --track-groove, the two
+   * 6mm recesses it also crosses; 5.31:1 on --floor.
+   */
+  --seam: #6e5a38;
+  /*
+   * THE FLOOR GRID (decision 12A). 1.24:1 on --floor.
+   *
+   * DECORATIVE, and below 3:1 on purpose: the grid is a guide for judging size,
+   * and the caption under the canvas states its scale in words, so nothing the
+   * user must understand depends on seeing a line. WCAG 1.4.11 does not apply.
+   * Any darker and it starts to compete with the plank edge.
+   */
+  --grid-line: #d8cfbe;
+  /*
+   * How opaque the preview of a piece not yet placed is (decision 10A). Only
+   * its wood is translucent; its edge and the status beside it stay opaque, so
+   * no contrast in the preview depends on this number.
+   */
+  --ghost-opacity: 0.5;
 
   /*
    * Verdict colours. The ONLY place colour carries meaning.

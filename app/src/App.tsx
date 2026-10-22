@@ -45,7 +45,7 @@ import { layoutTrust } from '../../engine/src/joints/trust.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Piece as GPiece, type Port, type PortRef } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
-import { gapMarks, weldTargets } from './trackPath.js';
+import { gapMarks, seamLines, weldTargets } from './trackPath.js';
 import { UndoControl } from './UndoControl.js';
 import { GraphListing } from './GraphListing.js';
 import { describeAction } from './announce.js';
@@ -270,7 +270,6 @@ export function App() {
    * user's action "is about the thing it names", is only true when the action
    * and the notice concern the same store.
    */
-  const [graphActed, setGraphActed] = useState(false);
   const [inventoryActed, setInventoryActed] = useState(false);
   const [submissionsActed, setSubmissionsActed] = useState(false);
   /*
@@ -280,12 +279,6 @@ export function App() {
    * a rescue key for -- then made an unread inventory or submissions notice
    * unreleasable by any user action.
    */
-  const graphSaveBlocked = savesSuppressed({
-    notice: layoutNotice,
-    dismissed: layoutDismissed,
-    userHasActed: graphActed,
-    noRescueCopy: !graphLoad.rescued,
-  });
   const inventorySaveBlocked = savesSuppressed({
     notice: inventoryLoad.discarded,
     dismissed: inventoryDismissed,
@@ -326,6 +319,15 @@ export function App() {
     ),
   );
   const { graph, cursor, armed, lastAction } = editor;
+
+  const graphSaveBlocked = savesSuppressed({
+    notice: layoutNotice,
+    dismissed: layoutDismissed,
+    // Decided by the reducer from its RESULT: only an action that changed the
+    // graph acknowledges the graph notice (see `EditorState.edited`).
+    userHasActed: editor.edited === true,
+    noRescueCopy: !graphLoad.rescued,
+  });
 
   /*
    * WHAT THE LAST ACTION DID, ANNOUNCED (task U7b): region 3 of the
@@ -457,9 +459,14 @@ export function App() {
    * saw the same stale `null` eight times.
    */
   const dispatch = (action: EditorAction) => {
-    // A graph edit acknowledges the GRAPH notice and nothing else.
-    setGraphActed(true);
     setEditor((e) => {
+      /*
+       * INSIDE THE UPDATER, which is also what gets an engine throw to the
+       * crash screen: React computes an update eagerly only inside its own
+       * try/catch, discards a throw there, and recomputes during render, where
+       * `ErrorBoundary` sees it. Calling `reduce` in the handler instead would
+       * throw where no boundary looks. Pinned by editFailure.dom.test.tsx.
+       */
       const next = reduce(e, action, ports);
       // Described here, from the exact state the action ran on, because the
       // updater is the one place that sees it (see `said` below). Pure, so
@@ -548,6 +555,23 @@ export function App() {
       return [[a.x, a.y] as const];
     });
   }, [result, render, graph]);
+
+  /*
+   * Where each piece ends (request 2). Refused joints are left to their own
+   * marker, and nothing is built above the drawing ceiling, for the reason
+   * `badJoints` gives.
+   */
+  const seams = useMemo(() => {
+    if (render.segments.length > CANVAS_SEGMENT_CEILING) return [];
+    const partOf = new Map(graph.pieces.map((p) => [p.pieceId, p.partId]));
+    const refused = new Set(result ? result.polarityViolations.map((v) => v.weld) : []);
+    return seamLines(
+      graph.welds,
+      render.ports,
+      (pieceId) => resolve(partOf.get(pieceId)!).plankWidthMm,
+      refused,
+    );
+  }, [result, render, graph, resolve]);
 
   const counts = usedCounts(graph.pieces.map((p) => p.partId));
   const shortfalls = computeShortfalls(inventory, counts);
@@ -670,6 +694,7 @@ export function App() {
           onPortClick={clickPort}
           welds={welds}
           onWeldClick={breakJoint}
+          seams={seams}
           /*
             * `result`, not `result?.ok`. The clash list lives on BOTH branches
             * of GraphResult, and gating the DRAWING on `ok` undid half of the

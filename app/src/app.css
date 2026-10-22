@@ -33,6 +33,50 @@
   height: 100%;
   display: block;
 }
+/*
+ * The canvas and its grid caption. The frame takes the stage's flex slot the
+ * canvas used to take, so the drawing's size is unchanged; it exists only to
+ * anchor the caption, which is HTML so it is never flipped or scaled.
+ */
+.canvas-frame {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+.grid-caption {
+  position: absolute;
+  inset-inline-end: var(--s3);
+  inset-block-end: var(--s3);
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+  pointer-events: none;
+}
+/*
+ * THE FLOOR GRID AND THE SEAMS (decisions 12A and 11A). Both are ink, never a
+ * target, and both keep their weight at every zoom: the canvas fits the whole
+ * layout into a fixed box, so a stroke in millimetres would thin to nothing on
+ * a big board (the reason `.gap-leader` and the port rings do the same).
+ */
+.grid {
+  fill: none;
+  stroke: var(--grid-line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.seam {
+  stroke: var(--seam);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+/* A printed sheet keeps the grid, fainter, so the track still leads. */
+@media print {
+  .grid { stroke-opacity: 0.5; }
+}
 .canvas-empty {
   margin: auto;
   text-align: center;

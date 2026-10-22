@@ -108,6 +108,20 @@ export interface EditorState {
   readonly armed: PortRef | null;
   /** The one step Undo can reverse, or null when there is none. See `LastAction`. */
   readonly lastAction: LastAction | null;
+  /**
+   * Whether any action so far CHANGED THE GRAPH. Absent means false.
+   *
+   * This is the graph store's "the user has acted" acknowledgement, and it
+   * lives here, decided from the reducer's result, because the old flag was
+   * set by `dispatch` on every action: arming an end, clicking an armed end
+   * again, `clear` on an empty board. Each of those changes nothing and was
+   * still read as consent to write over a layout that loaded with losses
+   * (brio-TODOS.md, "A no-op edit counts as consent to overwrite"; decision
+   * D17 of the 2026-10-22 editing plan). Computed inside the updater, from
+   * the exact state the action ran on, so a batch of clicks cannot read a
+   * stale value.
+   */
+  readonly edited?: boolean;
 }
 
 /**
@@ -246,6 +260,17 @@ export function reduce(
   action: EditorAction,
   ports: PortsOf,
 ): EditorState {
+  const next = step(state, action, ports);
+  // Same object back means nothing happened; keeping its identity lets React
+  // skip the render, and the acknowledgement cannot change.
+  if (next === state) return next;
+  // Sticky: several branches build a fresh state literal, and one of those
+  // must not quietly drop an acknowledgement an earlier edit gave.
+  const edited = state.edited === true || next.graph !== state.graph;
+  return edited === (next.edited === true) ? next : { ...next, edited };
+}
+
+function step(state: EditorState, action: EditorAction, ports: PortsOf): EditorState {
   switch (action.kind) {
     case 'add': {
       const count = portCountOf(ports, action.partId, action.turn);

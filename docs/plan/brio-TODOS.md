@@ -482,6 +482,62 @@ undo consumes K5's document type, so K5's type must land before undo.
 **Depends on:** K5's layout document type (not its file I/O); R16's fingerprint
 re-decision; K0c repair for the solve-on-release contract
 
+> **IN PLAN 2026-10-22.** The upgrade trigger fired ("any edit richer than append": remove any
+> piece). Drag-and-drop is accepted scope in `docs/plan/2026-10-22-editing-and-canvas.md` (E6),
+> delivered as PRs 4 and 5 after seams+grid, select/remove and ghost placement. Prerequisites
+> checked there: K5's document type is the persisted Graph; K0c is moot (R21); R16 needs no new field
+> because snapping is exact lattice arithmetic. Undo becomes multi-step (supersedes U5, D12).
+
+---
+
+## P2 — A manual join can re-lay a loop that does not close (filed by /plan-eng-review 2026-10-22, D7)
+
+**What:** Make `spanningForest` (engine/src/graph/forest.ts) prefer the previous tree edges when a
+weld merges two components, so no join or edit re-lays track that was already placed.
+
+**Why:** Measured with a probe: a run whose loop misses by 389 mm, joined exactly and facing at the
+spare road of a switch inside that loop, moved three pieces 507-611 mm and turned them two steps.
+The forest walks each component from its first-declared piece, so a join changes the entry point and
+a different weld becomes the loop's gap.
+
+**Pros:** No join of any kind moves track; auto-join could then always join (eng D6 currently skips
+the risky ones and announces manual-join movement).
+
+**Cons:** Changes which joint the verdict reports as a loop's gap on such layouts; touches the most
+heavily tested engine code, so the forest/verdict fixtures must be re-run and reconciled.
+
+**Context:** Found in the eng review of docs/plan/2026-10-22-editing-and-canvas.md (ENG-R5). The
+editing plan's before/after frame comparison (D19 for remove/break, D6 for auto-join) is the guard
+until this lands; start from that comparison and make it pass for manual joins too.
+
+**Effort:** human M / CC S
+**Priority:** P2
+**Depends on:** the editing plan's before/after frame comparison (PR 2)
+
+---
+
+## P2 — Draw your table or room on the grid (deferred by /plan-ceo-review 2026-10-22, E4)
+
+**What:** A width x depth input that draws the table or room outline on the metric grid, so "does
+it fit" is answered on screen.
+
+**Why:** The grid (R4) shows size in centimetres, but comparing it with a real table is still
+mental arithmetic, and fit is the question people actually have.
+
+**Pros:** Builds directly on the grid; small UI; high value for anyone planning on a fixed surface.
+
+**Cons:** A new persisted value, which in this codebase means a loader that reports losses, a
+lossy-load notice, its own acted flag and mounted save-gate specs (see suppression.dom.test.tsx).
+Where the rectangle sits relative to the layout also needs deciding (origin, or draggable).
+
+**Context:** Deferred at D7 (2026-10-22) to keep the editing plan free of a fourth storage key.
+Start from the grid helper (`gridStep` in trackPath.ts once PR 1 lands) and the inventory store as
+the model for a small persisted value.
+
+**Effort:** human M / CC S
+**Priority:** P2
+**Depends on:** the metric grid (PR 1 of the 2026-10-22 editing plan)
+
 ---
 
 ## Open and unassigned: the overlap narrowphase primitive
@@ -1800,6 +1856,15 @@ coverage. Not a ship job: it rewrites the introduction, "The UI" and the whole
 
 Two small correctness items from the delta review, both narrow enough to
 defer and both real.
+
+> **DONE 2026-10-22 in PR 1 of `docs/plan/2026-10-22-editing-and-canvas.md`.** Item 1: the graph's
+> acknowledgement is now `EditorState.edited`, set by `reduce` only when the graph changes
+> (suppression.dom.test.tsx, "selecting an end writes nothing"). Item 2 turned out NOT to be a defect
+> for the editor: `dispatch` calls the reducer only inside the `setEditor` updater, React discards a
+> throw from its eager computation and recomputes during render, and the boundary catches it. The
+> planned catch in `dispatch` was built, shown to change nothing, and removed;
+> editFailure.dom.test.tsx pins the real hazard, computing the next state in the handler. Code that
+> calls the engine directly from a pointer handler (drag, PR 4) must still route through `dispatch`.
 
 **1. `setUserHasActed(true)` fires on every dispatch**, including actions the
 reducer turns into no-ops: a click on an already-selected port, `clear` on an

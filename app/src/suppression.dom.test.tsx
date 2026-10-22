@@ -86,13 +86,16 @@ afterEach(() => {
 describe('an action releases the save of the store it touched, and no other', () => {
   /*
    * - `dispatch` also calls `setSubmissionsActed(true)`: `expected '[]' to be
-   *   '[5]'`, the measured bug.
+   *   '[5]'`, the measured bug (and the select-an-end spec fails too).
    * - `dispatch` also calls `setInventoryActed(true)`: `expected '{"A":2}' to
    *   be '{"A":2,"ZZZ":1}'`.
-   * - `setGraphActed(true)` deleted from `dispatch`, or the graph gate handed
-   *   `userHasActed: false`: `expected 1 to be 2`, the edit never saved.
-   * - the submissions gate handed `userHasActed: graphActed`: `expected '[]'
-   *   to be '[5]'` (and the submission spec fails too).
+   * - the reducer never sets `edited` (its wrapper returns `next` as is), or
+   *   the graph gate handed `userHasActed: false`: `expected 1 to be 2`, the
+   *   edit never saved.
+   * - the submissions gate handed the graph's acknowledgement is no longer
+   *   expressible: that acknowledgement is `editor.edited`, declared after the
+   *   gate, so the mutation fails typecheck and every spec at mount with
+   *   `Cannot access 'editor' before initialization`.
    */
   it('a graph edit writes the graph and neither other blob', async () => {
     const user = userEvent.setup();
@@ -107,8 +110,9 @@ describe('an action releases the save of the store it touched, and no other', ()
   /*
    * - the inventory `onChange` also calls `setSubmissionsActed(true)`:
    *   `expected '[]' to be '[5]'`.
-   * - it also calls `setGraphActed(true)`: `expected '{"pieces":[{"pieceId":
-   *   "a","partId":"E…' to be '{"pieces":[{"pieceId":"a","partId":"E…'`.
+   * - the graph gate also accepts it (`userHasActed: editor.edited === true
+   *   || inventoryActed`): `expected '{"pieces":[{"pieceId":"a","partId":"E…'
+   *   to be '{"pieces":[{"pieceId":"a","partId":"E…'`.
    * - `const inventoryActed = submissionsActed; const setInventoryActed =
    *   setSubmissionsActed;` in place of its own `useState`, one flag under
    *   two names: `expected '[]' to be '[5]'`, and the submission spec fails
@@ -134,8 +138,9 @@ describe('an action releases the save of the store it touched, and no other', ()
   /*
    * - the submit callback also calls `setInventoryActed(true)`: `expected
    *   '{"A":2}' to be '{"A":2,"ZZZ":1}'`.
-   * - it also calls `setGraphActed(true)`: `expected '{"pieces":[{"pieceId":
-   *   "a","partId":"E…' to be '{"pieces":[{"pieceId":"a","partId":"E…'`.
+   * - the graph gate also accepts it (`userHasActed: editor.edited === true
+   *   || submissionsActed`): `expected '{"pieces":[{"pieceId":"a","partId":"E…'
+   *   to be '{"pieces":[{"pieceId":"a","partId":"E…'`.
    * - the submissions gate handed `userHasActed: false`: `the submission was
    *   not saved: expected '[5]' not to be '[5]'`.
    */
@@ -152,6 +157,30 @@ describe('an action releases the save of the store it touched, and no other', ()
     expect(subs.map((s) => s.part.name)).toEqual(['long straight']);
     expect(stored().inventory).toBe(INVENTORY);
     expect(stored().graph).toBe(GRAPH);
+  });
+
+  /*
+   * AN ACTION THAT CHANGES NOTHING IS NOT CONSENT (decision D17 of the
+   * 2026-10-22 editing plan). Selecting an end edits no track, and it used to
+   * release the held save anyway, because `dispatch` set the acknowledgement
+   * on every action. The editing plan adds five such actions (pick, rotate,
+   * move the preview, cancel, select a piece), so this has to hold before
+   * they arrive.
+   *
+   * MUTATION PROOFS, run:
+   * - the reducer marks every action as an edit (`const edited = true;` in
+   *   `reduce`): `expected { …(3) } to deeply equal { …(3) }`, the graph blob
+   *   rewritten by a click that changed no track.
+   * - `dispatch` also calls `setSubmissionsActed(true)`: same failure, since
+   *   the submissions blob is rewritten too.
+   */
+  it('selecting an end writes nothing', async () => {
+    const user = userEvent.setup();
+    mount();
+    await user.click(screen.getAllByRole('button', { name: /free (peg|socket) end$/ })[0]!);
+    expect(screen.getAllByRole('button', { name: /^Selected free/ })).toHaveLength(1);
+
+    expect(stored()).toEqual(SEEDED);
   });
 
   /*

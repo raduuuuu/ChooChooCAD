@@ -72,6 +72,12 @@ the content (WCAG 1.4.11). A new colour arrives with its ratio or it does not
 arrive. Three colours in this file have already been corrected once for failing
 a floor nobody had checked.
 
+A colour may sit below those floors only when it is decorative, and then its
+comment says so and names what carries the meaning instead. The floor grid is
+the one such colour: 1.24:1, faint on purpose, with the scale stated in words
+by the caption under the canvas. "Decorative" is a claim to defend in the
+comment, not an escape from measuring.
+
 ## 6. The product is light, and says so
 
 `color-scheme: light` is declared. There is no dark theme, and that is a
@@ -107,9 +113,29 @@ Coarse pointers raise every target to the 44px floor. The data-entry form holds
 that floor at every pointer type, because a mis-tapped number in an inventory is
 a wrong answer the user will not know is wrong.
 
+## 11. Every mark on the canvas means one thing
+
+Each state on the canvas owns one channel, and a new mark takes a channel
+nothing else uses:
+
+- **Dashed means the cursor**, where the next piece attaches. Nothing else on
+  the canvas is dashed.
+- **Weight means importance.** The armed end's 3px ring is the heaviest port
+  mark; a selection is drawn by line weight, not by a new colour.
+- **A preview is translucent wood with a SOLID edge** (`--ghost-opacity`).
+  Only its wood is translucent; its edge, glyph and words stay opaque, so no
+  contrast depends on the opacity.
+- **Strokes keep their device size** (`vector-effect: non-scaling-stroke`),
+  because the canvas fits the whole layout into a fixed box and a stroke in
+  millimetres thins to nothing on a big board.
+
+Controls for a mode the canvas is in (placing a piece, a selected piece) live
+in a strip on the canvas edge, not in the parts rail, so they sit next to the
+thing they act on.
+
 ## What is NOT settled
 
-Keyboard operability of the canvas. The verdict is announced, and the graph
-itself cannot be edited without a mouse. That work is tasks U7a and U7b in the
-plan, U7b blocked on a DOM test project, and it is the open hole in this system
-rather than a thing anybody chose. See `dec-cc66dbf5`.
+Nothing in the editor's operability. The canvas, its ends and joints are
+operable from the keyboard through the layout list, and every action is
+announced in its own polite region (tasks U7a and U7b, `dec-cc66dbf5`). What
+remains open is recorded with its decision in `docs/plan/`, not here.

@@ -206,3 +206,130 @@ export function gapAnnotations(
     };
   });
 }
+
+/** One seam: a short line across the plank where two pieces meet. */
+export interface SeamLine {
+  readonly from: readonly [number, number];
+  readonly to: readonly [number, number];
+}
+
+/**
+ * WHERE ONE PIECE ENDS AND THE NEXT BEGINS (request 2 of the 2026-10-22
+ * editing plan, decision 11A).
+ *
+ * The track is painted layer by layer across every segment so a joint shows
+ * no seam that is not there (see TrackCanvas). Three straights in a row then
+ * read as one long plank, and the user could not see where each ended. Real
+ * BRIO joints are visible, so each one gets a line straight across the plank.
+ *
+ * At end `a` of the weld, across the NARROWER of the two planks, so the line
+ * never pokes out past the thinner piece. A weld is skipped when its ends do
+ * not coincide (a closing weld with a gap, which the gap annotation already
+ * marks) or when it is a refused joint (the polarity marker sits there).
+ * Coincidence is exact float equality: both ends come from the same exact
+ * lattice point, so they convert to identical numbers or they are apart.
+ */
+export function seamLines(
+  welds: readonly Weld[],
+  ports: readonly RenderedPort[],
+  plankWidthOf: (pieceId: string) => number,
+  refused: ReadonlySet<number>,
+): readonly SeamLine[] {
+  const byPort = new Map(ports.map((p) => [`${p.pieceId}#${p.port}`, p]));
+  return welds.flatMap((w, i) => {
+    if (refused.has(i)) return [];
+    const a = byPort.get(`${w.a.pieceId}#${w.a.port}`);
+    const b = byPort.get(`${w.b.pieceId}#${w.b.port}`);
+    if (!a || !b || a.x !== b.x || a.y !== b.y) return [];
+    const half = Math.min(plankWidthOf(w.a.pieceId), plankWidthOf(w.b.pieceId)) / 2;
+    const nx = -Math.sin(a.h) * half;
+    const ny = Math.cos(a.h) * half;
+    return [{ from: [a.x - nx, a.y - ny] as const, to: [a.x + nx, a.y + ny] as const }];
+  });
+}
+
+/**
+ * THE GRID STEPS, in millimetres: a 1-2-5 series from 10 cm to 10 m
+ * (decision R4/D3 and the spec review's grid rule). Adjacent steps differ by at
+ * most 2.5x, which is what keeps a chosen cell between 20 and 50 px.
+ */
+export const GRID_STEPS_MM = [100, 200, 500, 1000, 2000, 5000, 10000] as const;
+
+/** The smallest cell the grid draws, in CSS pixels. */
+export const GRID_MIN_CELL_PX = 20;
+
+/**
+ * The grid step for the current view.
+ *
+ * With a measurement (`pxPerMm`, CSS pixels per model millimetre), the
+ * smallest step whose cell is at least GRID_MIN_CELL_PX. Without one -- a
+ * static render, jsdom, or the first paint before the size is known -- the
+ * smallest step that draws at most 40 lines across the larger side of the
+ * view. Either way a layout too big for the largest step gets the largest.
+ */
+export function gridStep(spanMm: number, pxPerMm: number | null): number {
+  for (const step of GRID_STEPS_MM) {
+    if (pxPerMm !== null ? step * pxPerMm >= GRID_MIN_CELL_PX : spanMm / step <= 40) {
+      return step;
+    }
+  }
+  return GRID_STEPS_MM[GRID_STEPS_MM.length - 1]!;
+}
+
+/**
+ * Every grid line inside a box, as ONE path `d` string.
+ *
+ * One element for the whole grid rather than one per line, so a big layout
+ * adds no tags to a canvas whose cost is counted in tags (see the ceiling in
+ * TrackCanvas). Lines sit on multiples of the step from the model origin, so
+ * they stay put as the layout grows instead of following its corner.
+ */
+export function gridPath(
+  minX: number,
+  minY: number,
+  width: number,
+  height: number,
+  step: number,
+): string {
+  const parts: string[] = [];
+  const maxX = minX + width;
+  const maxY = minY + height;
+  for (let x = Math.ceil(minX / step) * step; x <= maxX; x += step) {
+    parts.push(`M ${x} ${minY} V ${maxY}`);
+  }
+  for (let y = Math.ceil(minY / step) * step; y <= maxY; y += step) {
+    parts.push(`M ${minX} ${y} H ${maxX}`);
+  }
+  return parts.join(' ');
+}
+
+/** The caption for a step: "10 cm" up to "50 cm", then metres. */
+export function gridLabel(step: number): string {
+  return step < 1000 ? `${step / 10} cm` : `${step / 1000} m`;
+}
+
+/**
+ * The part of the model the canvas actually shows, in millimetres.
+ *
+ * The default `xMidYMid meet` fits the viewBox inside the element and centres
+ * it, so the element shows MORE than the viewBox along one axis, and SVG paints
+ * up to the element's edge. The grid covers this box so it reaches the edge of
+ * the floor instead of stopping at the viewBox (seen in a browser, 2026-10-22).
+ * Without a measurement the viewBox itself is all that is known.
+ */
+export function visibleBox(
+  view: { readonly minX: number; readonly minY: number; readonly width: number; readonly height: number },
+  drawn: { readonly width: number; readonly height: number } | null,
+): { minX: number; minY: number; width: number; height: number; pxPerMm: number | null } {
+  if (!drawn || drawn.width <= 0 || drawn.height <= 0) return { ...view, pxPerMm: null };
+  const pxPerMm = Math.min(drawn.width / view.width, drawn.height / view.height);
+  const width = drawn.width / pxPerMm;
+  const height = drawn.height / pxPerMm;
+  return {
+    minX: view.minX - (width - view.width) / 2,
+    minY: view.minY - (height - view.height) / 2,
+    width,
+    height,
+    pxPerMm,
+  };
+}
