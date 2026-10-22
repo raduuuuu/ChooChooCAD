@@ -16,6 +16,7 @@ import type { Step } from './editorReducer.js';
 
 const NAME: Record<Step['kind'], string> = {
   place: 'place',
+  placeJoin: 'place and join',
   break: 'break',
   join: 'join',
   remove: 'remove',

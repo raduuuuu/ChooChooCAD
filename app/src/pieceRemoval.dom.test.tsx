@@ -17,6 +17,7 @@ import { StrictMode } from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import { place } from '../test/place.js';
 import { App } from './App.js';
 
 const button = (name: string | RegExp) => screen.getAllByRole('button', { name })[0]!;
@@ -31,7 +32,7 @@ const threeStraights = async () => {
       <App />
     </StrictMode>,
   );
-  for (let i = 0; i < 3; i++) await user.click(button(/^Add Medium straight$/));
+  for (let i = 0; i < 3; i++) await place(user, button(/^Add Medium straight$/));
   return user;
 };
 

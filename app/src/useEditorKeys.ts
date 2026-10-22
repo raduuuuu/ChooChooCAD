@@ -3,7 +3,10 @@
  * structure decision: keys and pointer drags live in separate modules).
  *
  * Only the keys that make sense wherever focus is: Cmd/Ctrl+Z undoes,
- * Shift+Cmd/Ctrl+Z (and Ctrl+Y) redoes, Esc clears a selection. Keys that act
+ * Shift+Cmd/Ctrl+Z (and Ctrl+Y) redoes, Esc cancels placing or clears a
+ * selection, and WHILE A PIECE IS BEING PLACED, R rotates it, F flips it and
+ * [ and ] move it between free ends (decisions R3, 18A, E2). Enter needs no
+ * handler: Pick puts focus on the Place button, where Enter is native. Keys that act
  * on one thing (Enter, Delete, Alt+arrows) belong to the focused element that
  * thing is, so they live on the canvas's piece buttons, not here.
  *
@@ -26,8 +29,14 @@ export function useEditorKeys(handlers: {
   readonly onUndo: () => void;
   readonly onRedo: () => void;
   readonly onEscape: () => void;
+  /** Present only while a piece is being placed. */
+  readonly placing?: {
+    readonly onRotate: () => void;
+    readonly onFlip: () => void;
+    readonly onStep: (by: 1 | -1) => void;
+  } | null;
 }): void {
-  const { onUndo, onRedo, onEscape } = handlers;
+  const { onUndo, onRedo, onEscape, placing = null } = handlers;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || isEditable(e.target)) return;
@@ -42,9 +51,16 @@ export function useEditorKeys(handlers: {
         onRedo();
       } else if (e.key === 'Escape') {
         onEscape();
+      } else if (placing && !mod && !e.altKey) {
+        if (key === 'r') placing.onRotate();
+        else if (key === 'f') placing.onFlip();
+        else if (e.key === ']') placing.onStep(1);
+        else if (e.key === '[') placing.onStep(-1);
+        else return;
+        e.preventDefault();
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onUndo, onRedo, onEscape]);
+  }, [onUndo, onRedo, onEscape, placing]);
 }

@@ -25,6 +25,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../../engine/data/library.js';
 import { portsOf, type Piece } from '../../engine/src/graph/model.js';
+import { place } from '../test/place.js';
 import { App } from './App.js';
 import { reduce, type EditorState } from './editorReducer.js';
 import { EMPTY_GRAPH } from './layoutModel.js';
@@ -60,7 +61,7 @@ describe('a reload', () => {
     );
     expect(verdict().textContent).toMatch(/3 pieces, open at both ends/);
 
-    await user.click(screen.getAllByRole('button', { name: 'Add Large curve' })[0]!);
+    await place(user, screen.getAllByRole('button', { name: 'Add Large curve' })[0]!);
     expect(verdict().textContent).toMatch(/4 pieces, open at both ends/);
     expect(verdict().textContent).not.toMatch(/separate runs/);
     expect(announced().textContent).toBe(
