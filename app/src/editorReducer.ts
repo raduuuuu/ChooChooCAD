@@ -276,7 +276,7 @@ export function reduce(
      * `closed: boolean` is gone.
      *
      * Clicking the ARMED end disarms the weld intent and LEAVES THE CURSOR
-     * ALONE. That is one of the four reachable routes to the reported bug,
+     * ALONE. That is one of the reachable routes to the reported bug,
      * and the one
      * a user following the header hits first: when both meanings lived in one
      * field, clicking the end you had just built onto sent the next piece off
@@ -298,10 +298,19 @@ export function reduce(
          * to the reported bug. `stillFree` is what tells the two cases apart, and
          * replacing it with a bare `null` passes every other spec in this
          * file, so there is one below that exists only to catch that.
+         *
+         * AND WHEN THE WELD DID CONSUME IT, resume where Remove last and a
+         * reload resume (owner's ruling, 2026-10-22). Selecting an end also
+         * moves the cursor there, so through the UI a join always consumes the
+         * cursor's end. Nulling it then sent the next piece off to start a
+         * separate run even with free ends left elsewhere -- join a switch's
+         * heel to its own curved road and the E beyond it was abandoned. Null
+         * is right only when nothing is left to continue from, which
+         * `resumeCursor` already decides: closing the last loop still clears it.
          */
         return {
           graph,
-          cursor: stillFree(graph, state.cursor),
+          cursor: stillFree(graph, state.cursor) ?? resumeCursor(graph, ports),
           armed: null,
           lastAction: { kind: 'join', previous: state.graph },
         };

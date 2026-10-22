@@ -325,7 +325,12 @@ describe('the cursor survives a disarm and a remove-last (reported 2026-10-20)',
   });
 
   /*
-   * A WELD THAT DOES NOT TOUCH THE CURSOR, one of the four reachable routes.
+   * A WELD THAT DOES NOT TOUCH THE CURSOR. NOT reachable from the UI, found
+   * 2026-10-22 when `cursorRoutes.dom.test.tsx` tried to drive it: selecting
+   * an end also moves the cursor there, so through the app a join always
+   * consumes the cursor's end (the state walk below asserts exactly that).
+   * Kept because the reducer still takes any state, and a stored or future
+   * action could hand it one.
    *
    * Every other weld spec in this file welds one of the two ends the cursor is
    * already on, so `stillFree(graph, state.cursor)` and a bare `null` agree on
@@ -370,6 +375,27 @@ describe('the cursor survives a disarm and a remove-last (reported 2026-10-20)',
     const before = runs(s);
     s = reduce(s, { kind: 'add', partId: 'A', turn: 'left' }, ports);
     expect(runs(s)).toBe(before);
+  });
+
+  /*
+   * A WELD THAT CONSUMES THE CURSOR, WITH A FREE END LEFT. The route the app
+   * actually takes: the cursor resumes on the newest free end, as Remove last
+   * and a reload do, instead of going null and starting a separate run.
+   * Closing the LAST loop still clears it ('a second click on a DIFFERENT free
+   * end welds the two and closes the loop', above).
+   *
+   * MUTATION PROOF, RUN: drop `?? resumeCursor(graph, ports)` from the weld
+   * branch of `clickPort`. Fails with `expected null to deeply equal {
+   * pieceId: 'p1', port: 1 }`.
+   */
+  it('a weld that consumes the cursor resumes on a free end that is left', () => {
+    let s = build(['L', 'E']);
+    const heel = { pieceId: s.graph.pieces[0]!.pieceId, port: 0 };
+    const curved = { pieceId: s.graph.pieces[0]!.pieceId, port: 2 };
+    s = reduce(s, { kind: 'clickPort', ref: heel }, ports);
+    expect(s.cursor).toEqual(heel);
+    s = reduce(s, { kind: 'clickPort', ref: curved }, ports);
+    expect(s.cursor).toEqual({ pieceId: s.graph.pieces[1]!.pieceId, port: 1 });
   });
 });
 
