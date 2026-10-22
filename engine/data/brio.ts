@@ -143,6 +143,53 @@ export const BRIO_PARTS: readonly Part[] = [
     gaugeWidthMm: GAUGE_WIDTH_MM, plankWidthMm: PLANK_WIDTH_MM,
     plankThicknessMm: PLANK_THICKNESS_MM, grooveWidthMm: GROOVE_WIDTH_MM,
   },
+  /*
+   * B, C, B1 AND C1 (task K1): the same polarity pair at the A and A1 lengths.
+   *
+   * Source, verbatim: "the B1 and C1 track are an A1 length with two male and
+   * two female connectors". The piece table lists B and C beside A at 144 the
+   * same way, as "retired polarity variants": out of production, and still in
+   * the boxes of anyone with older sets, which is who needs them in a planner.
+   *
+   * WHICH IS WHICH follows B2 and C2 above, B the pegs and C the sockets. For
+   * B1 and C1 the sentence above says it; for B and C it is the same naming,
+   * and the one MakerWorld replica set that models all four (Fantastic Plastic
+   * Person, 784269) has the pegs on B and the sockets on C, checked off its
+   * meshes on 2026-10-22. No part numbers: none is published for these, and
+   * this file does not write down a number it cannot source.
+   */
+  {
+    id: 'B', brand: 'BRIO', kind: 'straight', name: 'Medium straight, two pegs',
+    lengthMm: 144,
+    dimensions: BRIO_PUBLISHED,
+    slop: ESTIMATED_SLOP, ends: { start: 'peg', end: 'peg' }, heightMm: 0,
+    gaugeWidthMm: GAUGE_WIDTH_MM, plankWidthMm: PLANK_WIDTH_MM,
+    plankThicknessMm: PLANK_THICKNESS_MM, grooveWidthMm: GROOVE_WIDTH_MM,
+  },
+  {
+    id: 'C', brand: 'BRIO', kind: 'straight', name: 'Medium straight, two sockets',
+    lengthMm: 144,
+    dimensions: BRIO_PUBLISHED,
+    slop: ESTIMATED_SLOP, ends: { start: 'socket', end: 'socket' }, heightMm: 0,
+    gaugeWidthMm: GAUGE_WIDTH_MM, plankWidthMm: PLANK_WIDTH_MM,
+    plankThicknessMm: PLANK_THICKNESS_MM, grooveWidthMm: GROOVE_WIDTH_MM,
+  },
+  {
+    id: 'B1', brand: 'BRIO', kind: 'straight', name: 'Short straight, two pegs',
+    lengthMm: 108,
+    dimensions: BRIO_PUBLISHED,
+    slop: ESTIMATED_SLOP, ends: { start: 'peg', end: 'peg' }, heightMm: 0,
+    gaugeWidthMm: GAUGE_WIDTH_MM, plankWidthMm: PLANK_WIDTH_MM,
+    plankThicknessMm: PLANK_THICKNESS_MM, grooveWidthMm: GROOVE_WIDTH_MM,
+  },
+  {
+    id: 'C1', brand: 'BRIO', kind: 'straight', name: 'Short straight, two sockets',
+    lengthMm: 108,
+    dimensions: BRIO_PUBLISHED,
+    slop: ESTIMATED_SLOP, ends: { start: 'socket', end: 'socket' }, heightMm: 0,
+    gaugeWidthMm: GAUGE_WIDTH_MM, plankWidthMm: PLANK_WIDTH_MM,
+    plankThicknessMm: PLANK_THICKNESS_MM, grooveWidthMm: GROOVE_WIDTH_MM,
+  },
   // Curves. 45 degrees = 2 steps of 22.5.
   {
     id: 'E', brand: 'BRIO', kind: 'curve', name: 'Large curve',

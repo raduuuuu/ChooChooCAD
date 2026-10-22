@@ -1142,3 +1142,45 @@ describe('submissions survive storage per ROW, because a measurement is not a la
     expect(withStore({}, () => loadSubmissions())).toEqual([]);
   });
 });
+
+/*
+ * K1: THE POLARITY PAIRS AT EVERY LENGTH, AND THEIR PUBLISHED RELATIONS.
+ *
+ * "The B1 and C1 track are an A1 length with two male and two female
+ * connectors." So each pair travels EXACTLY as its base piece does, by `equals`
+ * in Z[zeta16] with no tolerance, at every heading; and the short pair also
+ * keeps A1's own published relation, A1 = 2 x A2. A length that is a whole
+ * number of millimetres is a lattice point by construction; the 18mm rule
+ * above already holds every catalogue straight to it.
+ *
+ * MUTATION PROOF, run: give B `lengthMm: 147` (AU3D's "2000 spec" A). Three
+ * specs fail: this one with `B at heading 0: expected false to be true`, the
+ * 18mm rule above with `B: expected 3 to be +0`, and `sources.test.ts` with
+ * `B has no source entry: expected 144 to be 147` against the cited figure.
+ */
+describe('K1: the polarity pairs travel exactly as the pieces they vary', () => {
+  const pairs: ReadonlyArray<readonly [string, string, string]> = [
+    ['A2', 'B2', 'C2'],
+    ['A1', 'B1', 'C1'],
+    ['A', 'B', 'C'],
+  ];
+
+  it('each pair is its base piece with two pegs or two sockets', () => {
+    for (const [base, pegs, sockets] of pairs) {
+      for (let h = 0; h < 16; h++) {
+        const want = displacement(getPart(base), h);
+        expect(equals(displacement(getPart(pegs), h), want), `${pegs} at heading ${h}`).toBe(true);
+        expect(equals(displacement(getPart(sockets), h), want), `${sockets} at heading ${h}`).toBe(true);
+      }
+      expect(getPart(pegs).ends).toEqual({ start: 'peg', end: 'peg' });
+      expect(getPart(sockets).ends).toEqual({ start: 'socket', end: 'socket' });
+    }
+  });
+
+  it('the short pair keeps A1 = 2 x A2, exactly', () => {
+    const twoA2 = scale(displacement(getPart('A2'), 0), 2);
+    for (const id of ['A1', 'B1', 'C1']) {
+      expect(equals(displacement(getPart(id), 0), twoA2), id).toBe(true);
+    }
+  });
+});
