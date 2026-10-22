@@ -15,8 +15,10 @@
  * allocation does.
  */
 
-import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { memo, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import type { Segment } from '../../engine/src/geom/fk.js';
 import { renderBounds, type GraphRender } from '../../engine/src/graph/render.js';
+import { useDragSession, type RunDrag } from './useDragSession.js';
 import type { PortRef } from '../../engine/src/graph/model.js';
 import type { Part, Polarity } from '../../engine/src/parts/schema.js';
 import {
@@ -67,6 +69,73 @@ const POLARITY_CLASS: Record<Polarity, string> = {
   peg: 'port-dot is-peg',
   socket: 'port-dot is-socket',
 };
+
+/**
+ * THE TRACK'S WOOD, LAYER BY LAYER ACROSS ALL GIVEN SEGMENTS (see the layer
+ * comments in TrackCanvas).
+ *
+ * MEMOISED, which is what keeps placing and dragging cheap (eng review S7,
+ * the required proof of the rigid-preview principle): it re-renders only when
+ * the committed segments or the set of hidden pieces change, so rotating a
+ * preview, moving a drag or changing the selection does not redraw thousands
+ * of paths. `hidden` changes only when a drag starts and ends.
+ */
+export const TrackLayers = memo(function TrackLayers({
+  segments,
+  resolve,
+  maxLayers,
+  hidden,
+  keyPrefix = '',
+}: {
+  readonly segments: readonly Segment[];
+  readonly resolve: (id: string) => Part;
+  readonly maxLayers: number;
+  readonly hidden?: ReadonlySet<string>;
+  readonly keyPrefix?: string;
+}) {
+  // Counted for the committed track only: the preview and drag copies are meant to re-render.
+  if (keyPrefix === '') layerRenders.count++;
+  return (
+    <>
+      {Array.from({ length: maxLayers }).map((_, layerIndex) =>
+        segments.map((s, i) => {
+          if (hidden && s.pieceId !== undefined && hidden.has(s.pieceId)) return null;
+          const layer = trackLayers(resolve(s.partId))[layerIndex];
+          if (!layer || layer.w <= 0) return null;
+          return (
+            <path
+              key={`${keyPrefix}${layerIndex}-${i}`}
+              d={segmentPath(s)}
+              fill="none"
+              stroke={layer.stroke}
+              strokeWidth={layer.w}
+              strokeLinecap="butt"
+            />
+          );
+        }),
+      )}
+    </>
+  );
+});
+
+/** How many times TrackLayers has rendered: read by the memo spec, nothing else. */
+export const layerRenders = { count: 0 };
+
+const EDGE_MM = 1.2;
+/** The concentric strokes a part's plank is drawn with; see TrackCanvas. */
+function trackLayers(part: Part): Array<{ w: number; stroke: string }> {
+  const out: Array<{ w: number; stroke: string }> = [
+    { w: part.plankWidthMm, stroke: 'var(--track-edge)' },
+    { w: part.plankWidthMm - EDGE_MM * 2, stroke: 'var(--track-fill)' },
+  ];
+  if (part.grooveWidthMm !== undefined) {
+    out.push(
+      { w: part.gaugeWidthMm + part.grooveWidthMm, stroke: 'var(--track-groove)' },
+      { w: part.gaugeWidthMm - part.grooveWidthMm, stroke: 'var(--track-fill)' },
+    );
+  }
+  return out;
+}
 
 export interface TrackCanvasProps {
   /** Everything drawable, already placed exactly by the graph engine. */
@@ -138,6 +207,13 @@ export interface TrackCanvasProps {
    * placement of it could extend, in mm, which the frozen view keeps room for.
    */
   readonly ghost?: { readonly render: GraphRender; readonly red: boolean; readonly reach: number } | null;
+  /**
+   * Move a whole run (decisions E6, D10): from a drag, or from the arrow keys
+   * and R on the selected piece. Offsets are whole millimetres, model axes.
+   */
+  readonly onRunMove?: (move: RunDrag, snapRadiusMm: number) => void;
+  /** The pieces of the run a piece belongs to: what a drag carries. */
+  readonly runOf?: (pieceId: string) => ReadonlySet<string>;
 }
 
 export function TrackCanvas({
@@ -161,6 +237,8 @@ export function TrackCanvas({
   pieceName,
   strip,
   ghost = null,
+  onRunMove,
+  runOf,
 }: TrackCanvasProps) {
   const { segments, ports: renderedPorts } = render;
   /*
@@ -210,6 +288,9 @@ export function TrackCanvas({
    * `visibleBox` for why the two differ.
    */
   const shown = visibleBox({ minX: box.minX - pad, minY: box.minY - pad, width: w, height: h }, drawn);
+  // The scale, readable by the drag session's commit, which runs outside render.
+  const shownRef = useRef<number | null>(null);
+  shownRef.current = shown.pxPerMm;
   const step = gridStep(Math.max(w, h), shown.pxPerMm);
 
 
@@ -238,21 +319,7 @@ export function TrackCanvas({
    * measured its grooves and inventing them would be the renderer making up
    * data. Absent looks absent.
    */
-  const EDGE_MM = 1.2;
-  const layers = (partId: string) => {
-    const part = resolve(partId);
-    const out: Array<{ w: number; stroke: string }> = [
-      { w: part.plankWidthMm, stroke: 'var(--track-edge)' },
-      { w: part.plankWidthMm - EDGE_MM * 2, stroke: 'var(--track-fill)' },
-    ];
-    if (part.grooveWidthMm !== undefined) {
-      out.push(
-        { w: part.gaugeWidthMm + part.grooveWidthMm, stroke: 'var(--track-groove)' },
-        { w: part.gaugeWidthMm - part.grooveWidthMm, stroke: 'var(--track-fill)' },
-      );
-    }
-    return out;
-  };
+  const layers = (partId: string) => trackLayers(resolve(partId));
 
   /*
    * The layer count is the MAX across the layout, not the first piece's.
@@ -324,6 +391,51 @@ export function TrackCanvas({
     setFocusId(to);
     pieceEls.current.get(to)?.focus();
   };
+
+  /*
+   * DRAGGING A RUN (decision E6). The drawing group's screen matrix maps the
+   * pointer to model millimetres; see useDragSession. On touch only the
+   * selected piece drags (decision 16A), so a first tap selects and the page
+   * still scrolls.
+   */
+  const [drawGroup, setDrawGroup] = useState<SVGGElement | null>(null);
+  /*
+   * A COARSE POINTER GETS A 44PX TARGET (decision 16A, DESIGN.md rule 10). A
+   * plank drawn at a big layout's fitted scale can be a few pixels wide; on a
+   * finger the invisible hit stroke is widened to 44 CSS px at the current
+   * scale. Free ends and joints are drawn later, so they still win where they
+   * overlap.
+   */
+  const [coarse, setCoarse] = useState(false);
+  useLayoutEffect(() => {
+    if (typeof matchMedia === 'undefined') return;
+    const q = matchMedia('(pointer: coarse)');
+    setCoarse(q.matches);
+    const on = () => setCoarse(q.matches);
+    q.addEventListener?.('change', on);
+    return () => q.removeEventListener?.('change', on);
+  }, []);
+  const hitWidth = (plank: number) =>
+    coarse ? Math.max(plank, 44 / (shown.pxPerMm ?? 1)) : plank;
+  const { drag, handlers: dragHandlers } = useDragSession({
+    group: drawGroup,
+    canDrag: (id, pointerType) =>
+      onRunMove !== undefined && ghost === null && (pointerType !== 'touch' || id === selected),
+    // 24 CSS px at the current scale: the end-to-end snap radius on release.
+    onCommit: (d) => onRunMove?.(d, 24 / (shownRef.current ?? 1)),
+  });
+  const hiddenRun = useMemo(
+    () => (drag && runOf ? runOf(drag.pieceId) : undefined),
+    // Only the dragged piece decides the set, so the layers re-render at the
+    // start and end of a drag, not on every move.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [drag?.pieceId],
+  );
+  const dragPivot = useMemo(() => {
+    if (!drag) return null;
+    const p = renderedPorts.find((rp) => rp.pieceId === drag.pieceId && rp.port === 0);
+    return p ? ([p.x, p.y] as const) : null;
+  }, [drag?.pieceId, renderedPorts]);
 
   /*
    * The empty state leads with ONE action (design D10).
@@ -456,7 +568,7 @@ export function TrackCanvas({
       }}
     >
       {/* y grows downward in SVG; flip so the geometry reads as it would on a floor. */}
-      <g transform={`translate(0, ${2 * box.minY - 2 * pad + h}) scale(1, -1)`}>
+      <g ref={setDrawGroup} transform={`translate(0, ${2 * box.minY - 2 * pad + h}) scale(1, -1)`}>
         {/*
           * Under everything, so no track mark is ever drawn behind a grid
           * line. One path for the whole grid; see `gridPath`.
@@ -468,28 +580,38 @@ export function TrackCanvas({
           * piece's plank edge wherever two pieces meet, and every joint would
           * show a seam that is not there.
           */}
-        {Array.from({ length: maxLayers }).map((_, layerIndex) =>
-          segments.map((s, i) => {
-            const layer = layers(s.partId)[layerIndex];
-            if (!layer || layer.w <= 0) return null;
-            return (
-              <path
-                key={`${layerIndex}-${i}`}
-                d={segmentPath(s)}
-                fill="none"
-                stroke={layer.stroke}
-                strokeWidth={layer.w}
-                strokeLinecap="butt"
-              />
-            );
-          }),
+        <TrackLayers segments={segments} resolve={resolve} maxLayers={maxLayers} hidden={hiddenRun} />
+        {/*
+          * THE RUN BEING DRAGGED (decision E6): the same wood, moved by one
+          * transform, nothing solved. Its pieces are hidden from the layers
+          * above for the drag's duration.
+          */}
+        {drag && dragPivot && (
+          <g
+            className="drag-run"
+            pointerEvents="none"
+            transform={`translate(${drag.dx}, ${drag.dy}) rotate(${drag.turns * 22.5}, ${dragPivot[0]}, ${dragPivot[1]})`}
+          >
+            <TrackLayers
+              segments={segments.filter((sg) => sg.pieceId !== undefined && hiddenRun!.has(sg.pieceId))}
+              resolve={resolve}
+              maxLayers={maxLayers}
+              keyPrefix="drag-"
+            />
+            {seams
+              .filter((m) => hiddenRun!.has(m.pieceId))
+              .map((m, i) => (
+                <line key={`drag-seam-${i}`} className="seam" x1={m.from[0]} y1={m.from[1]} x2={m.to[0]} y2={m.to[1]} />
+              ))}
+          </g>
         )}
         {/*
           * SEAMS, after every track layer so no plank paints over one, and
           * before the joint targets so a seam never takes a click. Ink, not a
           * target: `pointer-events: none` comes from the stylesheet.
           */}
-        {seams.map((m, i) => (
+        {/* The dragged run's seams travel with it, in the overlay above. */}
+        {seams.map((m, i) => hiddenRun?.has(m.pieceId) ? null : (
           <line
             key={`seam-${i}`}
             className="seam"
@@ -545,10 +667,21 @@ export function TrackCanvas({
                 aria-label={pieceName ? pieceName(id) : id}
                 aria-pressed={id === selected}
                 onFocus={() => setFocusId(id)}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPieceSelect(id);
-                }}
+                {...(() => {
+                  const h = dragHandlers(id);
+                  return {
+                    onPointerDown: h.onPointerDown,
+                    onPointerMove: h.onPointerMove,
+                    onPointerUp: h.onPointerUp,
+                    onPointerCancel: h.onPointerCancel,
+                    onClick: (e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      // The click a browser fires at the end of a drag is not a selection.
+                      if (h.swallowsClick()) return;
+                      onPieceSelect(id);
+                    },
+                  };
+                })()}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
@@ -556,6 +689,20 @@ export function TrackCanvas({
                   } else if ((e.key === 'Delete' || e.key === 'Backspace') && id === selected) {
                     e.preventDefault();
                     onPieceRemove?.(id);
+                  } else if (id === selected && !e.altKey && onRunMove && e.key.startsWith('Arrow')) {
+                    /*
+                     * KEYBOARD PARITY (decisions E6, D14): the arrows move the
+                     * selected piece's run a centimetre, Shift ten. Up is +y,
+                     * because the drawing is flipped to read as a floor.
+                     */
+                    e.preventDefault();
+                    const stepMm = e.shiftKey ? 100 : 10;
+                    const dx = e.key === 'ArrowRight' ? stepMm : e.key === 'ArrowLeft' ? -stepMm : 0;
+                    const dy = e.key === 'ArrowUp' ? stepMm : e.key === 'ArrowDown' ? -stepMm : 0;
+                    onRunMove({ pieceId: id, dx, dy, turns: 0 }, 0);
+                  } else if (id === selected && onRunMove && (e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey) {
+                    e.preventDefault();
+                    onRunMove({ pieceId: id, dx: 0, dy: 0, turns: 1 }, 0);
                   } else if (e.altKey && (e.key === 'ArrowRight' || e.key === 'ArrowDown')) {
                     e.preventDefault();
                     stepFocus(id, 1);
@@ -566,7 +713,7 @@ export function TrackCanvas({
                 }}
               >
                 {segs.map((seg, i) => (
-                  <path key={`hit-${i}`} d={segmentPath(seg)} className="piece-hit" strokeWidth={width} />
+                  <path key={`hit-${i}`} d={segmentPath(seg)} className="piece-hit" strokeWidth={hitWidth(width)} />
                 ))}
                 {segs.flatMap((seg, i) =>
                   plankEdges(seg, width / 2).map((d, side) => (
@@ -861,22 +1008,7 @@ export function TrackCanvas({
         {ghost && (
           <g className={`ghost${ghost.red ? ' is-red' : ''}`} pointerEvents="none">
             <g className="ghost-wood">
-              {Array.from({ length: maxLayers }).map((_, layerIndex) =>
-                ghost.render.segments.map((seg, i) => {
-                  const layer = layers(seg.partId)[layerIndex];
-                  if (!layer || layer.w <= 0) return null;
-                  return (
-                    <path
-                      key={`ghost-${layerIndex}-${i}`}
-                      d={segmentPath(seg)}
-                      fill="none"
-                      stroke={layer.stroke}
-                      strokeWidth={layer.w}
-                      strokeLinecap="butt"
-                    />
-                  );
-                }),
-              )}
+              <TrackLayers segments={ghost.render.segments} resolve={resolve} maxLayers={maxLayers} keyPrefix="ghost-" />
             </g>
             {ghost.render.segments.flatMap((seg, i) =>
               plankEdges(seg, resolve(seg.partId).plankWidthMm / 2).map((d, side) => (

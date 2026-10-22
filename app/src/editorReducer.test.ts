@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../../engine/data/library.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Piece, type Port, type PortRef } from '../../engine/src/graph/model.js';
-import { addPiece, EMPTY_GRAPH } from './layoutModel.js';
+import { addPiece, EMPTY_GRAPH, shiftMm } from './layoutModel.js';
 import {
   HISTORY_LIMIT,
   initialEditor,
@@ -435,7 +435,9 @@ describe('the cursor survives a disarm and a remove-last (reported 2026-10-20)',
  * state key, so a state reached by many routes is expanded once. Measured
  * 2026-10-22 with the preview's actions in (PR 3): 50,910 distinct states in
  * 1.6s, 6,674 with an end armed, 20,092 with a piece selected and 3,235 with
- * a piece being placed; the old depth-4 walk of every ROUTE saw 1,708. Depth 6 was approved first (eng decision D3, ENG-R2) on an
+ * a piece being placed; the old depth-4 walk of every ROUTE saw 1,708.
+ * PR 4 added two run moves for the first piece; measured 2.8s, so this spec
+ * carries an explicit 15s ceiling instead of vitest's 5s default. Depth 6 was approved first (eng decision D3, ENG-R2) on an
  * estimate of under 2s; measured, it is 378,088 states in 10.5s and found
  * nothing depth 5 did not, so the owner chose depth 5 (2026-10-22).
  *
@@ -518,6 +520,12 @@ describe('the editor state stays consistent across every reachable state', () =>
       { kind: 'placeGhost' },
       { kind: 'cancelGhost' },
     ];
+    // A run move for the first piece: a shift, and a turn (which is often refused).
+    const first = s.graph.pieces[0];
+    if (first) {
+      out.push({ kind: 'moveRun', pieceId: first.pieceId, turns: 0, by: shiftMm(10, 0) });
+      out.push({ kind: 'moveRun', pieceId: first.pieceId, turns: 1, by: shiftMm(0, 0) });
+    }
     for (const w of s.graph.welds) out.push({ kind: 'breakWeld', a: w.a, b: w.b });
     for (const p of s.graph.pieces) {
       out.push({ kind: 'selectPiece', pieceId: p.pieceId });
@@ -601,7 +609,7 @@ describe('the editor state stays consistent across every reachable state', () =>
     expect(armedStates, 'the walk never armed an end').toBeGreaterThan(1_000);
     expect(selectedStates, 'the walk never selected a piece').toBeGreaterThan(1_000);
     expect(ghostStates, 'the walk never placed through a preview').toBeGreaterThan(1_000);
-  });
+  }, 15_000);
 });
 
 /*

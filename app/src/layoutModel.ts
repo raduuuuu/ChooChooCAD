@@ -16,13 +16,14 @@
  * no `window`. The operations take a graph and return a new one.
  */
 
-import { scale, toXY, zetaPow } from '../../engine/src/geom/cyclotomic.js';
+import { add, fromInt, mulZetaPow, scale, sub, toXY, zetaPow, type Cyc } from '../../engine/src/geom/cyclotomic.js';
 import { removePiece, removeWeld } from '../../engine/src/graph/edit.js';
 import { connectorSites, landingOf } from '../../engine/src/graph/feasible.js';
 import { placeAll, portFrame, type PortsOf } from '../../engine/src/graph/frames.js';
 import {
   compose,
   frameForPortAt,
+  norm16,
   opposed,
   type Frame,
   type Graph,
@@ -348,4 +349,125 @@ export function breakWeld(graph: Graph, ports: PortsOf, weldIndex: number): Grap
 /** The most recently added piece, for an undo-shaped "remove last". */
 export function lastPieceId(graph: Graph): string | null {
   return graph.pieces.length === 0 ? null : graph.pieces[graph.pieces.length - 1]!.pieceId;
+}
+
+/** A rigid move of a run: turn by `turns` sixteenths about `pivot`, then shift by `by`. */
+export interface RunMove {
+  readonly turns: number;
+  /** Exact lattice displacement (whole millimetres, or an exact end-to-end snap). */
+  readonly by: Cyc;
+}
+
+/** The exact displacement of whole millimetres along x and y. */
+export const shiftMm = (dx: number, dy: number): Cyc =>
+  add(fromInt(Math.round(dx)), scale(zetaPow(4), Math.round(dy)));
+
+/**
+ * MOVE A WHOLE RUN, RIGIDLY AND EXACTLY (decisions E6, D10, D14; eng D6).
+ *
+ * The run is every piece connected to `pieceId`. It turns about that piece's
+ * first end, which is a lattice point, and shifts by a lattice vector, so
+ * every frame stays exact and a loop that closed still closes: the move only
+ * rewrites the anchor of the run's root, and the forest lays the rest from it.
+ *
+ * REFUSED, with a reason, when any end of the moved run would then sit on
+ * another end that it cannot join (crowded, same kind, or not facing), or on
+ * one it could join but where joining would re-lay a loop that does not close.
+ * A refused move changes nothing. Otherwise every exact, facing landing joins.
+ */
+export function moveRun(
+  graph: Graph,
+  ports: PortsOf,
+  pieceId: string,
+  move: RunMove,
+): { graph: Graph; refused: string | null; joined: number } {
+  const place = placeAll(graph, ports);
+  const grabbed = graph.pieces.find((p) => p.pieceId === pieceId);
+  const comp = place.forest.component.get(pieceId);
+  if (!grabbed || comp === undefined) return { graph, refused: null, joined: 0 };
+  const root = place.forest.roots[comp]!;
+  const members = new Set(graph.pieces.map((p) => p.pieceId).filter((id) => place.forest.component.get(id) === comp));
+  const pivot = portFrame(place, ports, grabbed, 0).pos;
+  const rootFrame = place.frames.get(root)!;
+  const moved: Frame = {
+    pos: add(add(pivot, mulZetaPow(sub(rootFrame.pos, pivot), move.turns)), move.by),
+    heading: norm16(rootFrame.heading + move.turns),
+  };
+  const anchors = new Map(graph.anchors ?? []);
+  anchors.set(root, moved);
+  const next: Graph = { ...graph, anchors };
+
+  // What each moved free end now lands on, among the ends that did not move.
+  const nextPlace = placeAll(next, ports);
+  const sites = connectorSites(next, ports, nextPlace);
+  let joins = 0;
+  for (const piece of next.pieces) {
+    if (!members.has(piece.pieceId)) continue;
+    const own = ports(piece);
+    for (let port = 0; port < own.length; port++) {
+      if (!isFree(next, { pieceId: piece.pieceId, port })) continue;
+      const landing = landingOf(sites, portFrame(nextPlace, ports, piece, port), own[port]!.polarity, members);
+      if (landing.kind === 'conflict') {
+        return {
+          graph,
+          refused: landing.reason === 'polarity' ? 'two ends of the same kind would meet' : 'its ends would land on other track ends',
+          joined: 0,
+        };
+      }
+      if (landing.kind === 'joins') joins++;
+    }
+  }
+  let joined = next;
+  let count = 0;
+  for (const id of members) {
+    const step = autoJoin(joined, ports, id);
+    joined = step.graph;
+    count += step.joined;
+  }
+  if (count < joins) {
+    return { graph, refused: 'joining there would shift pieces of a loop that does not close', joined: 0 };
+  }
+  return { graph: joined, refused: null, joined: count };
+}
+
+/**
+ * SNAP A DROPPED RUN ONTO A NEARBY END (eng spec amendments, "Drag details").
+ *
+ * When one of the moved run's free ends would come to rest within
+ * `radiusMm` of a free end of the other kind on other track, the move is
+ * replaced by the exact one that makes the two meet, facing: the turn that
+ * opposes their headings, then the lattice shift that lands one on the other.
+ * The nearest such pair wins. Otherwise the move is returned unchanged. Exact
+ * arithmetic throughout, so a snapped join is a real joint, and `moveRun`
+ * then joins it.
+ */
+export function snapRunMove(
+  graph: Graph,
+  ports: PortsOf,
+  pieceId: string,
+  move: RunMove,
+  radiusMm: number,
+): RunMove {
+  const place = placeAll(graph, ports);
+  const grabbed = graph.pieces.find((p) => p.pieceId === pieceId);
+  const comp = place.forest.component.get(pieceId);
+  if (!grabbed || comp === undefined) return move;
+  const pivot = portFrame(place, ports, grabbed, 0).pos;
+  const sites = connectorSites(graph, ports, place);
+  const mine = sites.placed.filter((p) => p.free && place.forest.component.get(p.pieceId) === comp);
+  const others = sites.placed.filter((p) => p.free && place.forest.component.get(p.pieceId) !== comp);
+  let best: { d: number; move: RunMove } | null = null;
+  for (const end of mine) {
+    const landed = toXY(add(add(pivot, mulZetaPow(sub(end.pos, pivot), move.turns)), move.by));
+    for (const target of others) {
+      if (target.polarity === end.polarity) continue;
+      const [tx, ty] = toXY(target.pos);
+      const d = Math.hypot(tx - landed[0], ty - landed[1]);
+      if (d > radiusMm || (best && d >= best.d)) continue;
+      const turns = norm16(target.heading + 8 - end.heading);
+      const rotated = add(pivot, mulZetaPow(sub(end.pos, pivot), turns));
+      best = { d, move: { turns, by: sub(target.pos, rotated) } };
+    }
+  }
+  return best?.move ?? move;
 }

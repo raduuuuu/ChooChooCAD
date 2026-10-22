@@ -24,6 +24,7 @@
  * shape of defect as the stale selection above.
  */
 
+import type { Cyc } from '../../engine/src/geom/cyclotomic.js';
 import { IDENTITY, norm16, type Frame, type Graph, type Piece as GPiece, type PortRef } from '../../engine/src/graph/model.js';
 import type { PortsOf } from '../../engine/src/graph/frames.js';
 import type { Turn } from '../../engine/src/parts/schema.js';
@@ -36,6 +37,7 @@ import {
   isFree,
   fitOptions,
   lastPieceId,
+  moveRun,
   nextRunAnchor,
   weldEnds,
   type Fit,
@@ -131,6 +133,11 @@ export interface EditorState {
    */
   readonly ghost?: Ghost | null;
   /**
+   * Why the last move of a run was refused, shown until the next action
+   * (decision 6A). Absent means nothing was refused.
+   */
+  readonly refusal?: string | null;
+  /**
    * Whether any action so far CHANGED THE GRAPH. Absent means false.
    *
    * This is the graph store's "the user has acted" acknowledgement, and it
@@ -185,7 +192,7 @@ export interface Ghost {
 }
 
 export interface Step {
-  readonly kind: 'place' | 'placeJoin' | 'break' | 'join' | 'remove';
+  readonly kind: 'place' | 'placeJoin' | 'break' | 'join' | 'remove' | 'move';
   /** In `past`, the graph before the step; in `future`, the graph after it. */
   readonly graph: Graph;
 }
@@ -239,6 +246,11 @@ export type EditorAction =
   | { readonly kind: 'placeGhost' }
   /** Drop the pending piece. */
   | { readonly kind: 'cancelGhost' }
+  /**
+   * Move the whole run holding `pieceId`: turn it `turns` sixteenths about
+   * that piece's first end, then shift it by `by` (decisions E6, D10, D14).
+   */
+  | { readonly kind: 'moveRun'; readonly pieceId: string; readonly turns: number; readonly by: Cyc }
   | { readonly kind: 'clear' }
   | { readonly kind: 'preset'; readonly ids: readonly string[] };
 
@@ -387,10 +399,12 @@ export function reduce(
   action: EditorAction,
   ports: PortsOf,
 ): EditorState {
-  const stepped = step(state, action, ports);
+  const raw = step(state, action, ports);
   // Same object back means nothing happened; keeping its identity lets React
   // skip the render, and the acknowledgement cannot change.
-  if (stepped === state) return stepped;
+  if (raw === state) return raw;
+  // A refusal is said until the next action, whatever that is.
+  const stepped = action.kind !== 'moveRun' && raw.refusal ? { ...raw, refusal: null } : raw;
   // A selection never outlives its piece, whichever action removed it.
   const next =
     stepped.selected != null && !stepped.graph.pieces.some((p) => p.pieceId === stepped.selected)
@@ -486,6 +500,21 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf): EditorS
 
     case 'cancelGhost':
       return state.ghost ? { ...state, ghost: null } : state;
+
+    case 'moveRun': {
+      if (state.ghost) return state;
+      const result = moveRun(state.graph, ports, action.pieceId, { turns: action.turns, by: action.by });
+      // A refused move changes no track; it says why until the next action.
+      if (result.refused !== null) return { ...state, refusal: result.refused };
+      return {
+        ...state,
+        graph: result.graph,
+        cursor: stillFree(result.graph, state.cursor) ?? resumeCursor(result.graph, ports),
+        armed: stillFree(result.graph, state.armed),
+        refusal: null,
+        ...remember(state, 'move'),
+      };
+    }
 
     /*
      * Clicking a free end. One click arms it AND targets it, which is the
