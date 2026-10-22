@@ -107,7 +107,7 @@ describe('the graph listing', () => {
    */
   it('names a turned-round curve from the end it went on by', () => {
     const build = (ids: string[]) => {
-      let s: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null, lastAction: null };
+      let s: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null };
       for (const partId of ids) s = reduce(s, { kind: 'add', partId, turn: 'left' }, ports);
       return labels(html(s.graph)).filter((x) => x.startsWith('Piece '));
     };

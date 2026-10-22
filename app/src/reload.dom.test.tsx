@@ -48,7 +48,7 @@ describe('a reload', () => {
    * 'Added piece 4, Large curve (E), joine…'` (the tail differs).
    */
   it('keeps the cursor, so the next piece joins the saved run', async () => {
-    let s: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null, lastAction: null };
+    let s: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null };
     for (let i = 0; i < 3; i++) s = reduce(s, { kind: 'add', partId: 'E', turn: 'left' }, ports);
     saveGraph(s.graph);
 

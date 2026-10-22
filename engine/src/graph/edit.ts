@@ -13,7 +13,8 @@
  * nearest fit would introduce the one epsilon this engine does not have.
  */
 
-import { placeAll } from './frames.js';
+import { spanningForest } from './forest.js';
+import { placeAll, residuals } from './frames.js';
 import type { PortsOf } from './frames.js';
 import type { Frame, Graph, Weld } from './model.js';
 
@@ -48,13 +49,53 @@ function captureAnchors(
   return anchors;
 }
 
+/**
+ * A JOIN THAT NEVER MET MUST NOT STEER THE TRACK THAT STAYS (decision D19 of
+ * the 2026-10-22 editing plan).
+ *
+ * `captureAnchors` pins each component's ROOT where it was, and the forest
+ * places everything else from there across tree welds. In a loop that does
+ * not close exactly, the declared closing weld sits on a gap and is a
+ * non-tree edge, so it steers nothing. Remove a piece or break a joint and
+ * the loop becomes a line: that gappy weld can become a TREE edge, and the far
+ * side is then re-laid through it. Measured by Codex on the Near miss preset:
+ * delete piece 4 and pieces 5-9 move 72mm.
+ *
+ * So any weld that did not meet before the edit, and that would steer
+ * placement after it, is opened in the same edit. Nothing physical is lost --
+ * its two ends never touched -- and the reducer announces it. Repeated until
+ * none is left, because opening one changes which welds the forest uses.
+ * Weld identity is by reference: the edits below filter `welds` and keep the
+ * survivors' objects.
+ */
+function openUnmetJoins(before: Graph, next: Graph, ports: PortsOf): Graph {
+  const unmet = new Set(
+    residuals(before, ports, placeAll(before, ports))
+      .filter((r) => !r.closes)
+      .map((r) => before.welds[r.weld]!),
+  );
+  if (unmet.size === 0) return next;
+  let current = next;
+  for (;;) {
+    const forest = spanningForest(current);
+    const steering = new Set([...forest.parent.values()].map((link) => current.welds[link.weld]));
+    const opened = current.welds.find((w) => unmet.has(w) && steering.has(w));
+    if (!opened) return current;
+    current = { ...current, welds: current.welds.filter((w) => w !== opened) };
+  }
+}
+
 /** Break one weld, leaving both halves exactly where they were. */
 export function removeWeld(graph: Graph, ports: PortsOf, weldIndex: number): Graph {
-  const next: Graph = {
-    pieces: graph.pieces,
-    welds: graph.welds.filter((_, i) => i !== weldIndex),
-    anchors: graph.anchors,
-  };
+  const next = openUnmetJoins(
+    graph,
+    {
+      pieces: graph.pieces,
+      welds: graph.welds.filter((_, i) => i !== weldIndex),
+      anchors: graph.anchors,
+    },
+    ports,
+  );
   return { ...next, anchors: captureAnchors(graph, next, ports) };
 }
 
@@ -67,13 +108,17 @@ export function removeWeld(graph: Graph, ports: PortsOf, weldIndex: number): Gra
  */
 export function removePiece(graph: Graph, ports: PortsOf, pieceId: string): Graph {
   const touches = (w: Weld) => w.a.pieceId === pieceId || w.b.pieceId === pieceId;
-  const next: Graph = {
-    pieces: graph.pieces.filter((p) => p.pieceId !== pieceId),
-    welds: graph.welds.filter((w) => !touches(w)),
-    // The deleted piece's own anchor goes too, or it would pin a component
-    // root that no longer exists.
-    anchors: new Map([...(graph.anchors ?? [])].filter(([id]) => id !== pieceId)),
-  };
+  const next = openUnmetJoins(
+    graph,
+    {
+      pieces: graph.pieces.filter((p) => p.pieceId !== pieceId),
+      welds: graph.welds.filter((w) => !touches(w)),
+      // The deleted piece's own anchor goes too, or it would pin a component
+      // root that no longer exists.
+      anchors: new Map([...(graph.anchors ?? [])].filter(([id]) => id !== pieceId)),
+    },
+    ports,
+  );
   return { ...next, anchors: captureAnchors(graph, next, ports) };
 }
 

@@ -25,7 +25,7 @@ import { placeAll } from '../../engine/src/graph/frames.js';
 import { graphFromChain } from '../../engine/src/graph/fromChain.js';
 import { portsOf, type Graph, type Piece } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
-import { reduce, type EditorState } from './editorReducer.js';
+import { lastStep, nextStep, reduce, type EditorState } from './editorReducer.js';
 import { EMPTY_GRAPH } from './layoutModel.js';
 import { TrackCanvas } from './TrackCanvas.js';
 import { weldTargets } from './trackPath.js';
@@ -129,27 +129,40 @@ describe('a joint shows its brackets on hover and focus, and nothing at rest', (
   });
 });
 
-describe('the Undo control', () => {
+describe('the Undo and Redo controls', () => {
   const html = (s: EditorState) =>
-    renderToStaticMarkup(createElement(UndoControl, { lastAction: s.lastAction, onUndo: () => undefined }));
-  const START: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null, lastAction: null };
+    renderToStaticMarkup(
+      createElement(UndoControl, {
+        last: lastStep(s),
+        next: nextStep(s),
+        onUndo: () => undefined,
+        onRedo: () => undefined,
+      }),
+    );
+  const START: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null };
 
   /*
-   * MUTATION PROOF, run: drop `aria-disabled={disabled}` from `UndoControl`.
-   * Fails with `expected '<button disabled="">Undo</button>' to contain
-   * 'aria-disabled="true"'`.
+   * MUTATION PROOF, run: drop `aria-disabled` from the Undo button. Fails
+   * with `expected 1 to be 2`: only Redo still says it is disabled.
    */
-  it('is disabled, by attribute and by ARIA, with nothing to undo, which is first paint', () => {
+  it('are disabled, by attribute and by ARIA, with nothing to undo or redo, which is first paint', () => {
     const first = html(START);
-    expect(first).toContain('disabled=""');
-    expect(first).toContain('aria-disabled="true"');
+    expect(first.split('disabled=""').length - 1).toBe(2);
+    expect(first.split('aria-disabled="true"').length - 1).toBe(2);
+    expect(first).toContain('aria-label="Nothing to undo"');
+    expect(first).toContain('aria-label="Nothing to redo"');
     expect(first).toContain('>Undo<');
+    expect(first).toContain('>Redo<');
   });
 
-  it('names the step it will reverse, and is disabled again after one undo', () => {
+  /*
+   * Decision 8A names every step. MUTATION PROOF, run: name a break "joint" in
+   * `UndoControl`. Fails with `expected '<button aria-disabled="false">Undo
+   * jo…' to contain '>Undo break<'`.
+   */
+  it('name the step each would take, through several steps back and forward', () => {
     const placed = reduce(START, { kind: 'add', partId: 'E', turn: 'left' }, ports);
-    expect(html(placed)).toContain('>Undo last piece<');
-    expect(html(placed)).not.toContain('disabled=""');
+    expect(html(placed)).toContain('>Undo place<');
     expect(html(placed)).toContain('aria-disabled="false"');
 
     const two = reduce(placed, { kind: 'add', partId: 'E', turn: 'left' }, ports);
@@ -158,7 +171,12 @@ describe('the Undo control', () => {
     expect(html(broken)).toContain('>Undo break<');
 
     const undone = reduce(broken, { kind: 'undo' }, ports);
-    expect(html(undone)).toContain('disabled=""');
-    expect(undoLabel(undone.lastAction)).toBe('Undo');
+    expect(html(undone)).toContain('>Undo place<');
+    expect(html(undone)).toContain('>Redo break<');
+
+    const empty = reduce(reduce(undone, { kind: 'undo' }, ports), { kind: 'undo' }, ports);
+    expect(undoLabel(lastStep(empty))).toBe('Undo');
+    expect(html(empty)).toContain('>Redo place<');
   });
 });
+

@@ -90,7 +90,7 @@ export function laidFrom(graph: Graph): Map<string, number> {
   return from;
 }
 
-function pieceName(n: number, piece: Piece, part: Part, from: number | undefined): string {
+export function pieceName(n: number, piece: Piece, part: Part, from: number | undefined): string {
   const head = `Piece ${n}: ${part.name} (${shortCode(part)})`;
   const turnedRound = from !== undefined && from !== 0;
   const stored = piece.turn === 'right' ? 'right' : 'left';
@@ -107,6 +107,7 @@ export function GraphListing({
   ports,
   onPortClick,
   onBreak,
+  onRemove,
   armed = null,
   cursor = null,
 }: {
@@ -117,6 +118,11 @@ export function GraphListing({
   onPortClick?: (ref: PortRef) => void;
   /** Break a joint (task U7b). Omit for read-only. */
   onBreak?: (a: PortRef, b: PortRef) => void;
+  /**
+   * Remove this piece (decision R1/D2): the keyboard and screen-reader route
+   * to removing any piece, beside the canvas. Omit for read-only.
+   */
+  onRemove?: (pieceId: string) => void;
   armed?: PortRef | null;
   cursor?: PortRef | null;
 }) {
@@ -255,6 +261,12 @@ export function GraphListing({
                   );
                 })}
               </ul>
+              {/* After its ends, so the list reads name, ends, then what to do with it. */}
+              {onRemove && (
+                <button type="button" onClick={() => onRemove(piece.pieceId)}>
+                  Remove piece {n}
+                </button>
+              )}
             </li>
           );
         })}

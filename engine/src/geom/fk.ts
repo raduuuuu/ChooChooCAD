@@ -37,6 +37,12 @@ export interface Segment {
   readonly centrelineRadiusMm?: number;
   readonly sweep?: 'left' | 'right';
   readonly partId: string;
+  /**
+   * The placed piece this segment draws, when it came from a graph (render.ts).
+   * A switch draws two segments with the same id, so selecting it outlines
+   * both roads. Absent for the chain walk, which has no piece ids.
+   */
+  readonly pieceId?: string;
 }
 
 export interface FkResult {

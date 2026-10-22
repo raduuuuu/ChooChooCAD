@@ -19,7 +19,9 @@ import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Piece, type Port, type PortRef } from '../../engine/src/graph/model.js';
 import { EMPTY_GRAPH } from './layoutModel.js';
 import {
+  HISTORY_LIMIT,
   initialEditor,
+  lastStep,
   reduce,
   type EditorAction,
   type EditorState,
@@ -28,7 +30,7 @@ import {
 const resolve = makeResolver(BUILT_IN);
 const ports = (piece: Piece): readonly Port[] => portsOf(resolve(piece.partId), piece.turn);
 
-const START: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null, lastAction: null };
+const START: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null };
 const runs = (s: EditorState) => placeAll(s.graph, ports).forest.roots.length;
 
 describe('add', () => {
@@ -408,84 +410,156 @@ describe('the cursor survives a disarm and a remove-last (reported 2026-10-20)',
  * end without targeting it, that label silently stops announcing the cursor
  * and the ring is suppressed on a port that is not the cursor.
  *
- * Checked by walking every state reachable in four actions from an empty board
- * rather than by asserting the one case. Depth 4 visits 27,515 nodes and 11,624
- * of them have `armed` set (re-measured 2026-10-22, after U5 added `undo` and one
- * `breakWeld` per weld; it was 9,497 and 5,512 before). Distinct states, keyed on
- * pieces, welds, cursor, armed and the kind of `lastAction`: 1,708.
+ * Checked by walking every DISTINCT state reachable in five actions from an
+ * empty board, rather than by asserting the one case. Breadth-first over a
+ * state key, so a state reached by many routes is expanded once. Measured
+ * 2026-10-22: 46,730 distinct states in 1.3s, 6,662 with an end armed and
+ * 19,849 with a piece selected; the old depth-4 walk of every ROUTE saw 1,708
+ * distinct states. Depth 6 was approved first (eng decision D3, ENG-R2) on an
+ * estimate of under 2s; measured, it is 378,088 states in 10.5s and found
+ * nothing depth 5 did not, so the owner chose depth 5 (2026-10-22).
  *
- * WHAT THIS WALK CANNOT DO, because the first version of this comment claimed
- * it could: it cannot notice a NEW action. `actionsFrom` writes the other
- * action kinds out by hand, so an `EditorAction` variant added later
- * is never constructed and the walk passes blind. Anyone adding an action that
- * touches `armed` must add it below as well; this spec will not remind them.
+ * It checks the whole transition table, not only the cursor:
+ *   - an armed end is always the cursor (the rule this spec was written for);
+ *   - an armed end and a selected piece are never both set;
+ *   - the cursor, the armed end and the selection all name pieces that exist,
+ *     and the two ends are free;
+ *   - the history never holds more than HISTORY_LIMIT steps.
  *
- * MUTATION PROOF, RUN: in the arming branch of `clickPort`, return
- * `{ ...state, cursor: state.cursor, armed: ref }` so arming no longer moves
- * the cursor. Observed:
- *   expected [ { armed: { …(2) }, …(1) }, …(5451) ] to deeply equal []
- * Each element is one state where the two refs disagreed, and the count is
- * the point: a single overloaded write puts the editor in thousands of them.
+ * WHAT THIS WALK CANNOT DO: notice a NEW action. `actionsFrom` writes the
+ * action kinds out by hand, so a variant added later is never constructed and
+ * the walk passes blind. Anyone adding an action must add it below.
+ *
+ * MUTATION PROOFS, RUN:
+ * - arming leaves the cursor where it was: `expected [ 'armed is not the
+ *   cursor' ] to deeply equal []` (the rule this spec was first written for).
+ * - `clickPort` without its stale-click guard: `expected [ 'armed end is not a
+ *   free end', …(1) ] to deeply equal []`. Found by this walk: after the
+ *   Circle preset, clicking a joined end armed it.
+ * - `selectPiece` keeps the armed end: `expected [ 'armed and selected
+ *   together' ] to deeply equal []`.
+ * - the walk generates no `clickPort`: `the walk never armed an end: expected
+ *   0 to be greater than 1000`; no `selectPiece`: `the walk never selected a
+ *   piece: expected 0 to be greater than 1000`. The floors stop a crippled
+ *   `actionsFrom` from passing by checking nothing.
  */
-describe('the armed end and the cursor never disagree', () => {
+describe('the editor state stays consistent across every reachable state', () => {
   const same = (a: PortRef | null, b: PortRef | null): boolean =>
     a !== null && b !== null && a.pieceId === b.pieceId && a.port === b.port;
 
-  it('holds across every state reachable in four actions', () => {
-    const violations: Array<{ armed: PortRef; cursor: PortRef | null }> = [];
-    let visited = 0;
-    let armedNodes = 0;
+  /*
+   * THE STATE KEY: the graph, both ends, the selection, and the DEPTH of each
+   * history stack (the approved key, eng decision D3). Keying the history's
+   * contents made nearly every route distinct and the walk ran out of memory
+   * at depth 6, measured. Depth alone keeps "something to undo" apart from
+   * "nothing", which is what changes the reachable transitions; states that
+   * differ only in what an Undo would restore are explored once. Graphs are
+   * keyed once each (they are shared between states).
+   */
+  const graphKeys = new WeakMap<object, string>();
+  const graphKey = (g: EditorState['graph']): string => {
+    let k = graphKeys.get(g);
+    if (k === undefined) {
+      k = JSON.stringify([g.pieces, g.welds, [...(g.anchors ?? [])]]);
+      graphKeys.set(g, k);
+    }
+    return k;
+  };
+  const stateKey = (s: EditorState): string =>
+    JSON.stringify([
+      graphKey(s.graph),
+      s.cursor,
+      s.armed,
+      s.selected ?? null,
+      s.past?.length ?? 0,
+      s.future?.length ?? 0,
+    ]);
 
-    const actionsFrom = (s: EditorState): EditorAction[] => {
-      const out: EditorAction[] = [
-        { kind: 'add', partId: 'E', turn: 'left' },
-        { kind: 'removeLast' },
-        { kind: 'undo' },
-        { kind: 'clear' },
-        { kind: 'preset', ids: ['E', 'E', 'E', 'E', 'E', 'E', 'E', 'E'] },
-      ];
-      // U5's break, once per weld, by the ports that name it.
-      for (const w of s.graph.welds) out.push({ kind: 'breakWeld', a: w.a, b: w.b });
-      for (const p of s.graph.pieces) {
-        for (let port = 0; port < ports(p).length; port++) {
-          out.push({ kind: 'clickPort', ref: { pieceId: p.pieceId, port } });
+  const actionsFrom = (s: EditorState): EditorAction[] => {
+    const out: EditorAction[] = [
+      { kind: 'add', partId: 'E', turn: 'left' },
+      { kind: 'removeLast' },
+      { kind: 'undo' },
+      { kind: 'redo' },
+      { kind: 'clear' },
+      { kind: 'preset', ids: ['E', 'E', 'E', 'E', 'E', 'E', 'E', 'E'] },
+      { kind: 'selectPiece', pieceId: null },
+    ];
+    for (const w of s.graph.welds) out.push({ kind: 'breakWeld', a: w.a, b: w.b });
+    for (const p of s.graph.pieces) {
+      out.push({ kind: 'selectPiece', pieceId: p.pieceId });
+      out.push({ kind: 'removePiece', pieceId: p.pieceId });
+      for (let port = 0; port < ports(p).length; port++) {
+        out.push({ kind: 'clickPort', ref: { pieceId: p.pieceId, port } });
+      }
+    }
+    return out;
+  };
+
+  it('distinguishes states that differ in any one field', () => {
+    const base = reduce(START, { kind: 'add', partId: 'E', turn: 'left' }, ports);
+    const id = base.graph.pieces[0]!.pieceId;
+    const variants: EditorState[] = [
+      { ...base, graph: { ...base.graph, pieces: [] } },
+      { ...base, cursor: null },
+      { ...base, armed: { pieceId: id, port: 0 } },
+      { ...base, selected: id },
+      { ...base, past: [] },
+      { ...base, future: [{ kind: 'place', graph: base.graph }] },
+      { ...base, graph: { ...base.graph, anchors: new Map([[id, { pos: [1, 0, 0, 0, 0, 0, 0, 0], heading: 0 }]]) } },
+    ];
+    for (const v of variants) expect(stateKey(v)).not.toBe(stateKey(base));
+  });
+
+  it('holds across every distinct state reachable in five actions', () => {
+    const problems: string[] = [];
+    const seen = new Set<string>([stateKey(START)]);
+    let frontier: EditorState[] = [START];
+    let armedStates = 0;
+    let selectedStates = 0;
+    const exists = (s: EditorState, id: string) => s.graph.pieces.some((p) => p.pieceId === id);
+    const freeEnd = (s: EditorState, r: PortRef) =>
+      exists(s, r.pieceId) && !s.graph.welds.some((w) => same(w.a, r) || same(w.b, r));
+
+    const check = (s: EditorState) => {
+      if (s.armed !== null) {
+        armedStates++;
+        if (!same(s.armed, s.cursor)) problems.push('armed is not the cursor');
+        if (!freeEnd(s, s.armed)) problems.push('armed end is not a free end');
+        if (s.selected != null) problems.push('armed and selected together');
+      }
+      if (s.cursor !== null && !freeEnd(s, s.cursor)) problems.push('cursor is not a free end');
+      if (s.selected != null) {
+        selectedStates++;
+        if (!exists(s, s.selected)) problems.push('selection names a removed piece');
+      }
+      if ((s.past?.length ?? 0) > HISTORY_LIMIT) problems.push('history over its limit');
+    };
+
+    for (let depth = 0; depth < 5; depth++) {
+      const next: EditorState[] = [];
+      for (const s of frontier) {
+        for (const action of actionsFrom(s)) {
+          const t = reduce(s, action, ports);
+          const k = stateKey(t);
+          if (seen.has(k)) continue;
+          seen.add(k);
+          check(t);
+          next.push(t);
         }
       }
-      return out;
-    };
+      frontier = next;
+    }
 
-    const walk = (s: EditorState, depth: number): void => {
-      visited++;
-      if (s.armed !== null) armedNodes++;
-      if (s.armed !== null && !same(s.armed, s.cursor)) {
-        violations.push({ armed: s.armed, cursor: s.cursor });
-      }
-      if (depth === 0) return;
-      for (const action of actionsFrom(s)) walk(reduce(s, action, ports), depth - 1);
-    };
-
-    walk(START, 4);
-
-    expect(violations).toEqual([]);
+    expect([...new Set(problems)]).toEqual([]);
     /*
-     * THE GUARD COUNTS ARMED NODES, NOT VISITED ONES, and the difference is a
-     * hole found in review. `visited > 200` was supposed to stop a crippled
-     * `actionsFrom` from passing vacuously, but the non-click actions reach
-     * hundreds of nodes on their own, so deleting the `clickPort` generation --
-     * the only thing that ever arms an end -- left this spec green while it
-     * checked nothing at all. Measured before U5: without clickPort, 341
-     * visited and ZERO nodes with `armed` set.
-     *
-     * MUTATION PROOF, RUN (re-run after U5): replace the `for` loop over pieces
-     * and ports with nothing, so `actionsFrom` arms nothing. Observed:
-     *   the walk never armed an end, so it proved nothing: expected 0 to be
-     *   greater than 1000
+     * FLOORS, so a crippled `actionsFrom` cannot pass by visiting nothing.
+     * Armed and selected states are counted separately because each comes
+     * from one action kind alone.
      */
-    expect(visited).toBeGreaterThan(200);
-    expect(
-      armedNodes,
-      'the walk never armed an end, so it proved nothing',
-    ).toBeGreaterThan(1000);
+    expect(seen.size, 'distinct states').toBeGreaterThan(10_000);
+    expect(armedStates, 'the walk never armed an end').toBeGreaterThan(1_000);
+    expect(selectedStates, 'the walk never selected a piece').toBeGreaterThan(1_000);
   });
 });
 
@@ -657,7 +731,7 @@ describe('breaking a joint, and Undo', () => {
   };
 
   it('starts with nothing to undo, which is the first-paint state', () => {
-    expect(initialEditor(chain(3).graph, ports).lastAction).toBeNull();
+    expect(lastStep(initialEditor(chain(3).graph, ports))).toBeNull();
   });
 
   /*
@@ -679,17 +753,17 @@ describe('breaking a joint, and Undo', () => {
     ).toBe(0);
     expect(runs(broken)).toBe(2);
     expect(posOf(broken)).toEqual(before);
-    expect(broken.lastAction?.kind).toBe('break');
+    expect(lastStep(broken)?.kind).toBe('break');
   });
 
   /*
    * E3: RESTORED, NOT REBUILT. The previous graph value comes back, anchors
    * and all.
    *
-   * MUTATION PROOF, run: snapshot the break with the NEW anchors,
-   * `previous: { ...state.graph, anchors: graph.anchors }`. Fails with
-   * `expected Map{ 'p0' => { …(2) }, …(1) } to deeply equal Map{}`: the
-   * break's freshly captured anchor survives the undo.
+   * MUTATION PROOF, run: remember the break with the NEW anchors,
+   * `remember({ ...state, graph: { ...state.graph, anchors: graph.anchors } },
+   * 'break')`. Fails with `expected Map{ 'p0' => { …(2) }, …(1) } to deeply
+   * equal Map{}`: the break's freshly captured anchor survives the undo.
    */
   it('Undo after a break restores the previous graph exactly, and deletes nothing', () => {
     const s = chain(4);
@@ -697,13 +771,14 @@ describe('breaking a joint, and Undo', () => {
     expect(undone.graph.pieces).toHaveLength(4);
     expect(undone.graph.welds).toEqual(s.graph.welds);
     expect(undone.graph.anchors).toEqual(s.graph.anchors);
-    expect(undone.lastAction).toBeNull();
+    // The break is off the history; the placements before it remain.
+    expect(lastStep(undone)).toEqual(lastStep(s));
   });
 
   it('Undo after a placement deletes the placed piece', () => {
     const s = chain(3);
     const placed = reduce(s, { kind: 'add', partId: 'A', turn: 'left' }, ports);
-    expect(placed.lastAction?.kind).toBe('place');
+    expect(lastStep(placed)?.kind).toBe('place');
     const undone = reduce(placed, { kind: 'undo' }, ports);
     expect(undone.graph).toBe(s.graph);
   });
@@ -717,13 +792,14 @@ describe('breaking a joint, and Undo', () => {
   });
 
   /*
-   * MUTATION PROOF, run: in the `undo` case, keep `lastAction: last` instead
-   * of nulling it. Fails with `expected { kind: 'break', previous: { …(3) } }
-   * to be null`.
+   * MUTATION PROOF, run: Undo leaves its step on `past` (`past: back ?
+   * from : ...`). Fails with `expected { kind: 'break', graph: { …(3) } } to
+   * be null`.
    */
-  it('a second Undo does nothing', () => {
-    const once = reduce(breakAt(chain(4), 1), { kind: 'undo' }, ports);
-    expect(once.lastAction).toBeNull();
+  it('an Undo past the oldest step does nothing', () => {
+    // A restored layout has no history, so the break is the only step.
+    const once = reduce(breakAt(initialEditor(chain(4).graph, ports), 1), { kind: 'undo' }, ports);
+    expect(lastStep(once)).toBeNull();
     expect(reduce(once, { kind: 'undo' }, ports)).toBe(once);
   });
 
@@ -810,17 +886,22 @@ describe('breaking a joint, and Undo', () => {
     expect(reduce(s, { kind: 'breakWeld', a: free, b: free }, ports)).toBe(s);
   });
 
-  it('a join is undoable, and Remove last, Clear and a preset leave nothing to undo', () => {
+  it('a join and Remove last are undoable; Clear and a preset start a fresh history', () => {
     let s = chain(8);
     const last = s.graph.pieces[7]!.pieceId;
     const first = s.graph.pieces[0]!.pieceId;
     s = reduce(s, { kind: 'clickPort', ref: { pieceId: last, port: 1 } }, ports);
     const joined = reduce(s, { kind: 'clickPort', ref: { pieceId: first, port: 0 } }, ports);
-    expect(joined.lastAction?.kind).toBe('join');
+    expect(lastStep(joined)?.kind).toBe('join');
     expect(reduce(joined, { kind: 'undo' }, ports).graph).toBe(s.graph);
 
-    expect(reduce(chain(3), { kind: 'removeLast' }, ports).lastAction).toBeNull();
-    expect(reduce(chain(3), { kind: 'clear' }, ports).lastAction).toBeNull();
-    expect(reduce(chain(3), { kind: 'preset', ids: ['E', 'E'] }, ports).lastAction).toBeNull();
+    // Decision D12: Remove last is a removal like any other, so Undo brings
+    // the piece back. It used to clear the one-step Undo.
+    const three = chain(3);
+    const shortened = reduce(three, { kind: 'removeLast' }, ports);
+    expect(lastStep(shortened)?.kind).toBe('remove');
+    expect(reduce(shortened, { kind: 'undo' }, ports).graph).toBe(three.graph);
+    expect(lastStep(reduce(chain(3), { kind: 'clear' }, ports))).toBeNull();
+    expect(lastStep(reduce(chain(3), { kind: 'preset', ids: ['E', 'E'] }, ports))).toBeNull();
   });
 });

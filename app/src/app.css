@@ -39,11 +39,49 @@
  * anchor the caption, which is HTML so it is never flipped or scaled.
  */
 .canvas-frame {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.canvas-area {
   position: relative;
   flex: 1;
   display: flex;
   min-width: 0;
   min-height: 0;
+}
+/*
+ * THE MODE STRIP (decisions 1A, 2A, 19A): the controls for what the canvas is
+ * doing right now, on its bottom edge, so they sit next to the thing they act
+ * on. It takes layout space rather than covering track. One row from 1000px;
+ * below that the name and status take a row of their own and the buttons
+ * wrap under them, the primary action last.
+ */
+.mode-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s3);
+  padding: var(--s2) var(--s3);
+  background: var(--paper);
+  border-top: 1px solid var(--rule);
+}
+.mode-strip-text {
+  flex: 1 1 100%;
+  margin: 0;
+  color: var(--ink);
+}
+.mode-strip button {
+  min-height: 36px;
+  padding: 0 var(--s3);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+}
+@media (pointer: coarse) {
+  .mode-strip button { min-height: 44px; }
 }
 .grid-caption {
   position: absolute;
@@ -71,6 +109,53 @@
   stroke: var(--seam);
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+/*
+ * PIECES AS TARGETS, AND THE SELECTION (decisions R1, 10A, 17A).
+ *
+ * The hit stroke is invisible and plank-wide. The selection marks run along
+ * both plank edges: the selected piece 2px --ink, the rest of its run 1px
+ * --ink-soft. Both solid, so neither reads as the cursor (the only dashed
+ * mark), and the armed end's 3px ring stays the heaviest port mark. Keyboard
+ * focus is a DOTTED --ink line in the same place, shown only for
+ * `:focus-visible`, and the browser's own box is suppressed because on a
+ * curve it is a rectangle around nothing in particular.
+ */
+.piece { cursor: pointer; }
+.piece:focus { outline: none; }
+.piece-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-linecap: butt;
+  pointer-events: stroke;
+}
+.piece-focus {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-dasharray: 1 3;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  visibility: hidden;
+  pointer-events: none;
+}
+.piece:focus-visible .piece-focus { visibility: visible; }
+.piece-selected,
+.piece-run {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.piece-selected { stroke: var(--ink); stroke-width: 2; }
+.piece-run { stroke: var(--ink-soft); stroke-width: 1; }
+.piece-label {
+  font-size: 13px;
+  fill: var(--ink);
+  stroke: var(--floor);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  paint-order: stroke;
   pointer-events: none;
 }
 /* A printed sheet keeps the grid, fainter, so the track still leads. */
@@ -1314,3 +1399,11 @@
   border: 0;
 }
 
+/*
+ * The mode strip on a wide screen (decision 19A): name and status share the
+ * row with the buttons. Kept after the main 1000px block, which
+ * GraphListing.test.ts finds by the first occurrence of this media query.
+ */
+@media (min-width: 1000px) {
+  .mode-strip-text { flex: 1 1 auto; }
+}

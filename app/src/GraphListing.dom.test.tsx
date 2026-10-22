@@ -113,7 +113,12 @@ describe('the list, operated from the keyboard', () => {
     const first = listing().querySelector('li button') as HTMLElement;
     first.focus();
     await user.tab();
+    // Each piece now ends with its Remove button (decision R1/D2).
+    expect((document.activeElement as HTMLElement).textContent).toBe('Remove piece 1');
+    await user.tab();
     expect((document.activeElement as HTMLElement).textContent).toBe('End of piece 2, a peg');
+    await user.tab();
+    expect((document.activeElement as HTMLElement).textContent).toBe('Remove piece 2');
     await user.tab();
     expect((document.activeElement as HTMLElement).getAttribute('aria-label')).toBe(
       'Break Joint 1: end of piece 1 to start of piece 2',
