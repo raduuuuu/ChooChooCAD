@@ -1405,5 +1405,34 @@
  * GraphListing.test.ts finds by the first occurrence of this media query.
  */
 @media (min-width: 1000px) {
-  .mode-strip-text { flex: 1 1 auto; }
+  /*
+   * One row: the text takes what is left and wraps inside itself, so a long
+   * status never pushes Place onto a row of its own (seen in a browser).
+   */
+  .mode-strip { flex-wrap: nowrap; }
+  .mode-strip-text { flex: 1 1 0; min-width: 0; }
+  .mode-strip button { flex: none; }
+}
+
+/*
+ * THE PIECE BEING PLACED (decision 10A, DESIGN.md rule 11). Translucent wood,
+ * opaque solid edge: --ink when it fits, --fail when it would not. Never
+ * dashed, which is the cursor's channel. The status beside it carries the
+ * glyph and the words, so the red edge is never the only signal (rule 2).
+ */
+.ghost-wood { opacity: var(--ghost-opacity); }
+.ghost-edge {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.ghost.is-red .ghost-edge { stroke: var(--fail); stroke-width: 2; }
+.ghost-mark { color: var(--ink); font-weight: 600; }
+.ghost-mark.is-fail { color: var(--fail); }
+.ghost-footnote { color: var(--ink-soft); }
+.mode-strip .primary {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
 }

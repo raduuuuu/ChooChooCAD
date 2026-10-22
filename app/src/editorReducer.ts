@@ -24,17 +24,21 @@
  * shape of defect as the stale selection above.
  */
 
-import type { Graph, Piece as GPiece, PortRef } from '../../engine/src/graph/model.js';
+import { IDENTITY, norm16, type Frame, type Graph, type Piece as GPiece, type PortRef } from '../../engine/src/graph/model.js';
 import type { PortsOf } from '../../engine/src/graph/frames.js';
 import type { Turn } from '../../engine/src/parts/schema.js';
 import {
   EMPTY_GRAPH,
   addPiece,
+  autoJoin,
   breakWeld,
   deletePiece,
   isFree,
+  fitOptions,
   lastPieceId,
+  nextRunAnchor,
   weldEnds,
+  type Fit,
 } from './layoutModel.js';
 
 /**
@@ -122,6 +126,11 @@ export interface EditorState {
    */
   readonly selected?: string | null;
   /**
+   * The piece being placed, before it is placed (decision R3). Absent means
+   * none. Never set together with a selection or an armed end.
+   */
+  readonly ghost?: Ghost | null;
+  /**
    * Whether any action so far CHANGED THE GRAPH. Absent means false.
    *
    * This is the graph store's "the user has acted" acknowledgement, and it
@@ -159,8 +168,24 @@ export interface EditorState {
  * now a step like any other, so Undo brings the piece back. `clear` and
  * `preset` start a fresh history, as they always reset the old one-step Undo.
  */
+/**
+ * A PIECE BEING PLACED (decision R3, with E2 and 18A).
+ *
+ * Attached to a free end (`at`), it goes on by `port` with `turn`, one of the
+ * part's `fitOptions` there. With nowhere to attach (an empty floor, or every
+ * end joined) it stands free at `frame`. Nothing in the graph changes until
+ * Place; the canvas draws it from this alone.
+ */
+export interface Ghost {
+  readonly partId: string;
+  readonly at: PortRef | null;
+  readonly frame: Frame | null;
+  readonly turn: Turn;
+  readonly port: number;
+}
+
 export interface Step {
-  readonly kind: 'place' | 'break' | 'join' | 'remove';
+  readonly kind: 'place' | 'placeJoin' | 'break' | 'join' | 'remove';
   /** In `past`, the graph before the step; in `future`, the graph after it. */
   readonly graph: Graph;
 }
@@ -200,6 +225,20 @@ export type EditorAction =
   | { readonly kind: 'selectPiece'; readonly pieceId: string | null }
   /** Remove any piece, not just the newest (decision R1/D2). */
   | { readonly kind: 'removePiece'; readonly pieceId: string }
+  /** Start placing a piece: show it where it would go (decision R3). */
+  | { readonly kind: 'pick'; readonly partId: string }
+  /** Turn the pending piece to its next way of going on (R). */
+  | { readonly kind: 'rotateGhost' }
+  /** Bend the pending curve or switch the other way (F, decision 18A). */
+  | { readonly kind: 'flipGhost' }
+  /** Move the pending piece to another free end (decision E2). */
+  | { readonly kind: 'moveGhost'; readonly ref: PortRef }
+  /** Move the pending piece to the next or previous free end ([ and ]). */
+  | { readonly kind: 'stepGhost'; readonly by: 1 | -1 }
+  /** Place the pending piece as shown. */
+  | { readonly kind: 'placeGhost' }
+  /** Drop the pending piece. */
+  | { readonly kind: 'cancelGhost' }
   | { readonly kind: 'clear' }
   | { readonly kind: 'preset'; readonly ids: readonly string[] };
 
@@ -298,6 +337,51 @@ function portCountOf(ports: PortsOf, partId: string, turn: Turn): number {
   return ports(provisional).length;
 }
 
+/** Every free end, in placement order: the order `[` and `]` step through. */
+function freeEnds(graph: Graph, ports: PortsOf): PortRef[] {
+  const out: PortRef[] = [];
+  for (const piece of graph.pieces) {
+    for (let port = 0; port < ports(piece).length; port++) {
+      const ref = { pieceId: piece.pieceId, port };
+      if (isFree(graph, ref)) out.push(ref);
+    }
+  }
+  return out;
+}
+
+/** A pending piece at a free end, keeping the turn it had where that fits. */
+function ghostAt(graph: Graph, ports: PortsOf, partId: string, at: PortRef, turn: Turn): Ghost {
+  const { options } = fitOptions(graph, ports, at, partId);
+  const fit = options.find((o) => o.turn === turn) ?? options[0]!;
+  return { partId, at, frame: null, turn: fit.turn, port: fit.port };
+}
+
+/**
+ * Where a newly picked piece starts (decision R3, table "pick"): at the
+ * cursor; with no cursor, standing free at the origin on an empty floor or
+ * beside the track when every end is joined.
+ */
+function newGhost(state: EditorState, partId: string, ports: PortsOf): Ghost {
+  const at = stillFree(state.graph, state.cursor);
+  if (at) return ghostAt(state.graph, ports, partId, at, 'left');
+  const frame = state.graph.pieces.length === 0 ? IDENTITY : nextRunAnchor(state.graph, ports);
+  return { partId, at: null, frame, turn: 'left', port: 0 };
+}
+
+/** The next option with the same turn (R), or null when there is no other. */
+function rotated(options: readonly Fit[], g: Ghost): Fit | null {
+  const same = options.filter((o) => o.turn === g.turn);
+  if (same.length < 2) return null;
+  const i = same.findIndex((o) => o.port === g.port);
+  return same[(i + 1) % same.length]!;
+}
+
+/** The option with the other turn, the same end if it can (F), or null. */
+function flipped(options: readonly Fit[], g: Ghost): Fit | null {
+  const other = options.filter((o) => o.turn !== g.turn);
+  return other.find((o) => o.port === g.port) ?? other[0] ?? null;
+}
+
 export function reduce(
   state: EditorState,
   action: EditorAction,
@@ -332,14 +416,76 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf): EditorS
         state.cursor,
         ports,
       );
+      /*
+       * Now a DIRECT placement (decision 9A: a double-click on the palette, or
+       * Shift+Enter), so it joins what it lands on exactly as Place does.
+       */
+      const placed = autoJoin(next.graph, ports, next.graph.pieces[next.graph.pieces.length - 1]!.pieceId);
       // The add welds the cursor's port, so an end armed on it is now stale.
       return {
-        graph: next.graph,
-        cursor: next.select,
-        armed: stillFree(next.graph, state.armed),
-        ...remember(state, 'place'),
+        graph: placed.graph,
+        cursor: stillFree(placed.graph, next.select) ?? resumeCursor(placed.graph, ports),
+        armed: stillFree(placed.graph, state.armed),
+        ghost: null,
+        ...remember(state, placed.joined > 0 ? 'placeJoin' : 'place'),
       };
     }
+
+    case 'pick': {
+      if (state.ghost?.partId === action.partId) return state;
+      return { ...state, ghost: newGhost(state, action.partId, ports), selected: null, armed: null };
+    }
+
+    case 'rotateGhost':
+    case 'flipGhost': {
+      const g = state.ghost;
+      if (!g) return state;
+      if (g.at === null) {
+        if (action.kind === 'flipGhost') return { ...state, ghost: { ...g, turn: g.turn === 'left' ? 'right' : 'left' } };
+        return { ...state, ghost: { ...g, frame: { ...g.frame!, heading: norm16(g.frame!.heading + 1) } } };
+      }
+      const { options } = fitOptions(state.graph, ports, g.at, g.partId);
+      const next = action.kind === 'rotateGhost' ? rotated(options, g) : flipped(options, g);
+      return next ? { ...state, ghost: { ...g, ...next } } : state;
+    }
+
+    case 'moveGhost': {
+      const g = state.ghost;
+      if (!g || stillFree(state.graph, action.ref) === null) return state;
+      return { ...state, cursor: action.ref, ghost: ghostAt(state.graph, ports, g.partId, action.ref, g.turn) };
+    }
+
+    case 'stepGhost': {
+      const g = state.ghost;
+      if (!g) return state;
+      const ends = freeEnds(state.graph, ports);
+      if (ends.length === 0) return state;
+      const i = g.at ? ends.findIndex((e) => e.pieceId === g.at!.pieceId && e.port === g.at!.port) : -1;
+      const to = ends[(i + action.by + ends.length) % ends.length]!;
+      return { ...state, cursor: to, ghost: ghostAt(state.graph, ports, g.partId, to, g.turn) };
+    }
+
+    case 'placeGhost': {
+      const g = state.ghost;
+      if (!g) return state;
+      const count = portCountOf(ports, g.partId, g.turn);
+      const next = g.at
+        ? addPiece(state.graph, g.partId, g.turn, count, g.at, ports, { port: g.port, turn: g.turn })
+        : addPiece(state.graph, g.partId, g.turn, count, null, ports, { port: 0, turn: g.turn }, g.frame!);
+      const placed = autoJoin(next.graph, ports, next.graph.pieces[next.graph.pieces.length - 1]!.pieceId);
+      return {
+        graph: placed.graph,
+        // A join can consume the far end the cursor would go to (Codex, OV5).
+        cursor: stillFree(placed.graph, next.select) ?? resumeCursor(placed.graph, ports),
+        armed: null,
+        selected: null,
+        ghost: null,
+        ...remember(state, placed.joined > 0 ? 'placeJoin' : 'place'),
+      };
+    }
+
+    case 'cancelGhost':
+      return state.ghost ? { ...state, ghost: null } : state;
 
     /*
      * Clicking a free end. One click arms it AND targets it, which is the
@@ -364,6 +510,8 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf): EditorS
       // list only offer free ends, so only a stale render or a synthetic
       // action reaches this; the state walk found it arming a joined end.
       if (stillFree(state.graph, ref) === null) return state;
+      // While a piece is being placed, an end click moves it there (E2).
+      if (state.ghost) return step(state, { kind: 'moveGhost', ref }, ports);
       if (armed && armed.pieceId === ref.pieceId && armed.port === ref.port) {
         return { ...state, armed: null };
       }
@@ -404,8 +552,9 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf): EditorS
           (same(w.a, action.a) && same(w.b, action.b)) ||
           (same(w.a, action.b) && same(w.b, action.a)),
       );
-      // A weld that is already gone is a stale click, not an error.
-      if (index === -1) return state;
+      // A weld that is already gone is a stale click, not an error. While a
+      // piece is being placed, joints are not editable: Cancel first.
+      if (index === -1 || state.ghost) return state;
       const graph = breakWeld(state.graph, ports, index);
       /*
        * The cursor and the armed end both stay: a break frees ends and claims
@@ -460,6 +609,9 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf): EditorS
     }
 
     case 'selectPiece': {
+      // A piece click while placing is ignored, so a stray click cannot
+      // throw the pending piece away; only Cancel or Esc does.
+      if (state.ghost) return state;
       const id = action.pieceId;
       if (id !== null && !state.graph.pieces.some((p) => p.pieceId === id)) return state;
       const selected = id === null || id === state.selected ? null : id;

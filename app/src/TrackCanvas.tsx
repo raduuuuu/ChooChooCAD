@@ -132,6 +132,12 @@ export interface TrackCanvasProps {
   readonly pieceName?: (pieceId: string) => string;
   /** The canvas-edge strip for the current mode (1A/2A), under the drawing. */
   readonly strip?: ReactNode;
+  /**
+   * The piece being placed (decision R3): drawn as translucent wood with an
+   * opaque edge, red when it would conflict. `reach` is the farthest any
+   * placement of it could extend, in mm, which the frozen view keeps room for.
+   */
+  readonly ghost?: { readonly render: GraphRender; readonly red: boolean; readonly reach: number } | null;
 }
 
 export function TrackCanvas({
@@ -154,9 +160,22 @@ export function TrackCanvas({
   onFloorClick,
   pieceName,
   strip,
+  ghost = null,
 }: TrackCanvasProps) {
   const { segments, ports: renderedPorts } = render;
-  const box = useMemo(() => renderBounds(render), [render]);
+  /*
+   * THE VIEW HOLDS STILL WHILE PLACING (decisions 5A and 4A). The fit covers
+   * the placed track plus the preview's whole reach on every side, and none
+   * of that depends on how the preview is turned, so rotating, flipping or
+   * moving it never zooms the picture or changes the grid step. On an empty
+   * floor the view is a fixed 1 m by 0.6 m around the origin.
+   */
+  const reach = ghost?.reach ?? 0;
+  const box = useMemo(() => {
+    if (segments.length === 0 && ghost) return { minX: -500, minY: -300, maxX: 500, maxY: 300 };
+    const b = renderBounds(render);
+    return { minX: b.minX - reach, minY: b.minY - reach, maxX: b.maxX + reach, maxY: b.maxY + reach };
+  }, [render, reach, segments.length, ghost !== null]);
   const pad = 90;
   const w = Math.max(box.maxX - box.minX, 1) + pad * 2;
   const h = Math.max(box.maxY - box.minY, 1) + pad * 2;
@@ -263,7 +282,8 @@ export function TrackCanvas({
    * filed.
    */
   let maxLayers = 0;
-  for (const s of segments) {
+  // The preview's layers too: on an empty floor it is the only thing drawn.
+  for (const s of [...segments, ...(ghost?.render.segments ?? [])]) {
     const n = layers(s.partId).length;
     if (n > maxLayers) maxLayers = n;
   }
@@ -408,7 +428,7 @@ export function TrackCanvas({
     );
   }
 
-  if (segments.length === 0) {
+  if (segments.length === 0 && !ghost) {
     return (
       <div className="canvas-empty">
         <p className="canvas-empty-lead">Nothing on the floor yet.</p>
@@ -832,6 +852,39 @@ export function TrackCanvas({
           </g>
         ))}
         {selectedLabel}
+        {/*
+          * THE PIECE BEING PLACED (decision 10A). Its wood at --ghost-opacity,
+          * its edge opaque and SOLID (dashed is the cursor's), ink when it fits
+          * and --fail when it would not. Ink only: never a target, so a click
+          * through it reaches the free end underneath (eng S4).
+          */}
+        {ghost && (
+          <g className={`ghost${ghost.red ? ' is-red' : ''}`} pointerEvents="none">
+            <g className="ghost-wood">
+              {Array.from({ length: maxLayers }).map((_, layerIndex) =>
+                ghost.render.segments.map((seg, i) => {
+                  const layer = layers(seg.partId)[layerIndex];
+                  if (!layer || layer.w <= 0) return null;
+                  return (
+                    <path
+                      key={`ghost-${layerIndex}-${i}`}
+                      d={segmentPath(seg)}
+                      fill="none"
+                      stroke={layer.stroke}
+                      strokeWidth={layer.w}
+                      strokeLinecap="butt"
+                    />
+                  );
+                }),
+              )}
+            </g>
+            {ghost.render.segments.flatMap((seg, i) =>
+              plankEdges(seg, resolve(seg.partId).plankWidthMm / 2).map((d, side) => (
+                <path key={`ghost-edge-${i}-${side}`} d={d} className="ghost-edge" />
+              )),
+            )}
+          </g>
+        )}
       </g>
     </svg>
     {/* HTML, not SVG text, so it is never flipped or scaled with the drawing. */}

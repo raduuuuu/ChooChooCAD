@@ -20,9 +20,10 @@
  */
 
 import { StrictMode } from 'react';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import { placeByKeyboard } from '../test/place.js';
 import { App } from './App.js';
 
 const verdict = () => screen.getAllByRole('status').find((el) => el.classList.contains('verdict'))!;
@@ -48,12 +49,18 @@ async function openList(user: ReturnType<typeof userEvent.setup>) {
 
 describe('the list, operated from the keyboard', () => {
   /*
-   * MUTATION PROOF, run: empty the `useLayoutEffect` in `GraphListing.tsx`.
-   * Fails with `expected <body><div>…(1)</div></body> to be <button
-   * type="button" …(1)></button>`: after the join removed the focused button,
-   * focus fell to the page body.
+   * MUTATION PROOF, run (re-run for the rejoin flow): empty the
+   * `useLayoutEffect` in `GraphListing.tsx`. Fails with `expected false to be
+   * true`: after the break removed the focused button, focus fell out of the
+   * list.
    */
-  it('builds, closes, breaks and restores a loop, announcing each step and keeping focus', async () => {
+  /*
+   * Eight large curves now CLOSE the loop as the eighth goes down (decision
+   * D13, the first change listed in eng decision D4), so the list's join is
+   * exercised by breaking a joint and joining it back. Every step still goes
+   * through the list by key.
+   */
+  it('builds, closes, breaks and rejoins a loop, announcing each step and keeping focus', async () => {
     const user = userEvent.setup();
     render(
       <StrictMode>
@@ -61,26 +68,14 @@ describe('the list, operated from the keyboard', () => {
       </StrictMode>,
     );
 
-    for (let i = 0; i < 8; i++) await press(user, button('Add Large curve'));
+    for (let i = 0; i < 8; i++) await placeByKeyboard(user, button('Add Large curve'));
     expect(announced().textContent).toBe(
-      'Added piece 8, Large curve (E), joined to the end of piece 7.',
+      'Added piece 8, Large curve (E), joined to the end of piece 7. It also joined the start of piece 1.',
     );
-    expect(verdict().textContent).toMatch(/Not a loop yet/);
+    expect(verdict().textContent).toMatch(/This works/);
 
     await openList(user);
     expect(listing().open).toBe(true);
-
-    await press(user, button('End of piece 8, a peg'));
-    expect(announced().textContent).toBe(
-      'Selected the end of piece 8. Choose another free end to join it to.',
-    );
-
-    await press(user, button('Start of piece 1, a socket'));
-    expect(announced().textContent).toBe('Joined the end of piece 8 to the start of piece 1.');
-    expect(verdict().textContent).toMatch(/This works/);
-    // The joined ends' buttons are gone; focus moved to a control still in
-    // the list rather than falling to the body.
-    expect(document.activeElement).toBe(listing().querySelector('li button'));
 
     await press(user, button(/^Break Joint 3:/));
     expect(announced().textContent).toBe(
@@ -89,9 +84,21 @@ describe('the list, operated from the keyboard', () => {
     expect(verdict().textContent).toMatch(/Not a loop yet/);
     expect(listing().contains(document.activeElement)).toBe(true);
 
-    await press(user, button('Undo break'));
-    expect(announced().textContent).toBe('Undid the break. The joint is back.');
+    await press(user, button('End of piece 3, a peg'));
+    expect(announced().textContent).toBe(
+      'Selected the end of piece 3. Choose another free end to join it to.',
+    );
+
+    await press(user, button('Start of piece 4, a socket'));
+    expect(announced().textContent).toBe('Joined the end of piece 3 to the start of piece 4.');
     expect(verdict().textContent).toMatch(/This works/);
+    // The joined ends' buttons are gone; focus moved to a control still in
+    // the list rather than falling to the body.
+    expect(document.activeElement).toBe(listing().querySelector('li button'));
+
+    await press(user, button('Undo join'));
+    expect(announced().textContent).toBe('Undid the join.');
+    expect(verdict().textContent).toMatch(/Not a loop yet/);
   });
 
   /*
@@ -108,7 +115,7 @@ describe('the list, operated from the keyboard', () => {
         <App />
       </StrictMode>,
     );
-    for (let i = 0; i < 2; i++) await press(user, button('Add Large curve'));
+    for (let i = 0; i < 2; i++) await placeByKeyboard(user, button('Add Large curve'));
     await openList(user);
     const first = listing().querySelector('li button') as HTMLElement;
     first.focus();
@@ -142,15 +149,17 @@ describe('the list, operated from the keyboard', () => {
         <App />
       </StrictMode>,
     );
-    for (let i = 0; i < 2; i++) await press(user, button('Add Large curve'));
+    for (let i = 0; i < 2; i++) await placeByKeyboard(user, button('Add Large curve'));
     await openList(user);
     (listing().querySelector('li button') as HTMLElement).focus();
     // Focus leaves for nothing, as a click on blank page does.
     act(() => (document.activeElement as HTMLElement).blur());
     await new Promise((r) => setTimeout(r, 0));
     expect(document.activeElement).toBe(document.body);
-    // An action that does not itself move focus: HTMLElement.click().
-    act(() => button('Add Large curve').click());
+    // An action that does not itself move focus. Not a palette click any
+    // more: that picks a piece and moves focus to Place on purpose (OV6).
+    // A double-click places directly and leaves focus where it was.
+    act(() => fireEvent.doubleClick(button('Add Large curve')));
     expect(document.activeElement).toBe(document.body);
   });
 });

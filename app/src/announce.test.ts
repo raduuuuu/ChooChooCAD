@@ -14,10 +14,10 @@
 
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../../engine/data/library.js';
-import { portsOf, type Piece } from '../../engine/src/graph/model.js';
+import { portsOf, type Piece, type PortRef } from '../../engine/src/graph/model.js';
 import { describeAction } from './announce.js';
-import { reduce, type EditorAction, type EditorState } from './editorReducer.js';
-import { EMPTY_GRAPH } from './layoutModel.js';
+import { initialEditor, reduce, type EditorAction, type EditorState } from './editorReducer.js';
+import { addPiece, EMPTY_GRAPH } from './layoutModel.js';
 
 const resolve = makeResolver(BUILT_IN);
 const ports = (p: Piece) => portsOf(resolve(p.partId), p.turn);
@@ -30,6 +30,23 @@ const chain = (n: number): EditorState => {
   let s = START;
   for (let i = 0; i < n; i++) s = reduce(s, { kind: 'add', partId: 'E', turn: 'left' }, ports);
   return s;
+};
+
+/*
+ * AN OPEN CHAIN, built piece by piece WITHOUT auto-join. Since decision D13 an
+ * eighth large curve placed by hand closes the circle by itself, so a chain of
+ * eight built through `reduce` is a loop. These specs need the open chain a
+ * layout restored from storage can still hold, so it is built from the model.
+ */
+const openChain = (n: number, partId = 'E'): EditorState => {
+  let graph = EMPTY_GRAPH;
+  let at: PortRef | null = null;
+  for (let i = 0; i < n; i++) {
+    const next = addPiece(graph, partId, 'left', portsOf(resolve(partId)).length, at, ports);
+    graph = next.graph;
+    at = next.select;
+  }
+  return initialEditor(graph, ports);
 };
 
 describe('describeAction', () => {
@@ -50,7 +67,7 @@ describe('describeAction', () => {
    * armed, so the select branch cannot fire first.)
    */
   it('tells selecting, joining and clearing apart', () => {
-    const s = chain(8);
+    const s = openChain(8);
     const end8 = { pieceId: s.graph.pieces[7]!.pieceId, port: 1 };
     const start1 = { pieceId: s.graph.pieces[0]!.pieceId, port: 0 };
     const sel = step(s, { kind: 'clickPort', ref: end8 });

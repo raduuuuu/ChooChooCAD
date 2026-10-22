@@ -63,6 +63,20 @@ export function describeAction(
     return `Removed piece ${i + 1}, ${part.name} (${shortCode(part)}).${opened(touching)}`;
   };
 
+  /*
+   * A placement that also joined an end it landed on exactly (D13): said, so
+   * the user hears the loop close and not only that a piece went down.
+   */
+  const closed = (id: string): string => {
+    const added = next.graph.welds.filter(
+      (w) => !prev.graph.welds.includes(w) && (w.a.pieceId === id || w.b.pieceId === id),
+    );
+    if (added.length < 2) return '';
+    const far = added[added.length - 1]!;
+    const other = far.a.pieceId === id ? far.b : far.a;
+    return ` It also joined ${where(next.graph, other)}.`;
+  };
+
   switch (action.kind) {
     case 'add': {
       const n = next.graph.pieces.length;
@@ -74,8 +88,30 @@ export function describeAction(
       const head = `Added piece ${n}, ${part.name} (${shortCode(part)})`;
       if (!joint) return `${head}, starting a new run.`;
       const other = joint.a.pieceId === piece.pieceId ? joint.b : joint.a;
-      return `${head}, joined to ${where(next.graph, other)}.`;
+      return `${head}, joined to ${where(next.graph, other)}.${closed(piece.pieceId)}`;
     }
+    case 'placeGhost': {
+      const n = next.graph.pieces.length;
+      const piece = next.graph.pieces[n - 1]!;
+      const part = resolve(piece.partId);
+      const joints = next.graph.welds.filter(
+        (w) => w.a.pieceId === piece.pieceId || w.b.pieceId === piece.pieceId,
+      );
+      const head = `Added piece ${n}, ${part.name} (${shortCode(part)})`;
+      if (joints.length === 0) return `${head}, starting a new run.`;
+      const other = joints[0]!.a.pieceId === piece.pieceId ? joints[0]!.b : joints[0]!.a;
+      return `${head}, joined to ${where(next.graph, other)}.${closed(piece.pieceId)}`;
+    }
+    case 'pick':
+      return `Placing ${resolve(action.partId).name}. Press R to rotate, Enter to place, Escape to cancel.`;
+    case 'rotateGhost':
+    case 'flipGhost':
+      return next.ghost ? `${action.kind === 'flipGhost' ? 'Flipped' : 'Rotated'} the piece being placed.` : null;
+    case 'moveGhost':
+    case 'stepGhost':
+      return next.ghost?.at ? `Placing at ${where(next.graph, next.ghost.at)}.` : null;
+    case 'cancelGhost':
+      return 'Cancelled placing the piece.';
     case 'clickPort': {
       if (next.graph.welds.length > prev.graph.welds.length && prev.armed) {
         return `Joined ${where(prev.graph, prev.armed)} to ${where(prev.graph, action.ref)}.`;
@@ -94,6 +130,7 @@ export function describeAction(
     case 'undo': {
       const kind = lastStep(prev)?.kind;
       if (kind === 'place') return 'Undid the last piece.';
+      if (kind === 'placeJoin') return 'Undid the last piece and its join.';
       if (kind === 'break') return 'Undid the break. The joint is back.';
       if (kind === 'join') return 'Undid the join.';
       if (kind === 'remove') return 'Undid the removal. The piece is back.';
@@ -101,7 +138,7 @@ export function describeAction(
     }
     case 'redo': {
       const kind = nextStep(prev)?.kind;
-      if (kind === 'place') return 'Placed the piece again.';
+      if (kind === 'place' || kind === 'placeJoin') return 'Placed the piece again.';
       if (kind === 'break') return 'Broke the joint again.';
       if (kind === 'join') return 'Joined the ends again.';
       if (kind === 'remove') return 'Removed the piece again.';

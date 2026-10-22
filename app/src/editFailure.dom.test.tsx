@@ -20,6 +20,7 @@ import { StrictMode } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { place } from '../test/place.js';
 import { App } from './App.js';
 import { ErrorBoundary } from './ErrorBoundary.js';
 
@@ -59,7 +60,7 @@ describe('an edit that throws', () => {
         </ErrorBoundary>
       </StrictMode>,
     );
-    await user.click(screen.getAllByRole('button', { name: /^Add Large curve\b/ })[0]!);
+    await place(user, screen.getAllByRole('button', { name: /^Add Large curve\b/ })[0]!);
     await user.click(screen.getByRole('button', { name: 'Clear' }));
 
     expect(

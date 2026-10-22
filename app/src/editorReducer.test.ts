@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../../engine/data/library.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Piece, type Port, type PortRef } from '../../engine/src/graph/model.js';
-import { EMPTY_GRAPH } from './layoutModel.js';
+import { addPiece, EMPTY_GRAPH } from './layoutModel.js';
 import {
   HISTORY_LIMIT,
   initialEditor,
@@ -32,6 +32,23 @@ const ports = (piece: Piece): readonly Port[] => portsOf(resolve(piece.partId), 
 
 const START: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null };
 const runs = (s: EditorState) => placeAll(s.graph, ports).forest.roots.length;
+
+/*
+ * AN OPEN CHAIN, built piece by piece WITHOUT auto-join. Since decision D13 an
+ * eighth large curve placed by hand closes the circle by itself, so a chain of
+ * eight built through `reduce` is a loop. These specs need the open chain a
+ * layout restored from storage can still hold, so it is built from the model.
+ */
+const openChain = (n: number, partId = 'E'): EditorState => {
+  let graph = EMPTY_GRAPH;
+  let at: PortRef | null = null;
+  for (let i = 0; i < n; i++) {
+    const next = addPiece(graph, partId, 'left', portsOf(resolve(partId)).length, at, ports);
+    graph = next.graph;
+    at = next.select;
+  }
+  return initialEditor(graph, ports);
+};
 
 describe('add', () => {
   /*
@@ -54,7 +71,10 @@ describe('add', () => {
    */
   it('eight adds applied in sequence build ONE run, not eight', () => {
     let s = START;
-    for (let i = 0; i < 8; i++) s = reduce(s, { kind: 'add', partId: 'E', turn: 'left' }, ports);
+    // Straights, so eight in a row stay a run: eight large curves would now
+    // close into a circle by themselves (decision D13), which is not the
+    // question here. The question is one run versus eight.
+    for (let i = 0; i < 8; i++) s = reduce(s, { kind: 'add', partId: 'A', turn: 'left' }, ports);
 
     expect(s.graph.pieces).toHaveLength(8);
     expect(s.graph.welds).toHaveLength(7);
@@ -413,9 +433,9 @@ describe('the cursor survives a disarm and a remove-last (reported 2026-10-20)',
  * Checked by walking every DISTINCT state reachable in five actions from an
  * empty board, rather than by asserting the one case. Breadth-first over a
  * state key, so a state reached by many routes is expanded once. Measured
- * 2026-10-22: 46,730 distinct states in 1.3s, 6,662 with an end armed and
- * 19,849 with a piece selected; the old depth-4 walk of every ROUTE saw 1,708
- * distinct states. Depth 6 was approved first (eng decision D3, ENG-R2) on an
+ * 2026-10-22 with the preview's actions in (PR 3): 50,910 distinct states in
+ * 1.6s, 6,674 with an end armed, 20,092 with a piece selected and 3,235 with
+ * a piece being placed; the old depth-4 walk of every ROUTE saw 1,708. Depth 6 was approved first (eng decision D3, ENG-R2) on an
  * estimate of under 2s; measured, it is 378,088 states in 10.5s and found
  * nothing depth 5 did not, so the owner chose depth 5 (2026-10-22).
  *
@@ -424,7 +444,9 @@ describe('the cursor survives a disarm and a remove-last (reported 2026-10-20)',
  *   - an armed end and a selected piece are never both set;
  *   - the cursor, the armed end and the selection all name pieces that exist,
  *     and the two ends are free;
- *   - the history never holds more than HISTORY_LIMIT steps.
+ *   - the history never holds more than HISTORY_LIMIT steps;
+ *   - a piece being placed never coexists with a selection or an armed end,
+ *     and the end it attaches to is free.
  *
  * WHAT THIS WALK CANNOT DO: notice a NEW action. `actionsFrom` writes the
  * action kinds out by hand, so a variant added later is never constructed and
@@ -442,6 +464,10 @@ describe('the cursor survives a disarm and a remove-last (reported 2026-10-20)',
  *   0 to be greater than 1000`; no `selectPiece`: `the walk never selected a
  *   piece: expected 0 to be greater than 1000`. The floors stop a crippled
  *   `actionsFrom` from passing by checking nothing.
+ * - `pick` keeps an armed end (PR 3): `expected [ …(2) ] to deeply equal []`
+ *   (placing with an armed end, and the armed end then naming a joined one).
+ * - the walk generates no `pick`: `the walk never placed through a preview:
+ *   expected 0 to be greater than 1000`.
  */
 describe('the editor state stays consistent across every reachable state', () => {
   const same = (a: PortRef | null, b: PortRef | null): boolean =>
@@ -471,6 +497,7 @@ describe('the editor state stays consistent across every reachable state', () =>
       s.cursor,
       s.armed,
       s.selected ?? null,
+      s.ghost ?? null,
       s.past?.length ?? 0,
       s.future?.length ?? 0,
     ]);
@@ -484,6 +511,12 @@ describe('the editor state stays consistent across every reachable state', () =>
       { kind: 'clear' },
       { kind: 'preset', ids: ['E', 'E', 'E', 'E', 'E', 'E', 'E', 'E'] },
       { kind: 'selectPiece', pieceId: null },
+      { kind: 'pick', partId: 'E' },
+      { kind: 'rotateGhost' },
+      { kind: 'flipGhost' },
+      { kind: 'stepGhost', by: 1 },
+      { kind: 'placeGhost' },
+      { kind: 'cancelGhost' },
     ];
     for (const w of s.graph.welds) out.push({ kind: 'breakWeld', a: w.a, b: w.b });
     for (const p of s.graph.pieces) {
@@ -506,6 +539,7 @@ describe('the editor state stays consistent across every reachable state', () =>
       { ...base, selected: id },
       { ...base, past: [] },
       { ...base, future: [{ kind: 'place', graph: base.graph }] },
+      { ...base, ghost: { partId: 'E', at: null, frame: null, turn: 'left', port: 0 } },
       { ...base, graph: { ...base.graph, anchors: new Map([[id, { pos: [1, 0, 0, 0, 0, 0, 0, 0], heading: 0 }]]) } },
     ];
     for (const v of variants) expect(stateKey(v)).not.toBe(stateKey(base));
@@ -517,6 +551,7 @@ describe('the editor state stays consistent across every reachable state', () =>
     let frontier: EditorState[] = [START];
     let armedStates = 0;
     let selectedStates = 0;
+    let ghostStates = 0;
     const exists = (s: EditorState, id: string) => s.graph.pieces.some((p) => p.pieceId === id);
     const freeEnd = (s: EditorState, r: PortRef) =>
       exists(s, r.pieceId) && !s.graph.welds.some((w) => same(w.a, r) || same(w.b, r));
@@ -534,6 +569,11 @@ describe('the editor state stays consistent across every reachable state', () =>
         if (!exists(s, s.selected)) problems.push('selection names a removed piece');
       }
       if ((s.past?.length ?? 0) > HISTORY_LIMIT) problems.push('history over its limit');
+      if (s.ghost) {
+        ghostStates++;
+        if (s.selected != null || s.armed !== null) problems.push('placing with a selection or armed end');
+        if (s.ghost.at && !freeEnd(s, s.ghost.at)) problems.push('preview attached to an end that is not free');
+      }
     };
 
     for (let depth = 0; depth < 5; depth++) {
@@ -560,6 +600,7 @@ describe('the editor state stays consistent across every reachable state', () =>
     expect(seen.size, 'distinct states').toBeGreaterThan(10_000);
     expect(armedStates, 'the walk never armed an end').toBeGreaterThan(1_000);
     expect(selectedStates, 'the walk never selected a piece').toBeGreaterThan(1_000);
+    expect(ghostStates, 'the walk never placed through a preview').toBeGreaterThan(1_000);
   });
 });
 
@@ -583,21 +624,16 @@ describe('the editor state stays consistent across every reachable state', () =>
  *   expected 2 to be 1 // Object.is equality
  */
 describe('initialEditor', () => {
-  const chain = (n: number): EditorState => {
-    let s = START;
-    for (let i = 0; i < n; i++) s = reduce(s, { kind: 'add', partId: 'E', turn: 'left' }, ports);
-    return s;
-  };
 
   it('resumes the cursor on a restored graph, so a reload stays continuable', () => {
-    const built = chain(8);
+    const built = openChain(8);
     const restored = initialEditor(built.graph, ports);
     expect(restored.cursor).toEqual({ pieceId: built.graph.pieces[7]!.pieceId, port: 1 });
     expect(restored.armed).toBeNull();
   });
 
   it('a piece added after a reload joins the chain instead of starting a run', () => {
-    const restored = initialEditor(chain(8).graph, ports);
+    const restored = initialEditor(openChain(8).graph, ports);
     const s = reduce(restored, { kind: 'add', partId: 'A', turn: 'left' }, ports);
     expect(runs(s)).toBe(1);
     expect(s.graph.welds).toHaveLength(8);
@@ -887,7 +923,7 @@ describe('breaking a joint, and Undo', () => {
   });
 
   it('a join and Remove last are undoable; Clear and a preset start a fresh history', () => {
-    let s = chain(8);
+    let s = openChain(8);
     const last = s.graph.pieces[7]!.pieceId;
     const first = s.graph.pieces[0]!.pieceId;
     s = reduce(s, { kind: 'clickPort', ref: { pieceId: last, port: 1 } }, ports);

@@ -43,7 +43,9 @@ import {
 import { brandFit } from '../../engine/data/thirdParty.js';
 import { layoutTrust } from '../../engine/src/joints/trust.js';
 import { spanningForest } from '../../engine/src/graph/forest.js';
-import { placeAll } from '../../engine/src/graph/frames.js';
+import { toXY } from '../../engine/src/geom/cyclotomic.js';
+import { connectorSites, landingOf } from '../../engine/src/graph/feasible.js';
+import { placeAll, portFrame } from '../../engine/src/graph/frames.js';
 import { portsOf, type Piece as GPiece, type Port, type PortRef } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
 import { gapMarks, seamLines, weldTargets } from './trackPath.js';
@@ -66,7 +68,8 @@ import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/pa
 import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
 import { CANVAS_SEGMENT_CEILING, TrackCanvas } from './TrackCanvas.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
-import { VerdictLine } from './VerdictLine.js';
+import { VerdictLine, VerdictScope } from './VerdictLine.js';
+import { addPiece, autoJoin, fitOptions, frameAt } from './layoutModel.js';
 import { InventoryPanel } from './Inventory.js';
 import { SubmitPart } from './SubmitPart.js';
 import {
@@ -133,6 +136,8 @@ function BrandGroup({ brand, children }: { brand: Brand; children: ReactNode }) 
     <details className="brand-group is-collapsible">{children}</details>
   );
 }
+
+const capitalise = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
 export function App() {
   /*
@@ -488,12 +493,50 @@ export function App() {
   const redo = () => dispatch({ kind: 'redo' });
   const selectPiece = (pieceId: string | null) => dispatch({ kind: 'selectPiece', pieceId });
   const removePiece = (pieceId: string) => dispatch({ kind: 'removePiece', pieceId });
+  const ghost = editor.ghost ?? null;
+  /*
+   * PLACING A PIECE (decision R3). Focus follows the flow (Codex OV6): Pick
+   * moves it to Place, so R, F, Enter and Esc work straight away; Place or
+   * Cancel hand it back to the palette button that started the pick.
+   */
+  const pickOrigin = useRef<HTMLElement | null>(null);
+  const placeButton = useRef<HTMLButtonElement | null>(null);
+  const pick = (partId: string, from: HTMLElement | null) => {
+    pickOrigin.current = from;
+    dispatch({ kind: 'pick', partId });
+  };
+  const returnFocus = () => {
+    const back = pickOrigin.current;
+    pickOrigin.current = null;
+    if (back?.isConnected) back.focus();
+  };
+  const placeGhost = () => {
+    dispatch({ kind: 'placeGhost' });
+    returnFocus();
+  };
+  const cancelGhost = () => {
+    dispatch({ kind: 'cancelGhost' });
+    returnFocus();
+  };
+  const hadGhost = useRef(false);
+  useEffect(() => {
+    if (ghost && !hadGhost.current) placeButton.current?.focus();
+    hadGhost.current = ghost !== null;
+  }, [ghost]);
   useEditorKeys({
     onUndo: undo,
     onRedo: redo,
     onEscape: () => {
-      if (editor.selected != null) selectPiece(null);
+      if (ghost) cancelGhost();
+      else if (editor.selected != null) selectPiece(null);
     },
+    placing: ghost
+      ? {
+          onRotate: () => dispatch({ kind: 'rotateGhost' }),
+          onFlip: () => dispatch({ kind: 'flipGhost' }),
+          onStep: (by) => dispatch({ kind: 'stepGhost', by }),
+        }
+      : null,
   });
   const breakJoint = (a: PortRef, b: PortRef) => dispatch({ kind: 'breakWeld', a, b });
   const clear = () => dispatch({ kind: 'clear' });
@@ -618,6 +661,122 @@ export function App() {
       </div>
     ) : null;
 
+  /*
+   * THE PIECE BEING PLACED, DRAWN AND CHECKED (decisions R3, E1, 14A, 20A;
+   * eng ENG-R4).
+   *
+   * Computed for the one piece, not by re-laying the layout: its frame is the
+   * exact arithmetic Place uses (`frameAt`, held equal by ghostFit.test.ts),
+   * and what its ends land on is a lookup in the committed layout's map of
+   * ends (`connectorSites`). Only a landing that would JOIN costs a full
+   * check, because a join into a loop that does not close can re-lay track
+   * (eng D6); then the placement is simulated once.
+   */
+  const sites = useMemo(() => connectorSites(graph, ports, placement), [graph, ports, placement]);
+  const ghostView = useMemo(() => {
+    if (!ghost) return null;
+    const part = resolve(ghost.partId);
+    const piece: GPiece = { pieceId: '\u0000ghost', partId: ghost.partId, turn: ghost.turn };
+    const fit = ghost.at ? fitOptions(graph, ports, ghost.at, ghost.partId) : null;
+    const frame = ghost.at
+      ? frameAt(graph, ports, placement, ghost.at, ghost.partId, { port: ghost.port, turn: ghost.turn })
+      : ghost.frame!;
+    const alone = { pieces: [piece], welds: [], anchors: new Map([[piece.pieceId, frame]]) };
+    const own = placeAll(alone, ports);
+    const ghostRender = renderGraph(alone, ports, resolve, own);
+    const ends = ports(piece);
+    let status: { glyph: 'O' | 'X'; text: string };
+    const conflicts: string[] = [];
+    let joinsTo: PortRef | null = null;
+    if (fit?.refused) {
+      conflicts.push(`${capitalise(ends[ghost.port]!.polarity)} meets ${ends[ghost.port]!.polarity} here.`);
+    }
+    for (let i = 0; i < ends.length; i++) {
+      if (ghost.at && i === ghost.port) continue;
+      const landing = landingOf(sites, portFrame(own, ports, piece, i), ends[i]!.polarity);
+      if (landing.kind === 'joins') joinsTo = landing.with;
+      else if (landing.kind === 'conflict') {
+        const n = pieceNumber.get(landing.with[0]!.pieceId);
+        conflicts.push(
+          landing.reason === 'polarity'
+            ? `${capitalise(ends[i]!.polarity)} meets ${ends[i]!.polarity} at piece ${n}.`
+            : `Ends would clash with piece ${n}.`,
+        );
+      }
+    }
+    if (joinsTo && conflicts.length === 0) {
+      // Would the join move anything? Only then is it refused (eng D6).
+      const count = ends.length;
+      const placed = ghost.at
+        ? addPiece(graph, ghost.partId, ghost.turn, count, ghost.at, ports, { port: ghost.port, turn: ghost.turn })
+        : addPiece(graph, ghost.partId, ghost.turn, count, null, ports, { port: 0, turn: ghost.turn }, frame);
+      const id = placed.graph.pieces[placed.graph.pieces.length - 1]!.pieceId;
+      if (autoJoin(placed.graph, ports, id).joined === 0) {
+        conflicts.push('Joining here would shift pieces of a loop that does not close.');
+        joinsTo = null;
+      }
+    }
+    if (conflicts.length > 0) {
+      status = { glyph: 'X', text: `${conflicts.join(' ')} You can still place it.` };
+    } else if (joinsTo) {
+      status = { glyph: 'O', text: `Joins piece ${pieceNumber.get(joinsTo.pieceId)}.` };
+    } else {
+      status = { glyph: 'O', text: 'Fits here.' };
+    }
+    const reach =
+      Math.max(...ends.map((e) => Math.hypot(...toXY(e.at.pos)))) + part.plankWidthMm;
+    return {
+      render: ghostRender,
+      red: conflicts.length > 0,
+      status,
+      reach,
+      canRotate: ghost.at === null || (fit !== null && fit.options.filter((o) => o.turn === ghost.turn).length > 1),
+      canFlip: part.kind !== 'straight' && (ghost.at === null || (fit !== null && fit.options.some((o) => o.turn !== ghost.turn))),
+      name: `${part.name} (${shortCode(part)})`,
+    };
+  }, [ghost, graph, ports, placement, resolve, sites, pieceNumber]);
+
+  const placingStrip = ghostView ? (
+    <div
+      className="mode-strip"
+      role="group"
+      aria-label="Placing a piece"
+      onKeyDown={(e) => {
+        // Enter on a strip button activates it natively; nothing else here.
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          cancelGhost();
+        }
+      }}
+    >
+      <p className="mode-strip-text">
+        Placing: {ghostView.name}{' '}
+        <span className="ghost-status" role="status" aria-live="polite">
+          <span className={`ghost-mark${ghostView.red ? ' is-fail' : ''}`} aria-hidden="true">
+            {ghostView.status.glyph}
+          </span>{' '}
+          {ghostView.status.text}{' '}
+          <span className="ghost-footnote">Track crossing mid-piece is not checked.</span>
+        </span>
+      </p>
+      <button onClick={() => dispatch({ kind: 'rotateGhost' })} disabled={!ghostView.canRotate}>
+        Rotate (R)
+      </button>
+      {ghostView.canFlip && <button onClick={() => dispatch({ kind: 'flipGhost' })}>Flip (F)</button>}
+      <button onClick={cancelGhost}>Cancel (Esc)</button>
+      <button ref={placeButton} className="primary" onClick={placeGhost}>
+        Place (Enter)
+      </button>
+    </div>
+  ) : null;
+
+  /*
+   * ABOVE THE DRAWING LIMIT, PLACING PAUSES (decision 7A): there is no canvas
+   * to show a preview on, and placing blind would put down a piece nobody
+   * saw. Removing pieces in the layout list still works, as do Undo and Redo.
+   */
+  const overLimit = render.segments.length > CANVAS_SEGMENT_CEILING;
+
   const counts = usedCounts(graph.pieces.map((p) => p.partId));
   const shortfalls = computeShortfalls(inventory, counts);
 
@@ -698,7 +857,23 @@ export function App() {
             >
               <button
                 className="piece-main"
-                onClick={() => add(part.id, 'left')}
+                /*
+                 * One click PICKS: the piece appears where it would go, to be
+                 * turned and then placed (decision R3). A double-click, or
+                 * Shift+Enter, places it straight away in its first
+                 * orientation (decision 9A), which is how eight clicks still
+                 * build a circle.
+                 */
+                onClick={(e) => pick(part.id, e.currentTarget)}
+                onDoubleClick={() => add(part.id, 'left')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.shiftKey) {
+                    e.preventDefault();
+                    add(part.id, 'left');
+                  }
+                }}
+                disabled={overLimit}
+                title="Double-click to place directly"
                 aria-label={
                   `Add ${part.name}` +
                   (unverified ? '. Unverified size.' : '') +
@@ -711,15 +886,6 @@ export function App() {
                   {part.kind === 'straight' ? `${part.lengthMm}mm` : `r${centrelineRadiusMm(part)}`}
                 </span>
               </button>
-              {part.kind !== 'straight' && (
-                <button
-                  className="piece-mirror"
-                  onClick={() => add(part.id, 'right')}
-                  title={`Add ${part.name} turning right`}
-                >
-                  ↻
-                </button>
-              )}
               {counts[part.id] ? <span className="piece-count num">{counts[part.id]}</span> : null}
             </div>
             );
@@ -746,7 +912,8 @@ export function App() {
           onPieceRemove={removePiece}
           onFloorClick={() => selected !== null && selectPiece(null)}
           pieceName={canvasPieceName}
-          strip={selectionStrip}
+          strip={placingStrip ?? selectionStrip}
+          ghost={ghostView ? { render: ghostView.render, red: ghostView.red, reach: ghostView.reach } : null}
           /*
             * `result`, not `result?.ok`. The clash list lives on BOTH branches
             * of GraphResult, and gating the DRAWING on `ok` undid half of the
@@ -814,7 +981,9 @@ export function App() {
         </div>
       )}
 
-      <VerdictLine view={verdictView} trust={trust} />
+      <VerdictScope.Provider value={ghost ? 'Placed track:' : null}>
+        <VerdictLine view={verdictView} trust={trust} />
+      </VerdictScope.Provider>
 
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="false">
         {said}
@@ -873,6 +1042,11 @@ export function App() {
           * one line each, pinned where they are always visible.
           */}
         <div className="palette-parts">
+          {overLimit && (
+            <p className="palette-paused">
+              Placing is paused: too much track to draw. Remove pieces in the layout list to continue.
+            </p>
+          )}
           {renderBrand('BRIO')}
         </div>
         <div className="palette-shelves">

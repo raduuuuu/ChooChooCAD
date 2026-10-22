@@ -24,6 +24,7 @@ import { StrictMode } from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import { place } from '../test/place.js';
 import { App } from './App.js';
 
 const verdict = () => screen.getAllByRole('status').find((el) => el.classList.contains('verdict'))!;
@@ -74,7 +75,7 @@ describe('the app, driven by events', () => {
         <App />
       </StrictMode>,
     );
-    await user.click(button('Add Large curve'));
+    await place(user, button('Add Large curve'));
     const end = screen.getByRole('button', { name: 'Next piece attaches here, free peg end' });
     end.focus();
     await user.keyboard('{Enter}');
@@ -111,8 +112,8 @@ describe('the app, driven by events', () => {
         <App />
       </StrictMode>,
     );
-    await user.click(button(/^Add Curved switch, peg heel/));
-    await user.click(button('Add Large curve'));
+    await place(user, button(/^Add Curved switch, peg heel/));
+    await place(user, button('Add Large curve'));
     expect(verdict().textContent).toMatch(/Not a loop yet/);
     expect(verdict().textContent).not.toMatch(/Can.t be built/);
   });

@@ -30,6 +30,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SUBMISSIONS_STORAGE_KEY } from '../../engine/data/library.js';
+import { place } from '../test/place.js';
 import { App } from './App.js';
 import { GRAPH_RESCUE_KEY, GRAPH_STORAGE_KEY, INVENTORY_STORAGE_KEY } from './storageKeys.js';
 
@@ -100,7 +101,7 @@ describe('an action releases the save of the store it touched, and no other', ()
   it('a graph edit writes the graph and neither other blob', async () => {
     const user = userEvent.setup();
     mount();
-    await user.click(button(/^Add Large curve\b/));
+    await place(user, button(/^Add Large curve\b/));
 
     expect(storedPieces()).toBe(2);
     expect(stored().submissions).toBe(SUBMISSIONS);
@@ -206,7 +207,7 @@ describe('an action releases the save of the store it touched, and no other', ()
     const user = userEvent.setup();
     mount();
     expect(localStorage.getItem(GRAPH_RESCUE_KEY)).toBeNull();
-    await user.click(button(/^Add Large curve\b/));
+    await place(user, button(/^Add Large curve\b/));
 
     expect(stored().graph).toBe(GRAPH);
   });

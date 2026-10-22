@@ -22,9 +22,10 @@
  */
 
 import { StrictMode } from 'react';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import { place } from '../test/place.js';
 import { App } from './App.js';
 
 const verdict = () => screen.getAllByRole('status').find((el) => el.classList.contains('verdict'))!;
@@ -50,12 +51,12 @@ describe('the next piece joins the track, whatever came before', () => {
   it('after deselecting the end it would attach to', async () => {
     const user = userEvent.setup();
     mount();
-    for (let i = 0; i < 3; i++) await user.click(button('Add Large curve'));
+    for (let i = 0; i < 3; i++) await place(user, button('Add Large curve'));
     await user.click(button('Next piece attaches here, free peg end'));
     await user.click(button('Selected free peg end'));
     expect(announced().textContent).toBe('Selection cleared.');
 
-    await user.click(button('Add Large curve'));
+    await place(user, button('Add Large curve'));
     expect(verdict().textContent).toMatch(/4 pieces, open at both ends/);
     expect(announced().textContent).toBe(
       'Added piece 4, Large curve (E), joined to the end of piece 3.',
@@ -84,8 +85,8 @@ describe('the next piece joins the track, whatever came before', () => {
   it('after a join that used up the attach point, with a free end left', async () => {
     const user = userEvent.setup();
     mount();
-    await user.click(button(/^Add Curved switch\. Unverified/));
-    await user.click(button('Add Large curve'));
+    await place(user, button(/^Add Curved switch\. Unverified/));
+    await place(user, button('Add Large curve'));
     await user.click(document.querySelector('details.graph-listing summary') as HTMLElement);
     await user.click(button('Heel of piece 1, a socket'));
     await user.click(button('Curved road of piece 1, a peg'));
@@ -93,7 +94,7 @@ describe('the next piece joins the track, whatever came before', () => {
       'Joined the heel of piece 1 to the curved road of piece 1.',
     );
 
-    await user.click(button('Add Large curve'));
+    await place(user, button('Add Large curve'));
     expect(announced().textContent).toBe(
       'Added piece 3, Large curve (E), joined to the end of piece 2.',
     );
@@ -103,21 +104,29 @@ describe('the next piece joins the track, whatever came before', () => {
    * ROUTE 3, THE FIRST SHIPPED DEFECT: eight palette clicks built eight runs,
    * because each handler read the selection from its render closure and saw
    * the same stale value eight times. User-event waits for a render between
-   * clicks, which hides exactly this, so the eight clicks are dispatched
-   * inside ONE act: every handler comes from the same render.
+   * clicks, which hides exactly this, so the eight are dispatched inside ONE
+   * act: every handler comes from the same render.
+   *
+   * NOW DOUBLE-CLICKS (eng decision D4, the second listed change). A single
+   * click only picks a piece since decision R3, and Place cannot be pressed
+   * eight times from one render because its button appears only after one;
+   * the direct placement (decision 9A) is the path that dispatches eight
+   * edits from one render. And eight large curves now CLOSE by themselves
+   * (decision D13, the first listed change), so the verdict reads a loop.
    *
    * MUTATION PROOF, run: in App.tsx's `dispatch`, replace the functional
    * updater's `reduce(e, ...)` with `reduce(editor, ...)`, the closure read.
    * Fails with `expected '?Not a loop yet. 1 piece, open at bot…' to match
-   * /8 pieces, open at both ends/`: every click reduced the same stale state,
-   * so the eight collapsed into one piece.
+   * /This works/`: every placement reduced the same stale state, so the eight
+   * collapsed into one piece.
    */
-  it('after eight clicks handled from one render', () => {
+  it('after eight placements handled from one render', () => {
     mount();
     const add = button('Add Large curve');
     act(() => {
-      for (let i = 0; i < 8; i++) add.click();
+      for (let i = 0; i < 8; i++) fireEvent.doubleClick(add);
     });
-    expect(verdict().textContent).toMatch(/8 pieces, open at both ends/);
+    expect(verdict().textContent).toMatch(/This works/);
+    expect(screen.getByText(/This layout, as a list/).textContent).toMatch(/8 pieces, 8 joints/);
   });
 });

@@ -1262,6 +1262,25 @@ See the F2 row: the crash-screen catch was unnecessary and removed; a spec pins 
 - Copy changes that follow approved decisions: Undo/Redo labels per 8A ("Undo place", "Undo remove",
   "Nothing to undo"); Remove last's announcement now names the piece.
 
+### PR 3 (ghost placement)
+- ENG-R1 built: `connectorSites` and `landingOf` in engine/src/graph/feasible.ts; findVertexClashes
+  builds on the same map (its clash and timing specs unchanged and green).
+- `add` is kept, not retired (SC finding 2 superseded by 9A): it is the double-click / Shift+Enter
+  direct placement, and it auto-joins under D6 like Place.
+- Rotate cycles the options of the current turn (often only one for a curve, so R is disabled there);
+  Flip swaps the turn (18A).
+- The D6 spec's first version declared the joining straight after the loop and passed for the wrong
+  reason: a join only re-lays a gappy loop when it changes the entry point of the forest walk.
+- Place announces "Added piece N" (not "Placed"), so every existing announcement assertion stays
+  verbatim (ENG-R3).
+- ROUTE 3 became eight double-clicks in one act: Place's button exists only after a render, so
+  eight pick+Place pairs cannot come from one render as ENG-R3 first described.
+- Found in the browser: the "Placed track:" prefix sat in its own grid cell under the glyph (now inside
+  the sentence), and a long status pushed Place onto its own row at 960px (strip now one row).
+- The preview's fit check runs a full simulated placement only when an end would join (eng D6 allowed
+  this only for a gappy loop's component; joins are rare and the check is linear).
+- Not covered by a spec: the over-the-drawing-limit pause (7A) needs 10,001 pieces to reach.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |

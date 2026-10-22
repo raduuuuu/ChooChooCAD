@@ -21,7 +21,7 @@
  * every measured defect in the engine lived in it.
  */
 
-import type { ReactNode } from 'react';
+import { Children, cloneElement, createContext, isValidElement, useContext, type ReactNode } from 'react';
 import type { TrustIssue } from '../../engine/src/joints/trust.js';
 import type { VerdictView } from './verdictView.js';
 import {
@@ -225,6 +225,15 @@ function Basis({ trust }: { trust: readonly TrustIssue[] }) {
   return <p className="verdict-basis">Exact to the catalogue; joint give {give}.</p>;
 }
 
+/**
+ * WHAT THE VERDICT IS ABOUT, when that is not obvious (decision 3A of the
+ * 2026-10-22 editing plan). While a piece is being placed the verdict still
+ * judges only the track already placed, and a green line beside a red preview
+ * would read as a contradiction; the prefix "Placed track:" says which is
+ * which. Provided by App; empty means no prefix.
+ */
+export const VerdictScope = createContext<string | null>(null);
+
 function Verdict({
   tone,
   notes,
@@ -236,6 +245,27 @@ function Verdict({
   children: ReactNode;
 }) {
   const hasNotes = Boolean(notes);
+  const scope = useContext(VerdictScope);
+  /*
+   * The scope goes INSIDE the sentence's own span, at its start, so it flows
+   * as part of the sentence: "O Placed track: This works." As a sibling it
+   * became its own cell of the verdict's grid and sat under the glyph (seen
+   * in a browser, 2026-10-22).
+   */
+  let inserted = false;
+  const parts = Children.toArray(children).map((child) => {
+    if (inserted || !scope || !isValidElement<{ className?: string; children?: ReactNode }>(child)) return child;
+    if (child.props.className !== 'verdict-text') return child;
+    inserted = true;
+    return cloneElement(
+      child,
+      {},
+      <span className="verdict-scope" key="scope">
+        {scope}{' '}
+      </span>,
+      ...Children.toArray(child.props.children),
+    );
+  });
   return (
     <>
       <div
@@ -245,7 +275,7 @@ function Verdict({
         aria-atomic="true"
         aria-describedby={hasNotes ? NOTES_ID : undefined}
       >
-        {children}
+        {parts}
       </div>
       {hasNotes && (
         <div id={NOTES_ID} className="verdict-notes">

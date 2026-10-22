@@ -23,7 +23,8 @@
 
 import { type Cyc, equals, toXY } from '../geom/cyclotomic.js';
 import { portFrame, type Placement, type PortsOf } from './frames.js';
-import { portPolarity, type Graph } from './model.js';
+import { norm16, portPolarity, type Frame, type Graph, type PortRef } from './model.js';
+import type { Polarity } from '../parts/schema.js';
 import type { Part } from '../parts/schema.js';
 
 /** Two separate places on the track asked to be the same place. */
@@ -98,6 +99,108 @@ function latticeKey(pos: Cyc): string {
   return pos.join(',');
 }
 
+/** One placed connector: where it is, which way it faces, and what it is. */
+export interface PlacedPort {
+  readonly pieceId: string;
+  readonly port: number;
+  /** Its weld group (union-find over welds): ports joined together share one. */
+  readonly vertex: string;
+  /** True when no weld claims it. */
+  readonly free: boolean;
+  readonly pos: Cyc;
+  /** The way the end points, OUT of its piece, in sixteenths of a turn. */
+  readonly heading: number;
+  readonly polarity: Polarity;
+}
+
+/** Every placed connector, and the indices of those at each exact lattice point. */
+export interface ConnectorSites {
+  readonly placed: readonly PlacedPort[];
+  readonly at: ReadonlyMap<string, readonly number[]>;
+}
+
+/**
+ * WHICH ENDS SIT AT EACH EXACT SPOT, for every caller that asks (eng decision
+ * D2 of the 2026-10-22 editing plan, ENG-R1).
+ *
+ * The verdict's clash check, the preview's fit check, the drop guard and
+ * auto-join all need full membership per place, keyed the same exact way. Two
+ * copies of this grouping in app code could disagree with the verdict about
+ * what shares a spot; one engine function cannot. Full membership matters:
+ * the clash records keep only representatives, so a third piece landing on a
+ * pile was invisible to a filter over them (Codex, OV3).
+ */
+export function connectorSites(graph: Graph, ports: PortsOf, placement: Placement): ConnectorSites {
+  const find = vertices(graph);
+  const claimed = claimedPorts(graph);
+  const placed: PlacedPort[] = [];
+  for (const piece of graph.pieces) {
+    const own = ports(piece);
+    for (let i = 0; i < own.length; i++) {
+      const key = `${piece.pieceId}#${i}`;
+      const frame = portFrame(placement, ports, piece, i);
+      placed.push({
+        pieceId: piece.pieceId,
+        port: i,
+        vertex: find(key),
+        free: !claimed.has(key),
+        pos: frame.pos,
+        heading: frame.heading,
+        polarity: own[i]!.polarity,
+      });
+    }
+  }
+  const at = new Map<string, number[]>();
+  for (let i = 0; i < placed.length; i++) {
+    const key = latticeKey(placed[i]!.pos);
+    const group = at.get(key);
+    if (group) group.push(i);
+    else at.set(key, [i]);
+  }
+  return { placed, at };
+}
+
+/**
+ * What a new end would meet if it landed at `frame` (decisions E1, D13/D20,
+ * and the drop guard).
+ *
+ * - `clear`: nothing is there.
+ * - `joins`: exactly one other end is there, free, of the opposite kind, and
+ *   FACING it (its heading is this one's turned half round). That is a real
+ *   joint, so Place or a drop may weld it (D20 added the facing condition:
+ *   a peg meeting a socket at a right angle would rotate a piece if welded).
+ * - `conflict`: anything else: an end already joined, two or more ends, the
+ *   same kind meeting, or ends that do not face each other.
+ *
+ * `ignore` skips the moved or previewed pieces' own ends.
+ */
+export type Landing =
+  | { readonly kind: 'clear' }
+  | { readonly kind: 'joins'; readonly with: PortRef }
+  | {
+      readonly kind: 'conflict';
+      readonly reason: 'crowded' | 'polarity' | 'facing';
+      readonly with: readonly PortRef[];
+    };
+
+export function landingOf(
+  sites: ConnectorSites,
+  frame: Frame,
+  polarity: Polarity,
+  ignore: ReadonlySet<string> = new Set(),
+): Landing {
+  const here = (sites.at.get(latticeKey(frame.pos)) ?? [])
+    .map((i) => sites.placed[i]!)
+    .filter((p) => !ignore.has(p.pieceId));
+  if (here.length === 0) return { kind: 'clear' };
+  const refs = here.map((p) => ({ pieceId: p.pieceId, port: p.port }));
+  const only = here.length === 1 ? here[0]! : null;
+  if (only === null || !only.free) return { kind: 'conflict', reason: 'crowded', with: refs };
+  if (only.polarity === polarity) return { kind: 'conflict', reason: 'polarity', with: refs };
+  if (only.heading !== norm16(frame.heading + 8)) return { kind: 'conflict', reason: 'facing', with: refs };
+  return { kind: 'joins', with: refs[0]! };
+}
+
 /**
  * Ports that land on the same spot without being welded there.
  *
@@ -110,29 +213,7 @@ export function findVertexClashes(
   ports: PortsOf,
   placement: Placement,
 ): readonly VertexClash[] {
-  const find = vertices(graph);
-  const claimed = claimedPorts(graph);
-  const placed: Array<{
-    pieceId: string;
-    port: number;
-    vertex: string;
-    free: boolean;
-    pos: Cyc;
-  }> = [];
-
-  for (const piece of graph.pieces) {
-    const count = ports(piece).length;
-    for (let i = 0; i < count; i++) {
-      const key = `${piece.pieceId}#${i}`;
-      placed.push({
-        pieceId: piece.pieceId,
-        port: i,
-        vertex: find(key),
-        free: !claimed.has(key),
-        pos: portFrame(placement, ports, piece, i).pos,
-      });
-    }
-  }
+  const { placed, at } = connectorSites(graph, ports, placement);
 
   /*
    * GROUPED BY EXACT POSITION, which is decision f333f98f's own prescribed
@@ -167,13 +248,6 @@ export function findVertexClashes(
    * be quadratic, and three timed specs cover the coincident case. The
    * before-and-after measurements live once, in the block at `clashes`.
    */
-  const at = new Map<string, number[]>();
-  for (let i = 0; i < placed.length; i++) {
-    const key = latticeKey(placed[i]!.pos);
-    const group = at.get(key);
-    if (group) group.push(i);
-    else at.set(key, [i]);
-  }
   /*
    * HOW THE COUNT GOT HERE: ports, then pairs of vertices, now places.
    *
