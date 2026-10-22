@@ -2343,8 +2343,9 @@ in which the heel was a point inside the piece.
    (three-way, four ends), O/P (a Y: an E1 either side, no straight road),
    F/G and F1/G1 (parallel offset roads, 46 to 47mm apart). All were found
    and measured; none fits `SwitchPart`.
-2. **T3b's switch disclosure has not landed**, so a layout with a seed switch
-   carries only the generic unverified-size note.
+2. ~~**T3b's switch disclosure has not landed**, so a layout with a seed switch
+   carries only the generic unverified-size note.~~ **Done 2026-10-22**: a
+   layout with a switch now says its geometry is modelled, not measured.
 3. **`BRIO_PIECE_TABLE` is stale for these four.** Its rows for L/M and O1/P1
    still say `needs-graph`; they are now present as seeds, and the graph has
    existed since the rewrite.

@@ -38,7 +38,8 @@ import { graphFromChain } from '../../engine/src/graph/fromChain.js';
 import { portsOf, type Graph, type Piece } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
 import { solveGraph } from '../../engine/src/graph/solve.js';
-import type { TrustIssue } from '../../engine/src/joints/trust.js';
+import { layoutTrust, type TrustIssue } from '../../engine/src/joints/trust.js';
+import { brandFit } from '../../engine/data/thirdParty.js';
 import type { Part } from '../../engine/src/parts/schema.js';
 import { gapMarks } from './trackPath.js';
 import type { VerdictKind, VerdictView } from './verdictView.js';
@@ -217,6 +218,70 @@ describe('the live region holds the sentence and nothing else', () => {
     expect(items).toHaveLength(2);
     expect(items.every((m) => m[1] !== undefined)).toBe(true);
     expect(html).toMatch(/and <span class="num">3<\/span> more notes about this layout\./);
+  });
+});
+
+/*
+ * TASK T3b: THE SWITCH DISCLOSURE AND THE BASIS CLAUSE, RENDERED.
+ *
+ * The trust list here is the REAL register for a layout holding the seed
+ * switch L, not a fixture: L is `unverified` and a switch, so it trips two
+ * serious kinds at once, which is the case the inline limit of two meets
+ * first.
+ */
+describe('a layout with a switch', () => {
+  const trustL = layoutTrust(
+    { placements: ['L', 'E', 'E'].map((partId) => ({ partId, turn: 'left' as const })), closed: false },
+    makeResolver(BUILT_IN),
+    brandFit,
+  );
+  const unescape = (html: string) => html.replace(/&#x27;/g, "'");
+
+  /*
+   * MUTATION PROOF, run: remove `modelled-switch` from `isSerious` in
+   * `VerdictLine.tsx`. Fails with `expected '<div class="verdict
+   * verdict-pass" rol…' to contain '<li class="is-serious">This switch\'s…'`.
+   */
+  it('shows the switch sentence as a serious note, outside the live region', () => {
+    expect(trustL.map((t) => t.kind)).toContain('modelled-switch');
+    const html = unescape(render('EXACT', trustL));
+    expect(html).toContain(`<li class="is-serious">This switch's geometry is modelled, not measured.</li>`);
+    expect(region(html).inner).not.toContain('modelled');
+  });
+
+  /*
+   * MUTATION PROOF, run: pass `true` for `basis` on the IMPOSSIBLE branch's
+   * `notesFor` call. Fails with `IMPOSSIBLE: expected '<div class="verdict
+   * verdict-fail" rol…' not to contain 'verdict-basis'`.
+   */
+  it('states the basis on the three verdicts that compare a gap with give, and only those', () => {
+    const withBasis: VerdictKind[] = ['EXACT', 'NEEDS_GIVE', 'EXCEEDS'];
+    for (const kind of KINDS) {
+      const html = render(kind, trustL);
+      if (withBasis.includes(kind)) {
+        expect(html, kind).toContain(
+          '<p class="verdict-basis">Exact to the catalogue; joint give estimated.</p>',
+        );
+        expect(region(html).inner, kind).not.toContain('verdict-basis');
+      } else {
+        expect(html, kind).not.toContain('verdict-basis');
+      }
+    }
+  });
+
+  /*
+   * MEASURED ONLY WHEN THE REGISTER SAYS SO. With no estimated-give note the
+   * give was measured; with no register at all nothing was established, and
+   * the clause is withheld rather than defaulting to "measured".
+   *
+   * MUTATION PROOF, run: delete the `trust.length === 0` guard in `Basis`.
+   * Fails with `expected '<div class="verdict verdict-pass" rol…' not to
+   * contain 'verdict-basis'`.
+   */
+  it('says measured only when the register ran and found no estimated give', () => {
+    const axialOnly = trustL.filter((t) => t.kind === 'axial-only-give');
+    expect(render('EXACT', axialOnly)).toContain('joint give measured.');
+    expect(render('EXACT', [])).not.toContain('verdict-basis');
   });
 });
 

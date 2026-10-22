@@ -47,7 +47,11 @@ import {
  * each gets its own line rather than being averaged into a disclaimer.
  */
 const isSerious = (t: TrustIssue) =>
-  t.kind === 'unverified-size' || t.kind === 'brands-do-not-join';
+  t.kind === 'unverified-size' ||
+  t.kind === 'brands-do-not-join' ||
+  // T3b's ruling, closed rather than conditional: a modelled switch is
+  // strictly less grounded than an unverified published figure.
+  t.kind === 'modelled-switch';
 
 /** At most this many disclosures are shown; the rest become a count (E7). */
 const TRUST_INLINE_LIMIT = 2;
@@ -70,9 +74,11 @@ function Trust({ trust }: { trust: readonly TrustIssue[] }) {
    * rather than an ordinal below so the next addition does not repeat this.
    *
    * `TrustIssue` kinds today: `unverified-size`, `single-source`,
-   * `brands-do-not-join`, `estimated-give`, `axial-only-give`. Two of them are
-   * serious, and `TRUST_INLINE_LIMIT` is 2, so on a layout that trips both
-   * serious kinds nothing else is shown. The give qualification no longer
+   * `brands-do-not-join`, `estimated-give`, `axial-only-give`,
+   * `modelled-switch`. Three of them are serious, and `TRUST_INLINE_LIMIT` is
+   * 2, so on a layout that trips two serious kinds nothing else is shown --
+   * and every layout with a seed switch trips two, because the seeds are also
+   * `unverified`. The give qualification no longer
    * depends on being shown: `verdictLine.test.ts` pins that the EXCEEDS
    * headline carries it even when this list is truncated to the two serious
    * lines.
@@ -186,14 +192,35 @@ const NOTES_ID = 'verdict-notes';
  * null outside `ACTION_WHEN_EMPTY`), but relying on that silently is how the
  * live region ended up holding the trust list in the first place.
  */
-function notesFor(trust: readonly TrustIssue[], action: string | null) {
+function notesFor(trust: readonly TrustIssue[], action: string | null, basis = false) {
   if (trust.length === 0 && !action) return undefined;
   return (
     <>
+      {basis && <Basis trust={trust} />}
       <Trust trust={trust} />
       <Action action={action} />
     </>
   );
+}
+
+/**
+ * WHAT THE VERDICT RESTS ON, stated once (task T3b).
+ *
+ * Every disclosure below it lowers confidence. This clause says what the
+ * answer IS grounded in: the closure arithmetic is exact against the
+ * catalogue's figures, and the give it is compared with is estimated. The
+ * day joint give is measured (X3), the second half says so and nothing else
+ * has to change.
+ *
+ * Only on the verdicts that compare a gap with give, and only when the trust
+ * register actually ran. With no trust list there is nothing to say the give
+ * was measured, and "measured" from an absent list would be the overclaim
+ * this clause exists to avoid.
+ */
+function Basis({ trust }: { trust: readonly TrustIssue[] }) {
+  if (trust.length === 0) return null;
+  const give = trust.some((t) => t.kind === 'estimated-give') ? 'estimated' : 'measured';
+  return <p className="verdict-basis">Exact to the catalogue; joint give {give}.</p>;
 }
 
 function Verdict({
@@ -376,7 +403,7 @@ export function VerdictLine({
       return (
         <Verdict
           tone="pass"
-          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind])}
+          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], true)}
         >
           <Mark glyph="O" />
           <span className="verdict-text">This works. Closes exactly, no give needed at any joint.</span>
@@ -387,7 +414,7 @@ export function VerdictLine({
       return (
         <Verdict
           tone="tight"
-          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind])}
+          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], true)}
         >
           <Mark glyph={'/\\'} />
           <span className="verdict-text">
@@ -438,7 +465,7 @@ export function VerdictLine({
          */
         <Verdict
           tone="fail"
-          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind])}
+          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], true)}
         >
           <Mark glyph="X" />
           <span className="verdict-text">
