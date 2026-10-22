@@ -2273,7 +2273,7 @@ would close all four.
   review; the rest need re-deriving, and the convention should move to task ids
   or heading anchors so they stop rotting.
 
-## P2 — Three interaction routes to the cursor bug have no interactive test (filed by /ship's review, 2026-10-20)
+## DONE — Three interaction routes to the cursor bug have no interactive test (filed by /ship's review, 2026-10-20; done 2026-10-22)
 
 **What:** the reported append bug had five routes to a null cursor. All five are
 closed and pinned in `app/src/editorReducer.test.ts`. Review then showed only
@@ -2295,6 +2295,17 @@ cases waiting on it.
 **Unblocked 2026-10-22: E11 has landed.** Write these as `app/**/*.dom.test.tsx`
 files in the `dom` project (see `CLAUDE.md`); `app/src/App.dom.test.tsx` shows the
 pattern, mounting `App` in `StrictMode` and driving it with `user-event`.
+
+**Done 2026-10-22**, in `app/src/cursorRoutes.dom.test.tsx`, driving the real App:
+deselecting the end the next piece attaches to, and eight palette clicks
+dispatched from one render (the first shipped defect). Reload is
+`reload.dom.test.tsx`. **One route was not real:** "a weld that consumes neither
+end of the cursor" cannot happen through the UI, because selecting an end also
+moves the cursor there, so a join always consumes it. Trying to drive it found a
+real gap instead: a join that consumed the cursor nulled it even with free ends
+left, and the next piece started a separate run. By the owner's ruling the
+cursor now resumes on the newest free end (`resumeCursor`), as Remove last and a
+reload do; closing the last loop still clears it.
 
 ## P3 — The cursor ring shrinks with the board (filed by /ship's review, 2026-10-20)
 
