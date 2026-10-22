@@ -86,6 +86,13 @@ export interface Port {
   readonly kind: PortKind;
   /** Pose in the part's local frame. Heading points OUT of the piece. */
   readonly at: Frame;
+  /**
+   * Peg or socket, the same answer `portPolarity` gives. Carried on the port
+   * so code that holds only ports, such as the editor attaching a piece,
+   * can see which way round the piece has to go (the auto-flip in
+   * `addPiece`).
+   */
+  readonly polarity: Polarity;
 }
 
 /** A placed piece: an instance of a part, with its own identity. */
@@ -150,12 +157,20 @@ export function portsOf(part: Part, turn: Turn = 'left'): readonly Port[] {
   // Port 0 is the HEEL on a switch and an ordinary end everywhere else. On a
   // two-ported part the distinction is invisible, which is why it can be set
   // here once rather than threaded through the walk.
-  const entry: Port = { kind: part.kind === 'switch' ? 'heel' : 'end', at: ENTRY };
+  const entry: Port = {
+    kind: part.kind === 'switch' ? 'heel' : 'end',
+    at: ENTRY,
+    polarity: part.ends.start,
+  };
+  const far = part.ends.end;
   if (part.kind === 'straight') {
-    return [entry, { kind: 'end', at: { pos: straightEnd(part.lengthMm), heading: 0 } }];
+    return [entry, { kind: 'end', at: { pos: straightEnd(part.lengthMm), heading: 0 }, polarity: far }];
   }
   if (part.kind === 'curve') {
-    return [entry, { kind: 'end', at: arcEnd(centrelineRadiusMm(part), part.arcSteps, turn) }];
+    return [
+      entry,
+      { kind: 'end', at: arcEnd(centrelineRadiusMm(part), part.arcSteps, turn), polarity: far },
+    ];
   }
   /*
    * A SWITCH. Three ports, and nothing else in this file had to change.
@@ -171,8 +186,8 @@ export function portsOf(part: Part, turn: Turn = 'left'): readonly Port[] {
    */
   return [
     entry,
-    { kind: 'end', at: { pos: straightEnd(part.throughLengthMm), heading: 0 } },
-    { kind: 'end', at: arcEnd(centrelineRadiusMm(part), part.arcSteps, turn) },
+    { kind: 'end', at: { pos: straightEnd(part.throughLengthMm), heading: 0 }, polarity: far },
+    { kind: 'end', at: arcEnd(centrelineRadiusMm(part), part.arcSteps, turn), polarity: far },
   ];
 }
 

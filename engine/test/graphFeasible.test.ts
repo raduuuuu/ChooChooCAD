@@ -275,8 +275,8 @@ describe('free ends meeting are an invitation, not a clash', () => {
    */
   it('a piece with both free ends in one place is reported', () => {
     const zero: readonly Port[] = [
-      { kind: 'end', at: { pos: fromInt(0), heading: 0 } },
-      { kind: 'end', at: { pos: fromInt(0), heading: 8 } },
+      { kind: 'end', at: { pos: fromInt(0), heading: 0 }, polarity: 'socket' },
+      { kind: 'end', at: { pos: fromInt(0), heading: 8 }, polarity: 'peg' },
     ];
     const withZero = (piece: Piece): readonly Port[] =>
       piece.partId === 'ZERO' ? zero : ports(piece);

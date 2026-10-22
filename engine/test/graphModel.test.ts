@@ -119,16 +119,18 @@ describe('placing pieces', () => {
 describe('a four-port crossing stays rigid', () => {
   const ARM = 108;
   const crossingPorts: readonly Port[] = [
-    { kind: 'end', at: { pos: ZERO, heading: 8 } },
-    { kind: 'end', at: { pos: scale(zetaPow(0), ARM), heading: 0 } },
+    { kind: 'end', at: { pos: ZERO, heading: 8 }, polarity: 'socket' },
+    { kind: 'end', at: { pos: scale(zetaPow(0), ARM), heading: 0 }, polarity: 'peg' },
     // The second track, at 90 degrees (4 steps), crossing the midpoint.
     {
       kind: 'end',
       at: { pos: sub(scale(zetaPow(0), ARM / 2), scale(zetaPow(4), ARM / 2)), heading: 12 },
+      polarity: 'socket',
     },
     {
       kind: 'end',
       at: { pos: add(scale(zetaPow(0), ARM / 2), scale(zetaPow(4), ARM / 2)), heading: 4 },
+      polarity: 'peg',
     },
   ];
   const withCrossing = (piece: Piece): readonly Port[] =>

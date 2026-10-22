@@ -120,11 +120,14 @@ export function addPiece(
   ports: PortsOf,
 ): { graph: Graph; select: PortRef | null } {
   const pieceId = newPieceId(graph.pieces);
-  const piece: Piece = { pieceId, partId, turn };
-  const pieces = [...graph.pieces, piece];
   const attaching = at !== null && isFree(graph, at);
+  const { port: joinBy, turn: placedTurn } = attaching
+    ? orientation(graph, ports, at, pieceId, partId, turn)
+    : { port: 0, turn };
+  const piece: Piece = { pieceId, partId, turn: placedTurn };
+  const pieces = [...graph.pieces, piece];
   const welds: Weld[] = attaching
-    ? [...graph.welds, { a: at, b: { pieceId, port: 0 } }]
+    ? [...graph.welds, { a: at, b: { pieceId, port: joinBy } }]
     : [...graph.welds];
 
   // A piece that attaches joins an existing component and needs no anchor.
@@ -134,8 +137,50 @@ export function addPiece(
     anchors.set(pieceId, nextRunAnchor(graph, ports));
   }
 
-  const select: PortRef | null = portCount > 1 ? { pieceId, port: 1 } : null;
+  /*
+   * The far end to continue from: port 1 when the piece went on by its start,
+   * and its start (a switch's heel) when it went on turned round.
+   */
+  const select: PortRef | null =
+    portCount > 1 ? { pieceId, port: joinBy === 0 ? 1 : 0 } : null;
   return { graph: { pieces, welds, anchors }, select };
+}
+
+const flip = (t: Turn): Turn => (t === 'left' ? 'right' : 'left');
+
+/**
+ * WHICH WAY ROUND THE NEW PIECE GOES ON (the auto-flip).
+ *
+ * A piece attaches by its start, port 0. When that start is the same kind as
+ * the end it is meeting -- a socket on a socket, the M switch's road then an
+ * E, say -- real track would simply be turned round so its other end goes in.
+ * Before this the editor built the one joint that cannot exist and the
+ * verdict, correctly, refused it. So: attach by the first port of the
+ * OPPOSITE kind instead.
+ *
+ * Turned round, a curve laid with `turn: 'left'` bends right along the
+ * direction you are building in. So the stored turn flips too, and the piece
+ * bends the way the palette button asked as you travel along the track. The
+ * same holds for a switch's diverging road.
+ *
+ * A piece with no end of the opposite kind (B, C, B2, C2 onto the wrong
+ * end) goes on by its start as before, and the joint is refused honestly:
+ * there is no way round that makes it fit.
+ */
+function orientation(
+  graph: Graph,
+  ports: PortsOf,
+  at: PortRef,
+  pieceId: string,
+  partId: string,
+  turn: Turn,
+): { port: number; turn: Turn } {
+  const target = graph.pieces.find((p) => p.pieceId === at.pieceId);
+  const meeting = target ? ports(target)[at.port]?.polarity : undefined;
+  const own = ports({ pieceId, partId, turn });
+  if (meeting === undefined || own[0]?.polarity !== meeting) return { port: 0, turn };
+  const other = own.findIndex((p) => p.polarity !== meeting);
+  return other === -1 ? { port: 0, turn } : { port: other, turn: flip(turn) };
 }
 
 /**

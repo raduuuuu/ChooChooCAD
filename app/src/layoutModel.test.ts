@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../../engine/data/library.js';
-import { findVertexClashes } from '../../engine/src/graph/feasible.js';
-import { placeAll, residuals, closesExactly } from '../../engine/src/graph/frames.js';
+import { findVertexClashes, findWeldPolarityViolations } from '../../engine/src/graph/feasible.js';
+import { placeAll, portFrame, residuals, closesExactly } from '../../engine/src/graph/frames.js';
 import { portsOf, type Piece, type Port } from '../../engine/src/graph/model.js';
 import {
   EMPTY_GRAPH,
@@ -212,3 +212,66 @@ describe('breakWeld', () => {
   });
 });
 
+
+/*
+ * THE AUTO-FLIP: a piece goes on whichever way round lets peg meet socket.
+ *
+ * Reported 2026-10-22: placing the M switch (peg heel, socket roads) and then
+ * an E was marked "Can't be built", because the E went on by its start, a
+ * socket, against M's socket road. Real track would be turned round.
+ *
+ * The witness is L, the same switch with the pegs on its roads, where an E
+ * goes on by its start the ordinary way. M-then-E must end exactly where
+ * L-then-E does: same lattice point, same heading, for both turns. That pins
+ * the port AND the turn flip, because attaching by the far end without
+ * flipping the turn bends the curve the wrong way.
+ *
+ * MUTATION PROOF, run: make `orientation` always return `{ port: 0, turn }`.
+ * Fails with `expected 1 to be +0` on the polarity count. Run again with the
+ * port chosen but the turn NOT flipped (`turn` instead of `flip(turn)`):
+ * fails with `M then E, left: expected { …(2) } to deeply equal { Object
+ * (pos, heading) }`, and the run below ends at heading 10 instead of 6.
+ */
+describe('addPiece turns a piece round so peg meets socket', () => {
+  const build = (steps: ReadonlyArray<readonly [string, 'left' | 'right']>) => {
+    let g = EMPTY_GRAPH;
+    let at = null as ReturnType<typeof addPiece>['select'];
+    for (const [partId, turn] of steps) {
+      const step = addPiece(g, partId, turn, ports({ pieceId: '', partId, turn }).length, at, ports);
+      g = step.graph;
+      at = step.select;
+    }
+    return { g, at: at! };
+  };
+  const frameOf = (g: typeof EMPTY_GRAPH, ref: { pieceId: string; port: number }) =>
+    portFrame(placeAll(g, ports), ports, g.pieces.find((p) => p.pieceId === ref.pieceId)!, ref.port);
+  const badJoints = (g: typeof EMPTY_GRAPH) => findWeldPolarityViolations(g, resolve, ports).length;
+
+  it('puts an E on M by its peg, ending exactly where it does on L', () => {
+    for (const turn of ['left', 'right'] as const) {
+      const viaM = build([['M', 'left'], ['E', turn]]);
+      const viaL = build([['L', 'left'], ['E', turn]]);
+      expect(badJoints(viaM.g), `M then E, ${turn}`).toBe(0);
+      expect(viaM.g.welds[0]!.b.port, `M then E, ${turn}`).toBe(1);
+      expect(frameOf(viaM.g, viaM.at), `M then E, ${turn}`).toEqual(frameOf(viaL.g, viaL.at));
+    }
+  });
+
+  it('keeps going: every later E also goes on peg first, still bending as asked', () => {
+    const { g, at } = build([['M', 'left'], ['E', 'left'], ['E', 'left'], ['E', 'left']]);
+    expect(badJoints(g)).toBe(0);
+    expect(frameOf(g, at).heading).toBe(6);
+  });
+
+  it('leaves an ordinary run alone: each piece still goes on by its start', () => {
+    const { g } = build([['A', 'left'], ['E', 'left'], ['A1', 'left']]);
+    expect(g.welds.map((w) => w.b.port)).toEqual([0, 0]);
+    expect(g.pieces.map((p) => p.turn)).toEqual(['left', 'left', 'left']);
+  });
+
+  it('cannot turn round a piece with no end of the other kind, and says so', () => {
+    const { g } = build([['A', 'left'], ['C2', 'left'], ['C2', 'left']]);
+    expect(g.welds[1]!.b.port).toBe(0);
+    expect(badJoints(g)).toBe(1);
+  });
+});

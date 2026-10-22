@@ -2378,3 +2378,22 @@ in which the heel was a point inside the piece.
 
 **Priority:** P2. Items 1 and 2 are the ones a user meets first.
 
+## P3 — A turned-round piece reads "turning right" in the layout list (filed 2026-10-22)
+
+**What landed:** the editor now puts a piece on whichever way round lets peg
+meet socket (`orientation` in `app/src/layoutModel.ts`). Reported: the M switch
+(socket roads) then an E was "Can't be built", because the E went on by its
+socket start. Now it goes on by its peg, with its stored turn flipped so it
+bends the way the palette button asked along the direction of building; it ends
+exactly where L-then-E does. A piece with no end of the other kind (B, C, B2,
+C2 onto the wrong end) is still refused, honestly.
+
+**What is left:** the graph listing names a piece's bend from its own start
+(`pieceName` in `GraphListing.tsx`). A turned-round E's start is its free far
+end, so it reads "turning right" although the user pressed "Add Large curve"
+(left) and sees it bend left as they build. True in the list's own frame,
+surprising in the user's. Options: name the bend from the end that was joined
+first, or say "turned round" beside it.
+
+**Priority:** P3. No verdict or geometry is wrong; it is wording.
+
