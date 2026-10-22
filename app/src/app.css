@@ -1023,6 +1023,26 @@
 .port:focus-visible .port-dot { stroke: var(--ink); stroke-width: 7; }
 
 /*
+ * JOINTS (task U5, Y1 decision 5). Idle: nothing drawn, because a join is not
+ * a mark. Hover or keyboard focus: an open bracket pair, distinct from the
+ * free end's ring by SHAPE, not colour, plus a pointer cursor, so the joint
+ * about to break is visible before the click that breaks it.
+ */
+.weld { cursor: pointer; }
+.weld:focus { outline: none; }
+.weld-hit { fill: transparent; }
+.weld-bracket {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 3;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  visibility: hidden;
+}
+.weld:hover .weld-bracket,
+.weld:focus-visible .weld-bracket { visibility: visible; }
+
+/*
  * THE GAP ANNOTATION (task W2, decision D4).
  *
  * MONOCHROME, and that is the whole decision. A gap is a measurement, not an

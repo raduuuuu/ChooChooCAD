@@ -6,6 +6,7 @@ import { portsOf, type Piece, type Port } from '../../engine/src/graph/model.js'
 import {
   EMPTY_GRAPH,
   addPiece,
+  breakWeld,
   deletePiece,
   isFree,
   lastPieceId,
@@ -180,3 +181,34 @@ describe('a new run is laid down beside what is already there', () => {
     expect(b.graph.anchors?.has(b.graph.pieces[1]!.pieceId) ?? false).toBe(false);
   });
 });
+
+/*
+ * G3: `breakWeld`'s first direct test. It wraps the engine's `removeWeld`,
+ * which is tested; the wrapper was not, and U5 is the first caller.
+ *
+ * MUTATION PROOF, run: make `breakWeld` return `graph` unchanged. Fails with
+ * `expected [ { …(2) }, { …(2) } ] to have a length of 1 but got 2`.
+ */
+describe('breakWeld', () => {
+  it('removes exactly the weld it is given, frees both ends, and keeps every piece', () => {
+    let g = EMPTY_GRAPH;
+    let at = null as ReturnType<typeof addPiece>['select'];
+    for (let i = 0; i < 3; i++) {
+      const step = addPiece(g, 'A', 'left', 2, at, ports);
+      g = step.graph;
+      at = step.select;
+    }
+    const gone = g.welds[0]!;
+    const kept = g.welds[1]!;
+    const broken = breakWeld(g, ports, 0);
+    expect(broken.pieces).toBe(g.pieces);
+    expect(broken.welds).toHaveLength(1);
+    expect(broken.welds[0]).toEqual(kept);
+    expect(isFree(broken, gone.a)).toBe(true);
+    expect(isFree(broken, gone.b)).toBe(true);
+    // The freed run keeps its place: it gains an anchor where it was drawn.
+    const before = placeAll(g, ports).frames.get(gone.b.pieceId);
+    expect(placeAll(broken, ports).frames.get(gone.b.pieceId)).toEqual(before);
+  });
+});
+

@@ -19,7 +19,13 @@ import { useMemo, type ReactNode } from 'react';
 import { renderBounds, type GraphRender } from '../../engine/src/graph/render.js';
 import type { PortRef } from '../../engine/src/graph/model.js';
 import type { Part, Polarity } from '../../engine/src/parts/schema.js';
-import { clashMarkers, gapAnnotations, segmentPath, type GapMark } from './trackPath.js';
+import {
+  clashMarkers,
+  gapAnnotations,
+  segmentPath,
+  type GapMark,
+  type WeldTarget,
+} from './trackPath.js';
 
 /**
  * How many pieces this canvas will draw before it says there are too many.
@@ -38,6 +44,18 @@ export const CANVAS_SEGMENT_CEILING = 10_000;
  * value's spelling at runtime and `app.css` matches a literal. A `Record`
  * over the union makes that rename a compile error instead.
  */
+/*
+ * The hover brackets, in the joint's own frame: track direction along +x, so
+ * one bracket sits behind the joint and one ahead of it, each an 80-degree
+ * arc of the r=14 hit circle.
+ */
+const bracketArc = (from: number, to: number): string => {
+  const pt = (deg: number) =>
+    `${(14 * Math.cos((deg * Math.PI) / 180)).toFixed(3)} ${(14 * Math.sin((deg * Math.PI) / 180)).toFixed(3)}`;
+  return `M ${pt(from)} A 14 14 0 0 1 ${pt(to)}`;
+};
+export const WELD_BRACKETS = `${bracketArc(-40, 40)} ${bracketArc(140, 220)}`;
+
 const POLARITY_CLASS: Record<Polarity, string> = {
   peg: 'port-dot is-peg',
   socket: 'port-dot is-socket',
@@ -84,6 +102,10 @@ export interface TrackCanvasProps {
   readonly armed?: PortRef | null;
   /** Clicking a free end. This is the whole editing interaction (D5). */
   readonly onPortClick?: (ref: PortRef) => void;
+  /** Every joint, resolved to the canvas by `weldTargets` (task U5). */
+  readonly welds?: readonly WeldTarget[];
+  /** Clicking a joint breaks it. Undo is the path back; there is no confirm. */
+  readonly onWeldClick?: (a: PortRef, b: PortRef) => void;
 }
 
 export function TrackCanvas({
@@ -96,6 +118,8 @@ export function TrackCanvas({
   cursor = null,
   armed = null,
   onPortClick,
+  welds = [],
+  onWeldClick,
 }: TrackCanvasProps) {
   const { segments, ports: renderedPorts } = render;
   const box = useMemo(() => renderBounds(render), [render]);
@@ -316,6 +340,43 @@ export function TrackCanvas({
           * millimetres too, so the marker stays the size of the track rather
           * than growing with the layout.
           */}
+        {/*
+          * JOINTS: the second editing target, and the destructive one (task
+          * U5, Y1 decision 5).
+          *
+          * DRAWN BEFORE THE FREE ENDS, and that is the precedence rule. SVG
+          * hit-testing takes the topmost element, so a free end's r=26 circle
+          * painted later covers any part of a joint's r=14 circle it overlaps:
+          * free ends win, creation stays the easy verb and destruction the
+          * harder one to hit.
+          *
+          * Idle, a joint draws nothing; a join is not a mark. Hovered or
+          * focused, it shows an open bracket pair at r=14 along the track,
+          * the "about to come apart" shape. Brackets rather than a ring
+          * because r=16 (armed) and r=28 (clash) are already rings. The click
+          * is the commit; Undo is the way back.
+          */}
+        {onWeldClick &&
+          welds.map((w) => (
+            <g
+              key={`weld-${w.a.pieceId}#${w.a.port}-${w.b.pieceId}#${w.b.port}`}
+              className="weld"
+              transform={`translate(${w.at[0]}, ${w.at[1]}) rotate(${(w.h * 180) / Math.PI})`}
+              onClick={() => onWeldClick(w.a, w.b)}
+              role="button"
+              tabIndex={0}
+              aria-label="Break this joint"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onWeldClick(w.a, w.b);
+                }
+              }}
+            >
+              <circle r={14} className="weld-hit" />
+              <path d={WELD_BRACKETS} className="weld-bracket" />
+            </g>
+          ))}
         {/*
           * FREE ENDS: the editing surface (decision D5).
           *
