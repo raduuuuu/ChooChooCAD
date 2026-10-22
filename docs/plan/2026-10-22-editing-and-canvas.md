@@ -1314,6 +1314,13 @@ See the F2 row: the crash-screen catch was unnecessary and removed; a spec pins 
   in a browser (floor drop, drop onto a free end joins, refused drop stays red, release over the palette
   cancels; no console errors).
 
+### After QA (PR 31 and the owner's ruling, 2026-10-22)
+- QA ISSUE-002 made the preview start where a double-click places (orientation's choice). The owner
+  then ruled the default should prefer the bend that closes a gap: `defaultFit` (layoutModel.ts) takes
+  the first fit option that would join a facing end cleanly, else the first option, and both pick and
+  the direct place use it. A circle missing one curve now closes from either edge with Enter or a
+  double-click.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |

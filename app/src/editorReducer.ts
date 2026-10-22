@@ -33,6 +33,7 @@ import {
   addPiece,
   autoJoin,
   breakWeld,
+  defaultFit,
   deletePiece,
   isFree,
   fitOptions,
@@ -375,14 +376,13 @@ function freeEnds(graph: Graph, ports: PortsOf): PortRef[] {
 
 /**
  * A pending piece at a free end, keeping the turn it had where that fits. A
- * fresh pick passes no turn and starts on the first option, `orientation`'s
- * own choice, which is exactly where a double-click puts it (9A). Preferring
- * 'left' there showed the other bend at a start end, where the auto-flip
- * stores 'right' (QA ISSUE-002).
+ * fresh pick passes no turn and starts on `defaultFit`, exactly where a
+ * double-click puts it (9A). Preferring 'left' there showed the other bend at
+ * a start end, where the auto-flip stores 'right' (QA ISSUE-002).
  */
 function ghostAt(graph: Graph, ports: PortsOf, partId: string, at: PortRef, turn: Turn | null): Ghost {
   const { options } = fitOptions(graph, ports, at, partId);
-  const fit = options.find((o) => o.turn === turn) ?? options[0]!;
+  const fit = options.find((o) => o.turn === turn) ?? defaultFit(graph, ports, at, partId);
   return { partId, at, frame: null, turn: fit.turn, port: fit.port };
 }
 
@@ -440,6 +440,8 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf): EditorS
       const count = portCountOf(ports, action.partId, action.turn);
       // Reads the cursor it is HANDED, never one in scope. This is the
       // line the eight-runs regression test pins.
+      // At a free cursor, the same default as the preview (defaultFit).
+      const at = stillFree(state.graph, state.cursor);
       const next = addPiece(
         state.graph,
         action.partId,
@@ -447,6 +449,7 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf): EditorS
         count,
         state.cursor,
         ports,
+        at ? defaultFit(state.graph, ports, at, action.partId) : undefined,
       );
       /*
        * Now a DIRECT placement (decision 9A: a double-click on the palette, or

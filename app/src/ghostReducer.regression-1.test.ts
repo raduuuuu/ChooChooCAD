@@ -52,3 +52,30 @@ describe('pick then Place lays the piece where a direct place does', () => {
     });
   }
 });
+
+describe('the default bend closes a one-piece gap, from either edge (owner ruling, 2026-10-22)', () => {
+  /*
+   * MUTATION PROOF, run: `defaultFit` returns `options[0]` (the ISSUE-002
+   * fix alone): the start edge fails with `start edge, pick: expected 7 to
+   * be 8`.
+   */
+  it('a circle missing one curve: pick+Place and a double-click both close it', () => {
+    let s = START;
+    for (let i = 0; i < 8; i++) s = act(s, { kind: 'add', partId: 'E', turn: 'left' });
+    expect(s.graph.welds).toHaveLength(8);
+    const gapped = act(s, { kind: 'removePiece', pieceId: s.graph.pieces[2]!.pieceId });
+    expect(gapped.graph.welds).toHaveLength(6);
+    // The two edges of the gap: the far end of the piece before it, the start of the piece after.
+    const edges = [
+      ['far edge', { pieceId: gapped.graph.pieces[1]!.pieceId, port: 1 }],
+      ['start edge', { pieceId: gapped.graph.pieces[2]!.pieceId, port: 0 }],
+    ] as const;
+    for (const [name, cursor] of edges) {
+      const at: EditorState = { ...gapped, cursor };
+      const previewed = act(act(at, { kind: 'pick', partId: 'E' }), { kind: 'placeGhost' });
+      const direct = act(at, { kind: 'add', partId: 'E', turn: 'left' });
+      expect(previewed.graph.welds.length, `${name}, pick`).toBe(8);
+      expect(direct.graph.welds.length, `${name}, double-click`).toBe(8);
+    }
+  });
+});
