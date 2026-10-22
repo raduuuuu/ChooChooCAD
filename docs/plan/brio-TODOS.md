@@ -2292,6 +2292,10 @@ with no DOM, so nothing can dispatch a click; `renderToStaticMarkup` renders
 but cannot fire events. This is task E11, and these three routes are concrete
 cases waiting on it.
 
+**Unblocked 2026-10-22: E11 has landed.** Write these as `app/**/*.dom.test.tsx`
+files in the `dom` project (see `CLAUDE.md`); `app/src/App.dom.test.tsx` shows the
+pattern, mounting `App` in `StrictMode` and driving it with `user-event`.
+
 ## P3 — The cursor ring shrinks with the board (filed by /ship's review, 2026-10-20)
 
 **What:** `vector-effect: non-scaling-stroke` now keeps the ring's stroke and
@@ -2342,6 +2346,10 @@ exact bytes are present. Every further evasion is another regex. The property
 wants one DOM test that mounts `App` with a stored graph and asserts the cursor
 came back, which is task E11. Until then this pin is the only thing between a
 correct `initialEditor` and a call site that ignores it.
+
+**Unblocked 2026-10-22: E11 has landed.** Seed `localStorage` with a graph before
+`render(<App />)` in a `*.dom.test.tsx`, add a piece, and assert it joined the run;
+then this source-text pin can be retired.
 
 ## P2 — What the MakerWorld switch seeds left open (filed 2026-10-22)
 
