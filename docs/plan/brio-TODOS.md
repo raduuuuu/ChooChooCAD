@@ -94,6 +94,20 @@ rather than work. The naming half may be premature.
 work is already done by virtue of the D19A engine change. What remains is purely
 legal.
 
+**A third question, added 2026-10-22 by /plan-ceo-review (owner's answer to
+D2).** The four switch seeds (L, M, O1, P1 in `engine/data/switchSeeds.ts`) are
+dimensions read off the 3MF files of MakerWorld model 1001504 by Cactus 973,
+licensed Creative Commons Attribution-NonCommercial-ShareAlike. Other MakerWorld
+models were used only to compare against, and one (784269, Fantastic Plastic
+Person) to confirm which end of B and C carries the pegs. The licences seen on
+those pages were CC BY-NC-SA, CC BY-NC and MakerWorld's "Standard Digital File";
+784269's own licence was not checked. A dimension is
+probably a fact rather than a work, but the NonCommercial terms matter if the
+product is ever sold, and nobody has checked whether reading measurements off a
+licensed model is use of the model. This does not unblock K9 (set manifests),
+which waits on the woodenrailway.info question above; MakerWorld supplies no
+box contents.
+
 **Effort:** human ~1 day of counsel time / CC: not compressible, not an AI task
 **Priority:** P1 pre-launch
 **Depends on / blocked by:** nothing. Should be settled before any public launch
