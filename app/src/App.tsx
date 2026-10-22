@@ -415,8 +415,11 @@ export function App() {
     () =>
       graph.pieces.length === 0
         ? null
-        : solveGraph(graph, ports, resolve, (pieceId: string) => slopById.get(pieceId) ?? 0),
-    [graph, ports, resolve, slopById],
+        : solveGraph(graph, ports, resolve, (pieceId: string) => slopById.get(pieceId) ?? 0, {
+            parts: library,
+            brandFit,
+          }),
+    [graph, ports, resolve, slopById, library],
   );
 
   /*

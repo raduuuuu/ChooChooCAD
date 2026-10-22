@@ -79,6 +79,7 @@ const exceedsResult = (): Extract<GraphResult, { ok: true }> => {
     clashes: [],
     polarityViolations: [],
     residuals: [],
+    repair: null,
   };
 };
 
@@ -96,6 +97,7 @@ const impossibleResult = (): Extract<GraphResult, { ok: true }> => {
     clashes: [{ a: { pieceId: 'p1', port: 0 }, b: { pieceId: 'p2', port: 1 }, at: [0, 0] }],
     polarityViolations: [],
     residuals: [],
+    repair: null,
   };
 };
 
@@ -391,5 +393,56 @@ describe('the give qualification does not depend on the trust list', () => {
     const html = render(exceeds, trustFor([]));
     expect(liCount(html)).toBe(0);
     expect(overflow(html)).toBeNull();
+  });
+});
+
+/*
+ * THE GAP IN PIECES JOINS THE SCOPED CLAIM; IT DOES NOT REPLACE IT (task X6).
+ *
+ * The plan froze the pieces form as "Won't fit. This loop is one Middle
+ * straight (72mm) short." The first two words are the overclaim the specs
+ * above exist to forbid, so the sentence is appended to the scoped headline
+ * instead, and the measurement stays.
+ *
+ * MUTATION PROOF, run: in the EXCEEDS branch, render the pieces sentence in
+ * place of the measurement (delete the "Needs ... in total." text). This
+ * spec fails with `expected '<div class="verdict verdict-fail" rol…' to
+ * contain '8mm'`, and so does 'keeps both millimetre figures' above.
+ * Inverting the short/too-long ternary fails the too-long case with
+ * `expected '<div class="verdict verdict-fail" rol…' to match /\) too long\./`.
+ */
+describe('the gap in pieces', () => {
+  const pieces = (over: Partial<NonNullable<ReturnType<typeof viewOf>['pieces']>>) =>
+    renderToStaticMarkup(
+      createElement(VerdictLine, {
+        view: {
+          ...viewOf(exceedsResult()),
+          pieces: { direction: 'short', name: 'Middle straight', lengthMm: 72, partNumber: null, ...over },
+        },
+      } as never),
+    );
+
+  it('names the straight and its length after the measurement, and keeps the scope', () => {
+    const html = pieces({});
+    expect(html).toMatch(/This loop is one Middle straight \(<span class="num">72mm<\/span>\) short\./);
+    expect(html).toMatch(/Exceeds the modelled/);
+    expect(html).toContain('8mm');
+    expect(html).not.toMatch(CLAIMS_PHYSICAL_NON_FIT);
+    // The measurement comes first; the pieces sentence follows it.
+    expect(html.indexOf('in total.')).toBeLessThan(html.indexOf('This loop is'));
+  });
+
+  it('says too long when removing the straight closes the loop', () => {
+    expect(pieces({ direction: 'long' })).toMatch(/\) too long\./);
+  });
+
+  it('appends the part number only when one is given', () => {
+    const html = pieces({ name: 'Short straight', lengthMm: 108, partNumber: '33334' });
+    expect(html).toMatch(/Short straight \(<span class="num">108mm<\/span>, part <span class="num">33334<\/span>\) short\./);
+    expect(pieces({})).not.toContain(', part');
+  });
+
+  it('is absent when the engine proved nothing', () => {
+    expect(render(exceedsResult())).not.toContain('This loop is');
   });
 });

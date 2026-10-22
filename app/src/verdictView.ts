@@ -61,6 +61,17 @@ export interface VerdictView {
   readonly polarityCount: number;
   /** Joints in the worst loop, which is the number the gap is spread across. */
   readonly jointCount: number;
+  /**
+   * The gap in pieces (task X6): the one straight that closes the one
+   * failing loop, added or taken out. Only on EXCEEDS, and only when every
+   * guard in `engine/src/graph/repair.ts` passed; null means say millimetres.
+   */
+  readonly pieces: {
+    readonly direction: 'short' | 'long';
+    readonly name: string;
+    readonly lengthMm: number;
+    readonly partNumber: string | null;
+  } | null;
 }
 
 const EMPTY: VerdictView = {
@@ -74,6 +85,7 @@ const EMPTY: VerdictView = {
   clashCount: 0,
   polarityCount: 0,
   jointCount: 0,
+  pieces: null,
 };
 
 export function viewOf(result: GraphResult | null): VerdictView {
@@ -111,6 +123,7 @@ export function viewOf(result: GraphResult | null): VerdictView {
     clashCount: result.clashes.length,
     polarityCount: result.polarityViolations.length,
     jointCount: result.worst?.welds.length ?? 0,
+    pieces: null,
   };
 
   // 1. Impossible outranks closure. Checked first for that reason.
@@ -118,5 +131,18 @@ export function viewOf(result: GraphResult | null): VerdictView {
     return { ...base, kind: 'IMPOSSIBLE' };
   }
   if (result.closesExactly) return { ...base, kind: 'EXACT' };
-  return { ...base, kind: result.withinBound ? 'NEEDS_GIVE' : 'EXCEEDS' };
+  if (result.withinBound) return { ...base, kind: 'NEEDS_GIVE' };
+  const r = result.repair;
+  return {
+    ...base,
+    kind: 'EXCEEDS',
+    pieces: r
+      ? {
+          direction: r.direction,
+          name: r.part.name,
+          lengthMm: r.part.lengthMm,
+          partNumber: r.partNumber,
+        }
+      : null,
+  };
 }
