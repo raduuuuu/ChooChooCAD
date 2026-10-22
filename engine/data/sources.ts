@@ -75,6 +75,11 @@ export const STRAIGHT_LENGTHS: Readonly<Record<string, number>> = {
   // B2 and C2 are A2's length, differing only in end polarity.
   B2: 54,
   C2: 54,
+  // B and C are A's length, B1 and C1 are A1's: the same polarity pair (K1).
+  B: 144,
+  C: 144,
+  B1: 108,
+  C1: 108,
 };
 
 export const STRAIGHT_CITATION: Citation = {
@@ -319,8 +324,8 @@ export const BRIO_PIECE_TABLE: ReadonlyArray<{
   readonly blocker: PieceBlocker;
   readonly note?: string;
 }> = [
-  { ids: 'A, B, C', name: 'Medium Straight', lengthMm: 144, blocker: 'in-catalogue', note: 'A held; B and C are retired polarity variants.' },
-  { ids: 'A1, B1, C1', name: 'Short Straight', lengthMm: 108, blocker: 'in-catalogue', note: 'A1 held; B1 and C1 retired.' },
+  { ids: 'A, B, C', name: 'Medium Straight', lengthMm: 144, blocker: 'in-catalogue', note: 'All three held. B and C are retired polarity variants, added by K1.' },
+  { ids: 'A1, B1, C1', name: 'Short Straight', lengthMm: 108, blocker: 'in-catalogue', note: 'All three held. B1 and C1 are retired, added by K1.' },
   { ids: 'A2, B2, C2', name: 'Mini Straight', lengthMm: 54, blocker: 'in-catalogue', note: 'All three held. #33333 ships one of each polarity variant.' },
   { ids: 'A3', name: 'Middle Straight', lengthMm: 72, blocker: 'in-catalogue' },
   { ids: 'D', name: 'Long Straight', lengthMm: 216, blocker: 'in-catalogue' },
