@@ -21,6 +21,7 @@ import { analyseCycles, type CycleReport } from './cycles.js';
 import { findVertexClashes, findWeldPolarityViolations, type VertexClash, type WeldPolarityViolation } from './feasible.js';
 import { placeAll, residuals, type PortsOf, type WeldResidual } from './frames.js';
 import type { Graph } from './model.js';
+import { pieceRepair, type PieceRepair, type RepairLibrary } from './repair.js';
 import type { Part } from '../parts/schema.js';
 
 export type GraphFailure =
@@ -57,6 +58,12 @@ export type GraphResult =
        * welds and the sentence talks about loops.
        */
       readonly residuals: readonly WeldResidual[];
+      /**
+       * The one straight that would close the one failing loop, when that is
+       * exactly true (task X6, `repair.ts`). Null whenever any guard fails,
+       * including when the caller passed no library to suggest from.
+       */
+      readonly repair: PieceRepair | null;
     }
   | {
       readonly ok: false;
@@ -86,6 +93,8 @@ export function solveGraph(
   ports: PortsOf,
   resolve: (id: string) => Part,
   slop: (pieceId: string) => number,
+  /** Parts a repair may suggest, and how brands join. Omit for no suggestion. */
+  library?: RepairLibrary,
 ): GraphResult {
   const placement = placeAll(graph, ports);
   const rs = residuals(graph, ports, placement);
@@ -251,19 +260,25 @@ export function solveGraph(
     };
   }
 
+  // EVERY cycle, not the worst one's verdict: two loops each individually
+  // fine is fine, and one bad loop fails the layout however good the rest.
+  const withinBound = space.cycles.every((c) => c.withinGive);
+
   return {
     ok: true,
     closesExactly: rs.every((r) => r.closes),
     gapMm: space.worst?.gapMm ?? 0,
     totalGiveMm: space.worst?.giveMm ?? 0,
-    // EVERY cycle, not the worst one's verdict: two loops each individually
-    // fine is fine, and one bad loop fails the layout however good the rest.
-    withinBound: space.cycles.every((c) => c.withinGive),
+    withinBound,
     rank,
     cycles: space.cycles,
     worst: space.worst,
     clashes,
     polarityViolations,
     residuals: rs,
+    repair:
+      withinBound || !library
+        ? null
+        : pieceRepair(graph, ports, placement, rs, space.cycles, resolve, library),
   };
 }

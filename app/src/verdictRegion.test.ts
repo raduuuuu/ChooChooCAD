@@ -84,6 +84,7 @@ const view = (kind: VerdictKind): VerdictView => ({
   clashCount: kind === 'IMPOSSIBLE' ? 1 : 0,
   polarityCount: 0,
   jointCount: 10,
+  pieces: null,
 });
 
 /** All five trust kinds, two of them serious. */

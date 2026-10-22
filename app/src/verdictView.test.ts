@@ -48,6 +48,8 @@ import type { CycleReport } from '../../engine/src/graph/cycles.js';
 import type { VertexClash, WeldPolarityViolation } from '../../engine/src/graph/feasible.js';
 import type { GraphResult } from '../../engine/src/graph/solve.js';
 import { viewOf, type VerdictKind } from './verdictView.js';
+import { getPart } from '../../engine/data/brio.js';
+import type { StraightPart } from '../../engine/src/parts/schema.js';
 
 const ZERO_CYC = [0, 0, 0, 0, 0, 0, 0, 0] as const;
 
@@ -88,6 +90,7 @@ function solved(over: Partial<Extract<GraphResult, { ok: true }>> = {}): GraphRe
     clashes: [],
     polarityViolations: [],
     residuals: [],
+    repair: null,
     ...over,
   };
 }
@@ -540,5 +543,48 @@ describe('gapKnown separates a measured gap from a filler', () => {
     ]) {
       expect(v.gapKnown).toBe(true);
     }
+  });
+});
+
+/*
+ * THE GAP IN PIECES (task X6) RIDES ON EXCEEDS ONLY.
+ *
+ * `repair.ts` decides whether one straight closes the one failing loop; this
+ * pins that the view carries that answer through on the one verdict it
+ * belongs to, and drops it everywhere else. A pieces sentence under
+ * IMPOSSIBLE would tell a builder to add a straight to a layout that cannot
+ * be built for a different reason.
+ *
+ * MUTATION PROOF, run: in `viewOf`, set `pieces` from `result.repair` on the
+ * `base` object instead of only on the EXCEEDS return. Fails with
+ * `IMPOSSIBLE: expected { direction: 'short', …(3) } to be null`.
+ */
+describe('the gap in pieces', () => {
+  const A3 = getPart('A3') as StraightPart;
+  const repair = { direction: 'short' as const, part: A3, partNumber: null };
+  const failing = cycle({ gapMm: 72, giveMm: 8, withinGive: false });
+
+  it('is carried on EXCEEDS, by name and length', () => {
+    const v = viewOf(
+      solved({ closesExactly: false, withinBound: false, worst: failing, cycles: [failing], repair }),
+    );
+    expect(v.kind).toBe('EXCEEDS');
+    expect(v.pieces).toEqual({ direction: 'short', name: 'Middle straight', lengthMm: 72, partNumber: null });
+  });
+
+  it('is dropped on every other verdict', () => {
+    const impossible = viewOf(
+      solved({ closesExactly: false, withinBound: false, worst: failing, cycles: [failing], repair, clashes: [clash()] }),
+    );
+    expect(impossible.kind, 'IMPOSSIBLE').toBe('IMPOSSIBLE');
+    expect(impossible.pieces, 'IMPOSSIBLE').toBeNull();
+    expect(viewOf(solved({ repair })).pieces, 'EXACT').toBeNull();
+    expect(viewOf(null).pieces, 'NOTHING').toBeNull();
+  });
+
+  it('is null on EXCEEDS when the engine proved nothing', () => {
+    const v = viewOf(solved({ closesExactly: false, withinBound: false, worst: failing, cycles: [failing] }));
+    expect(v.kind).toBe('EXCEEDS');
+    expect(v.pieces).toBeNull();
   });
 });

@@ -475,6 +475,27 @@ export function VerdictLine({
             <span className="num">{e.gapMm.toFixed(0)}mm</span> absorbed, and the
             joints are modelled to give{' '}
             <span className="num">{e.giveMm.toFixed(0)}mm</span> in total.{loopNote}
+            {/*
+              * THE GAP IN PIECES (task X6), only when `repair.ts` proved it
+              * exactly. It sits AFTER the measurement rather than replacing
+              * it: the plan's frozen copy opened "Won't fit.", which is the
+              * overclaim the headline above was rewritten to remove, so the
+              * pieces sentence joins the scoped claim instead of displacing
+              * it. What it says is geometry, not give: adding or removing
+              * that straight closes the loop exactly.
+              */}
+            {e.pieces && (
+              <>
+                {' '}This loop is one {e.pieces.name} (
+                <span className="num">{e.pieces.lengthMm}mm</span>
+                {e.pieces.partNumber && (
+                  <>
+                    , part <span className="num">{e.pieces.partNumber}</span>
+                  </>
+                )}
+                ) {e.pieces.direction === 'short' ? 'short' : 'too long'}.
+              </>
+            )}
           </span>
         </Verdict>
       );
