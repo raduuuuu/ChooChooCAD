@@ -15,10 +15,11 @@
  * allocation does.
  */
 
-import { memo, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { memo, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { Segment } from '../../engine/src/geom/fk.js';
 import { renderBounds, type GraphRender } from '../../engine/src/graph/render.js';
 import { useDragSession, type RunDrag } from './useDragSession.js';
+import type { CanvasProbe } from './usePaletteDrag.js';
 import type { PortRef } from '../../engine/src/graph/model.js';
 import type { Part, Polarity } from '../../engine/src/parts/schema.js';
 import {
@@ -214,6 +215,11 @@ export interface TrackCanvasProps {
   readonly onRunMove?: (move: RunDrag, snapRadiusMm: number) => void;
   /** The pieces of the run a piece belongs to: what a drag carries. */
   readonly runOf?: (pieceId: string) => ReadonlySet<string>;
+  /**
+   * Filled every render with how a screen point maps onto this canvas, for a
+   * palette drag that starts outside it (see usePaletteDrag).
+   */
+  readonly probe?: RefObject<CanvasProbe | null>;
 }
 
 export function TrackCanvas({
@@ -239,6 +245,7 @@ export function TrackCanvas({
   ghost = null,
   onRunMove,
   runOf,
+  probe,
 }: TrackCanvasProps) {
   const { segments, ports: renderedPorts } = render;
   /*
@@ -417,6 +424,30 @@ export function TrackCanvas({
   }, []);
   const hitWidth = (plank: number) =>
     coarse ? Math.max(plank, 44 / (shown.pxPerMm ?? 1)) : plank;
+  if (probe) {
+    const scale = shown.pxPerMm ?? 1;
+    probe.current = {
+      toModel: (cx, cy) => {
+        const r = svgEl?.getBoundingClientRect();
+        const m = drawGroup?.getScreenCTM?.();
+        if (!r || !m || cx < r.left || cx > r.right || cy < r.top || cy > r.bottom) return null;
+        const p = new DOMPoint(cx, cy).matrixTransform(m.inverse());
+        return [p.x, p.y];
+      },
+      freeEndNear: (x, y, radiusPx) => {
+        let best: PortRef | null = null;
+        let bestD = radiusPx / scale;
+        for (const p of renderedPorts) {
+          const d = Math.hypot(p.x - x, p.y - y);
+          if (p.free && d <= bestD) {
+            best = { pieceId: p.pieceId, port: p.port };
+            bestD = d;
+          }
+        }
+        return best;
+      },
+    };
+  }
   const { drag, handlers: dragHandlers } = useDragSession({
     group: drawGroup,
     canDrag: (id, pointerType) =>

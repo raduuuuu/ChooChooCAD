@@ -44,12 +44,13 @@ import { brandFit } from '../../engine/data/thirdParty.js';
 import { layoutTrust } from '../../engine/src/joints/trust.js';
 import { spanningForest } from '../../engine/src/graph/forest.js';
 import { toXY } from '../../engine/src/geom/cyclotomic.js';
-import { connectorSites, landingOf } from '../../engine/src/graph/feasible.js';
-import { placeAll, portFrame } from '../../engine/src/graph/frames.js';
+import { connectorSites } from '../../engine/src/graph/feasible.js';
+import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Piece as GPiece, type Port, type PortRef } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
 import { gapMarks, seamLines, weldTargets } from './trackPath.js';
 import { useEditorKeys } from './useEditorKeys.js';
+import { usePaletteDrag, type CanvasProbe } from './usePaletteDrag.js';
 import { UndoControl } from './UndoControl.js';
 import { GraphListing } from './GraphListing.js';
 import { describeAction } from './announce.js';
@@ -69,7 +70,7 @@ import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
 import { CANVAS_SEGMENT_CEILING, TrackCanvas } from './TrackCanvas.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
 import { VerdictLine, VerdictScope } from './VerdictLine.js';
-import { addPiece, autoJoin, fitOptions, frameAt, shiftMm, snapRunMove } from './layoutModel.js';
+import { fitOptions, ghostFit, shiftMm, snapRunMove } from './layoutModel.js';
 import { InventoryPanel } from './Inventory.js';
 import { SubmitPart } from './SubmitPart.js';
 import {
@@ -532,6 +533,32 @@ export function App() {
     dispatch({ kind: 'cancelGhost' });
     returnFocus();
   };
+  /*
+   * A PALETTE DRAG (decisions E6, 6A): the same pick, then the preview follows
+   * the pointer; release over the canvas drops it, anywhere else cancels.
+   */
+  const canvasProbe = useRef<CanvasProbe | null>(null);
+  const { handlers: paletteDrag } = usePaletteDrag({
+    probe: canvasProbe,
+    canDrag: (partId, pointerType) => pointerType !== 'touch' || ghost?.partId === partId,
+    onStart: (partId, from) => pick(partId, from),
+    onAttach: (ref) => dispatch({ kind: 'moveGhost', ref }),
+    onFloat: (pos) => dispatch({ kind: 'floatGhost', pos }),
+    onDrop: () => {
+      dropped.current = true;
+      dispatch({ kind: 'dropGhost' });
+    },
+    onCancel: cancelGhost,
+  });
+  // After a drop lands. Placed: focus goes home, as after Place. Refused: the
+  // piece is still pending and focus stays on Place, where Enter or Esc
+  // settle it. A refused drop is a new state object, so this runs for it too.
+  const dropped = useRef(false);
+  useEffect(() => {
+    if (!dropped.current) return;
+    dropped.current = false;
+    if (!editor.ghost) returnFocus();
+  }, [editor]);
   const hadGhost = useRef(false);
   useEffect(() => {
     if (ghost && !hadGhost.current) placeButton.current?.focus();
@@ -717,44 +744,24 @@ export function App() {
     const part = resolve(ghost.partId);
     const piece: GPiece = { pieceId: '\u0000ghost', partId: ghost.partId, turn: ghost.turn };
     const fit = ghost.at ? fitOptions(graph, ports, ghost.at, ghost.partId) : null;
-    const frame = ghost.at
-      ? frameAt(graph, ports, placement, ghost.at, ghost.partId, { port: ghost.port, turn: ghost.turn })
-      : ghost.frame!;
+    const { frame, conflicts: found, joinsTo } = ghostFit(graph, ports, ghost, placement, sites);
     const alone = { pieces: [piece], welds: [], anchors: new Map([[piece.pieceId, frame]]) };
     const own = placeAll(alone, ports);
     const ghostRender = renderGraph(alone, ports, resolve, own);
     const ends = ports(piece);
     let status: { glyph: 'O' | 'X'; text: string };
-    const conflicts: string[] = [];
-    let joinsTo: PortRef | null = null;
-    if (fit?.refused) {
-      conflicts.push(`${capitalise(ends[ghost.port]!.polarity)} meets ${ends[ghost.port]!.polarity} here.`);
-    }
-    for (let i = 0; i < ends.length; i++) {
-      if (ghost.at && i === ghost.port) continue;
-      const landing = landingOf(sites, portFrame(own, ports, piece, i), ends[i]!.polarity);
-      if (landing.kind === 'joins') joinsTo = landing.with;
-      else if (landing.kind === 'conflict') {
-        const n = pieceNumber.get(landing.with[0]!.pieceId);
-        conflicts.push(
-          landing.reason === 'polarity'
-            ? `${capitalise(ends[i]!.polarity)} meets ${ends[i]!.polarity} at piece ${n}.`
-            : `Ends would clash with piece ${n}.`,
-        );
+    const conflicts = found.map((c) => {
+      switch (c.kind) {
+        case 'here':
+          return `${capitalise(c.polarity)} meets ${c.polarity} here.`;
+        case 'polarity':
+          return `${capitalise(c.polarity)} meets ${c.polarity} at piece ${pieceNumber.get(c.pieceId)}.`;
+        case 'crowded':
+          return `Ends would clash with piece ${pieceNumber.get(c.pieceId)}.`;
+        case 'loop':
+          return 'Joining here would shift pieces of a loop that does not close.';
       }
-    }
-    if (joinsTo && conflicts.length === 0) {
-      // Would the join move anything? Only then is it refused (eng D6).
-      const count = ends.length;
-      const placed = ghost.at
-        ? addPiece(graph, ghost.partId, ghost.turn, count, ghost.at, ports, { port: ghost.port, turn: ghost.turn })
-        : addPiece(graph, ghost.partId, ghost.turn, count, null, ports, { port: 0, turn: ghost.turn }, frame);
-      const id = placed.graph.pieces[placed.graph.pieces.length - 1]!.pieceId;
-      if (autoJoin(placed.graph, ports, id).joined === 0) {
-        conflicts.push('Joining here would shift pieces of a loop that does not close.');
-        joinsTo = null;
-      }
-    }
+    });
     if (conflicts.length > 0) {
       status = { glyph: 'X', text: `${conflicts.join(' ')} You can still place it.` };
     } else if (joinsTo) {
@@ -903,7 +910,12 @@ export function App() {
                  * orientation (decision 9A), which is how eight clicks still
                  * build a circle.
                  */
-                onClick={(e) => pick(part.id, e.currentTarget)}
+                {...(({ swallowsClick, ...h }) => ({
+                  ...h,
+                  onClick: (e: React.MouseEvent<HTMLButtonElement>) => {
+                    if (!swallowsClick()) pick(part.id, e.currentTarget);
+                  },
+                }))(paletteDrag(part.id))}
                 onDoubleClick={() => add(part.id, 'left')}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && e.shiftKey) {
@@ -912,6 +924,8 @@ export function App() {
                   }
                 }}
                 disabled={overLimit}
+                // The picked piece's button takes a touch drag (see usePaletteDrag).
+                data-picked={ghost?.partId === part.id ? '' : undefined}
                 title="Double-click to place directly"
                 aria-label={
                   `Add ${part.name}` +
@@ -955,6 +969,7 @@ export function App() {
           ghost={ghostView ? { render: ghostView.render, red: ghostView.red, reach: ghostView.reach } : null}
           onRunMove={(d, radius) => moveRunBy(d.pieceId, d.dx, d.dy, d.turns, radius)}
           runOf={runOf}
+          probe={canvasProbe}
           /*
             * `result`, not `result?.ok`. The clash list lives on BOTH branches
             * of GraphResult, and gating the DRAWING on `ok` undid half of the

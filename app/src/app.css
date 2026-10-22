@@ -1449,3 +1449,11 @@
 }
 .piece[aria-pressed="true"] .piece-hit { touch-action: none; }
 .move-refusal { color: var(--ink); }
+
+/*
+ * DRAGGING FROM THE PALETTE (decisions E6, 16A). Only the picked piece's
+ * button claims a touch gesture, so a first tap picks it, a drag from it
+ * carries it to the canvas, and a swipe anywhere else still scrolls the
+ * palette.
+ */
+.piece-main[data-picked] { touch-action: none; }
