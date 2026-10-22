@@ -995,8 +995,9 @@ describe('an orphan lane clears a survivor RUN, not just its anchor', () => {
  * suite can reach it; both StrictMode bugs this logic has produced were in
  * the condition rather than the wiring
  * Value: seam=none, this is a pure function by construction
- * Value: no_claim=nothing about the effects themselves firing, which needs a
- * DOM and StrictMode; that is task E11
+ * Value: no_claim=nothing about the effects themselves firing or which
+ * action sets which store's flag; `suppression.dom.test.tsx` mounts the App
+ * for that
  */
 describe('savesSuppressed, one store at a time', () => {
   const clean = {
@@ -1154,151 +1155,6 @@ describe('savesSuppressed, one store at a time', () => {
   });
 });
 
-describe('the suppression wiring is present in App.tsx', () => {
-  const source = readFileSync(join(import.meta.dirname, 'App.tsx'), 'utf8');
-
-  /*
-   * EACH ACTION ACKNOWLEDGES ITS OWN STORE, and the first version of this test
-   * pinned the opposite. It asserted a single global `setUserHasActed(true)`
-   * in all three places and `userHasActed,` in all three gate calls, which is
-   * exactly the wiring that let a palette click release the submissions write.
-   * The test blessed the bug it was written to prevent.
-   */
-  it('a graph edit acknowledges the graph and nothing else', () => {
-    const body = source.slice(
-      source.indexOf('const dispatch = (action: EditorAction)'),
-      source.indexOf('const add = (partId: string'),
-    );
-    expect(body).toContain('setGraphActed(true)');
-    expect(body).not.toContain('setSubmissionsActed');
-    expect(body).not.toContain('setInventoryActed');
-  });
-
-  /*
-   * SLICED, NOT ADJACENT. The first version asserted the two flag-setter lines
-   * sat immediately before their store setters, which catches a foreign flag
-   * placed BEFORE and misses one placed after. MEASURED: appending
-   * `setInventoryActed(true);` after `setSubmissions(...)` inside the submit
-   * callback left the whole suite green -- a cross-store release, which is
-   * verbatim the bug this whole describe exists to prevent.
-   */
-  it('a submission and an inventory change acknowledge only themselves', () => {
-    const slice = (open: string) => {
-      const at = source.indexOf(open);
-      expect(at, `${open} not found`).toBeGreaterThan(-1);
-      return source.slice(at, source.indexOf('}}', at));
-    };
-
-    /*
-     * EACH SLICE IS ANCHORED AT BOTH ENDS. `indexOf('}}')` undershoots on any
-     * nested `}}` inside the callback -- MEASURED: writing
-     * `setSubmissions((prev) => [...prev, { ...sub, meta: { ok: true }}]);`
-     * followed by a foreign setter left all 68 tests green, because every
-     * `not.toContain` after the truncation point went vacuous while the
-     * positive assertion still matched the callback's first line. Asserting
-     * the slice reaches its real last statement makes a short slice fail
-     * loudly instead of silently.
-     */
-    const submit = slice('onSubmit={(sub) => {');
-    expect(submit, 'submit slice truncated').toContain('setSubmitOpen(false)');
-    expect(submit).toContain('setSubmissionsActed(true)');
-    expect(submit).not.toContain('setGraphActed');
-    expect(submit).not.toContain('setInventoryActed');
-
-    const invChange = slice('onChange={(next) => {');
-    expect(invChange, 'inventory slice truncated').toContain('setInventory(next)');
-    expect(invChange).toContain('setInventoryActed(true)');
-    expect(invChange).not.toContain('setGraphActed');
-    expect(invChange).not.toContain('setSubmissionsActed');
-
-    // And no single flag is shared between them.
-    expect(source).not.toContain('setUserHasActed');
-  });
-
-  /*
-   * THREE FLAGS, THREE DECLARATIONS. The distinctness check below reads the
-   * identifier NAMES out of the gate calls, so it cannot see two names holding
-   * one value. MEASURED: replacing `const [inventoryActed, setInventoryActed]
-   * = useState(false)` with `const inventoryActed = graphActed;` left the
-   * whole suite green -- a regression to one effective flag under three names would ship.
-   */
-  it('each flag is its own state, not an alias of another', () => {
-    for (const [flag, setter] of [
-      ['graphActed', 'setGraphActed'],
-      ['inventoryActed', 'setInventoryActed'],
-      ['submissionsActed', 'setSubmissionsActed'],
-    ] as const) {
-      expect(source, `${flag} is not its own useState`).toContain(
-        `const [${flag}, ${setter}] = useState(false);`,
-      );
-    }
-  });
-
-  it('each save consults its OWN gate, and all three are gated', () => {
-    for (const [fn, gate] of [
-      ['saveGraph(graph)', 'graphSaveBlocked'],
-      ['saveInventory(inventory)', 'inventorySaveBlocked'],
-      ['saveSubmissions(submissions)', 'submissionsSaveBlocked'],
-    ] as const) {
-      const at = source.indexOf(fn);
-      expect(at, `${fn} is not called at all`).toBeGreaterThan(-1);
-      const before = source.slice(Math.max(0, at - 120), at);
-      expect(before, `${fn} is not guarded by ${gate}`).toContain(`if (${gate}) return;`);
-    }
-  });
-
-  /*
-   * ASSERT THE VALUE, NOT THE NAME, which the first version of this test did
-   * not. It checked that the strings `submissionsNotice` and `userHasActed`
-   * appeared ANYWHERE in App.tsx. Both occur several times each, so MEASURED:
-   * rewriting the call to `submissionsNotice: undefined` -- making the gate
-   * blind to dropped submissions, the very wiring the commit added -- left all
-   * 370 tests green, and so did `userHasActed: false`, which is permanent
-   * suppression. Two of three assertions were inert, in the test whose own
-   * why_new says the wiring was pinned not at all.
-   *
-   * MUTATION PROOF, run: change any of the three gate calls below to pass a
-   * literal instead of the variable, or give two gates the same IDENTIFIER,
-   * and the matching case fails. Aliasing two names to one value is NOT caught
-   * here -- it is caught by the declaration test above, because this check
-   * reads names out of the call text and cannot see what they hold.
-   */
-  it('each gate is handed the real variables, not literals', () => {
-    const callsFor = (name: string) => {
-      const at = source.indexOf(`const ${name} = savesSuppressed({`);
-      expect(at, `${name} is not computed by savesSuppressed`).toBeGreaterThan(-1);
-      return source.slice(at, source.indexOf('});', at));
-    };
-
-    const graph = callsFor('graphSaveBlocked');
-    expect(graph).toMatch(/^\s*notice: layoutNotice,$/m);
-    expect(graph).toMatch(/^\s*dismissed: layoutDismissed,$/m);
-    expect(graph).toMatch(/^\s*userHasActed: graphActed,$/m);
-    expect(graph).toMatch(/^\s*noRescueCopy: !graphLoad\.rescued,$/m);
-
-    const inv = callsFor('inventorySaveBlocked');
-    expect(inv).toMatch(/^\s*notice: inventoryLoad\.discarded,$/m);
-    expect(inv).toMatch(/^\s*dismissed: inventoryDismissed,$/m);
-    expect(inv).toMatch(/^\s*userHasActed: inventoryActed,$/m);
-
-    const subs = callsFor('submissionsSaveBlocked');
-    expect(subs).toMatch(/^\s*notice: submissionsNotice,$/m);
-    expect(subs).toMatch(/^\s*dismissed: submissionsDismissed,$/m);
-    expect(subs).toMatch(/^\s*userHasActed: submissionsActed,$/m);
-
-    // No two gates may share an acknowledgement flag.
-    const flags = [graph, inv, subs].map((c) => /userHasActed: (\w+),/.exec(c)![1]);
-    expect(new Set(flags).size, `gates share a flag: ${flags.join(', ')}`).toBe(3);
-
-    /*
-     * The graph-only exception stays graph-only. Passing `noRescueCopy` to a
-     * store with no rescue key is the measured bug above.
-     */
-    expect(inv).not.toContain('noRescueCopy');
-    expect(subs).not.toContain('noRescueCopy');
-  });
-});
-
 /**
  * THE SOLVE'S SLOP CALLBACK IS A LOOKUP, NOT A SCAN.
  *
@@ -1320,9 +1176,9 @@ describe('the suppression wiring is present in App.tsx', () => {
  * suite does not have, and no timing claim of its own: this reads source text,
  * so it pins the SHAPE of the call. A behaviour-preserving rewrite of the memo
  * has to keep a `<map>.get(pieceId)` callback or update this spec, which is
- * the price of pinning a `.tsx` file at all. It is the same price
- * `describe('the suppression wiring is present in App.tsx')` above pays, and
- * the same one the crash-screen specs in `repro.test.ts` pay.
+ * the price of pinning a `.tsx` file at all, and the same one the crash-screen
+ * specs in `repro.test.ts` pay. (The save-gate wiring paid it too, until
+ * `suppression.dom.test.tsx` replaced that text check with a mounted App.)
  *
  * MUTATION PROOF, run: both specs below, applied to `App.tsx` exactly as it
  * stands at `origin/main` -- the scanning callback this change replaced, which

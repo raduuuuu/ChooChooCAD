@@ -2018,8 +2018,9 @@ policy.
 
 Concretely, it was blind to the one-flag-three-gates bug fixed on 2026-10-14:
 `userHasActed` is a free variable in the table, so nothing there could see that
-one flag fed three gates. That is now pinned separately, by a test asserting
-the three gate calls use three distinct flags.
+one flag fed three gates. That is now pinned separately, by
+`app/src/suppression.dom.test.tsx`, which mounts App over three damaged stores
+and checks that each action writes only its own store's blob.
 
 **Fix:** derive the oracle from the UI instead of the function -- assert that
 each gate's hold state matches its banner's render condition. Then the table
@@ -2369,6 +2370,16 @@ The source-text pin in `editorReducer.test.ts` is retired. Both mutations it
 recorded were re-run against the mount: a nulled cursor fails the verdict
 check, and a narrowed port list, which the old pin also caught, fails the
 announcement because the piece goes on the wrong end.
+
+**Same treatment for the save-gate wiring, 2026-10-22.** `layoutStore.test.ts`'s
+`describe('the suppression wiring is present in App.tsx')` sliced App.tsx by
+string offsets to check which action set which store's flag. It is replaced by
+`app/src/suppression.dom.test.tsx`: the graph, inventory and submissions stores
+are seeded with losses, App is mounted, and a graph edit, an inventory change
+and a submission must each write only their own blob, with the graph's
+no-rescue-copy exception checked by failing the rescue write. Twenty mutations
+of the wiring were run and every one fails a spec, including the four graph-gate
+mutations that only the text check used to catch.
 
 ## P2 — What the MakerWorld switch seeds left open (filed 2026-10-22)
 
