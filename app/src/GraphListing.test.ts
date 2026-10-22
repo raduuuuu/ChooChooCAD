@@ -185,3 +185,53 @@ describe('the listing stays inside its column', () => {
   });
 });
 
+
+/*
+ * U7b: THE LIST BECOMES OPERABLE WHEN IT IS GIVEN SOMETHING TO DO.
+ *
+ * With handlers, every FREE end is a native button and every joint has a
+ * Break button; a joined end stays text, because a control there would do
+ * nothing. Still no tabindex and no active-descendant: native buttons are in
+ * the tab order on their own, in reading order. Without handlers the list is
+ * exactly the read-only U7a list, which the specs above still pin.
+ *
+ * MUTATION PROOF, run: render the button for joined ends too (drop `&&
+ * !other` from the operable branch). Fails with `expected [ 'Start of piece
+ * 1, a socket', …(11) ] to deeply equal [ 'Start of piece 1, a socket', …(1)
+ * ]`: twelve end buttons where two ends are free.
+ */
+describe('the operable list', () => {
+  const operable = (graph: Graph, armed: { pieceId: string; port: number } | null = null) =>
+    renderToStaticMarkup(
+      createElement(GraphListing, {
+        graph,
+        resolve,
+        ports,
+        onPortClick: () => undefined,
+        onBreak: () => undefined,
+        armed,
+      }),
+    );
+  const buttons = (markup: string) => [...markup.matchAll(/<button[^>]*>([^<]*)<\/button>/g)].map((m) => m[1]!);
+
+  it('makes free ends and joints the only controls, as native buttons', () => {
+    const g = run(['E', 'E', 'E', 'E', 'E', 'E']);
+    const markup = operable(g);
+    const ends = buttons(markup).filter((b) => b !== 'Break');
+    expect(ends).toEqual(['Start of piece 1, a socket', 'End of piece 6, a peg']);
+    expect(buttons(markup).filter((b) => b === 'Break')).toHaveLength(5);
+    expect(markup).toContain('aria-label="Break Joint 1: end of piece 1 to start of piece 2"');
+    expect(markup).not.toMatch(/tabindex/i);
+    expect(markup).not.toMatch(/aria-activedescendant/);
+  });
+
+  it('says on the selected end that it is selected', () => {
+    const g = run(['E', 'E']);
+    const markup = operable(g, { pieceId: g.pieces[1]!.pieceId, port: 1 });
+    expect(markup).toContain('Selected. Choose another free end to join it to</span>');
+  });
+
+  it('stays read-only without handlers', () => {
+    expect(html(run(['E', 'E']))).not.toContain('<button');
+  });
+});

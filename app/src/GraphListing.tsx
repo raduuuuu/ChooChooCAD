@@ -1,18 +1,22 @@
 /**
- * THE LAYOUT AS A LIST (task U7a): every piece, every end and every joint, in
- * words.
+ * THE LAYOUT AS A LIST (tasks U7a and U7b): every piece, every end and every
+ * joint, in words.
  *
  * The canvas is sight-only. This says the same graph in text, so a screen
  * reader user can find out what is on the table, and so anyone can check what
  * the canvas drew against what the engine holds.
  *
- * READ-ONLY, ON PURPOSE, AND IT MUST LOOK IT. Nothing here responds to
- * anything yet; operating the layout from this list is U7b, blocked on a real
- * DOM to test events (E11). An inert control that announces itself as a
- * control is worse than none: the user cannot tell whether the product, their
- * key or their screen reader is at fault. So it is plain lists and list items,
- * with no `tabindex`, no button, link or option role, and no
- * `aria-activedescendant`. `GraphListing.test.ts` proves the absence.
+ * OPERABLE WHERE THERE IS SOMETHING TO DO (task U7b), and read-only
+ * otherwise. Given `onPortClick` and `onBreak`, every FREE end is a native
+ * button that selects it or joins it to the selected one, and every joint has
+ * a Break button: the same actions as the canvas, by name. A joined end stays
+ * text, because a control there would do nothing, and an inert control that
+ * announces itself as one is worse than none. Without handlers the list is
+ * plain lists and list items, which is how U7a shipped it. Either way: no
+ * `tabindex`, no `aria-activedescendant`; native buttons sit in the tab order
+ * in reading order on their own. Each action is announced by App.tsx's region
+ * 3 (`announce.ts`), and focus is kept inside the list when an action removes
+ * the focused button (the effect below).
  *
  * VISIBLE, NOT VISUALLY HIDDEN, BUT FOLDED. A listing only a screen reader can
  * see is one nobody notices drifting from the canvas; a visible one gets
@@ -47,6 +51,7 @@
 
 import type { Graph, Piece, Port, PortRef } from '../../engine/src/graph/model.js';
 import { portPolarity } from '../../engine/src/graph/model.js';
+import { useLayoutEffect, useRef } from 'react';
 import type { Part } from '../../engine/src/parts/schema.js';
 import { shortCode } from '../../engine/src/parts/schema.js';
 
@@ -73,11 +78,40 @@ export function GraphListing({
   graph,
   resolve,
   ports,
+  onPortClick,
+  onBreak,
+  armed = null,
+  cursor = null,
 }: {
   graph: Graph;
   resolve: (id: string) => Part;
   ports: (piece: Piece) => readonly Port[];
+  /** Select a free end, or join it to the selected one (task U7b). Omit for read-only. */
+  onPortClick?: (ref: PortRef) => void;
+  /** Break a joint (task U7b). Omit for read-only. */
+  onBreak?: (a: PortRef, b: PortRef) => void;
+  armed?: PortRef | null;
+  cursor?: PortRef | null;
 }) {
+  const container = useRef<HTMLDetailsElement>(null);
+  const focusInside = useRef(false);
+  /*
+   * KEEP THE KEYBOARD USER'S PLACE (task U7b). Joining an end removes its
+   * button, and breaking a joint removes the joint's, so the element that had
+   * focus is gone and the browser drops focus to the page body: the user is
+   * back at the top with no idea where they were. When that happens to focus
+   * that was inside this list, put it on the first control left in the list,
+   * or on the summary if none is. The announcement says what the key did.
+   */
+  useLayoutEffect(() => {
+    if (!focusInside.current) return;
+    if (document.activeElement && document.activeElement !== document.body) return;
+    const target =
+      container.current?.querySelector<HTMLElement>('li button') ??
+      container.current?.querySelector<HTMLElement>('summary');
+    target?.focus();
+  });
+
   if (graph.pieces.length === 0) return null;
 
   if (graph.pieces.length > LISTING_CEILING) {
@@ -106,8 +140,36 @@ export function GraphListing({
     partner.set(`${w.b.pieceId}#${w.b.port}`, w.a);
   }
 
+  const same = (a: PortRef | null, b: PortRef) =>
+    a !== null && a.pieceId === b.pieceId && a.port === b.port;
+
   return (
-    <details className="graph-listing">
+    <details
+      className="graph-listing"
+      ref={container}
+      onFocus={() => {
+        focusInside.current = true;
+      }}
+      onBlur={(e) => {
+        const into = e.relatedTarget as Node | null;
+        if (into) {
+          // Focus moved to a real element: inside the list, or out of it.
+          focusInside.current = e.currentTarget.contains(into);
+          return;
+        }
+        /*
+         * No new target: either the user clicked somewhere that takes no
+         * focus, or the focused button was removed by the action it ran. Only
+         * the second is ours to repair, and only the second leaves the old
+         * element out of the document. Checked after the commit, so the
+         * layout effect has already seen the flag for a removal.
+         */
+        const left = e.target as Node;
+        setTimeout(() => {
+          if (left.isConnected) focusInside.current = false;
+        }, 0);
+      }}
+    >
       <summary>
         This layout, as a list: {graph.pieces.length}{' '}
         {graph.pieces.length === 1 ? 'piece' : 'pieces'}, {graph.welds.length}{' '}
@@ -127,11 +189,38 @@ export function GraphListing({
                   const id = `graph-listing-end-${piece.pieceId}-${port}`;
                   const other = partner.get(`${piece.pieceId}#${port}`);
                   const name = `${capital(endName(part, port))} of piece ${n}, a ${portPolarity(part, port)}`;
+                  const ref = { pieceId: piece.pieceId, port };
+                  const state = other
+                    ? `Joined to the ${where(other)}`
+                    : same(armed, ref)
+                      ? 'Selected. Choose another free end to join it to'
+                      : same(cursor, ref)
+                        ? 'Free. The next piece attaches here'
+                        : 'Free';
+                  /*
+                   * OPERABLE ONLY WHERE THERE IS SOMETHING TO DO (U7b): a free
+                   * end is a real button, which selects it or joins it to the
+                   * selected one, exactly like clicking it on the canvas. A
+                   * joined end is plain text; breaking it is the joint's job,
+                   * below, so no control here does nothing.
+                   */
+                  if (onPortClick && !other) {
+                    return (
+                      <li key={port}>
+                        <button type="button" aria-describedby={id} onClick={() => onPortClick(ref)}>
+                          {name}
+                        </button>{' '}
+                        <span id={id} className="graph-listing-state">
+                          {state}
+                        </span>
+                      </li>
+                    );
+                  }
                   return (
                     <li key={port} aria-label={name} aria-describedby={id}>
                       {name}:{' '}
                       <span id={id} className="graph-listing-state">
-                        {other ? `Joined to the ${where(other)}` : 'Free'}
+                        {state}
                       </span>
                     </li>
                   );
@@ -151,6 +240,14 @@ export function GraphListing({
             return (
               <li key={`${w.a.pieceId}#${w.a.port}-${w.b.pieceId}#${w.b.port}`} aria-label={name}>
                 {name}
+                {onBreak && (
+                  <>
+                    {' '}
+                    <button type="button" aria-label={`Break ${name}`} onClick={() => onBreak(w.a, w.b)}>
+                      Break
+                    </button>
+                  </>
+                )}
               </li>
             );
           })}
