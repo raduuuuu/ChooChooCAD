@@ -21,7 +21,7 @@ import { EMPTY_GRAPH } from './layoutModel.js';
 
 const resolve = makeResolver(BUILT_IN);
 const ports = (p: Piece) => portsOf(resolve(p.partId), p.turn);
-const START: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null, lastAction: null };
+const START: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null };
 const step = (s: EditorState, action: EditorAction) => {
   const next = reduce(s, action, ports);
   return { next, said: describeAction(s, action, next, resolve) };
@@ -71,7 +71,7 @@ describe('describeAction', () => {
   });
 
   it('says what Remove last, Clear and a preset did', () => {
-    expect(step(chain(3), { kind: 'removeLast' }).said).toBe('Removed piece 3.');
+    expect(step(chain(3), { kind: 'removeLast' }).said).toBe('Removed piece 3, Large curve (E).');
     expect(step(chain(3), { kind: 'clear' }).said).toBe('Cleared the layout.');
     expect(step(START, { kind: 'preset', ids: Array(8).fill('E') }).said).toBe('Loaded a layout of 8 pieces.');
   });

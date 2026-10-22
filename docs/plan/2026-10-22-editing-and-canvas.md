@@ -1243,6 +1243,25 @@ Plan is design-complete. Run /design-review after implementation for visual QA.
 ### Unresolved Decisions (design)
 None.
 
+## Build notes
+
+### PR 1 (merged as #26)
+See the F2 row: the crash-screen catch was unnecessary and removed; a spec pins the real hazard.
+
+### PR 2 (select and remove any piece, multi-step Undo/Redo, D19)
+- D19 built in `engine/src/graph/edit.ts` (`openUnmetJoins`): Near miss, every remove and every break
+  leaves all survivor frames identical; the mutation that skips it moves 8 pieces on removing p1.
+- Walk depth (ENG-R2): measured 10.5s and 378,088 states at depth 6 against the under-2s estimate;
+  the owner chose depth 5 (46,730 states, 1.3s), 2026-10-22. The key uses history DEPTH, as approved;
+  keying history contents ran out of memory.
+- Found by the walk: `clickPort` armed a JOINED end (after the Circle preset). Now a stale-click no-op.
+- Found by the remove-any specs: `stillFree` read a removed piece's ends as free, leaving the cursor or
+  armed end on a deleted piece. Now checks the piece exists.
+- Found in the browser: the selection label centred on its clearance point ran back across the
+  plank; it is now pushed out by half its own size.
+- Copy changes that follow approved decisions: Undo/Redo labels per 8A ("Undo place", "Undo remove",
+  "Nothing to undo"); Remove last's announcement now names the piece.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |

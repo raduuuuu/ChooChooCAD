@@ -44,7 +44,7 @@ describe('the app, driven by events', () => {
       </StrictMode>,
     );
 
-    expect((button(/^Undo$/) as HTMLButtonElement).disabled).toBe(true);
+    expect((button('Nothing to undo') as HTMLButtonElement).disabled).toBe(true);
     await user.click(button('Circle'));
     expect(verdict().textContent).toMatch(/This works/);
 
@@ -59,7 +59,7 @@ describe('the app, driven by events', () => {
 
     await user.click(button('Undo break'));
     expect(verdict().textContent).toMatch(/This works/);
-    expect((button(/^Undo$/) as HTMLButtonElement).disabled).toBe(true);
+    expect((button('Nothing to undo') as HTMLButtonElement).disabled).toBe(true);
   });
 
   /*
@@ -81,7 +81,7 @@ describe('the app, driven by events', () => {
     expect(screen.getByRole('button', { name: 'Selected free peg end' })).toBeTruthy();
   });
 
-  it('keeps Remove last repeatable, beside the one-step Undo', async () => {
+  it('keeps Remove last repeatable, beside Undo', async () => {
     const user = userEvent.setup();
     render(
       <StrictMode>

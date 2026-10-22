@@ -15,7 +15,7 @@
  * allocation does.
  */
 
-import { useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { renderBounds, type GraphRender } from '../../engine/src/graph/render.js';
 import type { PortRef } from '../../engine/src/graph/model.js';
 import type { Part, Polarity } from '../../engine/src/parts/schema.js';
@@ -25,6 +25,8 @@ import {
   gridLabel,
   gridPath,
   gridStep,
+  labelSpot,
+  plankEdges,
   segmentPath,
   visibleBox,
   type GapMark,
@@ -116,6 +118,20 @@ export interface TrackCanvasProps {
    * `seamLines` (request 2 of the 2026-10-22 editing plan).
    */
   readonly seams?: readonly SeamLine[];
+  /** The selected piece (decision R1/D2), drawn with the strong outline. */
+  readonly selected?: string | null;
+  /** Every piece connected to the selected one, drawn with the quiet outline (2A). */
+  readonly selectedRun?: ReadonlySet<string>;
+  /** Clicking a piece's body, or Enter/Space on it. */
+  readonly onPieceSelect?: (pieceId: string) => void;
+  /** Delete or Backspace on the focused, selected piece. */
+  readonly onPieceRemove?: (pieceId: string) => void;
+  /** Clicking bare floor: clears a selection. */
+  readonly onFloorClick?: () => void;
+  /** A piece's accessible name, and the canvas label beside a selected one. */
+  readonly pieceName?: (pieceId: string) => string;
+  /** The canvas-edge strip for the current mode (1A/2A), under the drawing. */
+  readonly strip?: ReactNode;
 }
 
 export function TrackCanvas({
@@ -131,6 +147,13 @@ export function TrackCanvas({
   welds = [],
   onWeldClick,
   seams = [],
+  selected = null,
+  selectedRun,
+  onPieceSelect,
+  onPieceRemove,
+  onFloorClick,
+  pieceName,
+  strip,
 }: TrackCanvasProps) {
   const { segments, ports: renderedPorts } = render;
   const box = useMemo(() => renderBounds(render), [render]);
@@ -254,6 +277,35 @@ export function TrackCanvas({
   const gapMarks = useMemo(() => gapAnnotations(gaps, 46, 22), [gaps]);
 
   /*
+   * THE PIECES AS ONE TAB STOP (eng plan, "Hit-testing and keyboard"). Each
+   * piece is a focusable button, but only one is in the tab order at a time:
+   * the selected piece, else the one last focused, else the first. Alt+arrow
+   * keys step between pieces in placement order, the order the layout list
+   * uses. One tab stop, because a big layout would otherwise be thousands.
+   */
+  const pieceOrder = useMemo(() => {
+    const seen: string[] = [];
+    for (const seg of segments) {
+      if (seg.pieceId !== undefined && seen[seen.length - 1] !== seg.pieceId) seen.push(seg.pieceId);
+    }
+    return seen;
+  }, [segments]);
+  const [focusId, setFocusId] = useState<string | null>(null);
+  const pieceEls = useRef(new Map<string, SVGGElement>());
+  const tabStop =
+    (focusId !== null && pieceOrder.includes(focusId) && focusId) ||
+    (selected !== null && pieceOrder.includes(selected) && selected) ||
+    pieceOrder[0] ||
+    null;
+  const stepFocus = (from: string, by: 1 | -1) => {
+    const i = pieceOrder.indexOf(from);
+    const to = pieceOrder[(i + by + pieceOrder.length) % pieceOrder.length];
+    if (to === undefined) return;
+    setFocusId(to);
+    pieceEls.current.get(to)?.focus();
+  };
+
+  /*
    * The empty state leads with ONE action (design D10).
    *
    * It used to read "No track yet." over "Add pieces from the palette. Eight
@@ -313,6 +365,35 @@ export function TrackCanvas({
    * still computed and still shown, because `solveGraph` does not depend on
    * this.
    */
+  /*
+   * THE SELECTED PIECE'S LABEL (decisions E5 and 21A), counter-flipped like the
+   * gap figure. `.num` at 13px; its box is estimated from the text at the
+   * current scale (7px a character, 16px tall), which is all the fallback
+   * needs to keep it off a gap figure and inside the view.
+   */
+  const labelSeg = selected !== null ? segments.find((seg) => seg.pieceId === selected) : undefined;
+  const labelText = labelSeg && pieceName ? pieceName(selected!) : null;
+  const mmPerPx = 1 / (shown.pxPerMm ?? 1);
+  const labelAt =
+    labelSeg && labelText
+      ? labelSpot(
+          labelSeg,
+          22 * mmPerPx,
+          resolve(labelSeg.partId).plankWidthMm / 2 + 14 * mmPerPx,
+          [(labelText.length * 7 * mmPerPx) / 2, 8 * mmPerPx],
+          shown,
+          gapMarks.map((g) => g.label),
+        )
+      : null;
+  const selectedLabel =
+    labelAt && labelText ? (
+      <g transform={`translate(${labelAt[0]}, ${labelAt[1]}) scale(${mmPerPx}, ${-mmPerPx})`}>
+        <text className="piece-label num" x={0} y={0} textAnchor="middle" dominantBaseline="middle">
+          {labelText}
+        </text>
+      </g>
+    ) : null;
+
   if (segments.length > CANVAS_SEGMENT_CEILING) {
     return (
       <div className="canvas-empty">
@@ -341,7 +422,19 @@ export function TrackCanvas({
 
   return (
     <div className="canvas-frame">
-    <svg ref={setSvgEl} className="canvas" viewBox={vb} role="img" aria-label="Track layout">
+    <div className="canvas-area">
+    <svg
+      ref={setSvgEl}
+      className="canvas"
+      viewBox={vb}
+      role="img"
+      aria-label="Track layout"
+      onClick={(e) => {
+        // Bare floor only: the svg itself or the grid, never a piece, end or joint.
+        const t = e.target as Element;
+        if (t === e.currentTarget || t.classList.contains('grid')) onFloorClick?.();
+      }}
+    >
       {/* y grows downward in SVG; flip so the geometry reads as it would on a floor. */}
       <g transform={`translate(0, ${2 * box.minY - 2 * pad + h}) scale(1, -1)`}>
         {/*
@@ -386,6 +479,83 @@ export function TrackCanvas({
             y2={m.to[1]}
           />
         ))}
+        {/*
+          * SELECTION (decisions 10A and 2A): the rest of the selected piece's
+          * run gets a quiet 1px line along both plank edges, the piece itself
+          * a 2px one. Along the edges, not a fat stroke under the track, so
+          * each keeps its device weight at every zoom (non-scaling strokes).
+          */}
+        {selected !== null &&
+          segments.map((seg, i) => {
+            if (seg.pieceId === undefined) return null;
+            const isSelected = seg.pieceId === selected;
+            if (!isSelected && !selectedRun?.has(seg.pieceId)) return null;
+            const half = resolve(seg.partId).plankWidthMm / 2;
+            return plankEdges(seg, half).map((d, side) => (
+              <path
+                key={`sel-${i}-${side}`}
+                d={d}
+                className={isSelected ? 'piece-selected' : 'piece-run'}
+              />
+            ));
+          })}
+        {/*
+          * THE PIECES AS TARGETS (decision R1/D2). An invisible stroke the
+          * width of the plank. Drawn AFTER the track and BEFORE joints and free
+          * ends, so those keep winning the hit-test where they overlap: ends and
+          * joints are the smaller, more precise targets.
+          *
+          * The dotted edges inside each group are its keyboard focus mark
+          * (decision 17A), shown only under `:focus-visible`.
+          */}
+        {onPieceSelect &&
+          pieceOrder.map((id) => {
+            const segs = segments.filter((seg) => seg.pieceId === id);
+            const width = resolve(segs[0]!.partId).plankWidthMm;
+            return (
+              <g
+                key={`piece-${id}`}
+                ref={(el) => {
+                  if (el) pieceEls.current.set(id, el);
+                  else pieceEls.current.delete(id);
+                }}
+                className="piece"
+                role="button"
+                tabIndex={id === tabStop ? 0 : -1}
+                aria-label={pieceName ? pieceName(id) : id}
+                aria-pressed={id === selected}
+                onFocus={() => setFocusId(id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPieceSelect(id);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onPieceSelect(id);
+                  } else if ((e.key === 'Delete' || e.key === 'Backspace') && id === selected) {
+                    e.preventDefault();
+                    onPieceRemove?.(id);
+                  } else if (e.altKey && (e.key === 'ArrowRight' || e.key === 'ArrowDown')) {
+                    e.preventDefault();
+                    stepFocus(id, 1);
+                  } else if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowUp')) {
+                    e.preventDefault();
+                    stepFocus(id, -1);
+                  }
+                }}
+              >
+                {segs.map((seg, i) => (
+                  <path key={`hit-${i}`} d={segmentPath(seg)} className="piece-hit" strokeWidth={width} />
+                ))}
+                {segs.flatMap((seg, i) =>
+                  plankEdges(seg, width / 2).map((d, side) => (
+                    <path key={`focus-${i}-${side}`} d={d} className="piece-focus" />
+                  )),
+                )}
+              </g>
+            );
+          })}
         {/*
           * THE CLASH MARKERS.
           *
@@ -661,10 +831,13 @@ export function TrackCanvas({
               stroke="var(--fail)" strokeWidth={4} />
           </g>
         ))}
+        {selectedLabel}
       </g>
     </svg>
     {/* HTML, not SVG text, so it is never flipped or scaled with the drawing. */}
     <p className="grid-caption num">Grid: {gridLabel(step)}</p>
+    </div>
+    {strip}
     </div>
   );
 }

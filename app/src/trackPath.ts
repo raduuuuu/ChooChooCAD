@@ -333,3 +333,97 @@ export function visibleBox(
     pxPerMm,
   };
 }
+
+/**
+ * The two long edges of a piece's plank, as path `d` strings (decisions 10A
+ * and 17A: a selection, its run and keyboard focus are drawn ALONG the plank
+ * edges, so each keeps its own stroke weight and dash at every zoom).
+ *
+ * Exact offsets, not a fat stroke under the track: a straight's edges are the
+ * centreline moved half a plank either side; a curve's are concentric arcs,
+ * the inner one `r - half` and the outer `r + half`, with the same sweep.
+ */
+export function plankEdges(s: Segment, half: number): readonly [string, string] {
+  const side = (sign: 1 | -1): string => {
+    const ox = (h: number) => -Math.sin(h) * half * sign;
+    const oy = (h: number) => Math.cos(h) * half * sign;
+    const x1 = s.from.x + ox(s.from.h);
+    const y1 = s.from.y + oy(s.from.h);
+    const x2 = s.to.x + ox(s.to.h);
+    const y2 = s.to.y + oy(s.to.h);
+    if (s.kind === 'straight') return `M ${x1} ${y1} L ${x2} ${y2}`;
+    const r = s.centrelineRadiusMm ?? 0;
+    // The centre is on the left of a left turn, so the left edge is inside.
+    const toward = (s.sweep === 'left' ? 1 : -1) === sign;
+    const radius = toward ? r - half : r + half;
+    return `M ${x1} ${y1} A ${radius} ${radius} 0 0 ${svgSweepFlag(s.sweep)} ${x2} ${y2}`;
+  };
+  return [side(1), side(-1)];
+}
+
+/**
+ * Where a selected piece's label goes (decision 21A): off the middle of the
+ * piece, on its outward side (away from a curve's centre; to the left of a
+ * straight), unless the label there would cover a gap figure or leave the
+ * view, then on the inward side, and if both fail, nowhere: the selection
+ * strip names the piece already. Gap figures never move.
+ *
+ * `halfSize` is half the label box, in millimetres, so the caller can size it
+ * from the text and the current scale.
+ */
+export function labelSpot(
+  s: Segment,
+  gapMarkMm: number,
+  clearMm: number,
+  halfSize: readonly [number, number],
+  view: { readonly minX: number; readonly minY: number; readonly width: number; readonly height: number },
+  avoid: readonly (readonly [number, number])[],
+): readonly [number, number] | null {
+  let mx: number;
+  let my: number;
+  let nx: number;
+  let ny: number;
+  if (s.kind === 'straight') {
+    mx = (s.from.x + s.to.x) / 2;
+    my = (s.from.y + s.to.y) / 2;
+    nx = -Math.sin(s.from.h);
+    ny = Math.cos(s.from.h);
+  } else {
+    const r = s.centrelineRadiusMm ?? 0;
+    const sign = s.sweep === 'left' ? 1 : -1;
+    const cx = s.from.x - Math.sin(s.from.h) * r * sign;
+    const cy = s.from.y + Math.cos(s.from.h) * r * sign;
+    const vx = (s.from.x + s.to.x) / 2 - cx;
+    const vy = (s.from.y + s.to.y) / 2 - cy;
+    const len = Math.hypot(vx, vy) || 1;
+    nx = vx / len;
+    ny = vy / len;
+    mx = cx + nx * r;
+    my = cy + ny * r;
+  }
+  const fits = ([x, y]: readonly [number, number]): boolean =>
+    x - halfSize[0] >= view.minX &&
+    x + halfSize[0] <= view.minX + view.width &&
+    y - halfSize[1] >= view.minY &&
+    y + halfSize[1] <= view.minY + view.height &&
+    avoid.every(
+      ([ax, ay]) =>
+        Math.abs(ax - x) > halfSize[0] + gapMarkMm || Math.abs(ay - y) > halfSize[1] + gapMarkMm,
+    );
+  /*
+   * The box's CENTRE goes past the edge by half its own size along the
+   * normal's dominant axis, so the text starts beside the plank instead of
+   * straddling it. Centring the text on the clearance point put half of a
+   * long name back across the track (seen in a browser, 2026-10-22).
+   */
+  const alongX = Math.abs(nx) >= Math.abs(ny);
+  for (const sign of [1, -1] as const) {
+    const px = mx + nx * clearMm * sign;
+    const py = my + ny * clearMm * sign;
+    const spot = alongX
+      ? ([px + Math.sign(nx) * sign * halfSize[0], py] as const)
+      : ([px, py + Math.sign(ny) * sign * halfSize[1]] as const);
+    if (fits(spot)) return spot;
+  }
+  return null;
+}

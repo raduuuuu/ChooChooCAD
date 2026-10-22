@@ -106,8 +106,21 @@ export interface EditorState {
   readonly cursor: PortRef | null;
   /** A free end waiting for a weld partner. Null means nothing is armed. */
   readonly armed: PortRef | null;
-  /** The one step Undo can reverse, or null when there is none. See `LastAction`. */
-  readonly lastAction: LastAction | null;
+  /**
+   * What Undo walks back through, oldest first, at most HISTORY_LIMIT steps.
+   * Each step holds the graph BEFORE it. Absent means empty. See `Step`.
+   */
+  readonly past?: readonly Step[];
+  /**
+   * What Redo walks forward through, nearest LAST; each holds the graph AFTER
+   * it. Any new edit empties it. Absent means empty.
+   */
+  readonly future?: readonly Step[];
+  /**
+   * The piece the user selected on the canvas or in the list, by id (decision
+   * R1/D2). Absent means none. Never set together with an armed end.
+   */
+  readonly selected?: string | null;
   /**
    * Whether any action so far CHANGED THE GRAPH. Absent means false.
    *
@@ -125,31 +138,47 @@ export interface EditorState {
 }
 
 /**
- * THE ONE STEP UNDO CAN REVERSE (task U5, Y1 decision 5).
+ * ONE STEP OF THE UNDO HISTORY (task U5; made multi-step by decision D12 of
+ * the 2026-10-22 editing plan, superseding U5's one-step ruling).
  *
- * One step, not a history: undoing twice does nothing the second time, and
- * the control says so by disabling itself rather than doing nothing silently.
+ * Up to HISTORY_LIMIT steps back, and Redo forward again until any new edit.
+ * Drag, remove-any and moving runs make several regretted edits in a row
+ * routine, which one step could not recover.
  *
- * It carries the PREVIOUS GRAPH VALUE, not a description of what changed
+ * Each step carries a GRAPH VALUE, not a description of what changed
  * (finding E3). A `{ break, a, b }` record would undo by re-welding, and
  * `weldEnds` is not the inverse of `removeWeld`: the break re-captures
  * anchors through `captureAnchors`, which never rewrites an anchor already
  * written, so a re-weld leaves the freed component's new anchor behind and a
  * later break reuses it at a stale frame. Restoring the value is exact by
- * construction, and `Graph` is immutable and structurally shared, so the
- * snapshot costs a few pointers.
+ * construction, and `Graph` is immutable and structurally shared, so fifty
+ * snapshots cost a few pointers each.
  *
- * `join` is not in the plan's three labels. Welding two ends is as easy to do
- * by accident as breaking one, and with the previous graph in hand undoing it
- * costs nothing, so it gets "Undo join" rather than a disabled control.
- *
- * "Remove last" is a separate control and does NOT go through this: it stays
- * repeatable and works on a layout loaded from storage, which a one-step Undo
- * cannot (the owner's ruling, 2026-10-22).
+ * "Remove last" stays as its own control (the owner's ruling, 2026-10-22): it
+ * works on a layout loaded from storage, where the history is empty. It is
+ * now a step like any other, so Undo brings the piece back. `clear` and
+ * `preset` start a fresh history, as they always reset the old one-step Undo.
  */
-export interface LastAction {
-  readonly kind: 'place' | 'break' | 'join';
-  readonly previous: Graph;
+export interface Step {
+  readonly kind: 'place' | 'break' | 'join' | 'remove';
+  /** In `past`, the graph before the step; in `future`, the graph after it. */
+  readonly graph: Graph;
+}
+
+/** How many steps Undo keeps (decision D12). */
+export const HISTORY_LIMIT = 50;
+
+/** The step Undo would reverse, or null. */
+export const lastStep = (s: EditorState): Step | null => s.past?.[s.past.length - 1] ?? null;
+/** The step Redo would repeat, or null. */
+export const nextStep = (s: EditorState): Step | null => s.future?.[s.future.length - 1] ?? null;
+
+/** History after an edit of `kind`: the old graph remembered, Redo emptied. */
+function remember(state: EditorState, kind: Step['kind']): Pick<EditorState, 'past' | 'future'> {
+  return {
+    past: [...(state.past ?? []), { kind, graph: state.graph }].slice(-HISTORY_LIMIT),
+    future: [],
+  };
 }
 
 export type EditorAction =
@@ -163,8 +192,14 @@ export type EditorAction =
   | { readonly kind: 'breakWeld'; readonly a: PortRef; readonly b: PortRef }
   /** Delete the newest piece. Repeatable; the old "undo". */
   | { readonly kind: 'removeLast' }
-  /** Reverse `lastAction`, once. */
+  /** Step back through `past`. */
   | { readonly kind: 'undo' }
+  /** Step forward through `future`. */
+  | { readonly kind: 'redo' }
+  /** Select a piece, or clear the selection (null, or the selected piece again). */
+  | { readonly kind: 'selectPiece'; readonly pieceId: string | null }
+  /** Remove any piece, not just the newest (decision R1/D2). */
+  | { readonly kind: 'removePiece'; readonly pieceId: string }
   | { readonly kind: 'clear' }
   | { readonly kind: 'preset'; readonly ids: readonly string[] };
 
@@ -188,7 +223,7 @@ export type EditorAction =
  * hole `resumeCursor` was widened to close.
  */
 export function initialEditor(graph: Graph, ports: PortsOf): EditorState {
-  return { graph, cursor: resumeCursor(graph, ports), armed: null, lastAction: null };
+  return { graph, cursor: resumeCursor(graph, ports), armed: null };
 }
 
 /**
@@ -238,9 +273,17 @@ function resumeCursor(graph: Graph, ports: PortsOf): PortRef | null {
   return null;
 }
 
-/** An armed end that a weld has consumed is stale and must not stay armed. */
+/**
+ * An end that a weld has consumed, or whose piece is gone, is stale. `isFree`
+ * only asks whether a weld names the end, so a removed piece's ends would
+ * read as free without the existence check (found by the remove-any specs).
+ */
 function stillFree(graph: Graph, ref: PortRef | null): PortRef | null {
-  return ref !== null && isFree(graph, ref) ? ref : null;
+  return ref !== null &&
+    graph.pieces.some((p) => p.pieceId === ref.pieceId) &&
+    isFree(graph, ref)
+    ? ref
+    : null;
 }
 
 /**
@@ -260,10 +303,15 @@ export function reduce(
   action: EditorAction,
   ports: PortsOf,
 ): EditorState {
-  const next = step(state, action, ports);
+  const stepped = step(state, action, ports);
   // Same object back means nothing happened; keeping its identity lets React
   // skip the render, and the acknowledgement cannot change.
-  if (next === state) return next;
+  if (stepped === state) return stepped;
+  // A selection never outlives its piece, whichever action removed it.
+  const next =
+    stepped.selected != null && !stepped.graph.pieces.some((p) => p.pieceId === stepped.selected)
+      ? { ...stepped, selected: null }
+      : stepped;
   // Sticky: several branches build a fresh state literal, and one of those
   // must not quietly drop an acknowledgement an earlier edit gave.
   const edited = state.edited === true || next.graph !== state.graph;
@@ -289,7 +337,7 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf): EditorS
         graph: next.graph,
         cursor: next.select,
         armed: stillFree(next.graph, state.armed),
-        lastAction: { kind: 'place', previous: state.graph },
+        ...remember(state, 'place'),
       };
     }
 
@@ -311,6 +359,11 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf): EditorS
     case 'clickPort': {
       const { ref } = action;
       const { armed } = state;
+      // A joined end, or one whose piece is gone, is not something to arm or
+      // join: a stale click, ignored, as a stale break is. The canvas and the
+      // list only offer free ends, so only a stale render or a synthetic
+      // action reaches this; the state walk found it arming a joined end.
+      if (stillFree(state.graph, ref) === null) return state;
       if (armed && armed.pieceId === ref.pieceId && armed.port === ref.port) {
         return { ...state, armed: null };
       }
@@ -337,10 +390,11 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf): EditorS
           graph,
           cursor: stillFree(graph, state.cursor) ?? resumeCursor(graph, ports),
           armed: null,
-          lastAction: { kind: 'join', previous: state.graph },
+          ...remember(state, 'join'),
         };
       }
-      return { ...state, cursor: ref, armed: ref };
+      // Arming an end and selecting a piece are never on at once.
+      return { ...state, cursor: ref, armed: ref, selected: null };
     }
 
     case 'breakWeld': {
@@ -367,15 +421,23 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf): EditorS
       return {
         graph,
         cursor: state.cursor ?? resumeCursor(graph, ports),
-        armed: state.armed,
-        lastAction: { kind: 'break', previous: state.graph },
+        armed: stillFree(graph, state.armed),
+        selected: state.selected ?? null,
+        ...remember(state, 'break'),
       };
     }
 
-    case 'undo': {
-      const last = state.lastAction;
-      if (last === null) return state;
-      const graph = last.previous;
+    case 'undo':
+    case 'redo': {
+      const back = action.kind === 'undo';
+      const from = back ? (state.past ?? []) : (state.future ?? []);
+      const taken = from[from.length - 1];
+      if (taken === undefined) return state;
+      const graph = taken.graph;
+      // The current graph goes onto the other stack, under the same name, so
+      // Redo reads "Redo remove" right after "Undo remove".
+      const moved: Step = { kind: taken.kind, graph: state.graph };
+      const to = [...(back ? (state.future ?? []) : (state.past ?? [])), moved];
       /*
        * Keep the cursor if it still names a free end of a piece that exists
        * in the restored graph; otherwise resume where `resumeCursor` would on
@@ -387,7 +449,34 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf): EditorS
         isFree(graph, state.cursor)
           ? state.cursor
           : resumeCursor(graph, ports);
-      return { graph, cursor: keep, armed: null, lastAction: null };
+      return {
+        graph,
+        cursor: keep,
+        armed: null,
+        selected: state.selected ?? null,
+        past: back ? from.slice(0, -1) : to.slice(-HISTORY_LIMIT),
+        future: back ? to : from.slice(0, -1),
+      };
+    }
+
+    case 'selectPiece': {
+      const id = action.pieceId;
+      if (id !== null && !state.graph.pieces.some((p) => p.pieceId === id)) return state;
+      const selected = id === null || id === state.selected ? null : id;
+      if (selected === (state.selected ?? null) && state.armed === null) return state;
+      return { ...state, selected, armed: null };
+    }
+
+    case 'removePiece': {
+      if (!state.graph.pieces.some((p) => p.pieceId === action.pieceId)) return state;
+      const graph = deletePiece(state.graph, ports, action.pieceId);
+      return {
+        graph,
+        cursor: stillFree(graph, state.cursor) ?? resumeCursor(graph, ports),
+        armed: stillFree(graph, state.armed),
+        selected: null,
+        ...remember(state, 'remove'),
+      };
     }
 
     case 'removeLast': {
@@ -407,13 +496,13 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf): EditorS
        * in order to start a second track.
        */
       const graph = deletePiece(state.graph, ports, last);
-      // Clears `lastAction`: its snapshot describes a graph this one no
-      // longer follows from, so its label would name the wrong step.
-      return { graph, cursor: resumeCursor(graph, ports), armed: null, lastAction: null };
+      // Undoable since the history became multi-step (decision D12): it is
+      // a removal like any other.
+      return { graph, cursor: resumeCursor(graph, ports), armed: null, ...remember(state, 'remove') };
     }
 
     case 'clear':
-      return { graph: EMPTY_GRAPH, cursor: null, armed: null, lastAction: null };
+      return { graph: EMPTY_GRAPH, cursor: null, armed: null, past: [], future: [] };
 
     /*
      * A preset builds a run and then welds its two ends, exactly as a user
@@ -447,7 +536,7 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf): EditorS
        * null, so a preset that ever fails to close still hands back a usable
        * cursor instead of silently relocating the next piece.
        */
-      return { graph, cursor: resumeCursor(graph, ports), armed: null, lastAction: null };
+      return { graph, cursor: resumeCursor(graph, ports), armed: null, past: [], future: [] };
     }
   }
 }

@@ -42,16 +42,20 @@ import {
 } from '../../engine/data/library.js';
 import { brandFit } from '../../engine/data/thirdParty.js';
 import { layoutTrust } from '../../engine/src/joints/trust.js';
+import { spanningForest } from '../../engine/src/graph/forest.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Piece as GPiece, type Port, type PortRef } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
 import { gapMarks, seamLines, weldTargets } from './trackPath.js';
+import { useEditorKeys } from './useEditorKeys.js';
 import { UndoControl } from './UndoControl.js';
 import { GraphListing } from './GraphListing.js';
 import { describeAction } from './announce.js';
 import { solveGraph } from '../../engine/src/graph/solve.js';
 import {
   initialEditor,
+  lastStep,
+  nextStep,
   reduce,
   type EditorAction,
   type EditorState,
@@ -318,7 +322,8 @@ export function App() {
       portsOf(resolve(piece.partId), piece.turn),
     ),
   );
-  const { graph, cursor, armed, lastAction } = editor;
+  const { graph, cursor, armed } = editor;
+  const selected = editor.selected ?? null;
 
   const graphSaveBlocked = savesSuppressed({
     notice: layoutNotice,
@@ -480,6 +485,16 @@ export function App() {
   const clickPort = (ref: PortRef) => dispatch({ kind: 'clickPort', ref });
   const removeLast = () => dispatch({ kind: 'removeLast' });
   const undo = () => dispatch({ kind: 'undo' });
+  const redo = () => dispatch({ kind: 'redo' });
+  const selectPiece = (pieceId: string | null) => dispatch({ kind: 'selectPiece', pieceId });
+  const removePiece = (pieceId: string) => dispatch({ kind: 'removePiece', pieceId });
+  useEditorKeys({
+    onUndo: undo,
+    onRedo: redo,
+    onEscape: () => {
+      if (editor.selected != null) selectPiece(null);
+    },
+  });
   const breakJoint = (a: PortRef, b: PortRef) => dispatch({ kind: 'breakWeld', a, b });
   const clear = () => dispatch({ kind: 'clear' });
   const preset = (ids: readonly string[]) => dispatch({ kind: 'preset', ids });
@@ -572,6 +587,36 @@ export function App() {
       refused,
     );
   }, [result, render, graph, resolve]);
+
+  /*
+   * THE SELECTION, SPELLED OUT (decisions 2A and E5): the piece's name and
+   * size, and how much track a move or rotate would carry with it, which is
+   * its whole connected run (decision D10).
+   */
+  const pieceNumber = useMemo(() => new Map(graph.pieces.map((p, i) => [p.pieceId, i + 1])), [graph]);
+  const sizeOf = (part: Part): string =>
+    part.kind === 'straight' ? `${part.lengthMm}mm` : `r${centrelineRadiusMm(part)}`;
+  const canvasPieceName = (id: string): string => {
+    const piece = graph.pieces.find((p) => p.pieceId === id)!;
+    const part = resolve(piece.partId);
+    return `Piece ${pieceNumber.get(id)}: ${part.name} (${shortCode(part)}), ${sizeOf(part)}`;
+  };
+  const selectedRun = useMemo(() => {
+    if (selected === null) return new Set<string>();
+    const component = spanningForest(graph).component;
+    const mine = component.get(selected);
+    return new Set(graph.pieces.map((p) => p.pieceId).filter((id) => component.get(id) === mine));
+  }, [graph, selected]);
+  const selectionStrip =
+    selected !== null && graph.pieces.some((p) => p.pieceId === selected) ? (
+      <div className="mode-strip" role="group" aria-label="Selected piece">
+        <p className="mode-strip-text">
+          {canvasPieceName(selected)} · run of {selectedRun.size}{' '}
+          {selectedRun.size === 1 ? 'piece' : 'pieces'}
+        </p>
+        <button onClick={() => removePiece(selected)}>Remove piece</button>
+      </div>
+    ) : null;
 
   const counts = usedCounts(graph.pieces.map((p) => p.partId));
   const shortfalls = computeShortfalls(inventory, counts);
@@ -695,6 +740,13 @@ export function App() {
           welds={welds}
           onWeldClick={breakJoint}
           seams={seams}
+          selected={selected}
+          selectedRun={selectedRun}
+          onPieceSelect={selectPiece}
+          onPieceRemove={removePiece}
+          onFloorClick={() => selected !== null && selectPiece(null)}
+          pieceName={canvasPieceName}
+          strip={selectionStrip}
           /*
             * `result`, not `result?.ok`. The clash list lives on BOTH branches
             * of GraphResult, and gating the DRAWING on `ok` undid half of the
@@ -836,7 +888,7 @@ export function App() {
             * sharing a switch. Closing a loop is now clicking the two free
             * ends you want joined, which is also what you do with real track.
             */}
-          <UndoControl lastAction={lastAction} onUndo={undo} />
+          <UndoControl last={lastStep(editor)} next={nextStep(editor)} onUndo={undo} onRedo={redo} />
           <button onClick={removeLast} disabled={graph.pieces.length === 0}>
             Remove last
           </button>
@@ -915,6 +967,7 @@ export function App() {
           ports={ports}
           onPortClick={clickPort}
           onBreak={breakJoint}
+          onRemove={removePiece}
           armed={armed}
           cursor={cursor}
         />

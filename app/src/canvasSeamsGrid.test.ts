@@ -30,7 +30,7 @@ import { gridLabel, gridPath, gridStep, seamLines, visibleBox } from './trackPat
 
 const resolve = makeResolver(BUILT_IN);
 const ports = (piece: Piece): readonly Port[] => portsOf(resolve(piece.partId), piece.turn);
-const START: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null, lastAction: null };
+const START: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null };
 
 const build = (ids: readonly string[]): Graph =>
   ids.reduce((s, partId) => reduce(s, { kind: 'add', partId, turn: 'left' }, ports), START).graph;

@@ -99,7 +99,7 @@ export function renderGraph(
       const isCurve =
         part.kind === 'curve' || (part.kind === 'switch' && i === 2);
       if (!isCurve) {
-        segments.push({ kind: 'straight', from, to, partId: piece.partId });
+        segments.push({ kind: 'straight', from, to, partId: piece.partId, pieceId: piece.pieceId });
         continue;
       }
       segments.push({
@@ -111,6 +111,7 @@ export function renderGraph(
         ),
         sweep: piece.turn === 'right' ? 'right' : 'left',
         partId: piece.partId,
+        pieceId: piece.pieceId,
       });
     }
   }
