@@ -31,7 +31,7 @@
  *     (R21). There is no per-joint ratio and no per-joint glyph.
  */
 
-import { useEffect, useMemo, useState , type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState , type ReactNode } from 'react';
 import {
   droppedSubmissionsNotice,
   loadSubmissionsResult,
@@ -48,6 +48,7 @@ import { renderGraph } from '../../engine/src/graph/render.js';
 import { gapMarks, weldTargets } from './trackPath.js';
 import { UndoControl } from './UndoControl.js';
 import { GraphListing } from './GraphListing.js';
+import { describeAction } from './announce.js';
 import { solveGraph } from '../../engine/src/graph/solve.js';
 import {
   initialEditor,
@@ -321,6 +322,23 @@ export function App() {
     ),
   );
   const { graph, cursor, armed, lastAction } = editor;
+
+  /*
+   * WHAT THE LAST ACTION DID, ANNOUNCED (task U7b): region 3 of the
+   * announcement policy, polite and NOT atomic, separate from the verdict's
+   * region 1. `dispatch` writes the sentence into `saidNext` from inside the
+   * editor updater, the one place that sees the exact state the action ran
+   * on; this publishes it once the new state has committed. A state set from
+   * inside an updater would be a side effect React may repeat.
+   */
+  const saidNext = useRef<string | null>(null);
+  const [said, setSaid] = useState('');
+  useEffect(() => {
+    if (saidNext.current !== null) {
+      setSaid(saidNext.current);
+      saidNext.current = null;
+    }
+  }, [editor]);
   // `null` is UNDECLARED, which is not the same as owning none. See inventoryModel.ts.
   const [inventory, setInventory] = useState<Inventory>(inventoryLoad.value);
   const [inventoryOpen, setInventoryOpen] = useState(false);
@@ -437,7 +455,14 @@ export function App() {
   const dispatch = (action: EditorAction) => {
     // A graph edit acknowledges the GRAPH notice and nothing else.
     setGraphActed(true);
-    setEditor((e) => reduce(e, action, ports));
+    setEditor((e) => {
+      const next = reduce(e, action, ports);
+      // Described here, from the exact state the action ran on, because the
+      // updater is the one place that sees it (see `said` below). Pure, so
+      // StrictMode calling this twice writes the same sentence twice.
+      saidNext.current = describeAction(e, action, next, resolve);
+      return next;
+    });
   };
 
   const add = (partId: string, turn: Turn) => dispatch({ kind: 'add', partId, turn });
@@ -710,6 +735,10 @@ export function App() {
 
       <VerdictLine view={verdictView} trust={trust} />
 
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="false">
+        {said}
+      </p>
+
       {/*
         * The shortfall line sits with the verdict, not in the palette, because it
         * answers the same question the verdict does: can I build this? It is a
@@ -850,7 +879,15 @@ export function App() {
           * row of the shell grid, which would take height from the canvas.
           * Read-only until U7b; see GraphListing.tsx.
           */}
-        <GraphListing graph={graph} resolve={resolve} ports={ports} />
+        <GraphListing
+          graph={graph}
+          resolve={resolve}
+          ports={ports}
+          onPortClick={clickPort}
+          onBreak={breakJoint}
+          armed={armed}
+          cursor={cursor}
+        />
 
         {/*
           * The provisional note used to sit here, under the palette, saying

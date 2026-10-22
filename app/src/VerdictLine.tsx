@@ -173,9 +173,11 @@ function Action({ action }: { action: string | null }) {
  * page, and `useId` would make the rendered markup unstable for X2b's
  * assertions without buying anything.
  *
- * gstack-shortcut(dec-cc66dbf5): the result is audible, the editor is not
- * operable, upgrade when U7 lands and the announcement policy has to cover
- * piece, end and weld actions.
+ * The shortcut recorded here as dec-cc66dbf5 ("the result is audible, the
+ * editor is not operable") was retired by U7b on 2026-10-22: the graph
+ * listing is operable from the keyboard, and every piece, end and joint
+ * action is announced in its own region (`announce.ts`, the `sr-only` status
+ * in App.tsx), separate from this one.
  */
 const NOTES_ID = 'verdict-notes';
 

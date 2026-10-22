@@ -1251,3 +1251,22 @@
 .graph-listing ul { margin: 0; padding-left: 2.2ch; }
 .graph-listing ul ul { margin-bottom: var(--s1); }
 
+/*
+ * Present for assistive technology, absent on screen: U7b's per-action
+ * announcements (region 3), which repeat in words what the canvas already
+ * shows. The standard clip pattern, so it stays in the accessibility tree,
+ * which `display: none` and `visibility: hidden` would remove it from.
+ */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
