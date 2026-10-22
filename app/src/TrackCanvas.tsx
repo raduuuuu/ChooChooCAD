@@ -391,6 +391,26 @@ export function TrackCanvas({
     (selected !== null && pieceOrder.includes(selected) && selected) ||
     pieceOrder[0] ||
     null;
+  /*
+   * A REMOVAL MUST NOT LOSE THE KEYBOARD USER'S PLACE. Removing the focused
+   * piece (Delete), or the selection with it (the strip's Remove piece),
+   * unmounts the element that had focus and the browser drops it on the page
+   * body. When that happens, focus goes to the piece after the removed one,
+   * else the one before. Only when focus was lost: an Undo or Remove last
+   * button that keeps focus is left alone.
+   */
+  const lastOrder = useRef(pieceOrder);
+  useLayoutEffect(() => {
+    const was = lastOrder.current;
+    lastOrder.current = pieceOrder;
+    if (pieceOrder.length === 0 || (document.activeElement && document.activeElement !== document.body)) return;
+    const gone = was.findIndex((id) => !pieceOrder.includes(id));
+    if (gone === -1) return;
+    const next = was.slice(gone + 1).find((id) => pieceOrder.includes(id)) ?? was.slice(0, gone).reverse().find((id) => pieceOrder.includes(id));
+    if (next === undefined) return;
+    setFocusId(next);
+    pieceEls.current.get(next)?.focus();
+  }, [pieceOrder]);
   const stepFocus = (from: string, by: 1 | -1) => {
     const i = pieceOrder.indexOf(from);
     const to = pieceOrder[(i + by + pieceOrder.length) % pieceOrder.length];
