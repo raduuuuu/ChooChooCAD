@@ -94,4 +94,27 @@ describe('the app, driven by events', () => {
     const list = screen.getByText(/This layout, as a list/).closest('details')!;
     expect(within(list).getByText(/6 pieces/)).toBeTruthy();
   });
+
+  /*
+   * THE REPORTED BUG, end to end: the M switch, then a large curve, from the
+   * palette. Before the auto-flip this read "Can't be built" because the E
+   * went on socket-first against M's socket road.
+   *
+   * MUTATION PROOF, run: make `orientation` in layoutModel.ts always return
+   * `{ port: 0, turn }`. Fails with `expected 'XCan’t be built. 1 joint puts
+   * two end…' to match /Not a loop yet/`.
+   */
+  it('places an E after the M switch without a refused joint', async () => {
+    const user = userEvent.setup();
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+    await user.click(button(/^Add Curved switch, peg heel/));
+    await user.click(button('Add Large curve'));
+    expect(verdict().textContent).toMatch(/Not a loop yet/);
+    expect(verdict().textContent).not.toMatch(/Can.t be built/);
+  });
 });
+
