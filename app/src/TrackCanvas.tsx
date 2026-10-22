@@ -15,15 +15,20 @@
  * allocation does.
  */
 
-import { useMemo, type ReactNode } from 'react';
+import { useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
 import { renderBounds, type GraphRender } from '../../engine/src/graph/render.js';
 import type { PortRef } from '../../engine/src/graph/model.js';
 import type { Part, Polarity } from '../../engine/src/parts/schema.js';
 import {
   clashMarkers,
   gapAnnotations,
+  gridLabel,
+  gridPath,
+  gridStep,
   segmentPath,
+  visibleBox,
   type GapMark,
+  type SeamLine,
   type WeldTarget,
 } from './trackPath.js';
 
@@ -106,6 +111,11 @@ export interface TrackCanvasProps {
   readonly welds?: readonly WeldTarget[];
   /** Clicking a joint breaks it. Undo is the path back; there is no confirm. */
   readonly onWeldClick?: (a: PortRef, b: PortRef) => void;
+  /**
+   * Where one piece ends and the next begins, already resolved by
+   * `seamLines` (request 2 of the 2026-10-22 editing plan).
+   */
+  readonly seams?: readonly SeamLine[];
 }
 
 export function TrackCanvas({
@@ -120,6 +130,7 @@ export function TrackCanvas({
   onPortClick,
   welds = [],
   onWeldClick,
+  seams = [],
 }: TrackCanvasProps) {
   const { segments, ports: renderedPorts } = render;
   const box = useMemo(() => renderBounds(render), [render]);
@@ -127,6 +138,37 @@ export function TrackCanvas({
   const w = Math.max(box.maxX - box.minX, 1) + pad * 2;
   const h = Math.max(box.maxY - box.minY, 1) + pad * 2;
   const vb = `${box.minX - pad} ${box.minY - pad} ${w} ${h}`;
+
+  /*
+   * THE FLOOR GRID (request 4, decisions R4/D3 and 12A).
+   *
+   * Its step comes from how big a cell is ON SCREEN, so it needs the drawn
+   * size, which only exists after layout: CSS pixels per millimetre is the
+   * smaller of the two ratios, because the default `preserveAspectRatio`
+   * fits the whole viewBox. Until a measurement arrives (and always in a
+   * static render or jsdom, which has no ResizeObserver) `gridStep` falls
+   * back to counting lines, so the grid is never missing, only sometimes
+   * coarser than ideal on the first paint.
+   */
+  // A callback ref held in state, not `useRef`: the svg is absent while the
+  // empty state shows, and the observer must attach when it first appears.
+  const [svgEl, setSvgEl] = useState<SVGSVGElement | null>(null);
+  const [drawn, setDrawn] = useState<{ width: number; height: number } | null>(null);
+  useLayoutEffect(() => {
+    const el = svgEl;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setDrawn({ width: entry.contentRect.width, height: entry.contentRect.height });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [svgEl]);
+  /*
+   * The grid covers the whole drawn floor, not just the viewBox; see
+   * `visibleBox` for why the two differ.
+   */
+  const shown = visibleBox({ minX: box.minX - pad, minY: box.minY - pad, width: w, height: h }, drawn);
+  const step = gridStep(Math.max(w, h), shown.pxPerMm);
 
 
   /*
@@ -298,9 +340,15 @@ export function TrackCanvas({
   }
 
   return (
-    <svg className="canvas" viewBox={vb} role="img" aria-label="Track layout">
+    <div className="canvas-frame">
+    <svg ref={setSvgEl} className="canvas" viewBox={vb} role="img" aria-label="Track layout">
       {/* y grows downward in SVG; flip so the geometry reads as it would on a floor. */}
       <g transform={`translate(0, ${2 * box.minY - 2 * pad + h}) scale(1, -1)`}>
+        {/*
+          * Under everything, so no track mark is ever drawn behind a grid
+          * line. One path for the whole grid; see `gridPath`.
+          */}
+        <path className="grid" d={gridPath(shown.minX, shown.minY, shown.width, shown.height, step)} />
         {/*
           * Layer by layer across ALL segments, not all layers per segment.
           * Otherwise a piece's grooves would paint over the neighbouring
@@ -323,6 +371,21 @@ export function TrackCanvas({
             );
           }),
         )}
+        {/*
+          * SEAMS, after every track layer so no plank paints over one, and
+          * before the joint targets so a seam never takes a click. Ink, not a
+          * target: `pointer-events: none` comes from the stylesheet.
+          */}
+        {seams.map((m, i) => (
+          <line
+            key={`seam-${i}`}
+            className="seam"
+            x1={m.from[0]}
+            y1={m.from[1]}
+            x2={m.to[0]}
+            y2={m.to[1]}
+          />
+        ))}
         {/*
           * THE CLASH MARKERS.
           *
@@ -600,5 +663,8 @@ export function TrackCanvas({
         ))}
       </g>
     </svg>
+    {/* HTML, not SVG text, so it is never flipped or scaled with the drawing. */}
+    <p className="grid-caption num">Grid: {gridLabel(step)}</p>
+    </div>
   );
 }
