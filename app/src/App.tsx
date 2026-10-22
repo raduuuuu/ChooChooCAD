@@ -47,6 +47,7 @@ import { portsOf, type Piece as GPiece, type Port, type PortRef } from '../../en
 import { renderGraph } from '../../engine/src/graph/render.js';
 import { gapMarks, weldTargets } from './trackPath.js';
 import { UndoControl } from './UndoControl.js';
+import { GraphListing } from './GraphListing.js';
 import { solveGraph } from '../../engine/src/graph/solve.js';
 import {
   initialEditor,
@@ -843,6 +844,13 @@ export function App() {
             onClose={() => setInventoryOpen(false)}
           />
         )}
+
+        {/*
+          * THE LAYOUT AS A LIST (task U7a). In the sidebar rather than a new
+          * row of the shell grid, which would take height from the canvas.
+          * Read-only until U7b; see GraphListing.tsx.
+          */}
+        <GraphListing graph={graph} resolve={resolve} ports={ports} />
 
         {/*
           * The provisional note used to sit here, under the palette, saying
