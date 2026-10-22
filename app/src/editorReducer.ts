@@ -373,8 +373,14 @@ function freeEnds(graph: Graph, ports: PortsOf): PortRef[] {
   return out;
 }
 
-/** A pending piece at a free end, keeping the turn it had where that fits. */
-function ghostAt(graph: Graph, ports: PortsOf, partId: string, at: PortRef, turn: Turn): Ghost {
+/**
+ * A pending piece at a free end, keeping the turn it had where that fits. A
+ * fresh pick passes no turn and starts on the first option, `orientation`'s
+ * own choice, which is exactly where a double-click puts it (9A). Preferring
+ * 'left' there showed the other bend at a start end, where the auto-flip
+ * stores 'right' (QA ISSUE-002).
+ */
+function ghostAt(graph: Graph, ports: PortsOf, partId: string, at: PortRef, turn: Turn | null): Ghost {
   const { options } = fitOptions(graph, ports, at, partId);
   const fit = options.find((o) => o.turn === turn) ?? options[0]!;
   return { partId, at, frame: null, turn: fit.turn, port: fit.port };
@@ -387,7 +393,7 @@ function ghostAt(graph: Graph, ports: PortsOf, partId: string, at: PortRef, turn
  */
 function newGhost(state: EditorState, partId: string, ports: PortsOf): Ghost {
   const at = stillFree(state.graph, state.cursor);
-  if (at) return ghostAt(state.graph, ports, partId, at, 'left');
+  if (at) return ghostAt(state.graph, ports, partId, at, null);
   const frame = state.graph.pieces.length === 0 ? IDENTITY : nextRunAnchor(state.graph, ports);
   return { partId, at: null, frame, turn: 'left', port: 0 };
 }
