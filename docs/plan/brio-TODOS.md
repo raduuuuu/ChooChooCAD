@@ -2408,7 +2408,7 @@ in which the heel was a point inside the piece.
 
 **Priority:** P2. Items 1 and 2 are the ones a user meets first.
 
-## P3 — A turned-round piece reads "turning right" in the layout list (filed 2026-10-22)
+## DONE — A turned-round piece reads "turning right" in the layout list (filed 2026-10-22; done 2026-10-22)
 
 **What landed:** the editor now puts a piece on whichever way round lets peg
 meet socket (`orientation` in `app/src/layoutModel.ts`). Reported: the M switch
@@ -2426,4 +2426,11 @@ surprising in the user's. Options: name the bend from the end that was joined
 first, or say "turned round" beside it.
 
 **Priority:** P3. No verdict or geometry is wrong; it is wording.
+
+**Done 2026-10-22.** Took the first option. `laidFrom` in `GraphListing.tsx`
+finds the end each piece went on by (its first joint to an earlier-placed
+piece), and a piece that went on by anything but its start is named from that
+end and says so: M then E reads "Piece 2: Large curve (E), turning left, joined
+by its end". A piece that started a run, or went on by its start, reads as
+before. Pinned in `GraphListing.test.ts` through the real reducer.
 

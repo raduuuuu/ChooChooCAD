@@ -23,7 +23,8 @@ import { BUILT_IN, makeResolver } from '../../engine/data/library.js';
 import { graphFromChain } from '../../engine/src/graph/fromChain.js';
 import { portsOf, type Graph, type Piece } from '../../engine/src/graph/model.js';
 import { GraphListing, LISTING_CEILING } from './GraphListing.js';
-import { deletePiece } from './layoutModel.js';
+import { reduce, type EditorState } from './editorReducer.js';
+import { deletePiece, EMPTY_GRAPH } from './layoutModel.js';
 
 const resolve = makeResolver(BUILT_IN);
 const ports = (p: Piece) => portsOf(resolve(p.partId), p.turn);
@@ -86,6 +87,41 @@ describe('the graph listing', () => {
     expect(l).toContain('Straight road of piece 1, a peg');
     expect(l).toContain('Curved road of piece 1, a peg');
     expect(l).toContain('Joint 1: straight road of piece 1 to start of piece 2');
+  });
+
+  /*
+   * A TURNED-ROUND PIECE READS THE WAY IT BENDS AS YOU BUILD. The M switch's
+   * roads are sockets, so an E goes on by its peg end and its stored turn is
+   * flipped (the auto-flip in layoutModel.ts). Named from its own start it
+   * read "turning right" although the user pressed "Add Large curve" (left)
+   * and watched it bend left. Built through the real reducer, so the graph is
+   * the one the editor makes.
+   *
+   * MUTATION PROOF, each run separately:
+   * - in `pieceName`, name the side from the stored turn always (`const side
+   *   = stored`). Fails with `expected [ …(3) ] to deeply equal [ …(3) ]`, the
+   *   diff showing "turning right, joined by its end";
+   * - in `laidFrom`, take the EARLIER piece's port (`ia > ib ? w.b : w.a`).
+   *   Fails the same way, and so do the template and switch specs above: an
+   *   ordinary E-then-E run then reads "turning right, joined by its end".
+   */
+  it('names a turned-round curve from the end it went on by', () => {
+    const build = (ids: string[]) => {
+      let s: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null, lastAction: null };
+      for (const partId of ids) s = reduce(s, { kind: 'add', partId, turn: 'left' }, ports);
+      return labels(html(s.graph)).filter((x) => x.startsWith('Piece '));
+    };
+    expect(build(['M', 'E', 'E'])).toEqual([
+      'Piece 1: Curved switch, peg heel (M), branching left',
+      'Piece 2: Large curve (E), turning left, joined by its end',
+      'Piece 3: Large curve (E), turning left, joined by its end',
+    ]);
+    // The same run off an L, whose roads are pegs, is not turned round.
+    expect(build(['L', 'E', 'E'])).toEqual([
+      'Piece 1: Curved switch (L), branching left',
+      'Piece 2: Large curve (E), turning left',
+      'Piece 3: Large curve (E), turning left',
+    ]);
   });
 
   /*

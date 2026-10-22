@@ -40,6 +40,7 @@
  * example per node type, for a two-piece run of E curves:
  *
  *   piece        "Piece 1: Large curve (E), turning left"
+ *   turned round "Piece 2: Large curve (E), turning left, joined by its end"
  *   free end     "Start of piece 1, a socket"     described by "Free"
  *   welded end   "End of piece 1, a peg"          described by "Joined to the start of piece 2"
  *   joint        "Joint 1: end of piece 1 to start of piece 2"
@@ -66,11 +67,37 @@ export function endName(part: Part, port: number): string {
 
 const capital = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
-function pieceName(n: number, piece: Piece, part: Part): string {
+/**
+ * WHICH END EACH PIECE WENT ON BY: the port of its first joint to a piece
+ * placed before it, in joint order. Absent for a piece that started a run.
+ *
+ * The editor turns a piece round when its start is the wrong kind for the end
+ * it meets (`orientation` in layoutModel.ts), and flips its stored turn so it
+ * bends the way the palette button asked as you build. Named from its own
+ * start, that piece read "turning right" while the user watched it bend left.
+ * Named from the end it went on by, it reads the way it bends along the track.
+ */
+export function laidFrom(graph: Graph): Map<string, number> {
+  const order = new Map(graph.pieces.map((p, i) => [p.pieceId, i]));
+  const from = new Map<string, number>();
+  for (const w of graph.welds) {
+    const ia = order.get(w.a.pieceId);
+    const ib = order.get(w.b.pieceId);
+    if (ia === undefined || ib === undefined || ia === ib) continue;
+    const later = ia > ib ? w.a : w.b;
+    if (!from.has(later.pieceId)) from.set(later.pieceId, later.port);
+  }
+  return from;
+}
+
+function pieceName(n: number, piece: Piece, part: Part, from: number | undefined): string {
   const head = `Piece ${n}: ${part.name} (${shortCode(part)})`;
-  const side = piece.turn === 'right' ? 'right' : 'left';
-  if (part.kind === 'curve') return `${head}, turning ${side}`;
-  if (part.kind === 'switch') return `${head}, branching ${side}`;
+  const turnedRound = from !== undefined && from !== 0;
+  const stored = piece.turn === 'right' ? 'right' : 'left';
+  const side = turnedRound ? (stored === 'right' ? 'left' : 'right') : stored;
+  const by = turnedRound ? `, joined by its ${endName(part, from)}` : '';
+  if (part.kind === 'curve') return `${head}, turning ${side}${by}`;
+  if (part.kind === 'switch') return `${head}, branching ${side}${by}`;
   return head;
 }
 
@@ -140,6 +167,8 @@ export function GraphListing({
     partner.set(`${w.b.pieceId}#${w.b.port}`, w.a);
   }
 
+  const from = laidFrom(graph);
+
   const same = (a: PortRef | null, b: PortRef) =>
     a !== null && a.pieceId === b.pieceId && a.port === b.port;
 
@@ -180,7 +209,7 @@ export function GraphListing({
         {graph.pieces.map((piece, i) => {
           const part = resolve(piece.partId);
           const n = i + 1;
-          const name = pieceName(n, piece, part);
+          const name = pieceName(n, piece, part, from.get(piece.pieceId));
           return (
             <li key={piece.pieceId} aria-label={name}>
               {name}
