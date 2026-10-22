@@ -41,23 +41,15 @@ export interface RenderedPort {
   /** True when no weld claims it, so a piece can be attached here. */
   readonly free: boolean;
   /**
-   * Which half of a joint this end is, or null for a heel.
+   * Which half of a joint this end is.
    *
    * Carried so the canvas can draw what the polarity check already knows;
-   * the history is in the DONE entry in `docs/plan/brio-TODOS.md`.
-   *
-   * It is derived with `portPolarity` and gated on `kind === 'heel'` -- the
-   * same two rules the check applies, though NOT the same code: the check
-   * reaches the heel case through `weldHasPolarity`, and this is a third
-   * inline copy of that test. Sharing one predicate would make drift
-   * impossible; today it is only unlikely, and the spec sweep cannot catch a
-   * divergence because no catalogue part is a switch. Filed rather than
-   * claimed away. A heel is
-   * exempt from polarity (it is the point inside one moulded piece where its
-   * two roads meet, with no plug and no socket), and null is that exemption
-   * rather than a third polarity.
+   * the history is in the DONE entry in `docs/plan/brio-TODOS.md`. Derived
+   * with `portPolarity`, the same function the check calls. A switch's heel
+   * is a peg or a socket like any end (see `PortKind`); this was `null` for
+   * a heel until 2026-10-22, matching an exemption the check no longer makes.
    */
-  readonly polarity: Polarity | null;
+  readonly polarity: Polarity;
 }
 
 export interface GraphRender {
@@ -97,7 +89,7 @@ export function renderGraph(
         y: p.y,
         h: p.h,
         free: !claimed.has(`${piece.pieceId}#${i}`),
-        polarity: portList[i]?.kind === 'heel' ? null : portPolarity(part, i),
+        polarity: portPolarity(part, i),
       });
     }
 

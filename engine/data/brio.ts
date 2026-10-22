@@ -24,6 +24,7 @@
  */
 
 import type { DimensionSource, Part, PartEnds, SlopBudget } from '../src/parts/schema.js';
+import { SWITCH_SEEDS } from './switchSeeds.js';
 import { THIRD_PARTY_SEEDS } from './thirdParty.js';
 
 /** Placeholder. Not measured. See CALIBRATION WARNING above. */
@@ -170,7 +171,7 @@ export const BRIO_PARTS: readonly Part[] = [
  * app's storage: it is the built-in tier, not the whole library.
  */
 const BY_ID = new Map<string, Part>(
-  [...BRIO_PARTS, ...THIRD_PARTY_SEEDS].map((p) => [p.id, p]),
+  [...BRIO_PARTS, ...SWITCH_SEEDS, ...THIRD_PARTY_SEEDS].map((p) => [p.id, p]),
 );
 
 export function getPart(id: string): Part {

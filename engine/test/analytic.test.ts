@@ -682,15 +682,17 @@ describe('multi-brand catalogue provenance', () => {
     }
   });
 
-  it('every BRIO part is published and every third-party part is not', () => {
+  it('every catalogue BRIO part is published and every seed is not', () => {
+    const catalogue = new Set(BRIO_PARTS.map((p) => p.id));
     for (const p of BUILT_IN) {
-      if (p.brand === 'BRIO') {
+      if (catalogue.has(p.id)) {
         expect(p.dimensions.status, p.id).toBe('published');
         expect(isUnverified(p), p.id).toBe(false);
       } else {
         // The honest state of the world: nobody publishes piece dimensions for
-        // IKEA Lillabo or Lidl Playtive. If that ever changes, upgrade the part
-        // and this assertion changes with it, deliberately.
+        // IKEA Lillabo or Lidl Playtive, or a BRIO switch's diverging leg. If
+        // that ever changes, upgrade the part and this assertion changes with
+        // it, deliberately.
         expect(isUnverified(p), p.id).toBe(true);
       }
     }

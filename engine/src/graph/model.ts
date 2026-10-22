@@ -65,11 +65,20 @@ export const IDENTITY: Frame = { pos: ZERO, heading: 0 };
 /**
  * One connectable end of a part.
  *
- * `kind` is not decoration. A switch's heel is the end where its two routes
- * meet, and T8 gives it three distinct treatments: it donates no give, it is
- * exempt from polarity, and it still participates in the coincident-vertex
- * check. Carrying the kind here is what lets those three stay separate
- * instead of collapsing into one "is it a switch" boolean.
+ * `kind` NAMES the end; it changes no rule. A switch's heel is the end both
+ * of its roads start from, and it is a real connector: the end face of the
+ * plank, with a peg or a socket on it, like every other end. The reproduction
+ * switches in `switchSeeds.ts` show this directly, with an 18mm peg or a
+ * socket at the heel.
+ *
+ * T8 once gave it three special treatments: no give, exempt from polarity,
+ * still counted for position. The first two came from an earlier model in
+ * which a switch was two edges meeting at an interior point inside the piece
+ * (plan C6), and that point really had no plug and no socket. Port 0 is not
+ * that point. It sits at the frame origin, the plank's end face, so the two
+ * exemptions made a heel joint donate nothing and let a peg meet a peg there
+ * unchallenged. Both were removed on 2026-10-22, when the first switches
+ * entered the library and the exemption stopped being hypothetical.
  */
 export type PortKind = 'end' | 'heel';
 
@@ -193,47 +202,29 @@ function arcEnd(r: number, s: number, turn: Turn): Frame {
  * `PartEnds` has two fields because a part used to have two ends. Port 0 is
  * the start; every other port takes the part's `end` polarity.
  *
- * For a switch that is a MODELLING CONVENTION and is labelled as one: both
- * roads leaving the heel are assumed to terminate the same way. Real BRIO
- * switches do behave like this, but nobody has published it in a form this
- * file could cite, and no switch is in the catalogue yet, so nothing depends
- * on the assumption today. When one is sourced (K1) it brings its own
- * per-port polarity and this collapses to reading it.
+ * For a switch, port 0 is the heel and both roads take `end`: the two roads
+ * leaving the heel terminate the same way. Every switch reproduction measured
+ * for `switchSeeds.ts` has that shape (pegs on both roads with a socket heel,
+ * or the reverse), but nobody has published it for real BRIO track, so it is
+ * an observation from reproductions rather than a cited fact. A switch whose
+ * roads differ would need per-port polarity.
  */
 export function portPolarity(part: Part, portIndex: number): Polarity {
   return portIndex === 0 ? part.ends.start : part.ends.end;
 }
 
 /**
- * Give at a weld, millimetres (T8's first heel treatment).
+ * Give at a weld, millimetres.
  *
- * A HEEL DONATES NOTHING. The heel is not a connector: it is the point inside
- * one moulded piece where its two roads meet, so there is no plug, no socket
- * and no slop to take up. Counting it would hand every switch in a loop a
- * free millimetre of tolerance it does not physically have, and the error
- * compounds with the number of switches.
+ * Every weld is a peg in a socket, a switch's heel included (see `PortKind`),
+ * so every weld donates the same give. A heel used to donate nothing, which
+ * understated the give of any loop closed through one and could turn a layout
+ * that builds into a definite refusal.
  */
-export function weldGiveMm(
-  a: Port,
-  b: Port,
-  slopA: number,
-  slopB: number,
-): number {
-  if (a.kind === 'heel' || b.kind === 'heel') return 0;
+export function weldGiveMm(slopA: number, slopB: number): number {
   // Max, not min: the bound is a NECESSARY condition, so give must be an
   // upper estimate or a layout that cannot be built could still pass.
   return Math.max(slopA, slopB);
-}
-
-/**
- * Whether a weld can be checked for polarity (T8's second heel treatment).
- *
- * A heel is exempt. Polarity models peg against socket, and a heel is neither,
- * so asking whether it mates correctly is a category error that would report
- * a violation on every switch.
- */
-export function weldHasPolarity(a: Port, b: Port): boolean {
-  return a.kind !== 'heel' && b.kind !== 'heel';
 }
 
 /** Compose: where a local pose lands once its piece's frame is placed. */

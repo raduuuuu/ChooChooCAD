@@ -14,7 +14,8 @@
  * So the library is now three tiers that resolve into one list:
  *
  *   BUILT-IN       BRIO, published figures from an established reference.
- *   SEEDS          third-party parts whose dimensions are UNVERIFIED. Present so
+ *   SEEDS          parts whose dimensions are UNVERIFIED: third-party track, and
+ *                  the BRIO switches read off 3D-print reproductions. Present so
  *                  someone who owns the track has a row to correct rather than a
  *                  blank form. Any user submission overrides a seed.
  *   SUBMISSIONS    parts a user measured, or that reached the shared library from
@@ -36,10 +37,14 @@
 import type { DimensionSource, Part } from '../src/parts/schema.js';
 import { DIMENSION_TRUST, trustRank, type DimensionStatus } from '../src/parts/schema.js';
 import { BRIO_PARTS } from './brio.js';
+import { SWITCH_SEEDS } from './switchSeeds.js';
 import { THIRD_PARTY_SEEDS } from './thirdParty.js';
 
-/** Built-in parts: published BRIO plus unverified third-party seeds. */
-export const BUILT_IN: readonly Part[] = [...BRIO_PARTS, ...THIRD_PARTY_SEEDS];
+/**
+ * Built-in parts: published BRIO, unverified BRIO switches measured off 3D-print
+ * reproductions, and unverified third-party seeds.
+ */
+export const BUILT_IN: readonly Part[] = [...BRIO_PARTS, ...SWITCH_SEEDS, ...THIRD_PARTY_SEEDS];
 
 /**
  * One submitted part. A `Part` plus the bookkeeping a shared library needs.

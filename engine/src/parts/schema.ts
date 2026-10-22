@@ -324,13 +324,12 @@ export interface CurvePart extends PartBase {
  * a right-hand switch are one part placed two ways rather than two records
  * that could disagree with each other.
  *
- * NO SWITCH IS IN THE CATALOGUE YET, and that is on purpose. Nobody has
- * published BRIO's switch geometry in a form this file could cite, and the
- * rule this project runs on is that a dimension without a source does not
- * get written down. The type exists so the engine can carry one the day the
- * figures are sourced (task K1); until then switches appear only in tests,
- * where their numbers are declared locally and claim nothing about real
- * track.
+ * NO PUBLISHED SWITCH IS IN THE CATALOGUE. Nobody has published BRIO's
+ * switch geometry in a form this file could cite. Four switches are in the
+ * library as UNVERIFIED seeds read off 3D-print reproductions
+ * (`engine/data/switchSeeds.ts`), carrying the same unverified status as the
+ * IKEA and Playtive seeds and overridden by any user measurement. The
+ * published row still waits on a real switch being measured (task T2).
  */
 export interface SwitchPart extends PartBase {
   readonly kind: 'switch';

@@ -754,11 +754,11 @@ canvas's existing glyph vocabulary, and when both land on one spot the result
 is a bar inside an X inside two rings. Fix: make the difference structural (a
 dashed ring, say), or suppress the inner mark where they coincide.
 
-**Also unfiled until now:** `render.ts` tests `kind === 'heel'` inline, while
-the polarity check reaches the same exemption through `weldHasPolarity`. They
-agree today and nothing enforces it; the spec sweep cannot catch a divergence
-because no catalogue part is a switch. Fix: one shared predicate called by
-both. **And** the `badJoints` resolution in `App.tsx` (weld lookup, guards,
+**Also unfiled until now:** ~~`render.ts` tests `kind === 'heel'` inline, while
+the polarity check reaches the same exemption through `weldHasPolarity`.~~
+**Resolved 2026-10-22 by deleting the exemption.** A heel is a peg or a socket
+like any end, so neither copy exists any more and there is nothing to share.
+**And** the `badJoints` resolution in `App.tsx` (weld lookup, guards,
 end choice) has no spec of its own -- only its rendering is covered. Fix:
 extract it beside `gapAnnotations` in `trackPath.ts` and spec it.
 
@@ -789,9 +789,10 @@ from storage, which bypass the click path entirely.
 
 **Why deferred (D4, 2026-10-13):** The failure is already caught and reported,
 not silent: `findWeldPolarityViolations` is tested and IMPOSSIBLE outranks an
-exact closure. And the editor is about to change shape when switches land, at
-which point a heel is exempt from polarity altogether and the rule would be
-rewritten. Doing it now is doing it twice.
+exact closure. And the editor is about to change shape when switches land.
+(This said a heel would be exempt from polarity altogether. It is not: since
+2026-10-22 a heel is checked like any end, so the rule this entry describes
+needs no switch special case.)
 
 **Upgrade trigger:** after the switch catalogue row (S2) ships and the set of
 port kinds has settled.
@@ -811,10 +812,9 @@ after the join was already made.
 
 The check was never broken: A2+B2 reports one violation and says so. What was
 missing was the picture. `RenderedPort` now carries `polarity`, derived with
-the same `portPolarity` and the same heel exemption the check applies -- though
-NOT the same code: the check reaches the heel case through `weldHasPolarity`
-and `render.ts` holds another inline copy, so the two agree today and nothing
-enforces it. The shared predicate is filed in the polarity-marker entry above.
+the same `portPolarity` the check applies. (It also carried a heel exemption
+held in two copies, one in `render.ts` and one in `weldHasPolarity`; both were
+deleted on 2026-10-22 when the heel became an ordinary connector.)
 (This paragraph said "so the two cannot drift" until the documentation audit
 caught it contradicting `render.ts`, which says plainly that it is a separate
 copy.) The canvas draws a peg filled and a socket hollow at the same radius,
@@ -2328,3 +2328,30 @@ exact bytes are present. Every further evasion is another regex. The property
 wants one DOM test that mounts `App` with a stored graph and asserts the cursor
 came back, which is task E11. Until then this pin is the only thing between a
 correct `initialEditor` and a call site that ignores it.
+
+## P2 — What the MakerWorld switch seeds left open (filed 2026-10-22)
+
+**What landed:** four BRIO switches (L, M, O1, P1) in the library as
+`unverified` seeds, measured off the 3MF meshes of Cactus 973's MakerWorld
+reproductions (`engine/data/switchSeeds.ts`). In the same change the heel
+stopped being exempt from give and polarity: port 0 is the plank's end face
+and carries a peg or a socket, and the exemption came from an earlier model
+in which the heel was a point inside the piece.
+
+**Still open:**
+1. **The other switches need part kinds the schema does not have.** I/J
+   (three-way, four ends), O/P (a Y: an E1 either side, no straight road),
+   F/G and F1/G1 (parallel offset roads, 46 to 47mm apart). All were found
+   and measured; none fits `SwitchPart`.
+2. **T3b's switch disclosure has not landed**, so a layout with a seed switch
+   carries only the generic unverified-size note.
+3. **`BRIO_PIECE_TABLE` is stale for these four.** Its rows for L/M and O1/P1
+   still say `needs-graph`; they are now present as seeds, and the graph has
+   existed since the rewrite.
+4. **The seeds rest on one designer.** AU3D independently agrees on the O/P
+   Y-switch geometry, but nobody else modelled L/M. A real measurement (the
+   entry above, and `CALIBRATION.md` Q6) replaces them through the normal
+   submission override.
+
+**Priority:** P2. Items 1 and 2 are the ones a user meets first.
+

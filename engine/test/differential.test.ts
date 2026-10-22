@@ -59,7 +59,12 @@ function viaGraph(layout: Layout) {
   return { gapMm: magnitude(r.gap), closes: r.closes, heading: r.headingSteps };
 }
 
-const BRIO = BUILT_IN.filter((p) => p.brand === 'BRIO').map((p) => p.id);
+/*
+ * Two-ended parts only. The chain engine refuses a switch by design (pose.ts
+ * `refuseMultiPort`), so a switch in the pool would compare a throw with a
+ * verdict rather than two verdicts. Switches are the graph engine's alone.
+ */
+const BRIO = BUILT_IN.filter((p) => p.brand === 'BRIO' && p.kind !== 'switch').map((p) => p.id);
 
 /** Deterministic, so a failure is reproducible from the seed alone. */
 function lcg(seed: number) {
@@ -346,6 +351,23 @@ describe('what only the graph engine can say, which is the boundary of the compa
     expect(one.ok || three.ok).toBe(false);
     expect((one as Extract<typeof one, { ok: false }>).detail).toBe('1 piece, open at both ends');
     expect((three as Extract<typeof three, { ok: false }>).detail).toBe('3 pieces, open at both ends');
+  });
+
+  it('counts the open ends of a run with a switch, which has three, not two', () => {
+    /*
+     * MUTATION (run): restoring the unconditional "open at both ends" fails
+     * with `expected '1 piece, open at both ends' to be '1 piece, 3 open ends'`.
+     * The second case pins the weld subtraction: dropping `2 * welds` fails
+     * with `'2 pieces, 5 open ends'`.
+     */
+    const one = solve({ pieces: [{ pieceId: 's', partId: 'L' }], welds: [] });
+    const fed: Graph = {
+      pieces: [{ pieceId: 's', partId: 'L' }, { pieceId: 'a', partId: 'A' }],
+      welds: [{ a: { pieceId: 's', port: 1 }, b: { pieceId: 'a', port: 0 } }],
+    };
+    expect((one as Extract<typeof one, { ok: false }>).detail).toBe('1 piece, 3 open ends');
+    const two = solve(fed);
+    expect((two as Extract<typeof two, { ok: false }>).detail).toBe('2 pieces, 3 open ends');
   });
 
   it('an overlap is reported with NO loop, because where the pieces ARE is already a fact', () => {

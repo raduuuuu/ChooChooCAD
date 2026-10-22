@@ -17,10 +17,11 @@ import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../data/library.js';
 import { spanningForest } from '../src/graph/forest.js';
 import { placeAll, portFrame, residuals } from '../src/graph/frames.js';
+import { findWeldPolarityViolations } from '../src/graph/feasible.js';
+import { solveGraph } from '../src/graph/solve.js';
 import {
   portsOf,
   weldGiveMm,
-  weldHasPolarity,
   type Graph,
   type Piece,
   type Port,
@@ -118,27 +119,77 @@ describe('a switch is three ports', () => {
   });
 });
 
-describe('T8: the heel gets all three treatments', () => {
-  const heel = portsOf(SW)[0]!;
-  const end = portsOf(SW)[1]!;
+/*
+ * THE HEEL IS A CONNECTOR.
+ *
+ * T8 once exempted the heel from give and from polarity, on the reading that
+ * it was a point inside the piece with no plug and no socket. Port 0 is the
+ * plank's end face, and the reproduction switches carry an 18mm peg or a
+ * socket there (`switchSeeds.ts`). These specs drive the real paths, the
+ * solver and the weld scan, rather than the predicates, so they fail if the
+ * exemption comes back anywhere on the way.
+ */
+describe('the heel is an ordinary connector', () => {
+  const slopOf = (pieceId: string): number =>
+    resolve(pieceId === 'sw' ? SW.id : 'E').slop.axialMm;
 
-  it('donates no give', () => {
-    expect(weldGiveMm(heel, end, 0.8, 0.8)).toBe(0);
-    // An ordinary pair still does, and takes the MAX because the bound is a
-    // necessary condition and give must be an upper estimate.
-    expect(weldGiveMm(end, end, 0.8, 1.2)).toBe(1.2);
-  });
-
-  it('is exempt from polarity', () => {
-    expect(weldHasPolarity(heel, end)).toBe(false);
-    expect(weldHasPolarity(end, end)).toBe(true);
+  /** The diverging road plus seven E is a full circle, closed onto the heel. */
+  const loopThroughHeel = (): Graph => ({
+    pieces: [
+      { pieceId: 'sw', partId: SW.id },
+      ...Array.from({ length: 7 }, (_, i) => ({ pieceId: `e${i}`, partId: 'E' })),
+    ],
+    welds: [
+      { a: { pieceId: 'sw', port: 2 }, b: { pieceId: 'e0', port: 0 } },
+      ...Array.from({ length: 6 }, (_, i) => ({
+        a: { pieceId: `e${i}`, port: 1 },
+        b: { pieceId: `e${i + 1}`, port: 0 },
+      })),
+      { a: { pieceId: 'e6', port: 1 }, b: { pieceId: 'sw', port: 0 } },
+    ],
   });
 
   /*
-   * The third treatment: still counted in the coincident-vertex check. The
-   * heel is a real place on the table, so another piece cannot be there,
-   * even though it donates nothing and has no polarity. A heel that was
-   * simply excluded from everything would let a layout stack track on it.
+   * MUTATION PROOF, run: in cycles.ts `giveOfWeld`, return 0 when either port
+   * is a heel. Fails with `expected 5.6 to be close to 6.4`: the loop loses
+   * the heel joint's give.
+   */
+  it('donates give like any joint, so a loop through it counts every weld', () => {
+    const r = solveGraph(loopThroughHeel(), ports, resolve, slopOf);
+    expect(r.ok).toBe(true);
+    if (!r.ok) throw new Error('unreachable');
+    const perWeld = A1.slop.axialMm;
+    expect(r.totalGiveMm).toBeCloseTo(8 * perWeld, 9);
+    // The give rule itself: the larger of the two, because the bound is a
+    // necessary condition and give must be an upper estimate.
+    expect(weldGiveMm(0.8, 1.2)).toBe(1.2);
+  });
+
+  /*
+   * MUTATION PROOF, run: in feasible.ts `findWeldPolarityViolations`, skip
+   * the weld when either port is a heel. Fails with `expected [] to have a
+   * length of 1`.
+   */
+  it('is checked for polarity: a socket heel refuses a socket', () => {
+    expect(SW.ends.start).toBe('socket');
+    const weldOnto = (partId: string): Graph => ({
+      pieces: [
+        { pieceId: 'sw', partId: SW.id },
+        { pieceId: 'x', partId },
+      ],
+      welds: [{ a: { pieceId: 'x', port: 1 }, b: { pieceId: 'sw', port: 0 } }],
+    });
+    // C2 is two sockets: its far end against the socket heel cannot mate.
+    const bad = findWeldPolarityViolations(weldOnto('C2'), resolve, ports);
+    expect(bad).toHaveLength(1);
+    expect(bad[0]!.polarity).toBe('socket');
+    // A's far end is a peg, which is what a socket heel takes.
+    expect(findWeldPolarityViolations(weldOnto('A'), resolve, ports)).toEqual([]);
+  });
+
+  /*
+   * Unchanged from T8: the heel is a real place on the table, so another
+   * piece cannot be there.
    */
   it('still occupies a position, so it can still collide', () => {
     const g: Graph = {
