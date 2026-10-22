@@ -30,7 +30,7 @@ import {
 const resolve = makeResolver(BUILT_IN);
 const ports = (piece: Piece): readonly Port[] => portsOf(resolve(piece.partId), piece.turn);
 
-const START: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null };
+const START: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null, lastAction: null };
 const runs = (s: EditorState) => placeAll(s.graph, ports).forest.roots.length;
 
 describe('add', () => {
@@ -153,11 +153,11 @@ describe('clickPort', () => {
   });
 });
 
-describe('undo and clear', () => {
-  it('undo deletes the last piece and RESUMES the cursor on the end it exposed', () => {
+describe('remove last and clear', () => {
+  it('remove last deletes the last piece and RESUMES the cursor on the end it exposed', () => {
     let s = reduce(START, { kind: 'add', partId: 'E', turn: 'left' }, ports);
     s = reduce(s, { kind: 'add', partId: 'E', turn: 'left' }, ports);
-    s = reduce(s, { kind: 'undo' }, ports);
+    s = reduce(s, { kind: 'removeLast' }, ports);
 
     expect(s.graph.pieces).toHaveLength(1);
     expect(s.graph.welds).toHaveLength(0);
@@ -167,10 +167,10 @@ describe('undo and clear', () => {
     expect(s.armed).toBeNull();
   });
 
-  it('undo on an empty canvas returns the SAME state value, not a new one', () => {
+  it('remove last on an empty canvas returns the SAME state value, not a new one', () => {
     // Identity matters: a fresh object here would re-render the whole canvas
     // on a no-op press.
-    expect(reduce(START, { kind: 'undo' }, ports)).toBe(START);
+    expect(reduce(START, { kind: 'removeLast' }, ports)).toBe(START);
   });
 
   it('clear empties the graph and the selection', () => {
@@ -238,7 +238,7 @@ describe('preset', () => {
  * Both tests below build the user's exact sequence and then take one of the
  * two routes a person actually takes mid-build.
  */
-describe('the cursor survives a disarm and an undo (reported 2026-10-20)', () => {
+describe('the cursor survives a disarm and a remove-last (reported 2026-10-20)', () => {
   const USER_SEQUENCE = ['E', 'E', 'E', 'E', 'D', 'E', 'E', 'E'] as const;
 
   const build = (ids: readonly string[]): EditorState => {
@@ -280,15 +280,15 @@ describe('the cursor survives a disarm and an undo (reported 2026-10-20)', () =>
     expect(s.graph.welds).toHaveLength(8);
     expect(runs(s)).toBe(1);
     // The ADDED piece carries no anchor, which is what "joined the chain"
-    // means. The map as a whole is not asserted: `undo` legitimately leaves
+    // means. The map as a whole is not asserted: `removeLast` legitimately leaves
     // the first piece an explicit identity anchor.
     const added = s.graph.pieces[8]!.pieceId;
     expect(s.graph.anchors?.has(added) ?? false).toBe(false);
   });
 
   /*
-   * MUTATION PROOF, RUN: restore `cursor: null` in the `undo` branch. TWO
-   * tests fail, this one and "undo deletes the last piece and RESUMES the
+   * MUTATION PROOF, RUN: restore `cursor: null` in the `removeLast` branch. TWO
+   * tests fail, this one and "remove last deletes the last piece and RESUMES the
    * cursor", which is the pair you want: one pins the transition, one pins the
    * consequence a user actually sees.
    *
@@ -299,9 +299,9 @@ describe('the cursor survives a disarm and an undo (reported 2026-10-20)', () =>
    * The free ends were there the whole time, which is what made this the least
    * defensible of the routes: nobody presses undo to start a second track.
    */
-  it('undo leaves the chain continuable, so the next piece joins it', () => {
+  it('remove last leaves the chain continuable, so the next piece joins it', () => {
     let s = build([...USER_SEQUENCE, 'E']);
-    s = reduce(s, { kind: 'undo' }, ports);
+    s = reduce(s, { kind: 'removeLast' }, ports);
     expect(s.graph.pieces).toHaveLength(8);
 
     s = reduce(s, { kind: 'add', partId: 'A', turn: 'left' }, ports);
@@ -385,12 +385,14 @@ describe('the cursor survives a disarm and an undo (reported 2026-10-20)', () =>
  * and the ring is suppressed on a port that is not the cursor.
  *
  * Checked by walking every state reachable in four actions from an empty board
- * rather than by asserting the one case. Depth 4 visits 9497 nodes, 201 of them
- * distinct states, and 5512 of the nodes have `armed` set.
+ * rather than by asserting the one case. Depth 4 visits 27,515 nodes and 11,624
+ * of them have `armed` set (re-measured 2026-10-22, after U5 added `undo` and one
+ * `breakWeld` per weld; it was 9,497 and 5,512 before). Distinct states, keyed on
+ * pieces, welds, cursor, armed and the kind of `lastAction`: 1,708.
  *
  * WHAT THIS WALK CANNOT DO, because the first version of this comment claimed
- * it could: it cannot notice a NEW action. `actionsFrom` writes the four
- * non-click action kinds out by hand, so an `EditorAction` variant added later
+ * it could: it cannot notice a NEW action. `actionsFrom` writes the other
+ * action kinds out by hand, so an `EditorAction` variant added later
  * is never constructed and the walk passes blind. Anyone adding an action that
  * touches `armed` must add it below as well; this spec will not remind them.
  *
@@ -413,10 +415,13 @@ describe('the armed end and the cursor never disagree', () => {
     const actionsFrom = (s: EditorState): EditorAction[] => {
       const out: EditorAction[] = [
         { kind: 'add', partId: 'E', turn: 'left' },
+        { kind: 'removeLast' },
         { kind: 'undo' },
         { kind: 'clear' },
         { kind: 'preset', ids: ['E', 'E', 'E', 'E', 'E', 'E', 'E', 'E'] },
       ];
+      // U5's break, once per weld, by the ports that name it.
+      for (const w of s.graph.welds) out.push({ kind: 'breakWeld', a: w.a, b: w.b });
       for (const p of s.graph.pieces) {
         for (let port = 0; port < ports(p).length; port++) {
           out.push({ kind: 'clickPort', ref: { pieceId: p.pieceId, port } });
@@ -441,14 +446,14 @@ describe('the armed end and the cursor never disagree', () => {
     /*
      * THE GUARD COUNTS ARMED NODES, NOT VISITED ONES, and the difference is a
      * hole found in review. `visited > 200` was supposed to stop a crippled
-     * `actionsFrom` from passing vacuously, but the four non-click actions
-     * reach 341 nodes on their own, so deleting the `clickPort` generation --
+     * `actionsFrom` from passing vacuously, but the non-click actions reach
+     * hundreds of nodes on their own, so deleting the `clickPort` generation --
      * the only thing that ever arms an end -- left this spec green while it
-     * checked nothing at all. Measured: without clickPort, 341 visited and
-     * ZERO nodes with `armed` set.
+     * checked nothing at all. Measured before U5: without clickPort, 341
+     * visited and ZERO nodes with `armed` set.
      *
-     * MUTATION PROOF, RUN: replace the `for` loop over pieces and ports with
-     * nothing, so `actionsFrom` returns only the four fixed actions. Observed:
+     * MUTATION PROOF, RUN (re-run after U5): replace the `for` loop over pieces
+     * and ports with nothing, so `actionsFrom` arms nothing. Observed:
      *   the walk never armed an end, so it proved nothing: expected 0 to be
      *   greater than 1000
      */
@@ -669,7 +674,7 @@ describe('the restored-cursor wiring is present in App.tsx', () => {
 
   it('derives the editor state from the stored graph rather than nulling it', () => {
     const open = 'const [editor, setEditor] = useState<EditorState>';
-    const close = 'const { graph, cursor, armed } = editor;';
+    const close = 'const { graph, cursor, armed, lastAction } = editor;';
     const from = source.indexOf(open);
     const to = source.indexOf(close);
     expect(from, `${open} not found`).toBeGreaterThan(-1);
@@ -692,5 +697,157 @@ describe('the restored-cursor wiring is present in App.tsx', () => {
     // And NOT the shape the bug had, whatever the spacing.
     expect(body).not.toMatch(/cursor\s*:\s*null/);
     expect(body).not.toContain('...INITIAL_EDITOR');
+  });
+});
+
+/*
+ * TASK U5: BREAK A JOINT, AND THE ONE-STEP UNDO.
+ *
+ * Value: protects=breaking a joint never deletes or moves a piece, Undo
+ * restores exactly what was there (anchors included), Undo reverses the step
+ * its label names and only once, and a break names its weld by ports
+ * Value: fails_when=undo rebuilds forward instead of restoring, a break
+ * resolves a stale index, the snapshot is taken after the change, or a
+ * second undo does something
+ * Value: why_new=U5 adds both actions; "Remove last" is the old undo, renamed
+ * and kept repeatable by the owner's ruling (2026-10-22)
+ * Value: seam=the reducer is pure, so every transition runs here with no DOM
+ * Value: no_claim=nothing about the click or the hover, which need a DOM
+ * (E11); the canvas side is pinned as markup in `weldBreak.test.ts`
+ */
+describe('breaking a joint, and Undo', () => {
+  const chain = (n: number, partId = 'E'): EditorState => {
+    let s = START;
+    for (let i = 0; i < n; i++) s = reduce(s, { kind: 'add', partId, turn: 'left' }, ports);
+    return s;
+  };
+  const posOf = (s: EditorState) =>
+    new Map([...placeAll(s.graph, ports).frames].map(([id, f]) => [id, JSON.stringify(f)]));
+  const breakAt = (s: EditorState, i: number): EditorState => {
+    const w = s.graph.welds[i]!;
+    return reduce(s, { kind: 'breakWeld', a: w.a, b: w.b }, ports);
+  };
+
+  it('starts with nothing to undo, which is the first-paint state', () => {
+    expect(initialEditor(chain(3).graph, ports).lastAction).toBeNull();
+  });
+
+  /*
+   * MUTATION PROOF, run: in `breakWeld`, pass `index + 1` to `breakWeld`.
+   * Fails with `expected 1 to be +0`: the weld that should be gone is still
+   * there. The E4 spec below fails too.
+   */
+  it('breaking an interior joint leaves two drawn runs, every piece where it was', () => {
+    const s = chain(4);
+    const before = posOf(s);
+    const broken = breakAt(s, 1);
+    expect(broken.graph.pieces).toHaveLength(4);
+    expect(broken.graph.welds).toHaveLength(2);
+    const gone = s.graph.welds[1]!;
+    expect(
+      broken.graph.welds.filter(
+        (w) => w.a.pieceId === gone.a.pieceId && w.b.pieceId === gone.b.pieceId,
+      ).length,
+    ).toBe(0);
+    expect(runs(broken)).toBe(2);
+    expect(posOf(broken)).toEqual(before);
+    expect(broken.lastAction?.kind).toBe('break');
+  });
+
+  /*
+   * E3: RESTORED, NOT REBUILT. The previous graph value comes back, anchors
+   * and all.
+   *
+   * MUTATION PROOF, run: snapshot the break with the NEW anchors,
+   * `previous: { ...state.graph, anchors: graph.anchors }`. Fails with
+   * `expected Map{ 'p0' => { …(2) }, …(1) } to deeply equal Map{}`: the
+   * break's freshly captured anchor survives the undo.
+   */
+  it('Undo after a break restores the previous graph exactly, and deletes nothing', () => {
+    const s = chain(4);
+    const undone = reduce(breakAt(s, 1), { kind: 'undo' }, ports);
+    expect(undone.graph.pieces).toHaveLength(4);
+    expect(undone.graph.welds).toEqual(s.graph.welds);
+    expect(undone.graph.anchors).toEqual(s.graph.anchors);
+    expect(undone.lastAction).toBeNull();
+  });
+
+  it('Undo after a placement deletes the placed piece', () => {
+    const s = chain(3);
+    const placed = reduce(s, { kind: 'add', partId: 'A', turn: 'left' }, ports);
+    expect(placed.lastAction?.kind).toBe('place');
+    const undone = reduce(placed, { kind: 'undo' }, ports);
+    expect(undone.graph).toBe(s.graph);
+  });
+
+  it('Undo after break-then-place deletes the placed piece and leaves the joint broken', () => {
+    const broken = breakAt(chain(4), 1);
+    const placed = reduce(broken, { kind: 'add', partId: 'A', turn: 'left' }, ports);
+    const undone = reduce(placed, { kind: 'undo' }, ports);
+    expect(undone.graph).toBe(broken.graph);
+    expect(undone.graph.welds).toHaveLength(2);
+  });
+
+  /*
+   * MUTATION PROOF, run: in the `undo` case, keep `lastAction: last` instead
+   * of nulling it. Fails with `expected { kind: 'break', previous: { …(3) } }
+   * to be null`.
+   */
+  it('a second Undo does nothing', () => {
+    const once = reduce(breakAt(chain(4), 1), { kind: 'undo' }, ports);
+    expect(once.lastAction).toBeNull();
+    expect(reduce(once, { kind: 'undo' }, ports)).toBe(once);
+  });
+
+  /*
+   * E3's flow: break, undo, place, break again. Nothing may move, which a
+   * re-weld undo would get wrong by leaving the first break's anchor behind.
+   */
+  it('break, undo, place, break leaves every piece where it was drawn', () => {
+    const s = chain(4);
+    const again = reduce(
+      reduce(breakAt(s, 1), { kind: 'undo' }, ports),
+      { kind: 'add', partId: 'A', turn: 'left' },
+      ports,
+    );
+    const before = posOf(again);
+    expect(posOf(breakAt(again, 1))).toEqual(before);
+  });
+
+  /*
+   * E4: a break names its weld by PORTS, either way round, and the others
+   * stay identifiable by ports after the order shifts.
+   *
+   * MUTATION PROOF, run: in `breakWeld`, match only `same(w.a, action.a) &&
+   * same(w.b, action.b)`. Fails with `expected [ { …(2) }, { …(2) }, …(1) ]
+   * to have a length of 2 but got 3`: the reversed refs no longer find the
+   * weld.
+   */
+  it('breaks the weld its two ends name, in either order, and keeps the rest', () => {
+    const s = chain(4);
+    const [w0, w1, w2] = s.graph.welds;
+    const broken = reduce(s, { kind: 'breakWeld', a: w0!.b, b: w0!.a }, ports);
+    expect(broken.graph.welds).toHaveLength(2);
+    expect(broken.graph.welds).toEqual(expect.arrayContaining([w1, w2]));
+  });
+
+  it('a stale break, naming ends that are not welded, changes nothing', () => {
+    const s = chain(3);
+    const free = { pieceId: s.graph.pieces[2]!.pieceId, port: 1 };
+    expect(reduce(s, { kind: 'breakWeld', a: free, b: free }, ports)).toBe(s);
+  });
+
+  it('a join is undoable, and Remove last, Clear and a preset leave nothing to undo', () => {
+    let s = chain(8);
+    const last = s.graph.pieces[7]!.pieceId;
+    const first = s.graph.pieces[0]!.pieceId;
+    s = reduce(s, { kind: 'clickPort', ref: { pieceId: last, port: 1 } }, ports);
+    const joined = reduce(s, { kind: 'clickPort', ref: { pieceId: first, port: 0 } }, ports);
+    expect(joined.lastAction?.kind).toBe('join');
+    expect(reduce(joined, { kind: 'undo' }, ports).graph).toBe(s.graph);
+
+    expect(reduce(chain(3), { kind: 'removeLast' }, ports).lastAction).toBeNull();
+    expect(reduce(chain(3), { kind: 'clear' }, ports).lastAction).toBeNull();
+    expect(reduce(chain(3), { kind: 'preset', ids: ['E', 'E'] }, ports).lastAction).toBeNull();
   });
 });

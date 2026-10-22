@@ -24,7 +24,7 @@
 
 import type { Segment } from '../../engine/src/geom/fk.js';
 import type { WeldResidual } from '../../engine/src/graph/frames.js';
-import type { Weld } from '../../engine/src/graph/model.js';
+import type { PortRef, Weld } from '../../engine/src/graph/model.js';
 import type { RenderedPort } from '../../engine/src/graph/render.js';
 
 /**
@@ -141,6 +141,38 @@ export function gapMarks(
     const b = byPort.get(`${w.b.pieceId}#${w.b.port}`);
     if (!a || !b) return [];
     return [{ a: [a.x, a.y] as const, b: [b.x, b.y] as const, gapMm: r.gapMm }];
+  });
+}
+
+/** One breakable joint on the canvas (task U5). */
+export interface WeldTarget {
+  /** The two ends the weld joins, which is what a break action carries (E4). */
+  readonly a: PortRef;
+  readonly b: PortRef;
+  /** Where the hit circle and the hover brackets sit, in millimetres. */
+  readonly at: readonly [number, number];
+  /** Track direction through the joint, radians, so the brackets open along it. */
+  readonly h: number;
+}
+
+/**
+ * Every weld, resolved to the place the canvas draws it.
+ *
+ * At the MIDPOINT of the two ends. For an ordinary joint they coincide, so it
+ * is the joint itself; for a closing weld with a gap it is the middle of the
+ * gap, which is where the gap annotation already points. Welds whose ends are
+ * not on the canvas are skipped rather than drawn at a guess.
+ */
+export function weldTargets(
+  welds: readonly Weld[],
+  ports: readonly RenderedPort[],
+): readonly WeldTarget[] {
+  const byPort = new Map(ports.map((p) => [`${p.pieceId}#${p.port}`, p]));
+  return welds.flatMap((w) => {
+    const a = byPort.get(`${w.a.pieceId}#${w.a.port}`);
+    const b = byPort.get(`${w.b.pieceId}#${w.b.port}`);
+    if (!a || !b) return [];
+    return [{ a: w.a, b: w.b, at: [(a.x + b.x) / 2, (a.y + b.y) / 2] as const, h: a.h }];
   });
 }
 

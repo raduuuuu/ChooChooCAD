@@ -30,6 +30,7 @@ import type { Turn } from '../../engine/src/parts/schema.js';
 import {
   EMPTY_GRAPH,
   addPiece,
+  breakWeld,
   deletePiece,
   isFree,
   lastPieceId,
@@ -48,7 +49,7 @@ import {
  * There was a single `selected: PortRef | null`, and it meant three different
  * things at once: attach the next piece HERE, this end is ARMED for a weld,
  * and -- when null -- START A NEW RUN beside the existing track. Five
- * transitions cleared it (disarming a port, welding, `undo`, `clear`,
+ * transitions cleared it (disarming a port, welding, `removeLast`, `clear`,
  * `preset`), and `addPiece` reads a null as the third meaning, so it offset
  * the piece perpendicular by `RUN_SPACING_MM` times the steps it takes to
  * clear the existing layout.
@@ -67,10 +68,10 @@ import {
  *     starts a second run BY DESIGN, and always did. The fix changed nothing
  *     there. A preset that left a free end would be accidental, but none can:
  *     `PRESETS` has no one-piece entry and every catalogue part has two ports.
- *   - disarming and `undo` are always accidental.
+ *   - disarming and `removeLast` are always accidental.
  *
  * That is FOUR reachable accidental routes -- disarming, a non-consuming weld,
- * `undo`, and a page reload, which cleared nothing because it never restored a
+ * `removeLast`, and a page reload, which cleared nothing because it never restored a
  * cursor at all -- against four correct nulls: an empty board, `clear`, a
  * consuming weld, and a closing preset. The specs below assert both sides,
  * because a fix that made every null impossible would break the four that are
@@ -81,7 +82,7 @@ import {
  * next piece landed on its own instead of continuing the circuit, 648mm away
  * on that layout, which is three steps of `RUN_SPACING_MM` and not a fixed
  * distance. Two routes were reproduced at the reducer, each putting the piece
- * at the same offset -- press `undo` and add, with two free ends available, or
+ * at the same offset -- press `removeLast` and add, with two free ends available, or
  * click the armed end and add -- and the reload route was reproduced in a
  * browser. The first reproduction attempt also counted "load a preset and
  * add", which was a misreading: that behaviour is correct, as above.
@@ -92,7 +93,7 @@ import {
  * piece to attach there". Clicking that end to attach there DISARMED it.
  *
  * So the two jobs are two fields. `cursor` survives disarming, welding and
- * undo; `armed` is only ever the weld partner. Null `cursor` still means
+ * remove-last; `armed` is only ever the weld partner. Null `cursor` still means
  * "start a new run", but now it only happens when there is genuinely nothing
  * to continue from: an empty board, after `clear`, or after a loop closes and
  * leaves no free end. This is the same user-visible symptom as the eight-runs
@@ -105,11 +106,50 @@ export interface EditorState {
   readonly cursor: PortRef | null;
   /** A free end waiting for a weld partner. Null means nothing is armed. */
   readonly armed: PortRef | null;
+  /** The one step Undo can reverse, or null when there is none. See `LastAction`. */
+  readonly lastAction: LastAction | null;
+}
+
+/**
+ * THE ONE STEP UNDO CAN REVERSE (task U5, Y1 decision 5).
+ *
+ * One step, not a history: undoing twice does nothing the second time, and
+ * the control says so by disabling itself rather than doing nothing silently.
+ *
+ * It carries the PREVIOUS GRAPH VALUE, not a description of what changed
+ * (finding E3). A `{ break, a, b }` record would undo by re-welding, and
+ * `weldEnds` is not the inverse of `removeWeld`: the break re-captures
+ * anchors through `captureAnchors`, which never rewrites an anchor already
+ * written, so a re-weld leaves the freed component's new anchor behind and a
+ * later break reuses it at a stale frame. Restoring the value is exact by
+ * construction, and `Graph` is immutable and structurally shared, so the
+ * snapshot costs a few pointers.
+ *
+ * `join` is not in the plan's three labels. Welding two ends is as easy to do
+ * by accident as breaking one, and with the previous graph in hand undoing it
+ * costs nothing, so it gets "Undo join" rather than a disabled control.
+ *
+ * "Remove last" is a separate control and does NOT go through this: it stays
+ * repeatable and works on a layout loaded from storage, which a one-step Undo
+ * cannot (the owner's ruling, 2026-10-22).
+ */
+export interface LastAction {
+  readonly kind: 'place' | 'break' | 'join';
+  readonly previous: Graph;
 }
 
 export type EditorAction =
   | { readonly kind: 'add'; readonly partId: string; readonly turn: Turn }
   | { readonly kind: 'clickPort'; readonly ref: PortRef }
+  /**
+   * Break the weld between these two ends (task U5). Ports, not a weld index
+   * (finding E4): breaking reorders `graph.welds`, so an index read from one
+   * render and applied to a newer graph breaks the wrong weld.
+   */
+  | { readonly kind: 'breakWeld'; readonly a: PortRef; readonly b: PortRef }
+  /** Delete the newest piece. Repeatable; the old "undo". */
+  | { readonly kind: 'removeLast' }
+  /** Reverse `lastAction`, once. */
   | { readonly kind: 'undo' }
   | { readonly kind: 'clear' }
   | { readonly kind: 'preset'; readonly ids: readonly string[] };
@@ -127,21 +167,21 @@ export type EditorAction =
  * Observed in a browser before this existed: a restored nine-piece chain plus
  * one click read "2 separate runs of track, none of them a loop".
  *
- * `resumeCursor` is the same function `undo` uses, so a restored chain and a
+ * `resumeCursor` is the same function `removeLast` uses, so a restored chain and a
  * shortened one resume identically. Null comes back only for an empty graph or
  * one with no free port anywhere -- not merely one whose newest piece is
  * welded shut, which is the narrower thing this comment used to claim and the
  * hole `resumeCursor` was widened to close.
  */
 export function initialEditor(graph: Graph, ports: PortsOf): EditorState {
-  return { graph, cursor: resumeCursor(graph, ports), armed: null };
+  return { graph, cursor: resumeCursor(graph, ports), armed: null, lastAction: null };
 }
 
 /**
  * The free end a chain continues from, derived from the graph alone.
  *
  * Called from three places, which is why it takes no hint about what just
- * happened: `undo` after a piece is removed, `initialEditor` for a graph
+ * happened: `removeLast` after a piece is removed, `initialEditor` for a graph
  * restored from storage, and `preset` for a freshly built one. A restored
  * chain, a shortened one and a loaded preset therefore resume identically.
  *
@@ -224,6 +264,7 @@ export function reduce(
         graph: next.graph,
         cursor: next.select,
         armed: stillFree(next.graph, state.armed),
+        lastAction: { kind: 'place', previous: state.graph },
       };
     }
 
@@ -258,12 +299,59 @@ export function reduce(
          * replacing it with a bare `null` passes every other spec in this
          * file, so there is one below that exists only to catch that.
          */
-        return { graph, cursor: stillFree(graph, state.cursor), armed: null };
+        return {
+          graph,
+          cursor: stillFree(graph, state.cursor),
+          armed: null,
+          lastAction: { kind: 'join', previous: state.graph },
+        };
       }
       return { ...state, cursor: ref, armed: ref };
     }
 
+    case 'breakWeld': {
+      const same = (x: PortRef, y: PortRef) => x.pieceId === y.pieceId && x.port === y.port;
+      const index = state.graph.welds.findIndex(
+        (w) =>
+          (same(w.a, action.a) && same(w.b, action.b)) ||
+          (same(w.a, action.b) && same(w.b, action.a)),
+      );
+      // A weld that is already gone is a stale click, not an error.
+      if (index === -1) return state;
+      const graph = breakWeld(state.graph, ports, index);
+      /*
+       * The cursor and the armed end both stay: a break frees ends and claims
+       * none, so whatever was free is still free. Both freed ends appear as
+       * free ends in the same paint, which is the visible cause of the
+       * verdict going from green to grey (Y1 decision 5).
+       */
+      return {
+        graph,
+        cursor: state.cursor,
+        armed: state.armed,
+        lastAction: { kind: 'break', previous: state.graph },
+      };
+    }
+
     case 'undo': {
+      const last = state.lastAction;
+      if (last === null) return state;
+      const graph = last.previous;
+      /*
+       * Keep the cursor if it still names a free end of a piece that exists
+       * in the restored graph; otherwise resume where `resumeCursor` would on
+       * a reload. Undoing a placement deletes the piece the cursor sat on.
+       */
+      const keep =
+        state.cursor !== null &&
+        graph.pieces.some((p) => p.pieceId === state.cursor!.pieceId) &&
+        isFree(graph, state.cursor)
+          ? state.cursor
+          : resumeCursor(graph, ports);
+      return { graph, cursor: keep, armed: null, lastAction: null };
+    }
+
+    case 'removeLast': {
       const last = lastPieceId(state.graph);
       /*
        * `=== null`, not `!last`. `loadGraph` validates a pieceId only as a
@@ -276,15 +364,17 @@ export function reduce(
       /*
        * The cursor RESUMES on the end the deletion just exposed. It used to
        * become null, so the piece you added next started a new run even
-       * though the chain had two free ends sitting there. Nobody presses undo
+       * though the chain had two free ends sitting there. Nobody presses Remove last
        * in order to start a second track.
        */
       const graph = deletePiece(state.graph, ports, last);
-      return { graph, cursor: resumeCursor(graph, ports), armed: null };
+      // Clears `lastAction`: its snapshot describes a graph this one no
+      // longer follows from, so its label would name the wrong step.
+      return { graph, cursor: resumeCursor(graph, ports), armed: null, lastAction: null };
     }
 
     case 'clear':
-      return { graph: EMPTY_GRAPH, cursor: null, armed: null };
+      return { graph: EMPTY_GRAPH, cursor: null, armed: null, lastAction: null };
 
     /*
      * A preset builds a run and then welds its two ends, exactly as a user
@@ -318,7 +408,7 @@ export function reduce(
        * null, so a preset that ever fails to close still hands back a usable
        * cursor instead of silently relocating the next piece.
        */
-      return { graph, cursor: resumeCursor(graph, ports), armed: null };
+      return { graph, cursor: resumeCursor(graph, ports), armed: null, lastAction: null };
     }
   }
 }

@@ -45,7 +45,8 @@ import { layoutTrust } from '../../engine/src/joints/trust.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Piece as GPiece, type Port, type PortRef } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
-import { gapMarks } from './trackPath.js';
+import { gapMarks, weldTargets } from './trackPath.js';
+import { UndoControl } from './UndoControl.js';
 import { solveGraph } from '../../engine/src/graph/solve.js';
 import {
   initialEditor,
@@ -318,7 +319,7 @@ export function App() {
       portsOf(resolve(piece.partId), piece.turn),
     ),
   );
-  const { graph, cursor, armed } = editor;
+  const { graph, cursor, armed, lastAction } = editor;
   // `null` is UNDECLARED, which is not the same as owning none. See inventoryModel.ts.
   const [inventory, setInventory] = useState<Inventory>(inventoryLoad.value);
   const [inventoryOpen, setInventoryOpen] = useState(false);
@@ -440,7 +441,9 @@ export function App() {
 
   const add = (partId: string, turn: Turn) => dispatch({ kind: 'add', partId, turn });
   const clickPort = (ref: PortRef) => dispatch({ kind: 'clickPort', ref });
+  const removeLast = () => dispatch({ kind: 'removeLast' });
   const undo = () => dispatch({ kind: 'undo' });
+  const breakJoint = (a: PortRef, b: PortRef) => dispatch({ kind: 'breakWeld', a, b });
   const clear = () => dispatch({ kind: 'clear' });
   const preset = (ids: readonly string[]) => dispatch({ kind: 'preset', ids });
 
@@ -460,6 +463,9 @@ export function App() {
   );
 
   const verdictView = useMemo(() => viewOf(result), [result]);
+
+  // Every joint, where the canvas draws it, so a click can break it (U5).
+  const welds = useMemo(() => weldTargets(graph.welds, render.ports), [graph, render]);
 
   // Which welds the canvas annotates: see `gapMarks` in trackPath.ts.
   const gaps = useMemo(
@@ -632,6 +638,8 @@ export function App() {
           cursor={cursor}
           armed={armed}
           onPortClick={clickPort}
+          welds={welds}
+          onWeldClick={breakJoint}
           /*
             * `result`, not `result?.ok`. The clash list lives on BOTH branches
             * of GraphResult, and gating the DRAWING on `ok` undid half of the
@@ -769,7 +777,8 @@ export function App() {
             * sharing a switch. Closing a loop is now clicking the two free
             * ends you want joined, which is also what you do with real track.
             */}
-          <button onClick={undo} disabled={graph.pieces.length === 0}>
+          <UndoControl lastAction={lastAction} onUndo={undo} />
+          <button onClick={removeLast} disabled={graph.pieces.length === 0}>
             Remove last
           </button>
           <button onClick={clear} disabled={graph.pieces.length === 0}>
