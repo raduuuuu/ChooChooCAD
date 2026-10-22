@@ -2332,7 +2332,7 @@ with a click on an already-welded port yields a stale cursor and the next piece
 starts a new run. Not reachable from the canvas, which only renders free ports,
 so this is defensive only.
 
-## P3 — The App.tsx wiring pin is a source-text check and wants E11 (filed by /ship's review, 2026-10-20)
+## DONE — The App.tsx wiring pin is a source-text check and wants E11 (filed by /ship's review, 2026-10-20; done 2026-10-22)
 
 **What:** `app/src/editorReducer.test.ts` proves the reload fix is WIRED by
 reading `App.tsx` as text. An adversarial review defeated two earlier versions
@@ -2350,6 +2350,14 @@ correct `initialEditor` and a call site that ignores it.
 **Unblocked 2026-10-22: E11 has landed.** Seed `localStorage` with a graph before
 `render(<App />)` in a `*.dom.test.tsx`, add a piece, and assert it joined the run;
 then this source-text pin can be retired.
+
+**Done 2026-10-22.** `app/src/reload.dom.test.tsx` saves a three-curve run,
+mounts App in StrictMode, adds a piece and checks it joined the saved run
+("4 pieces, open at both ends", announced as joined to the end of piece 3).
+The source-text pin in `editorReducer.test.ts` is retired. Both mutations it
+recorded were re-run against the mount: a nulled cursor fails the verdict
+check, and a narrowed port list, which the old pin also caught, fails the
+announcement because the piece goes on the wrong end.
 
 ## P2 — What the MakerWorld switch seeds left open (filed 2026-10-22)
 

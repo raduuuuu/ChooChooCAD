@@ -13,8 +13,6 @@
  * never fail. A pin whose mutation is not written down is a comment.
  */
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../../engine/data/library.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
@@ -598,107 +596,11 @@ describe('an add consumes the end it attached to', () => {
 });
 
 /*
- * Value: protects=a restored layout comes back with a cursor, so a reload does not relocate the next piece
- * Value: fails_when=App.tsx initialises the editor with a literal null cursor instead of calling initialEditor
- * Value: why_new=initialEditor is tested, its CALL SITE is not; reverting the one line restores the reported bug
- * Value: seam=none; reads App.tsx as text, the technique layoutStore.test.ts already uses for this file
- * Value: no_claim=nothing about the effect firing or what React renders; that needs a DOM, which this suite lacks
- *
- * WHY A SOURCE-TEXT PIN, when the coverage audit rejected one as
- * implementation-coupled. It is coupled, and it is still worth it here. The
- * reported bug had four reachable routes, and a PAGE RELOAD is the one that
- * needs no
- * clicks at all, because the graph persists to `localStorage` and the
- * selection does not. The fix is
- * one call at this site. `initialEditor` itself is pinned three ways above,
- * and every one of those specs stays green if App.tsx stops calling it, which
- * is precisely the shape of failure this repository keeps shipping: the model
- * correct, the wiring not. That is what the eight-runs bug was, and it is what
- * this one was.
- *
- * Sliced and anchored at BOTH ends, and the slice is asserted to reach its
- * real end, because `layoutStore.test.ts` records two versions of this
- * technique that silently went vacuous when a slice undershot.
- *
- * WHAT THIS SPEC DOES NOT CLAIM, stated first because two earlier versions of
- * it claimed more than they held and an adversarial review broke both:
- *
- *   - It does not prove the initializer RUNS, or that React calls it, or what
- *     the component renders. That needs a mounted DOM, which this suite does
- *     not have. It is task E11, and until then this is the only check standing
- *     between a correct `initialEditor` and a call site that ignores it.
- *   - It does not prove the `ports` function passed in is CORRECT. It pins the
- *     exact expression, so a changed one fails, but a source-text match cannot
- *     tell a right port list from a wrong one.
- *
- * Three ways it was defeated, each now closed:
- *
- *   1. Comments. The initializer sits under a block comment naming
- *      `initialEditor`, so a substring search matched the prose above a nulled
- *      initializer. Comments are stripped before anything is matched.
- *   2. The second argument. `initialEditor(graphLoad.value, () => [])` passed
- *      every assertion while `resumeCursor` saw no ports and returned null for
- *      every restored graph; so did
- *      `portsOf(resolve(piece.partId), piece.turn).slice(0, 1)`, which left
- *      only port 0, welded on any restored chain. The whole call is now pinned
- *      as one expression.
- *   3. Position. Wrapping the call in a helper that dropped the cursor --
- *      `disarmed(() => initialEditor(graphLoad.value, ...))` -- kept every
- *      matched substring inside a nested lambda and stayed green. The call
- *      must now be the initializer's own first expression.
- *
- * MUTATION PROOF, RUN: replace the initializer body with
- * `({ graph: graphLoad.value, cursor: null, armed: null })`. Observed:
- *   expected '...' to match /useState<EditorState>\(\s*\(\)\s*=>\s*initialEditor\(/
- *
- * SECOND MUTATION, RUN: keep the call and comment out only its argument list,
- * leaving `initialEditor(` inside a comment above a nulled initializer.
- * Observed the same failure, where the pre-strip version passed.
- *
- * THIRD MUTATION, RUN: append `.slice(0, 1)` to the `portsOf` call. Observed:
- *   expected '...' to match /initialEditor\(\s*graphLoad\.value\s*,\s*\(piece: GPiece\) =>\s*portsOf\(resolve\(piece\.partId\), piece\.turn\),?\s*\)/
- *
- * FOURTH MUTATION, RUN: wrap the call as `disarmed(() => initialEditor(...))`.
- * Observed the same failure as the first.
+ * The restored-cursor WIRING in App.tsx was pinned here as a source-text
+ * check until 2026-10-22. It is now a real mount: `reload.dom.test.tsx`
+ * saves a layout, mounts App, adds a piece and checks it joined the saved
+ * run, which is the behaviour the reported bug broke.
  */
-describe('the restored-cursor wiring is present in App.tsx', () => {
-  const source = readFileSync(join(import.meta.dirname, 'App.tsx'), 'utf8');
-
-  /*
-   * Block and line comments, in that order. Blunt, and enough here: this
-   * slice is one `useState` call, with no string literal that could contain
-   * either marker. A general stripper would need a tokenizer.
-   */
-  const stripComments = (s: string): string =>
-    s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
-
-  it('derives the editor state from the stored graph rather than nulling it', () => {
-    const open = 'const [editor, setEditor] = useState<EditorState>';
-    const close = 'const { graph, cursor, armed, lastAction } = editor;';
-    const from = source.indexOf(open);
-    const to = source.indexOf(close);
-    expect(from, `${open} not found`).toBeGreaterThan(-1);
-    expect(to, `${close} not found`).toBeGreaterThan(from);
-
-    const body = stripComments(source.slice(from, to));
-    /*
-     * The CALL, in the initializer position. Not just the import, which an
-     * unused one would satisfy while the initializer handed back a null
-     * cursor, and not just the name, which a comment would satisfy.
-     */
-    // POSITION: the call is the initializer's own first expression, so a
-    // wrapper that drops the cursor afterwards cannot satisfy this.
-    expect(body).toMatch(/useState<EditorState>\(\s*\(\)\s*=>\s*initialEditor\(/);
-    // THE WHOLE CALL, both arguments, as one expression: a narrowed or
-    // replaced `ports` function changes these bytes and fails here.
-    expect(body).toMatch(
-      /initialEditor\(\s*graphLoad\.value\s*,\s*\(piece: GPiece\) =>\s*portsOf\(resolve\(piece\.partId\), piece\.turn\),?\s*\)/,
-    );
-    // And NOT the shape the bug had, whatever the spacing.
-    expect(body).not.toMatch(/cursor\s*:\s*null/);
-    expect(body).not.toContain('...INITIAL_EDITOR');
-  });
-});
 
 /*
  * TASK U5: BREAK A JOINT, AND THE ONE-STEP UNDO.
