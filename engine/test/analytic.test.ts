@@ -561,6 +561,35 @@ describe('the library: tiers, and a seed a user can correct', () => {
     expect(lib.filter((p) => p.id === 'IKEA-150')).toHaveLength(1);
   });
 
+  /*
+   * A CORRECTION KEEPS THE PART'S ENDS (codex review, 2026-10-22). The L
+   * switch is an unverified seed, so a user measurement would outrank it on
+   * trust; but a straight under its id leaves a layout's joint on the
+   * switch's third end pointing at nothing, and placement threw. The built-in
+   * switch stays. A correction with the same number of ends still wins, as
+   * the IKEA spec above shows.
+   *
+   * MUTATION PROOF, run: delete the `endCount` line in `resolveLibrary`.
+   * Fails with `expected 'straight' to be 'switch'`.
+   */
+  it('a two-ended submission does not replace a switch', () => {
+    const l = BUILT_IN.find((p) => p.id === 'L')!;
+    expect(l.dimensions.status).toBe('unverified');
+    const lib = resolveLibrary([
+      {
+        submissionId: 'sub-l',
+        at: '2026-10-22T10:00:00Z',
+        part: {
+          ...(seed as Extract<Part, { kind: 'straight' }>),
+          id: 'L',
+          lengthMm: 144,
+          dimensions: { status: 'user-measured', source: 'test', submittedAt: '2026-10-22T10:00:00Z', corroborations: 1 },
+        },
+      },
+    ]);
+    expect(lib.find((p) => p.id === 'L')!.kind).toBe('switch');
+  });
+
   it('a user measurement outranks a community submission', () => {
     const lib = resolveLibrary([
       submission(151, 'community', '2026-10-09T12:00:00Z'),

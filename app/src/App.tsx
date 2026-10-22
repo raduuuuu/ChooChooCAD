@@ -157,6 +157,10 @@ export function App() {
   const library = useMemo(() => resolveLibrary(submissions), [submissions]);
   const resolve = useMemo(() => makeResolver(library), [library]);
   const libraryIds = useMemo(() => new Set(library.map((p) => p.id)), [library]);
+  const switchIds = useMemo(
+    () => new Set(library.filter((p) => p.kind === 'switch').map((p) => p.id)),
+    [library],
+  );
 
   /*
    * Both loaders now report whether they threw stored data away, and those
@@ -851,6 +855,7 @@ export function App() {
         {submitOpen && (
           <SubmitPart
             existingIds={libraryIds}
+            switchIds={switchIds}
             onSubmit={(sub) => {
               setSubmissionsActed(true);
               setSubmissions((prev) => [...prev, sub]);

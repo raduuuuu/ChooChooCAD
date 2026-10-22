@@ -743,6 +743,51 @@ describe('breaking a joint, and Undo', () => {
   });
 
   /*
+   * A JOIN MOVES TRACK, SO THE NEXT BREAK MUST NOT UNDO THE MOVE (codex review,
+   * 2026-10-22). Breaking a run writes an anchor for the half that lost its
+   * root. Joining that half back by its OTHER end moves it, here from x=144
+   * to x=-144, but the anchor stayed in the graph, and the next break found a
+   * component root that "already carried an anchor" and kept it, so the half
+   * jumped back to where it sat before the join.
+   *
+   * MUTATION PROOF, run: in `captureAnchors` (engine/src/graph/edit.ts),
+   * restore `if (anchors.has(root)) continue;` ahead of the frame comparison.
+   * Fails with `expected Map{ …(2) } to deeply equal Map{ …(2) }`: piece
+   * p1's frame goes from x=-144 back to x=144.
+   */
+  it('break, rejoin by the other end, break: the rejoined half stays where the join put it', () => {
+    let s = chain(2, 'A');
+    s = breakAt(s, 0);
+    const [p0, p1] = s.graph.pieces.map((p) => p.pieceId);
+    s = reduce(s, { kind: 'clickPort', ref: { pieceId: p1!, port: 1 } }, ports);
+    s = reduce(s, { kind: 'clickPort', ref: { pieceId: p0!, port: 0 } }, ports);
+    expect(s.graph.welds).toHaveLength(1);
+    const joined = posOf(s);
+    expect(posOf(breakAt(s, 0))).toEqual(joined);
+  });
+
+  /*
+   * A BREAK IN A CLOSED LOOP FREES TWO ENDS, AND THE NEXT PIECE GOES ON ONE
+   * (codex review, 2026-10-22). A closed preset leaves the cursor null, and
+   * the break kept it null, so a piece added next started a separate run
+   * beside the opened circle. Null is right only when nothing is free, the
+   * same rule a join follows.
+   *
+   * MUTATION PROOF, run: in `breakWeld`, return `cursor: state.cursor` again.
+   * Fails with `expected null not to be null`.
+   */
+  it('breaking a closed preset hands the next piece an end to join', () => {
+    let s = reduce(START, { kind: 'preset', ids: Array(8).fill('E') }, ports);
+    expect(s.cursor).toBeNull();
+    s = breakAt(s, 3);
+    expect(s.cursor).not.toBeNull();
+    s = reduce(s, { kind: 'add', partId: 'D', turn: 'left' }, ports);
+    expect(s.graph.pieces).toHaveLength(9);
+    expect(s.graph.welds).toHaveLength(8);
+    expect(runs(s)).toBe(1);
+  });
+
+  /*
    * E4: a break names its weld by PORTS, either way round, and the others
    * stay identifiable by ports after the order shifts.
    *
