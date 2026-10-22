@@ -23,6 +23,9 @@
  */
 
 import type { Segment } from '../../engine/src/geom/fk.js';
+import type { WeldResidual } from '../../engine/src/graph/frames.js';
+import type { Weld } from '../../engine/src/graph/model.js';
+import type { RenderedPort } from '../../engine/src/graph/render.js';
 
 /**
  * SVG sweep flag for a left turn.
@@ -105,6 +108,40 @@ export interface GapAnnotation {
   /** Where the figure sits, past the leader so it never lies on it. */
   readonly label: readonly [number, number];
   readonly gapMm: number;
+}
+
+/**
+ * WHICH WELDS THE CANVAS ANNOTATES (task W2, decision D4).
+ *
+ * One per closing weld whose two ends are apart, resolved to the positions
+ * the canvas already drew them at. The engine's `gapMm` is passed through
+ * untouched: the drawing must not be able to disagree with the sentence
+ * under it.
+ *
+ * A rotated weld is SKIPPED. `headingSteps !== 0` means the loop comes back
+ * pointing the wrong way, and a distance there would promise a fix that does
+ * not exist: closing those millimetres still leaves the track turned. The
+ * verdict says that in words and the canvas stays quiet rather than
+ * contradicting it with a number.
+ *
+ * Lifted out of an `App.tsx` memo (task X2b, finding E10) so the two
+ * decisions in the filter can be tested against a real solve.
+ */
+export function gapMarks(
+  residuals: readonly WeldResidual[],
+  welds: readonly Weld[],
+  ports: readonly RenderedPort[],
+): readonly GapMark[] {
+  const byPort = new Map(ports.map((p) => [`${p.pieceId}#${p.port}`, p]));
+  return residuals.flatMap((r) => {
+    if (!(r.gapMm > 0) || r.headingSteps !== 0) return [];
+    const w = welds[r.weld];
+    if (!w) return [];
+    const a = byPort.get(`${w.a.pieceId}#${w.a.port}`);
+    const b = byPort.get(`${w.b.pieceId}#${w.b.port}`);
+    if (!a || !b) return [];
+    return [{ a: [a.x, a.y] as const, b: [b.x, b.y] as const, gapMm: r.gapMm }];
+  });
 }
 
 /**
