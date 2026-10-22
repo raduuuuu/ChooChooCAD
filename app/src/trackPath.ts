@@ -211,6 +211,8 @@ export function gapAnnotations(
 export interface SeamLine {
   readonly from: readonly [number, number];
   readonly to: readonly [number, number];
+  /** One of the two pieces it joins; both are in the same run. */
+  readonly pieceId: string;
 }
 
 /**
@@ -244,7 +246,7 @@ export function seamLines(
     const half = Math.min(plankWidthOf(w.a.pieceId), plankWidthOf(w.b.pieceId)) / 2;
     const nx = -Math.sin(a.h) * half;
     const ny = Math.cos(a.h) * half;
-    return [{ from: [a.x - nx, a.y - ny] as const, to: [a.x + nx, a.y + ny] as const }];
+    return [{ from: [a.x - nx, a.y - ny] as const, to: [a.x + nx, a.y + ny] as const, pieceId: w.a.pieceId }];
   });
 }
 

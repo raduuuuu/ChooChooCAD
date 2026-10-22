@@ -19,7 +19,7 @@ import { BUILT_IN, makeResolver } from '../../engine/data/library.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Piece, type Port } from '../../engine/src/graph/model.js';
 import { HISTORY_LIMIT, lastStep, nextStep, reduce, type EditorAction, type EditorState } from './editorReducer.js';
-import { EMPTY_GRAPH, isFree } from './layoutModel.js';
+import { EMPTY_GRAPH, isFree, shiftMm } from './layoutModel.js';
 
 const resolve = makeResolver(BUILT_IN);
 const ports = (piece: Piece): readonly Port[] => portsOf(resolve(piece.partId), piece.turn);
@@ -170,5 +170,35 @@ describe('the history', () => {
     expect(s.past).toHaveLength(HISTORY_LIMIT);
     // The oldest kept step is the graph before piece 6 went down.
     expect(s.past![0]!.graph.pieces).toHaveLength(5);
+  });
+});
+
+describe('moving a run in the reducer', () => {
+  /*
+   * MUTATION PROOFS, run:
+   * - a move allowed while placing: `expected { …(9) } to be { …(8) }`.
+   * - a refusal not recorded: `expected undefined to be 'its ends would land
+   *   on other track en…'`.
+   * - a move not remembered: `expected 'place' to be 'move'`.
+   */
+  it('is one "move" step, keeps the selection, and a refusal changes no track', () => {
+    const s = act(chain(2), { kind: 'selectPiece', pieceId: 'p0' });
+    const moved = act(s, { kind: 'moveRun', pieceId: 'p0', turns: 0, by: shiftMm(10, 0) });
+    expect(lastStep(moved)?.kind).toBe('move');
+    expect(moved.selected).toBe('p0');
+    expect(moved.refusal ?? null).toBeNull();
+
+    // Break the joint, then turn piece 2 about the shared point: refused.
+    const w = s.graph.welds[0]!;
+    const apart = act(s, { kind: 'breakWeld', a: w.a, b: w.b });
+    const refused = act(apart, { kind: 'moveRun', pieceId: 'p1', turns: 1, by: shiftMm(0, 0) });
+    expect(refused.graph).toBe(apart.graph);
+    expect(refused.refusal).toBe('its ends would land on other track ends');
+    expect(lastStep(refused)).toBe(lastStep(apart));
+  });
+
+  it('does nothing while a piece is being placed', () => {
+    const s = act(chain(2), { kind: 'pick', partId: 'E' });
+    expect(act(s, { kind: 'moveRun', pieceId: 'p0', turns: 0, by: shiftMm(10, 0) })).toBe(s);
   });
 });

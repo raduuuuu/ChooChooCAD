@@ -1436,3 +1436,16 @@
   color: var(--paper);
   border-color: var(--ink);
 }
+
+/*
+ * MOVING A RUN (decisions 2A, E6, 16A). The arrow buttons sit as one compact
+ * group; on touch, only the selected piece claims the gesture, so a first tap
+ * selects and a drag elsewhere still scrolls the page.
+ */
+.move-run { display: inline-flex; gap: var(--s1); }
+.move-run button { min-width: 36px; padding: 0 var(--s2); }
+@media (pointer: coarse) {
+  .move-run button { min-width: 44px; }
+}
+.piece[aria-pressed="true"] .piece-hit { touch-action: none; }
+.move-refusal { color: var(--ink); }

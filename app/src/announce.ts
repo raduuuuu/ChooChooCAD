@@ -112,6 +112,11 @@ export function describeAction(
       return next.ghost?.at ? `Placing at ${where(next.graph, next.ghost.at)}.` : null;
     case 'cancelGhost':
       return 'Cancelled placing the piece.';
+    case 'moveRun': {
+      if (next.refusal) return `Can't move it there: ${next.refusal}.`;
+      const joined = next.graph.welds.length - prev.graph.welds.length;
+      return `Moved the run.${joined > 0 ? ' It joined the track it landed on.' : ''}`;
+    }
     case 'clickPort': {
       if (next.graph.welds.length > prev.graph.welds.length && prev.armed) {
         return `Joined ${where(prev.graph, prev.armed)} to ${where(prev.graph, action.ref)}.`;
@@ -134,6 +139,7 @@ export function describeAction(
       if (kind === 'break') return 'Undid the break. The joint is back.';
       if (kind === 'join') return 'Undid the join.';
       if (kind === 'remove') return 'Undid the removal. The piece is back.';
+      if (kind === 'move') return 'Undid the move.';
       return null;
     }
     case 'redo': {
@@ -142,6 +148,7 @@ export function describeAction(
       if (kind === 'break') return 'Broke the joint again.';
       if (kind === 'join') return 'Joined the ends again.';
       if (kind === 'remove') return 'Removed the piece again.';
+      if (kind === 'move') return 'Moved the run again.';
       return null;
     }
     case 'selectPiece': {

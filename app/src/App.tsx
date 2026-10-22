@@ -69,7 +69,7 @@ import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
 import { CANVAS_SEGMENT_CEILING, TrackCanvas } from './TrackCanvas.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
 import { VerdictLine, VerdictScope } from './VerdictLine.js';
-import { addPiece, autoJoin, fitOptions, frameAt } from './layoutModel.js';
+import { addPiece, autoJoin, fitOptions, frameAt, shiftMm, snapRunMove } from './layoutModel.js';
 import { InventoryPanel } from './Inventory.js';
 import { SubmitPart } from './SubmitPart.js';
 import {
@@ -493,6 +493,20 @@ export function App() {
   const redo = () => dispatch({ kind: 'redo' });
   const selectPiece = (pieceId: string | null) => dispatch({ kind: 'selectPiece', pieceId });
   const removePiece = (pieceId: string) => dispatch({ kind: 'removePiece', pieceId });
+  /*
+   * MOVE A RUN (decision E6): whole millimetres and sixteenths, snapped on
+   * release onto a nearby end within the canvas's radius, then one exact move.
+   */
+  const moveRunBy = (pieceId: string, dx: number, dy: number, turns: number, snapRadiusMm = 0) => {
+    const asked = { turns, by: shiftMm(dx, dy) };
+    const move = snapRadiusMm > 0 ? snapRunMove(graph, ports, pieceId, asked, snapRadiusMm) : asked;
+    dispatch({ kind: 'moveRun', pieceId, turns: move.turns, by: move.by });
+  };
+  const runOf = (pieceId: string): ReadonlySet<string> => {
+    const component = placement.forest.component;
+    const mine = component.get(pieceId);
+    return new Set(graph.pieces.map((p) => p.pieceId).filter((id) => component.get(id) === mine));
+  };
   const ghost = editor.ghost ?? null;
   /*
    * PLACING A PIECE (decision R3). Focus follows the flow (Codex OV6): Pick
@@ -656,7 +670,32 @@ export function App() {
         <p className="mode-strip-text">
           {canvasPieceName(selected)} · run of {selectedRun.size}{' '}
           {selectedRun.size === 1 ? 'piece' : 'pieces'}
+          {editor.refusal && (
+            /*
+             * WHY A MOVE WAS REFUSED, until the next action (decision 6A). The
+             * run is back where it was; this is the only trace, so it is
+             * words with the verdict's X, never colour alone.
+             */
+            <span className="move-refusal">
+              {' '}
+              <span className="ghost-mark is-fail" aria-hidden="true">
+                X
+              </span>{' '}
+              Can&rsquo;t move it there: {editor.refusal}.
+            </span>
+          )}
         </p>
+        {/*
+          * MOVE AND ROTATE THE RUN WITHOUT A DRAG (decisions 2A, E6 keyboard
+          * and touch parity): a centimetre a press, a sixteenth of a turn.
+          */}
+        <span className="move-run" role="group" aria-label="Move run">
+          <button aria-label="Move run left 1 cm" onClick={() => moveRunBy(selected, -10, 0, 0)}>←</button>
+          <button aria-label="Move run up 1 cm" onClick={() => moveRunBy(selected, 0, 10, 0)}>↑</button>
+          <button aria-label="Move run down 1 cm" onClick={() => moveRunBy(selected, 0, -10, 0)}>↓</button>
+          <button aria-label="Move run right 1 cm" onClick={() => moveRunBy(selected, 10, 0, 0)}>→</button>
+        </span>
+        <button onClick={() => moveRunBy(selected, 0, 0, 1)}>Rotate run (R)</button>
         <button onClick={() => removePiece(selected)}>Remove piece</button>
       </div>
     ) : null;
@@ -914,6 +953,8 @@ export function App() {
           pieceName={canvasPieceName}
           strip={placingStrip ?? selectionStrip}
           ghost={ghostView ? { render: ghostView.render, red: ghostView.red, reach: ghostView.reach } : null}
+          onRunMove={(d, radius) => moveRunBy(d.pieceId, d.dx, d.dy, d.turns, radius)}
+          runOf={runOf}
           /*
             * `result`, not `result?.ok`. The clash list lives on BOTH branches
             * of GraphResult, and gating the DRAWING on `ok` undid half of the

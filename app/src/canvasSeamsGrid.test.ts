@@ -64,6 +64,9 @@ describe('a seam marks every joint where two pieces meet', () => {
    *   164`.
    * - TrackCanvas maps over an empty list instead of `seams`: the canvas spec
    *   below fails with `expected +0 to be 2`.
+   * - the seam names a piece it does not join (`pieceId: 'x'`), so a dragged
+   *   run would leave its seams behind on the floor: `expected [ 'p0', 'p1' ]
+   *   to include 'x'`.
    */
   it('three straights show two seams, each across the full plank at the joint', () => {
     const graph = build(['A', 'A', 'A']);
@@ -78,6 +81,9 @@ describe('a seam marks every joint where two pieces meet', () => {
       // Across the track, not along it: the run heads along x, so the seam
       // stands on one x.
       expect(s.from[0], 'the seam runs along the track').toBeCloseTo(s.to[0], 9);
+      // It names a piece it joins, so a dragged run takes its seams along.
+      const w = graph.welds[i]!;
+      expect([w.a.pieceId, w.b.pieceId]).toContain(s.pieceId);
     }
   });
 

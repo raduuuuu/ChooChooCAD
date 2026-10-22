@@ -1281,6 +1281,21 @@ See the F2 row: the crash-screen catch was unnecessary and removed; a spec pins 
   this only for a gappy loop's component; joins are rare and the check is linear).
 - Not covered by a spec: the over-the-drawing-limit pause (7A) needs 10,001 pieces to reach.
 
+### PR 4 (drag placed runs)
+- `moveRun` in layoutModel.ts moves a run rigidly and exactly: whole millimetres plus 22.5 degree
+  turns about the grabbed piece's first end, every frame on the lattice, so a closed loop stays closed.
+  Refused moves change nothing and say why in the Selection strip.
+- Snap (D14) happens at release, not live: the preview offset snaps to whole centimetres, and
+  `snapRunMove` turns a drop within 24 CSS px of a facing free end into the exact move that joins it.
+  The live preview never solves anything; it is one transform on a copy of the run's ink.
+- The pointer drag cannot run in jsdom (no screen matrix), so the DOM specs cover the keyboard and
+  strip routes; the drag was checked in a browser with synthetic pointer events (Stadium dragged and
+  dropped, "Moved the run.", still closes exactly, no console errors).
+- Found in the browser: the dragged run's seams stayed at the old spot. Seams now name a piece they
+  join and travel inside the drag overlay.
+- Touch starts a drag only on the already-selected piece, so a first tap selects and the page scrolls.
+- Walk (ENG-R2): the move actions raised depth 5 from 1.3s to 2.8s; the test carries a 15s ceiling.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
