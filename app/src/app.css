@@ -1183,6 +1183,13 @@
     grid-column: 2;
     grid-row: 1 / -1;
     max-height: none;
+    /*
+     * The rail scrolls as a whole. Without this the graph listing (U7a), the
+     * one rail child whose height grows with the layout, overflowed the rail
+     * and stretched the page: measured at 1890px tall on a 720px window for a
+     * ten-piece loop, with blank space under the verdict.
+     */
+    overflow-y: auto;
     border-left: 1px solid var(--rule);
     border-top: none;
   }
@@ -1206,8 +1213,41 @@
   }
   .palette-controls .spacer { display: none; }
   .palette-controls > .toggle { grid-column: span 6; }
-  .palette-controls > button { grid-column: span 3; font-size: 14px; }
-  /* The three presets: the last three buttons of the editing row. */
-  .palette-controls > button:nth-last-of-type(-n+3) { grid-column: span 2; }
+  /*
+   * Every button a third of the row. This was halves for the edit buttons and
+   * thirds for the presets, written for "Remove last" and "Clear"; U5's Undo
+   * made the edit buttons three, and halves left Clear sharing a row with the
+   * first preset and a gap. Three edit buttons, then three presets.
+   */
+  .palette-controls > button { grid-column: span 2; font-size: 14px; }
   .palette-controls .inventory-hint { grid-column: span 6; }
 }
+
+/*
+ * THE LAYOUT AS A LIST (task U7a). Visible on purpose, quiet on purpose: it is
+ * the text form of the canvas, read when wanted, not a second palette.
+ */
+.graph-listing {
+  /* The tray's own gap separates it; extra margin here cost the narrow
+     parts region 68px with the list closed. */
+  margin-top: 0;
+  padding-top: var(--s2);
+  border-top: 1px solid var(--rule);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.graph-listing summary { font-size: 15px; font-weight: 600; color: var(--ink); cursor: pointer; }
+/*
+ * Opened inside the narrow tray, the list would crush the parts region the
+ * tray is sized for. So while it is open the tray scrolls as one column
+ * instead, every child at its natural height. Wide windows scroll the rail
+ * as a whole already (the 1000px block).
+ */
+.palette:has(.graph-listing[open]) { overflow-y: auto; }
+.palette:has(.graph-listing[open]) > * { flex-shrink: 0; }
+.graph-listing h3 { font-size: 14px; margin: var(--s3) 0 var(--s1); color: var(--ink); }
+.graph-listing ol,
+.graph-listing ul { margin: 0; padding-left: 2.2ch; }
+.graph-listing ul ul { margin-bottom: var(--s1); }
+

@@ -68,6 +68,14 @@ export const SUBSET_MASK_BITS = 31;
  * basis of 31 is the largest that fits. The work budget is what bounds cost
  * now, and it is measured; this bounds only what can be represented.
  *
+ * WHAT A SWITCH COSTS AGAINST IT (task T6). Rank is welds minus pieces plus
+ * components, so each piece adds its welds minus one, less any components it
+ * merges. A two-ended piece adds at most +1. A switch adds +2 at most, when
+ * all three of its ports are welded into one component; with one road left
+ * free it adds +1, or 0 if it bridges two separate runs. How many switches a
+ * layout can hold before this refuses depends on what else it holds, so no
+ * count is given here.
+ *
  * The point of the ceiling is that
  * exceeding it REPORTS "too many loops to rank" rather than quietly falling
  * back to the fundamental basis: a basis cycle is an arbitrary choice of
