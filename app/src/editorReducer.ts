@@ -333,10 +333,15 @@ export function reduce(
        * none, so whatever was free is still free. Both freed ends appear as
        * free ends in the same paint, which is the visible cause of the
        * verdict going from green to grey (Y1 decision 5).
+       *
+       * A NULL CURSOR DOES NOT STAY. A closed loop has nothing free, so its
+       * cursor is null; breaking it frees two ends, and keeping null sent the
+       * next piece off to start a separate run beside the opened loop (codex
+       * review, 2026-10-22). It resumes as a join and a reload do.
        */
       return {
         graph,
-        cursor: state.cursor,
+        cursor: state.cursor ?? resumeCursor(graph, ports),
         armed: state.armed,
         lastAction: { kind: 'break', previous: state.graph },
       };

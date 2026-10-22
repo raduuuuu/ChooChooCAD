@@ -39,6 +39,8 @@ const PROFILE_DEFAULTS = { gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm:
 
 export interface SubmitPartProps {
   readonly existingIds: ReadonlySet<string>;
+  /** Ids of switches, which this form cannot correct: it has no third end. */
+  readonly switchIds: ReadonlySet<string>;
   readonly onSubmit: (s: Submission) => void;
   readonly onCancel: () => void;
 }
@@ -51,7 +53,7 @@ function parseMm(raw: string): number | null {
   return n;
 }
 
-export function SubmitPart({ existingIds, onSubmit, onCancel }: SubmitPartProps) {
+export function SubmitPart({ existingIds, switchIds, onSubmit, onCancel }: SubmitPartProps) {
   const [brand, setBrand] = useState<Brand>('IKEA');
   const [name, setName] = useState('');
   const [kind, setKind] = useState<'straight' | 'curve'>('straight');
@@ -75,9 +77,11 @@ export function SubmitPart({ existingIds, onSubmit, onCancel }: SubmitPartProps)
     ? correcting
     : `${brand}-${name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '-').slice(0, 20) || 'PART'}`;
   const idCollides = correcting === '' && existingIds.has(id);
+  const correctsSwitch = switchIds.has(correcting);
+  const blocked = idCollides || correctsSwitch;
 
   const submit = () => {
-    if (!ready || idCollides) return;
+    if (!ready || blocked) return;
     const base = {
       id,
       brand,
@@ -196,6 +200,14 @@ export function SubmitPart({ existingIds, onSubmit, onCancel }: SubmitPartProps)
         </p>
       )}
 
+      {correctsSwitch && (
+        <p className="submit-err">
+          <span className="num">{correcting}</span> is a switch. This form measures straights
+          and curves, so it cannot correct one: a switch has a third end that a layout may
+          already be using.
+        </p>
+      )}
+
       {idCollides && (
         <p className="submit-err">
           <span className="num">{id}</span> already exists. Put its id in the
@@ -204,11 +216,11 @@ export function SubmitPart({ existingIds, onSubmit, onCancel }: SubmitPartProps)
       )}
 
       <div className="submit-actions">
-        <button onClick={submit} disabled={!ready || idCollides}>
+        <button onClick={submit} disabled={!ready || blocked}>
           Add to the library
         </button>
         <span className="submit-id">
-          {ready && !idCollides ? <>will be saved as <span className="num">{id}</span></> : null}
+          {ready && !blocked ? <>will be saved as <span className="num">{id}</span></> : null}
         </span>
       </div>
     </section>

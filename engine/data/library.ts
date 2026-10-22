@@ -81,6 +81,9 @@ export interface Submission {
  * re-modelling anything, but nothing reads it yet. Until it does, a corroborated
  * community figure is treated exactly like an uncorroborated one.
  */
+/** How many ends a part has: a switch has a heel and two roads. */
+const endCount = (p: Part): number => (p.kind === 'switch' ? 3 : 2);
+
 export function resolveLibrary(submissions: readonly Submission[]): readonly Part[] {
   const byId = new Map<string, { part: Part; rank: number; at: string }>();
   for (const part of BUILT_IN) {
@@ -89,6 +92,15 @@ export function resolveLibrary(submissions: readonly Submission[]): readonly Par
   for (const s of submissions) {
     const rank = trustRank(s.part.dimensions.status);
     const held = byId.get(s.part.id);
+    /*
+     * A CORRECTION KEEPS THE PART'S ENDS. A layout's joints name ends by
+     * number, so a two-ended part standing in for a switch leaves any joint
+     * on the switch's third end pointing at nothing, and placement threw
+     * `piece p0 has no port 2` (codex review, 2026-10-22). The form refuses
+     * this; a row already in storage is refused here, and the built-in part
+     * stays.
+     */
+    if (held && endCount(held.part) !== endCount(s.part)) continue;
     if (!held || rank < held.rank || (rank === held.rank && s.at >= held.at)) {
       byId.set(s.part.id, { part: s.part, rank, at: s.at });
     }
