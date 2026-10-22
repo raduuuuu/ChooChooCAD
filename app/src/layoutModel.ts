@@ -317,6 +317,24 @@ export function ghostFit(
 }
 
 /**
+ * WHICH WAY A NEW PIECE GOES ON BY DEFAULT (the owner's ruling after QA
+ * ISSUE-002, 2026-10-22): the first fit option that would also join a facing
+ * end cleanly, so a piece offered at the edge of a one-piece gap closes it;
+ * else the first option, `orientation`'s own choice. The preview starts here
+ * and a double-click places here, so the two routes cannot disagree.
+ */
+export function defaultFit(graph: Graph, ports: PortsOf, at: PortRef, partId: string): Fit {
+  const { options } = fitOptions(graph, ports, at, partId);
+  const placement = placeAll(graph, ports);
+  const sites = connectorSites(graph, ports, placement);
+  const closes = options.find((o) => {
+    const fit = ghostFit(graph, ports, { partId, at, frame: null, ...o }, placement, sites);
+    return fit.joinsTo !== null && fit.conflicts.length === 0;
+  });
+  return closes ?? options[0]!;
+}
+
+/**
  * JOIN WHAT A NEW OR MOVED PIECE LANDED ON, WHEN THAT IS A REAL JOINT
  * (decisions D13, D20 and eng D6).
  *
