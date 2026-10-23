@@ -98,11 +98,15 @@ describe('a bridge on the canvas', () => {
    *   `expected false to be true` (the raised piece's target is no longer
    *   after the floor's free ends).
    * - the casing block removed: fails with `expected +0 to be 1`.
+   * - the casing unmasked (`mask` attribute dropped): fails with `expected
+   *   null not to be null`.
    */
   it('reads as a bridge: no fault, a casing, raised targets on top', () => {
     mount(BRIDGE);
     expect(document.querySelector('.verdict-text')!.textContent).not.toMatch(/^Can.t be built/);
     expect(count('path.bridge-casing')).toBe(1);
+    // Masked to floor wood, so it never paints over the raised piece's own shadow.
+    expect(document.querySelector('path.bridge-casing')!.closest('g[mask]')).not.toBeNull();
     const raised = button(/^Piece 2:/).closest('g')!;
     const floorEnd = screen.getAllByRole('button', { name: /free (peg|socket) end/i })[0]!;
     // Later in the document means on top: SVG hit-testing takes the last painted.
@@ -176,6 +180,28 @@ describe('the shadow outside the still canvas (design review of PR #46: 1A, 2A, 
     fireEvent.pointerDown(piece, { pointerId: 1, button: 0, clientX: 0, clientY: 0, pointerType: 'mouse' });
     fireEvent.pointerMove(piece, { pointerId: 1, button: 0, clientX: 0, clientY: -200, pointerType: 'mouse' });
     expect(document.querySelectorAll('g.drag-run path.raised-shadow').length).toBe(1);
+  });
+});
+
+describe('after raised track, a ramp comes down instead of opening red (owner, 2026-10-23)', () => {
+  /*
+   * The reported case: a ramp after a raised long straight had one way on,
+   * climbing to a third level, and no way out. Now it goes on flipped over.
+   *
+   * MUTATION PROOFS, run:
+   * - `defaultFit` without the level preference: fails with `expected 'X It
+   *   would lift track to a third level…' to match /^O Comes down to the
+   *   floor\./`.
+   * - Flip hidden for ramps (`canFlip` back to curves and switches only):
+   *   fails with `expected null not to be null`.
+   */
+  it('the preview comes down, and Flip turns it over', async () => {
+    const user = mount([{ id: 'd', part: 'D', x: 0, y: 0, heading: 0, level: 1 }]);
+    await user.click(screen.getByRole('button', { name: /end of piece 1/i }));
+    await user.click(button(/^Add Ascending track\./));
+    const group = screen.getByRole('group', { name: /Placing/ });
+    expect(within(group).getByRole('status').textContent).toMatch(/^O Comes down to the floor\./);
+    expect(within(group).queryByRole('button', { name: 'Flip (F)' })).not.toBeNull();
   });
 });
 

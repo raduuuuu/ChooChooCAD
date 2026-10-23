@@ -140,11 +140,15 @@ describe('a placement that raises its run says so (R2)', () => {
       cursor: { pieceId: 's', port: 1 },
       armed: null,
     };
-    // At C's socket end the ramp goes on by its peg, its high end: descending.
+    // At C's socket end the ramp goes on by its peg. Picked, it climbs
+    // (flipped over, so that peg end is low); F turns it over to come down.
     const picked = reduce(start, { kind: 'pick', partId: 'N' }, ports, { resolve });
     expect(picked.ghost!.port).toBe(1);
-    const placed = reduce(picked, { kind: 'placeGhost' }, ports, { resolve });
-    const said = describeAction(picked, { kind: 'placeGhost' }, placed, resolve)!;
+    const climbs = describeAction(picked, { kind: 'placeGhost' }, reduce(picked, { kind: 'placeGhost' }, ports, { resolve }), resolve)!;
+    expect(climbs).toContain('It climbs to the raised level.');
+    const flipped = reduce(picked, { kind: 'flipGhost' }, ports, { resolve });
+    const placed = reduce(flipped, { kind: 'placeGhost' }, ports, { resolve });
+    const said = describeAction(flipped, { kind: 'placeGhost' }, placed, resolve)!;
     expect(said).toContain('It comes down to the floor.');
     expect(said).toContain('The run it joined is now raised.');
   });

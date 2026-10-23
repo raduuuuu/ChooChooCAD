@@ -494,7 +494,16 @@ export function defaultFit(graph: Graph, ports: PortsOf, at: PortRef, partId: st
     const fit = ghostFit(graph, ports, { partId, at, frame: null, ...o }, placement, sites);
     return fit.joinsTo !== null && fit.conflicts.length === 0 && !fit.adapterHere && fit.joins.every((j) => !j.adapter);
   });
-  return closes ?? options[0]!;
+  if (closes) return closes;
+  /*
+   * A way that lifts track to a third level is never the default when another
+   * way does not (owner, 2026-10-23): a ramp after raised track comes down,
+   * flipped over, instead of opening red.
+   */
+  const levelFits = options.find((o) =>
+    ghostFit(graph, ports, { partId, at, frame: null, ...o }, placement, sites).conflicts.every((c) => c.kind !== 'level'),
+  );
+  return levelFits ?? options[0]!;
 }
 
 /**

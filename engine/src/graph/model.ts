@@ -123,7 +123,7 @@ export interface Port {
 export interface Piece {
   readonly pieceId: string;
   readonly partId: string;
-  /** Which way a curve bends. Ignored by parts that do not turn. */
+  /** Which way a curve bends, or which face of a ramp is up. Ignored by flat straights. */
   readonly turn?: Turn;
 }
 
@@ -181,15 +181,26 @@ export function portsOf(part: Part, turn: Turn = 'left'): readonly Port[] {
   // Port 0 is the HEEL on a switch and an ordinary end everywhere else. On a
   // two-ported part the distinction is invisible, which is why it can be set
   // here once rather than threaded through the walk.
+  /*
+   * A RAMP FLIPPED OVER (turn 'right'). BRIO track is double-sided, which is
+   * how one curve turns either way: `turn` already means "this face up". An
+   * ascending track turned over keeps its ends where they were, socket and
+   * peg, but its high end is now the entry: it comes down where it used to
+   * climb (owner, 2026-10-23: "you need to see flip in 3d"). The piece's
+   * frame stays its LOW end, as for every other piece (frames.ts normalises
+   * on that), so the rise moves from the far port to the entry port.
+   */
+  const rise = part.kind === 'straight' ? (part.rise ?? 0) : 0;
+  const flippedRamp = rise !== 0 && turn === 'right';
   const entry: Port = {
     kind: part.kind === 'switch' ? 'heel' : 'end',
-    at: ENTRY,
+    at: flippedRamp ? frameOf(ENTRY.pos, ENTRY.heading, rise) : ENTRY,
     polarity: part.ends.start,
   };
   const far = part.ends.end;
   if (part.kind === 'straight') {
-    // A ramp's far end sits `rise` levels above its entry; compose adds it.
-    return [entry, { kind: 'end', at: frameOf(straightEnd(part.lengthMm), 0, part.rise ?? 0), polarity: far }];
+    // A ramp's high end sits `rise` levels above its low end; compose adds it.
+    return [entry, { kind: 'end', at: frameOf(straightEnd(part.lengthMm), 0, flippedRamp ? 0 : rise), polarity: far }];
   }
   if (part.kind === 'curve') {
     return [

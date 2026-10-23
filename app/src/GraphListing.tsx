@@ -54,17 +54,21 @@ import type { Graph, Piece, Port, PortRef } from '../../engine/src/graph/model.j
 import { levelOf, portPolarity } from '../../engine/src/graph/model.js';
 import { placeAll, portFrame } from '../../engine/src/graph/frames.js';
 import { useLayoutEffect, useRef } from 'react';
-import type { Part } from '../../engine/src/parts/schema.js';
+import type { Part, Turn } from '../../engine/src/parts/schema.js';
 import { shortCode } from '../../engine/src/parts/schema.js';
 
 /** Above this many pieces the list is replaced by a sentence saying so. */
 export const LISTING_CEILING = 2000;
 
 /** What one end of a part is called. */
-export function endName(part: Part, port: number): string {
+export function endName(part: Part, port: number, turn?: Turn): string {
   if (part.kind === 'switch') return ['heel', 'straight road', 'curved road'][port] ?? `end ${port + 1}`;
-  // A ramp's ends say which way it climbs (design 11A): port 0 is always the low end.
-  if (part.kind === 'straight' && part.rise !== undefined) return port === 0 ? 'low end' : 'high end';
+  // A ramp's ends say which way it climbs (design 11A). Flipped over (turn
+  // 'right'), its high end is port 0.
+  if (part.kind === 'straight' && part.rise !== undefined) {
+    const high = turn === 'right' ? 0 : 1;
+    return port === high ? 'high end' : 'low end';
+  }
   return port === 0 ? 'start' : port === 1 ? 'end' : `end ${port + 1}`;
 }
 
@@ -111,8 +115,9 @@ export function pieceName(n: number, piece: Piece, part: Part, from: number | un
   const turnedRound = from !== undefined && from !== 0;
   const stored = piece.turn === 'right' ? 'right' : 'left';
   const side = turnedRound ? (stored === 'right' ? 'left' : 'right') : stored;
-  const by = turnedRound ? `, joined by its ${endName(part, from)}` : '';
+  const by = turnedRound ? `, joined by its ${endName(part, from, piece.turn)}` : '';
   if (part.kind === 'curve') return `${head}, turning ${side}${by}`;
+  if (part.kind === 'straight' && part.rise !== undefined && piece.turn === 'right') return `${head}, flipped over${by}`;
   if (part.kind === 'switch') return `${head}, branching ${side}${by}`;
   return head;
 }
@@ -179,7 +184,7 @@ export function GraphListing({
   const byId = new Map(graph.pieces.map((p) => [p.pieceId, p]));
   const where = (ref: PortRef): string => {
     const piece = byId.get(ref.pieceId);
-    const name = piece ? endName(resolve(piece.partId), ref.port) : `end ${ref.port + 1}`;
+    const name = piece ? endName(resolve(piece.partId), ref.port, piece.turn) : `end ${ref.port + 1}`;
     return `${name} of piece ${number.get(ref.pieceId) ?? '?'}`;
   };
   // Which end each end is joined to, both ways round.
@@ -262,7 +267,7 @@ export function GraphListing({
                 {ports(piece).map((_, port) => {
                   const id = `graph-listing-end-${piece.pieceId}-${port}`;
                   const other = partner.get(`${piece.pieceId}#${port}`);
-                  const name = `${capital(endName(part, port))} of piece ${n}, a ${portPolarity(part, port)}`;
+                  const name = `${capital(endName(part, port, piece.turn))} of piece ${n}, a ${portPolarity(part, port)}`;
                   const ref = { pieceId: piece.pieceId, port };
                   const plain = other
                     ? `Joined to the ${where(other)}`

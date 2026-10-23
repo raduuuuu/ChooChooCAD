@@ -50,6 +50,8 @@ export interface Segment {
    */
   readonly level?: number;
   readonly rise?: number;
+  /** A ramp flipped over: its HIGH end is `from`, the entry. Absent: high at `to`. */
+  readonly highAtStart?: true;
 }
 
 export interface FkResult {

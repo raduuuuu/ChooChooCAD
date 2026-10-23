@@ -398,3 +398,37 @@ describe('coming down on N1 needs no adapter (N1, two pegs)', () => {
     expect(r.adapterJoints.map((j) => j.weld)).toEqual([2]);
   });
 });
+
+describe('a ramp flipped over comes down (owner, 2026-10-23: "flip in 3d")', () => {
+  /*
+   * BRIO track is double-sided. Turned over (turn 'right'), an ascending
+   * track keeps its ends where they were but its high end is the entry, so a
+   * loop climbs on one N and comes down on another, face down, with every peg
+   * in a socket: no N1, no two-socket piece, no adapter.
+   *
+   * MUTATION PROOFS, run:
+   * - `flippedRamp` always false (model.ts): the loop spec fails with
+   *   `expected false to be true` (it climbs twice and never comes down),
+   *   and the drawing spec with `expected +0 to be 1`.
+   * - `highAtStart` never set (render.ts): the render spec fails with
+   *   `expected undefined to be true`.
+   */
+  it('a stadium up one N and down another, flipped: exact, no fault, no adapter', () => {
+    const g = loop([...E4(), ['N', 'left', 0], ...E4(), ['N', 'right', 0]]);
+    const r = solveGraph(g, ports, resolve, () => 0.8);
+    if (!r.ok) throw new Error('expected a solved loop');
+    expect(r.closesExactly).toBe(true);
+    expect(r.levelMismatches).toEqual([]);
+    expect(r.polarityViolations).toEqual([]);
+    expect(r.adapterJoints).toEqual([]);
+  });
+
+  it('the flipped ramp is high at its entry, and is drawn that way', () => {
+    const g: Graph = { pieces: [{ pieceId: 'r', partId: 'N', turn: 'right' }], welds: [] };
+    const place = placeAll(g, ports);
+    const piece = g.pieces[0]!;
+    expect(levelOf(portFrame(place, ports, piece, 0))).toBe(1);
+    expect(levelOf(portFrame(place, ports, piece, 1))).toBe(0);
+    expect(renderGraph(g, ports, resolve, place).segments[0]!.highAtStart).toBe(true);
+  });
+});
