@@ -17,8 +17,12 @@
  *   OVERLAP   no two DISTINCT vertices occupy the same position. A vertex is
  *             a set of ports tied together by welds, so a declared join is
  *             one vertex and can never report itself.
- *   POLARITY  a property of each weld, peg against socket. A switch's heel
- *             is a peg or a socket like any end, so it is checked too.
+ *   POLARITY  a property of each weld. Peg against socket is a joint. Peg
+ *             against peg cannot be built. Socket against socket is buildable
+ *             with a male-male adapter, which adds no length (owner, 2026-10-23),
+ *             so it is reported as an ADAPTER joint, not a violation. A
+ *             switch's heel is a peg or a socket like any end, so it is
+ *             checked too.
  */
 
 import { type Cyc, equals, toXY } from '../geom/cyclotomic.js';
@@ -37,7 +41,14 @@ export interface VertexClash {
 export interface WeldPolarityViolation {
   readonly weld: number;
   readonly between: readonly [string, string];
+  /** Always 'peg' since socket-to-socket became an adapter joint; kept as the polarity met. */
   readonly polarity: 'peg' | 'socket';
+}
+
+/** A weld where two sockets meet: buildable with a male-male adapter. */
+export interface AdapterJoint {
+  readonly weld: number;
+  readonly between: readonly [string, string];
 }
 
 /**
@@ -176,7 +187,8 @@ export function connectorSites(graph: Graph, ports: PortsOf, placement: Placemen
  */
 export type Landing =
   | { readonly kind: 'clear' }
-  | { readonly kind: 'joins'; readonly with: PortRef }
+  /** `adapter`: two sockets meet, joined with a male-male adapter. Absent is a plain joint. */
+  | { readonly kind: 'joins'; readonly with: PortRef; readonly adapter?: true }
   | {
       readonly kind: 'conflict';
       readonly reason: 'crowded' | 'polarity' | 'facing';
@@ -196,8 +208,16 @@ export function landingOf(
   const refs = here.map((p) => ({ pieceId: p.pieceId, port: p.port }));
   const only = here.length === 1 ? here[0]! : null;
   if (only === null || !only.free) return { kind: 'conflict', reason: 'crowded', with: refs };
-  if (only.polarity === polarity) return { kind: 'conflict', reason: 'polarity', with: refs };
+  /*
+   * Pegs keep the old order: peg on peg is a polarity conflict whether or not
+   * it faces, so every peg refusal keeps its wording. Sockets check facing
+   * first, because a facing socket pair is a real joint with an adapter.
+   */
+  if (only.polarity === polarity && polarity === 'peg') {
+    return { kind: 'conflict', reason: 'polarity', with: refs };
+  }
   if (only.heading !== norm16(frame.heading + 8)) return { kind: 'conflict', reason: 'facing', with: refs };
+  if (only.polarity === polarity) return { kind: 'joins', with: refs[0]!, adapter: true };
   return { kind: 'joins', with: refs[0]! };
 }
 
@@ -556,14 +576,20 @@ export function findVertexClashes(
   return clashes;
 }
 
-/** Welds that put two ends of the same kind together. */
-export function findWeldPolarityViolations(
+/**
+ * Every weld whose two ends are of the same kind, sorted in ONE pass: pegs
+ * into `violations`, sockets into `adapters` (eng review E1). One read per
+ * weld is what makes the two lists disjoint and complete by construction; two
+ * loops reading the same ports could drift apart.
+ */
+export function classifyWelds(
   graph: Graph,
   resolve: (id: string) => Part,
   ports: PortsOf,
-): readonly WeldPolarityViolation[] {
+): { readonly violations: readonly WeldPolarityViolation[]; readonly adapters: readonly AdapterJoint[] } {
   const byId = new Map(graph.pieces.map((p) => [p.pieceId, p]));
-  const out: WeldPolarityViolation[] = [];
+  const violations: WeldPolarityViolation[] = [];
+  const adapters: AdapterJoint[] = [];
   graph.welds.forEach((w, index) => {
     const pieceA = byId.get(w.a.pieceId);
     const pieceB = byId.get(w.b.pieceId);
@@ -574,7 +600,18 @@ export function findWeldPolarityViolations(
     const pa = portPolarity(resolve(pieceA.partId), w.a.port);
     const pb = portPolarity(resolve(pieceB.partId), w.b.port);
     if (pa !== pb) return;
-    out.push({ weld: index, between: [pieceA.partId, pieceB.partId], polarity: pa });
+    const between = [pieceA.partId, pieceB.partId] as const;
+    if (pa === 'socket') adapters.push({ weld: index, between });
+    else violations.push({ weld: index, between, polarity: pa });
   });
-  return out;
+  return { violations, adapters };
+}
+
+/** Welds that put two pegs together: the joints that cannot be built. */
+export function findWeldPolarityViolations(
+  graph: Graph,
+  resolve: (id: string) => Part,
+  ports: PortsOf,
+): readonly WeldPolarityViolation[] {
+  return classifyWelds(graph, resolve, ports).violations;
 }

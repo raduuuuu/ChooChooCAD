@@ -196,6 +196,10 @@ export type PartKind = 'straight' | 'curve' | 'switch';
  * two free ends, and the moment that lands, peg-to-peg is one click away and
  * would have returned EXACT on a layout nobody can assemble. The field goes in
  * first so the graph work cannot introduce that silently.
+ *
+ * Socket-to-socket IS buildable, with a male-male adapter that adds no length
+ * (owner, 2026-10-23), so the verdict reports it as an adapter joint, not a
+ * violation. Peg-to-peg stays impossible.
  */
 export type Polarity = 'peg' | 'socket';
 
