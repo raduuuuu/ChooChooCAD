@@ -112,6 +112,11 @@
   /* Ground and ink */
   --paper: #f7f3ec;
   --paper-sunk: #efe9df;
+  /*
+   * Also the adapter mark on the canvas (design review DR5): 8.30:1 on
+   * --track-fill and 3.94:1 on --track-groove, the surfaces it sits on; both
+   * clear the 3:1 non-text floor.
+   */
   --ink: #2a2724;
   --ink-soft: #6b655d;
   --rule: #d8cfc0;

@@ -89,7 +89,7 @@ export function InventoryPanel({
       {!declared && (
         <p className="inventory-undeclared">
           You haven&rsquo;t said what you own, so nothing is being checked against it. Every
-          piece stays available. Fill any number in below, or start from a quick-fill.
+          piece stays available. Fill any number in, or start from a quick-fill.
         </p>
       )}
 
@@ -165,7 +165,8 @@ export function InventoryPanel({
           />
           <span className="inventory-row-used num">{adaptersUsed > 0 ? `${adaptersUsed} in use` : ''}</span>
           {invalid[ADAPTER_INVENTORY_KEY] && <span className="inventory-row-bad">needs a number</span>}
-          <span className="inventory-row-src">adapter</span>
+          {/* No source: an adapter has no size the app uses (design review DR4). */}
+          <span className="inventory-row-src" />
         </label>
       </div>
 

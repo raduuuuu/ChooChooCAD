@@ -2527,3 +2527,25 @@ end and says so: M then E reads "Piece 2: Large curve (E), turning left, joined
 by its end". A piece that started a run, or went on by its start, reads as
 before. Pinned in `GraphListing.test.ts` through the real reducer.
 
+---
+
+## P2 — Canvas marks keep their screen size (filed by /plan-design-review 2026-10-23)
+
+**What:** Give the red clash mark, the red refused-joint mark and the adapter diamond a minimum
+on-screen size, and the two red marks non-scaling strokes.
+
+**Why:** The canvas shrinks a big board to fit, and these marks are drawn in millimetres, so they
+thin and shrink to dots (DESIGN.md rule 11), exactly where a fault or an adapter is hardest to find.
+
+**Pros:** Every mark stays findable at any zoom, on one consistent scale.
+
+**Cons:** Touches three marks and their specs; the size floor needs the measured pixels-per-mm,
+which exists only after layout (`shown.pxPerMm` in TrackCanvas).
+
+**Context:** Found in the design review of docs/plan/2026-10-23-socket-adapter.md (D11, D12). The
+adapter diamond's stroke is non-scaling since that review (7A); its size and both red marks are not.
+
+**Effort:** human S / CC S
+**Priority:** P2
+**Depends on:** nothing
+

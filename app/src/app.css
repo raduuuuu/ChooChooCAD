@@ -1469,8 +1469,22 @@
 .ghost.is-red .ghost-edge { stroke: var(--fail); stroke-width: 2; }
 .ghost-mark { color: var(--ink); font-weight: 600; }
 .ghost-mark.is-fail { color: var(--fail); }
-/* Fits, with a male-male adapter: the caution tone, the words say why. */
-.ghost-mark.is-adapter { color: var(--tight); }
+/*
+ * THE ADAPTER MARK (socket adapter plan; design review DR5, DR8). Ink, never a
+ * verdict colour (rule 1): its meaning is the diamond shape, which nothing else
+ * on the canvas uses. The outline keeps its device size (rule 11) and stays at
+ * 2px, lighter than the armed end's 3px ring, because weight means importance.
+ * Ink measures 8.30:1 on --track-fill and 3.94:1 on --track-groove (tokens.css).
+ */
+.adapter-joint-mark .adapter-outline {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+.adapter-joint-mark .adapter-core { fill: var(--ink); }
+/* The diamond glyph that keys the canvas mark, in the strip and the note: ink, like the mark. */
+.adapter-glyph { color: var(--ink); font-weight: 600; }
 .mode-strip .primary {
   background: var(--ink);
   color: var(--paper);

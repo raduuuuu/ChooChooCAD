@@ -17,6 +17,7 @@
  * the app
  */
 
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -93,9 +94,24 @@ describe('the verdict keeps its kind and adds the note', () => {
     expect(view.adapterCount).toBe(1);
   });
 
-  it('the note is in the verdict, word for word', () => {
+  /*
+   * MUTATION PROOF, run: the note's counts rendered as plain text (no
+   * `.num` span): fails with `expected +0 to be 2`.
+   */
+  it('the note is in the verdict, word for word, keyed by ◇ and with its counts in the number face', () => {
     const markup = renderToStaticMarkup(createElement(VerdictLine, { view: viewOf(solve(startToStart())) }));
-    expect(markup).toContain('Needs 1 male-male adapter: two sockets meet at 1 joint.');
+    const note = /<p class="verdict-adapters">([\s\S]*?)<\/p>/.exec(markup)![1]!;
+    expect(note.replace(/<[^>]+>/g, '')).toBe('◇ Needs 1 male-male adapter: two sockets meet at 1 joint.');
+    expect(note).toContain('<span class="adapter-glyph" aria-hidden="true">◇</span>');
+    expect([...note.matchAll(/<span class="num">1<\/span>/g)].length).toBe(2);
+  });
+
+  it('says how many adapter joints a red mark hides', () => {
+    const view = viewOf(solve(startToStart()));
+    const text = (unmarked: number) =>
+      renderToStaticMarkup(createElement(VerdictLine, { view, adaptersUnmarked: unmarked })).replace(/<[^>]+>/g, '');
+    expect(text(1)).toContain('at 1 joint. 1 is not marked, because a clash is drawn there.');
+    expect(text(0)).not.toContain('not marked');
   });
 
   it('the note reads in the singular and the plural, and nothing is said on an empty floor', () => {
@@ -205,6 +221,38 @@ describe('Your box counts adapters under a key no part can take', () => {
       expect(r.value).toEqual([]);
       expect(r.dropped).toBe(1);
     });
+  });
+});
+
+describe('the adapter mark keeps to the design system (design review DR5, DR8)', () => {
+  /*
+   * Stylesheet as text, comments stripped, last matching declaration wins
+   * (CLAUDE.md). MUTATION PROOFS, run:
+   * - the outline back to `stroke: var(--tight)`: fails with `expected
+   *   'var(--tight)' to be 'var(--ink)'`, and the next spec with `expected
+   *   '\n  fill: none;\n  stroke: var(--tigh…' not to match
+   *   /--(tight|pass|fail|unknown)\b/`.
+   * - `vector-effect` removed: fails with `expected undefined to be
+   *   'non-scaling-stroke'`.
+   */
+  const css = readFileSync(new URL('./app.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const last = (selector: RegExp, prop: string) => {
+    const values = [...css.matchAll(/([^{}]*)\{([^}]*)\}/g)]
+      .filter((m) => selector.test(m[1]!))
+      .flatMap((m) => [...m[2]!.matchAll(new RegExp(`${prop}\\s*:\\s*([^;]+)`, 'g'))].map((v) => v[1]!.trim()));
+    return values[values.length - 1];
+  };
+  it('the outline is ink, 2px, and keeps its device size', () => {
+    expect(last(/\.adapter-outline/, 'stroke')).toBe('var(--ink)');
+    expect(last(/\.adapter-outline/, 'stroke-width')).toBe('2');
+    expect(last(/\.adapter-outline/, 'vector-effect')).toBe('non-scaling-stroke');
+    expect(last(/\.adapter-core/, 'fill')).toBe('var(--ink)');
+  });
+
+  it('no adapter rule spends a verdict colour', () => {
+    const rules = [...css.matchAll(/([^{}]*adapter[^{}]*)\{([^}]*)\}/g)].map((m) => m[2]!);
+    expect(rules.length).toBeGreaterThan(0);
+    for (const body of rules) expect(body).not.toMatch(/--(tight|pass|fail|unknown)\b/);
   });
 });
 

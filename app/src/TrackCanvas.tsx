@@ -175,8 +175,9 @@ export interface TrackCanvasProps {
   /**
    * Where a male-male adapter goes: a socket-to-socket joint (socket adapter
    * plan, R3). Resolved by `App.tsx`, which leaves out any spot a red mark
-   * already holds. Amber, a diamond, so it reads as "have this ready", never
-   * as one of the red refusals.
+   * already holds. Ink, a diamond: a shape nothing else on the canvas uses,
+   * and no colour, because colour is spent only on verdicts (DESIGN.md rule
+   * 1; design review DR5).
    */
   readonly adapterJoints?: readonly (readonly [number, number])[];
   /**
@@ -1079,9 +1080,9 @@ export function TrackCanvas({
         {adapterJoints.map(([x, y], i) => (
           // Ink, not a target, like the other marks; the class is what specs count.
           <g key={`adapter-${i}`} className="adapter-joint-mark" pointerEvents="none">
-            <path d={`M ${x} ${y - 16} L ${x + 16} ${y} L ${x} ${y + 16} L ${x - 16} ${y} Z`}
-              fill="none" stroke="var(--tight)" strokeWidth={3} />
-            <circle cx={x} cy={y} r={3.5} fill="var(--tight)" />
+            {/* Stroke, weight and fill live in app.css (.adapter-joint-mark): non-scaling, rule 11. */}
+            <path className="adapter-outline" d={`M ${x} ${y - 16} L ${x + 16} ${y} L ${x} ${y + 16} L ${x - 16} ${y} Z`} />
+            <path className="adapter-core" d={`M ${x} ${y - 5} L ${x + 5} ${y} L ${x} ${y + 5} L ${x - 5} ${y} Z`} />
           </g>
         ))}
         {dedupedClashes.map(([x, y], i) => (

@@ -195,12 +195,18 @@ const NOTES_ID = 'verdict-notes';
  * null outside `ACTION_WHEN_EMPTY`), but relying on that silently is how the
  * live region ended up holding the trust list in the first place.
  */
-function notesFor(trust: readonly TrustIssue[], action: string | null, basis = false, adapters = 0) {
+function notesFor(
+  trust: readonly TrustIssue[],
+  action: string | null,
+  basis = false,
+  adapters = 0,
+  unmarked = 0,
+) {
   if (trust.length === 0 && !action && adapters === 0) return undefined;
   return (
     <>
       {basis && <Basis trust={trust} />}
-      {adapters > 0 && <p className="verdict-adapters">{adapterNote(adapters)}</p>}
+      {adapters > 0 && <AdapterNote n={adapters} unmarked={unmarked} />}
       <Trust trust={trust} />
       <Action action={action} />
     </>
@@ -214,6 +220,28 @@ function notesFor(trust: readonly TrustIssue[], action: string | null, basis = f
  * layout, failures included: an adapter joint is a fact about the track
  * whatever else is wrong with it.
  */
+/**
+ * The note as markup (design review DR9, DR11, DR1): the counts in the number
+ * face, led by the ◇ that keys the canvas mark (aria-hidden: the words say it),
+ * and, when a red mark holds some adapter spots, how many are not drawn.
+ */
+function AdapterNote({ n, unmarked }: { n: number; unmarked: number }) {
+  return (
+    <p className="verdict-adapters">
+      <span className="adapter-glyph" aria-hidden="true">◇</span> Needs <span className="num">{n}</span> male-male{' '}
+      {n === 1 ? 'adapter' : 'adapters'}: two sockets meet at <span className="num">{n}</span>{' '}
+      {n === 1 ? 'joint' : 'joints'}.
+      {unmarked > 0 && (
+        <>
+          {' '}
+          <span className="num">{unmarked}</span> {unmarked === 1 ? 'is' : 'are'} not marked, because{' '}
+          {unmarked === 1 ? 'a clash is' : 'clashes are'} drawn there.
+        </>
+      )}
+    </p>
+  );
+}
+
 export function adapterNote(n: number): string {
   return n === 1
     ? 'Needs 1 male-male adapter: two sockets meet at 1 joint.'
@@ -318,10 +346,13 @@ function Mark({ glyph }: { glyph: string }) {
 export function VerdictLine({
   view,
   trust = [],
+  adaptersUnmarked = 0,
 }: {
   view: VerdictView;
   /** Why this verdict is worth less than it looks. See engine/joints/trust.ts. */
   trust?: readonly TrustIssue[];
+  /** Adapter joints the canvas does not mark because a red mark holds the spot (DR1). */
+  adaptersUnmarked?: number;
 }) {
   const e = view;
 
@@ -353,7 +384,7 @@ export function VerdictLine({
     return (
       <Verdict
         tone="unknown"
-        notes={notesFor([], ACTION_FOR_FAILURE[e.kind] ?? null, false, e.adapterCount)}
+        notes={notesFor([], ACTION_FOR_FAILURE[e.kind] ?? null, false, e.adapterCount, adaptersUnmarked)}
       >
         <Mark glyph="?" />
         <span className="verdict-text">
@@ -399,6 +430,7 @@ export function VerdictLine({
               : ACTION_FOR_VERDICT.IMPOSSIBLE,
             false,
             e.adapterCount,
+            adaptersUnmarked,
           )}
         >
           <Mark glyph="X" />
@@ -469,7 +501,7 @@ export function VerdictLine({
       return (
         <Verdict
           tone="pass"
-          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], true, e.adapterCount)}
+          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], true, e.adapterCount, adaptersUnmarked)}
         >
           <Mark glyph="O" />
           <span className="verdict-text">This works. Closes exactly, no give needed at any joint.</span>
@@ -480,7 +512,7 @@ export function VerdictLine({
       return (
         <Verdict
           tone="tight"
-          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], true, e.adapterCount)}
+          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], true, e.adapterCount, adaptersUnmarked)}
         >
           <Mark glyph={'/\\'} />
           <span className="verdict-text">
@@ -531,7 +563,7 @@ export function VerdictLine({
          */
         <Verdict
           tone="fail"
-          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], true, e.adapterCount)}
+          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], true, e.adapterCount, adaptersUnmarked)}
         >
           <Mark glyph="X" />
           <span className="verdict-text">
