@@ -153,6 +153,15 @@
    * and it fails: #eae2d4 puts --ink-soft at 4.48:1.
    */
   --floor: #ece6da;
+  /*
+   * RAISED TRACK'S SHADOW (two-layer circuits, owner's choice 2026-10-23).
+   * The floor's own tone, darkened: depth, not a hue, because colour is spent
+   * only on verdicts (DESIGN.md rule 1). 3.03:1 on --floor, over the 3:1 a
+   * graphical object you must see is owed (rule 5), since the shadow is what
+   * tells raised track from floor track away from a crossing. 2.10:1 where it
+   * falls on --track-fill; the casing and the list say it there too.
+   */
+  --track-shadow: #8f826c;
   --track-edge: #8a7349;
   /*
    * THE SEAM: the line across the plank where one piece ends and the next

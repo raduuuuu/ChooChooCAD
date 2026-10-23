@@ -135,6 +135,42 @@ const EDGE_MM = 1.2;
 const BRIDGE_CASING_MM = 8;
 
 /**
+ * Where a raised piece's shadow falls, in millimetres: this far right and
+ * this far down the screen (the drawing is flipped, so down is -y). 14, not
+ * the 8 first tried: at fit-to-screen 8 read as a thin edge, not as lifted
+ * (browser check, 2026-10-23). One
+ * offset for the whole layout, so every raised piece reads as standing at the
+ * same height, which is what one raised level means.
+ */
+const SHADOW_OFFSET_MM = 14;
+
+/**
+ * A piece's cast shadow (owner's choice, 2026-10-23: "a clear graphical
+ * distinction between pieces placed on every layer"). Raised wood throws its
+ * plank-wide shadow the full offset away; a ramp's shadow runs from its low
+ * end, where it touches the floor, to the full offset at its high end, so the
+ * slope shows too. Depth, not hue: colour is spent only on verdicts (rule 1).
+ */
+function rampShadow(seg: Segment, half: number): string {
+  /*
+   * A FILLED QUAD, not a stroke along a slanted line: the stroke's square end
+   * sat skewed against the raised piece's shadow and stuck out as a tab at the
+   * joint (seen in the browser, 2026-10-23). The plank's four corners, the
+   * high end's two moved the full offset, meet that shadow edge to edge.
+   */
+  const o = SHADOW_OFFSET_MM;
+  const nx = -Math.sin(seg.from.h) * half;
+  const ny = Math.cos(seg.from.h) * half;
+  const pts = [
+    [seg.from.x + nx, seg.from.y + ny],
+    [seg.to.x + nx + o, seg.to.y + ny - o],
+    [seg.to.x - nx + o, seg.to.y - ny - o],
+    [seg.from.x - nx, seg.from.y - ny],
+  ];
+  return `M ${pts.map(([x, y]) => `${x} ${y}`).join(' L ')} Z`;
+}
+
+/**
  * A red fault mark: a ring and an inner glyph, drawn twice, first in
  * `--paper` two units wider, then in `--fail` (design 10B, eng re-run D5).
  * `--fail` is 1.78:1 on `--track-groove`, under the 3:1 a mark you must see
@@ -690,8 +726,36 @@ export function TrackCanvas({
   const onLevel = (raised: boolean) => (sg: Segment) => ((sg.level ?? 0) >= 1) === raised;
   const portLevel = new Map(renderedPorts.map((p) => [`${p.pieceId}#${p.port}`, p.level ?? 0]));
   const raisedPort = (ref: { pieceId: string; port: number }) => (portLevel.get(`${ref.pieceId}#${ref.port}`) ?? 0) >= 1;
+  /*
+   * SHADOWS, UNDER ALL THE WOOD. Every shadow is drawn before the floor pass,
+   * so wood always covers shadow: it shows on bare floor, where it reads as
+   * lifted, and never paints over a ramp's top or a floor plank. Drawn after
+   * the floor pass instead, a raised curve's shadow fell across the ramp it
+   * starts from and showed as a dark tab at the joint (browser check,
+   * 2026-10-23). Where raised track crosses floor track the bridge casing
+   * says so. Ink only, never a target.
+   */
+  /** One segment's shadow, or null when it casts none (floor track). */
+  const shadowOf = (seg: Segment, key: string) =>
+    (seg.level ?? 0) < 1 && !seg.rise ? null : seg.rise ? (
+      <path key={key} d={rampShadow(seg, resolve(seg.partId).plankWidthMm / 2)} className="raised-shadow is-ramp" />
+    ) : (
+      <path
+        key={key}
+        d={segmentPath(seg)}
+        className="raised-shadow"
+        strokeWidth={resolve(seg.partId).plankWidthMm}
+        transform={`translate(${SHADOW_OFFSET_MM}, ${-SHADOW_OFFSET_MM})`}
+      />
+    );
+  const shadows = () =>
+    segments.map((seg, i) =>
+      seg.pieceId === undefined || hiddenRun?.has(seg.pieceId) ? null : shadowOf(seg, `shadow-${i}`),
+    );
+  const raisedHere = segments.some((seg) => (seg.level ?? 0) >= 1 || Boolean(seg.rise));
   const levelLayer = (raised: boolean) => (
     <>
+        {!raised && shadows()}
         {/*
           * THE BRIDGE GAP (design 1A, eng re-run D2): before the raised wood,
           * each raised piece is drawn as a stroke a little wider than its
@@ -732,6 +796,10 @@ export function TrackCanvas({
             pointerEvents="none"
             transform={`translate(${drag.dx}, ${drag.dy}) rotate(${drag.turns * 22.5}, ${dragPivot[0]}, ${dragPivot[1]})`}
           >
+            {/* Its shadows travel with it, under its wood (design review 2A, PR #46). */}
+            {segments.map((sg, i) =>
+              sg.pieceId !== undefined && hiddenRun!.has(sg.pieceId) ? shadowOf(sg, `drag-shadow-${i}`) : null,
+            )}
             <TrackLayers
               segments={segments.filter((sg) => sg.pieceId !== undefined && hiddenRun!.has(sg.pieceId))}
               resolve={resolve}
@@ -1212,6 +1280,13 @@ export function TrackCanvas({
           */}
         {ghost && (
           <g className={`ghost${ghost.red ? ' is-red' : ''}`} pointerEvents="none">
+            {/*
+              * Its shadow if it would be raised, or a ramp's taper (design
+              * review 3A): the preview looks like what Place makes. Solid,
+              * outside the translucent wood, so no contrast rests on the
+              * opacity.
+              */}
+            {ghost.render.segments.map((seg, i) => shadowOf(seg, `ghost-shadow-${i}`))}
             <g className="ghost-wood">
               <TrackLayers segments={ghost.render.segments} resolve={resolve} maxLayers={maxLayers} keyPrefix="ghost-" />
             </g>
@@ -1225,7 +1300,11 @@ export function TrackCanvas({
       </g>
     </svg>
     {/* HTML, not SVG text, so it is never flipped or scaled with the drawing. */}
-    <p className="grid-caption num">Grid: {gridLabel(step)}</p>
+    {/* The shadow's key, only when there is raised track to read it on (design review 1A). */}
+    <p className="grid-caption num">
+      Grid: {gridLabel(step)}
+      {raisedHere && ' · Shadow: raised'}
+    </p>
     {table && <p className={`table-caption${table.fits ? '' : ' is-over'}`}>{table.note}</p>}
     </div>
     {strip}
