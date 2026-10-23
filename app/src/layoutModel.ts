@@ -517,6 +517,8 @@ export function moveRun(
   ports: PortsOf,
   pieceId: string,
   move: RunMove,
+  /** Plank shapes, so a run is not moved onto track. Without it, only ends are compared. */
+  geometry?: FitGeometry,
 ): { graph: Graph; refused: string | null; joined: number } {
   const place = placeAll(graph, ports);
   const grabbed = graph.pieces.find((p) => p.pieceId === pieceId);
@@ -563,6 +565,25 @@ export function moveRun(
   }
   if (count < joins) {
     return { graph, refused: 'joining there would shift pieces of a loop that does not close', joined: 0 };
+  }
+  if (geometry) {
+    /*
+     * WOOD ON WOOD (overlap.ts), as a drop is refused for it: the run, where
+     * it would end up, against every piece outside it. Overlaps inside the
+     * run, or between pieces it does not touch, are the verdict's to report;
+     * a move is refused only for what the move itself would cause or keep.
+     */
+    const { resolve } = geometry;
+    const placed = placeAll(joined, ports);
+    const over = findPlankOverlaps(
+      joined,
+      renderGraph(joined, ports, resolve, placed).segments,
+      (id) => resolve(id).plankWidthMm / 2,
+      connectorSites(joined, ports, placed),
+    );
+    if (over.some((o) => members.has(o.a) !== members.has(o.b))) {
+      return { graph, refused: 'it would lie over other track', joined: 0 };
+    }
   }
   return { graph: joined, refused: null, joined: count };
 }

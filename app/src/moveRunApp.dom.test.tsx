@@ -21,6 +21,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { place } from '../test/place.js';
 import { App } from './App.js';
+import { GRAPH_STORAGE_KEY } from './storageKeys.js';
 import { layerRenders } from './TrackCanvas.js';
 
 const button = (name: string | RegExp) => screen.getAllByRole('button', { name })[0]!;
@@ -91,6 +92,45 @@ describe('a refused move', () => {
     // Any next action clears it, not only another move: select the other piece.
     await user.click(button('Piece 1: Medium straight (A), 144mm'));
     expect(strip()!.textContent).not.toMatch(/Can.t move it there/);
+  });
+});
+
+describe('a run moved onto track (the crossing bug, 2026-10-23)', () => {
+  /*
+   * MUTATION PROOF, run: the reducer's moveRun not handed `geometry`: `expected
+   * 'Piece 2: Medium straight (A), 144mm ·…' to match /Can.t move it there:
+   * it would lie ove…/`, the straight moved onto the first.
+   */
+  it('is refused, and says so, one centimetre past touching', async () => {
+    // Two separate straights, the second 50 mm above the first: 10 mm apart.
+    localStorage.setItem(
+      GRAPH_STORAGE_KEY,
+      JSON.stringify({
+        pieces: [
+          { pieceId: 'a', partId: 'A', turn: 'left' },
+          { pieceId: 'b', partId: 'A', turn: 'left' },
+        ],
+        welds: [],
+        anchors: [
+          ['a', { pos: [0, 0, 0, 0, 0, 0, 0, 0], heading: 0 }],
+          ['b', { pos: [0, 0, 0, 0, 50, 0, 0, 0], heading: 0 }],
+        ],
+      }),
+    );
+    const user = userEvent.setup();
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+    await user.click(button('Piece 2: Medium straight (A), 144mm'));
+    const down = () => within(strip()!).getByRole('button', { name: 'Move run down 1 cm' });
+    await user.click(down());
+    // Edges touching: allowed.
+    expect(announced().textContent).toBe('Moved the run.');
+    await user.click(down());
+    expect(strip()!.textContent).toMatch(/Can.t move it there: it would lie over other track\./);
+    expect(announced().textContent).toBe("Can't move it there: it would lie over other track.");
   });
 });
 

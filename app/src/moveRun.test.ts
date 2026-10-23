@@ -10,8 +10,8 @@
  * less than the run, lets a clash through, or a join re-lays track
  * Value: why_new=moving placed track is new
  * Value: seam=none (the pure model)
- * Value: no_claim=track crossing track mid-piece; overlap.ts owns that, and a
- * run moved onto track is reported by the verdict, not refused
+ * Value: no_claim=the overlap geometry itself; overlap.ts and
+ * engine/test/plankOverlap.test.ts own it
  */
 
 import { describe, expect, it } from 'vitest';
@@ -85,8 +85,6 @@ describe('where a run may land', () => {
    * MUTATION PROOFS, run:
    * - no conflict refusal: `expected null to be 'two ends of the same kind
    *   would meet'`.
-   * - no refusal when a join would be skipped: `expected null to be 'joining
-   *   there would shift pieces of a…'`.
    */
   it('is refused, changing nothing, when its end would sit on an end of the same kind', () => {
     const a = chain(['A']).graph; // peg at its far end (x = 144)
@@ -106,6 +104,41 @@ describe('where a run may land', () => {
     expect(result.refused).toBeNull();
     expect(result.joined).toBe(1);
     expect(result.graph.welds).toHaveLength(1);
+  });
+
+  /*
+   * WOOD ON WOOD, as a palette drop is refused for it (overlap.ts).
+   *
+   * MUTATION PROOFS, run:
+   * - moveRun's wood check skipped (`if (geometry && false)`): "lying along"
+   *   fails with `expected null to be 'it would lie over other track'`.
+   * - the check refusing any overlap at all, not only the run's own
+   *   (`over.length > 0`): "moved off" fails with `expected 'it would lie
+   *   over other track' to be null`.
+   */
+  const geometry = { resolve };
+  const twoRuns = () => chain(['A'], chain(['A']).graph, { pos: shiftMm(0, 500), heading: 0 }).graph;
+
+  it('is refused, changing nothing, when it would lie along other track', () => {
+    const both = twoRuns();
+    // 10 mm off the first straight and 50 mm back: no end near any end.
+    const result = moveRun(both, ports, both.pieces[1]!.pieceId, { turns: 0, by: shiftMm(-50, -490) }, geometry);
+    expect(result.refused).toBe('it would lie over other track');
+    expect(result.graph).toBe(both);
+  });
+
+  it('may come to rest beside other track, edges touching', () => {
+    const both = twoRuns();
+    const result = moveRun(both, ports, both.pieces[1]!.pieceId, { turns: 0, by: shiftMm(-50, -460) }, geometry);
+    expect(result.refused).toBeNull();
+  });
+
+  it('may be moved off track it already lies over, even with other overlaps left', () => {
+    // Three straights: the first two lie over each other; the third is moved.
+    const stacked = chain(['A'], chain(['A']).graph, { pos: shiftMm(20, 10), heading: 0 }).graph;
+    const three = chain(['A'], stacked, { pos: shiftMm(0, 500), heading: 0 }).graph;
+    const result = moveRun(three, ports, three.pieces[2]!.pieceId, { turns: 0, by: shiftMm(0, 100) }, geometry);
+    expect(result.refused).toBeNull();
   });
 
   /*
