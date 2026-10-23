@@ -33,6 +33,32 @@ export const RAMP_SEEDS: readonly Part[] = [
     ends: { start: 'socket', end: 'peg' }, heightMm: 0,
     gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12, grooveWidthMm: 6,
   },
+  /*
+   * N1: "an N track with two male connectors. It was bundled with #33397, the
+   * Reversible Bridge, a double track bridge with female connectors on both
+   * ends" (woodenrailway.info/track/brio-track-guide, read 2026-10-23). No
+   * part number of its own. The letter was reassigned once: in 1997 N1 named a
+   * double ascending track; this is the later meaning, as the site uses it.
+   *
+   * WHY IT MATTERS. Coming down means entering a ramp at its high end, and
+   * turning an N round swaps its ends: straight after ordinary track that is
+   * peg against peg at the top. A two-socket piece (C, C1, C2) before it fixes
+   * the top, but then the N's low end, a socket, meets the next socket and
+   * needs a male-male adapter. An N1 after the two-socket piece puts every peg
+   * into a socket with no adapter. Same length and rise as N; only the ends
+   * differ.
+   */
+  {
+    id: 'N1', brand: 'BRIO', kind: 'straight', name: 'Ascending track, two pegs',
+    lengthMm: 216, rise: 1,
+    dimensions: {
+      ...RAMP_SOURCE,
+      source: 'woodenrailway.info/track/brio-track-guide: N1 is an N track with two male connectors; CALIBRATION.md Q4 (run or slope, unmeasured)',
+    },
+    slop: { axialMm: 0.8, angularDeg: 1.5, calibrationStatus: 'estimated' },
+    ends: { start: 'peg', end: 'peg' }, heightMm: 0,
+    gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12, grooveWidthMm: 6,
+  },
 ];
 
 /**

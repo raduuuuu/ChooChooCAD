@@ -244,7 +244,6 @@ export const KNOWN_ABSENT = [
   { id: 'B/C', name: 'Medium Straight polarity variants', lengthMm: 144, note: 'Addable but RETIRED; 1980s sets only.' },
   { id: 'B1/C1', name: 'Short Straight polarity variants', lengthMm: 108, note: 'Addable but RETIRED.' },
   { id: 'EE/EE1', name: 'Double curves', lengthMm: 0, note: 'NOT addable as a two-ended part: two parallel curves in one piece means four ends.' },
-  { id: 'N/N1', name: 'Ascending track', lengthMm: 216, note: 'NOT addable: needs a rise field the schema does not have, and the elevation rendering was retired at CR3.' },
 ] as const;
 
 /**
@@ -344,7 +343,7 @@ export const BRIO_PIECE_TABLE: ReadonlyArray<{
   { ids: 'K', name: 'Switching and Crossing', lengthMm: 216, blocker: 'needs-graph' },
   { ids: 'K1', name: 'Double Straight', lengthMm: 216, blocker: 'needs-graph', note: 'Two parallel straights in one piece: four ends.' },
   { ids: 'L, L1, M, M1', name: 'Curved Switch', lengthMm: 144, innerRadiusMm: 182, blocker: 'needs-graph', note: 'The quintessential BRIO switch.' },
-  { ids: 'N, N1', name: 'Ascending', lengthMm: 216, blocker: 'needs-elevation', note: 'Rises 64mm. The schema models no rise, and the elevation rendering was retired.' },
+  { ids: 'N, N1', name: 'Ascending', lengthMm: 216, blocker: 'in-catalogue', note: 'Raises or lowers the track by 64mm. Both held as unverified seeds (rampSeeds.ts, two-layer plan): N with one peg and one socket, N1 with two pegs. 216 taken as the run, CALIBRATION.md Q4.' },
   { ids: 'O, P', name: 'Short Curved Switch', innerRadiusMm: 90, blocker: 'needs-graph' },
   { ids: 'O1, P1', name: 'Short Curved Switch', lengthMm: 108, innerRadiusMm: 90, blocker: 'needs-graph' },
   { ids: 'Q', name: 'Five-Point Switch', lengthMm: 144, innerRadiusMm: 182, blocker: 'needs-graph', note: 'Outer turns 45 degrees, inner turns 22.5.' },
