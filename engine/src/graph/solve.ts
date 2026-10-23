@@ -18,7 +18,7 @@
  */
 
 import { analyseCycles, type CycleReport } from './cycles.js';
-import { connectorSites, findVertexClashes, findWeldPolarityViolations, type VertexClash, type WeldPolarityViolation } from './feasible.js';
+import { classifyWelds, connectorSites, findVertexClashes, type AdapterJoint, type VertexClash, type WeldPolarityViolation } from './feasible.js';
 import { findPlankOverlaps, type PlankOverlap } from './overlap.js';
 import { renderGraph } from './render.js';
 import { placeAll, residuals, type PortsOf, type WeldResidual } from './frames.js';
@@ -50,6 +50,8 @@ export type GraphResult =
       /** Planks crossing planks, ends nowhere near (overlap.ts). Both branches, like clashes. */
       readonly overlaps: readonly PlankOverlap[];
       readonly polarityViolations: readonly WeldPolarityViolation[];
+      /** Welds where two sockets meet: buildable with a male-male adapter. Every branch. */
+      readonly adapterJoints: readonly AdapterJoint[];
       /**
        * One per closing weld, with the mismatch in millimetres.
        *
@@ -86,6 +88,8 @@ export type GraphResult =
       /** Planks crossing planks, ends nowhere near (overlap.ts). Both branches, like clashes. */
       readonly overlaps: readonly PlankOverlap[];
       readonly polarityViolations: readonly WeldPolarityViolation[];
+      /** Welds where two sockets meet: buildable with a male-male adapter. Every branch. */
+      readonly adapterJoints: readonly AdapterJoint[];
       /**
        * Also on this branch, for the reason the clashes are: two ends being
        * 12mm apart is a fact about where the pieces ARE. It does not become
@@ -114,7 +118,7 @@ export function solveGraph(
     (id) => resolve(id).plankWidthMm / 2,
     connectorSites(graph, ports, placement),
   );
-  const polarityViolations = findWeldPolarityViolations(graph, resolve, ports);
+  const { violations: polarityViolations, adapters: adapterJoints } = classifyWelds(graph, resolve, ports);
 
   if (rank === 0) {
     /*
@@ -154,6 +158,7 @@ export function solveGraph(
       clashes,
       overlaps,
       polarityViolations,
+      adapterJoints,
       residuals: rs,
     };
   }
@@ -209,6 +214,7 @@ export function solveGraph(
       clashes,
       overlaps,
       polarityViolations,
+      adapterJoints,
       residuals: rs,
     };
   }
@@ -245,6 +251,7 @@ export function solveGraph(
       clashes,
       overlaps,
       polarityViolations,
+      adapterJoints,
       residuals: rs,
     };
   }
@@ -258,6 +265,7 @@ export function solveGraph(
       clashes,
       overlaps,
       polarityViolations,
+      adapterJoints,
       residuals: rs,
     };
   }
@@ -273,6 +281,7 @@ export function solveGraph(
       clashes,
       overlaps,
       polarityViolations,
+      adapterJoints,
       residuals: rs,
     };
   }
@@ -293,6 +302,7 @@ export function solveGraph(
     clashes,
     overlaps,
     polarityViolations,
+    adapterJoints,
     residuals: rs,
     repair:
       withinBound || !library

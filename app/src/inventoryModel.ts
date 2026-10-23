@@ -28,7 +28,25 @@
  */
 
 import { BRIO_PARTS } from '../../engine/data/brio.js';
+import { RESERVED_ID_PREFIX } from '../../engine/data/library.js';
 import { INVENTORY_STORAGE_KEY } from './storageKeys.js';
+
+/**
+ * Male-male adapters owned, kept in the same blob as the part counts (socket
+ * adapter plan, X2). A reserved id: no part may start with
+ * RESERVED_ID_PREFIX (library.ts), so this key can never be a part's.
+ */
+export const ADAPTER_INVENTORY_KEY = `${RESERVED_ID_PREFIX}adapter_male_male`;
+
+/**
+ * How many more male-male adapters a layout needs than are owned. Zero when
+ * the inventory is UNDECLARED, as for parts. A declared inventory with no
+ * adapter count owns none: that is a real claim, and the shortfall says so.
+ */
+export function adapterShortfall(inventory: Inventory, needed: number): number {
+  if (inventory === null) return 0;
+  return Math.max(0, needed - (inventory[ADAPTER_INVENTORY_KEY] ?? 0));
+}
 
 /** Count per part id. `null` is UNDECLARED, which is not the same as all zeroes. */
 export type Inventory = Readonly<Record<string, number>> | null;
@@ -193,7 +211,8 @@ export function loadInventory(knownPartIds: ReadonlySet<string>): LoadResult<Inv
       // nothing about the other counts, and discarding a whole inventory because
       // one submitted part failed to load would throw away measurements the user
       // took with calipers. Per-entry is the right granularity here.
-      if (!knownPartIds.has(k)) { dropped++; continue; }
+      // The adapter count is the one non-part key, checked like a count below.
+      if (k !== ADAPTER_INVENTORY_KEY && !knownPartIds.has(k)) { dropped++; continue; }
       // A malformed VALUE is still fatal for the blob: a count that is not a
       // non-negative integer means the writer was broken, not the catalogue.
       if (typeof v !== 'number' || !Number.isInteger(v) || v < 0) {

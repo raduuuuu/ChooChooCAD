@@ -146,12 +146,23 @@ export function userMeasured(note?: string): DimensionSource {
  */
 /** Exported so the error boundary's repro reads the same key the app wrote. */
 export const SUBMISSIONS_STORAGE_KEY = 'brio.library.submissions.v1';
+
+/**
+ * Ids starting with this are not part ids, ever (socket adapter plan, eng
+ * review E2). The inventory keeps its male-male adapter count beside the part
+ * counts under one such key, so a part allowed to take that name would share
+ * the count and hide its own shortfall. Refused by the Add a part form and
+ * dropped here on load.
+ */
+export const RESERVED_ID_PREFIX = '__';
 const STORAGE_KEY = SUBMISSIONS_STORAGE_KEY;
 
 function looksLikePart(v: unknown): v is Part {
   if (typeof v !== 'object' || v === null) return false;
   const p = v as Record<string, unknown>;
   if (typeof p.id !== 'string' || p.id.length === 0) return false;
+  // Reserved for non-part keys (RESERVED_ID_PREFIX); counted as a dropped row.
+  if (p.id.startsWith(RESERVED_ID_PREFIX)) return false;
   if (typeof p.brand !== 'string') return false;
   if (p.kind !== 'straight' && p.kind !== 'curve') return false;
   if (typeof p.dimensions !== 'object' || p.dimensions === null) return false;

@@ -179,6 +179,8 @@ const flip = (t: Turn): Turn => (t === 'left' ? 'right' : 'left');
 export interface Fit {
   readonly port: number;
   readonly turn: Turn;
+  /** Its attaching end is a socket meeting a socket: needs a male-male adapter (X1). */
+  readonly adapter?: true;
 }
 
 /**
@@ -191,6 +193,14 @@ export interface Fit {
  * where a click used to land. When nothing fits (a two-peg piece onto a peg)
  * the one automatic choice comes back flagged `refused`, so there is always
  * an option to show and the preview can say why it is red.
+ *
+ * SOCKET ON SOCKET is a way too, with a male-male adapter (X1, 2026-10-23):
+ * flagged `adapter` and listed AFTER every ordinary way, so the default and
+ * the first R stop are never an adapter when an ordinary way exists. The
+ * de-duplication key includes that flag: an adapter way can land its ends on
+ * exactly the spots an ordinary way does (a straight turned round), and
+ * without the flag it was dropped as a duplicate and R never reached it.
+ * Peg on peg is never a way.
  */
 export function fitOptions(
   graph: Graph,
@@ -209,23 +219,46 @@ export function fitOptions(
   const out: Fit[] = [];
   const consider = (fit: Fit) => {
     const own = ports({ ...probe, turn: fit.turn });
-    if (own[fit.port]?.polarity === meeting) return;
+    const attaching = own[fit.port]?.polarity;
+    if (attaching === meeting && meeting === 'peg') return;
+    const adapter = attaching === meeting;
     const frame = frameForPortAt(own[fit.port]!.at, targetFrame);
-    // Where every end of the piece lands, as a set: the same set is the same piece.
-    const key = own
+    // Where every end of the piece lands, as a set: the same set is the same
+    // piece. Prefixed with the adapter flag, so the two kinds never merge.
+    const key = (adapter ? 'adapter|' : '') + own
       .map((p) => JSON.stringify(compose(frame, p.at)))
       .sort()
       .join('|');
     if (seen.has(key)) return;
     seen.add(key);
-    out.push(fit);
+    out.push(adapter ? { port: fit.port, turn: fit.turn, adapter: true } : { port: fit.port, turn: fit.turn });
   };
   consider(first);
   for (const turn of ['left', 'right'] as const) {
     const count = ports({ ...probe, turn }).length;
     for (let port = 0; port < count; port++) consider({ port, turn });
   }
-  return out.length > 0 ? { options: out, refused: false } : { options: [first], refused: true };
+  // Ordinary ways first, in the order found (so `orientation`'s own leads), then adapter ways.
+  const ordered = [...out.filter((o) => !o.adapter), ...out.filter((o) => o.adapter)];
+  return ordered.length > 0 ? { options: ordered, refused: false } : { options: [first], refused: true };
+}
+
+/**
+ * The ways R steps through (X1, outside voice OV1): every way with the
+ * current turn, plus any way of the other turn at an end the current turn has
+ * no way for; ordinary ways first, adapter ways last.
+ *
+ * The second part is for a straight, whose two turns lie the same, so its
+ * ordinary and adapter ways can be stored with different turns. Without it, a
+ * straight's adapter way was reachable only by an unadvertised F (Flip is
+ * hidden for straights). Defined by ends, not by which way is current, so
+ * every way in a cycle sees the same cycle and R always comes back round.
+ */
+export function rotateCycle(options: readonly Fit[], turn: Turn): readonly Fit[] {
+  const same = options.filter((o) => o.turn === turn);
+  const lone = options.filter((o) => o.turn !== turn && !same.some((s) => s.port === o.port));
+  const cycle = [...same, ...lone];
+  return [...cycle.filter((o) => !o.adapter), ...cycle.filter((o) => o.adapter)];
 }
 
 /**
@@ -300,7 +333,16 @@ export function ghostFit(
   sites: ReturnType<typeof connectorSites> = connectorSites(graph, ports, placement),
   /** Without it, wood over wood goes unchecked: only ends are compared. */
   geometry?: FitGeometry,
-): { readonly frame: Frame; readonly conflicts: readonly FitConflict[]; readonly joinsTo: PortRef | null } {
+): {
+  readonly frame: Frame;
+  readonly conflicts: readonly FitConflict[];
+  /** The last end it would join, or null. Kept for callers that only ask "does it join". */
+  readonly joinsTo: PortRef | null;
+  /** Every end it would join, each with whether that joint needs a male-male adapter. */
+  readonly joins: readonly { readonly to: PortRef; readonly adapter: boolean }[];
+  /** True when the end it goes on by is a socket meeting a socket. */
+  readonly adapterHere: boolean;
+} {
   const piece: Piece = { pieceId: '\u0000ghost', partId: ghost.partId, turn: ghost.turn };
   const frame = ghost.at
     ? frameAt(graph, ports, placement, ghost.at, ghost.partId, { port: ghost.port, turn: ghost.turn })
@@ -309,13 +351,28 @@ export function ghostFit(
   const ends = ports(piece);
   const conflicts: FitConflict[] = [];
   let joinsTo: PortRef | null = null;
-  if (ghost.at && fitOptions(graph, ports, ghost.at, ghost.partId).refused) {
-    conflicts.push({ kind: 'here', polarity: ends[ghost.port]!.polarity });
+  let joins: { to: PortRef; adapter: boolean }[] = [];
+  /*
+   * THE END IT GOES ON BY, checked on its own (eng review): peg on peg is the
+   * `here` conflict; socket on socket needs an adapter. Not from
+   * `fitOptions(...).refused`, which is about the whole part, now that a
+   * socket-to-socket way is a real option.
+   */
+  let adapterHere = false;
+  if (ghost.at) {
+    const target = graph.pieces.find((p) => p.pieceId === ghost.at!.pieceId);
+    const meeting = target ? ports(target)[ghost.at.port]?.polarity : undefined;
+    const attaching = ends[ghost.port]!.polarity;
+    if (meeting === attaching && attaching === 'peg') conflicts.push({ kind: 'here', polarity: attaching });
+    else if (meeting === attaching) adapterHere = true;
   }
   for (let i = 0; i < ends.length; i++) {
     if (ghost.at && i === ghost.port) continue;
     const landing = landingOf(sites, portFrame(own, ports, piece, i), ends[i]!.polarity);
-    if (landing.kind === 'joins') joinsTo = landing.with;
+    if (landing.kind === 'joins') {
+      joinsTo = landing.with;
+      joins.push({ to: landing.with, adapter: landing.adapter === true });
+    }
     else if (landing.kind === 'conflict') {
       const pieceId = landing.with[0]!.pieceId;
       conflicts.push(
@@ -332,6 +389,7 @@ export function ghostFit(
     if (autoJoin(placed.graph, ports, id).joined === 0) {
       conflicts.push({ kind: 'loop' });
       joinsTo = null;
+      joins = [];
     }
   }
   if (geometry) {
@@ -364,7 +422,7 @@ export function ghostFit(
       if (!named.has(other)) conflicts.push({ kind: 'over', pieceId: other });
     }
   }
-  return { frame, conflicts, joinsTo };
+  return { frame, conflicts, joinsTo, joins, adapterHere };
 }
 
 /**
@@ -378,9 +436,14 @@ export function defaultFit(graph: Graph, ports: PortsOf, at: PortRef, partId: st
   const { options } = fitOptions(graph, ports, at, partId);
   const placement = placeAll(graph, ports);
   const sites = connectorSites(graph, ports, placement);
+  /*
+   * Never an adapter when an ordinary way would do (X1): a fit that closes a
+   * gap only by needing an adapter, at either end, does not count as closing.
+   * `options[0]` is already ordinary when one exists.
+   */
   const closes = options.find((o) => {
     const fit = ghostFit(graph, ports, { partId, at, frame: null, ...o }, placement, sites);
-    return fit.joinsTo !== null && fit.conflicts.length === 0;
+    return fit.joinsTo !== null && fit.conflicts.length === 0 && !fit.adapterHere && fit.joins.every((j) => !j.adapter);
   });
   return closes ?? options[0]!;
 }
@@ -396,11 +459,17 @@ export function defaultFit(graph: Graph, ports: PortsOf, at: PortRef, partId: st
  * could re-lay a loop that does not close (measured 600mm). Backlog D7 fixed
  * the cause in the forest, so it is now a backstop that nothing reaches.
  */
-export function autoJoin(graph: Graph, ports: PortsOf, pieceId: string): { graph: Graph; joined: number } {
+export function autoJoin(
+  graph: Graph,
+  ports: PortsOf,
+  pieceId: string,
+): { graph: Graph; joined: number; adapters: number } {
   const piece = graph.pieces.find((p) => p.pieceId === pieceId);
-  if (!piece) return { graph, joined: 0 };
+  if (!piece) return { graph, joined: 0, adapters: 0 };
   let current = graph;
   let joined = 0;
+  // Of those joins, how many put two sockets together (for the announcement).
+  let adapters = 0;
   const own = ports(piece);
   for (let port = 0; port < own.length; port++) {
     const ref = { pieceId, port };
@@ -413,8 +482,9 @@ export function autoJoin(graph: Graph, ports: PortsOf, pieceId: string): { graph
     if (movesAnything(current, next, ports)) continue;
     current = next;
     joined++;
+    if (landing.adapter) adapters++;
   }
-  return { graph: current, joined };
+  return { graph: current, joined, adapters };
 }
 
 /** Whether any piece's exact frame differs between two versions of a layout. */
@@ -525,11 +595,11 @@ export function moveRun(
   move: RunMove,
   /** Plank shapes, so a run is not moved onto track. Without it, only ends are compared. */
   geometry?: FitGeometry,
-): { graph: Graph; refused: string | null; joined: number } {
+): { graph: Graph; refused: string | null; joined: number; adapters: number } {
   const place = placeAll(graph, ports);
   const grabbed = graph.pieces.find((p) => p.pieceId === pieceId);
   const comp = place.forest.component.get(pieceId);
-  if (!grabbed || comp === undefined) return { graph, refused: null, joined: 0 };
+  if (!grabbed || comp === undefined) return { graph, refused: null, joined: 0, adapters: 0 };
   const root = place.forest.roots[comp]!;
   const members = new Set(graph.pieces.map((p) => p.pieceId).filter((id) => place.forest.component.get(id) === comp));
   const pivot = portFrame(place, ports, grabbed, 0).pos;
@@ -557,6 +627,7 @@ export function moveRun(
           graph,
           refused: landing.reason === 'polarity' ? 'two ends of the same kind would meet' : 'its ends would land on other track ends',
           joined: 0,
+          adapters: 0,
         };
       }
       if (landing.kind === 'joins') joins++;
@@ -564,13 +635,15 @@ export function moveRun(
   }
   let joined = next;
   let count = 0;
+  let adapters = 0;
   for (const id of members) {
     const step = autoJoin(joined, ports, id);
     joined = step.graph;
     count += step.joined;
+    adapters += step.adapters;
   }
   if (count < joins) {
-    return { graph, refused: 'joining there would shift pieces of a loop that does not close', joined: 0 };
+    return { graph, refused: 'joining there would shift pieces of a loop that does not close', joined: 0, adapters: 0 };
   }
   if (geometry) {
     /*
@@ -588,10 +661,10 @@ export function moveRun(
       connectorSites(joined, ports, placed),
     );
     if (over.some((o) => members.has(o.a) !== members.has(o.b))) {
-      return { graph, refused: 'it would lie over other track', joined: 0 };
+      return { graph, refused: 'it would lie over other track', joined: 0, adapters: 0 };
     }
   }
-  return { graph: joined, refused: null, joined: count };
+  return { graph: joined, refused: null, joined: count, adapters };
 }
 
 /**
@@ -611,6 +684,8 @@ export function snapRunMove(
   pieceId: string,
   move: RunMove,
   radiusMm: number,
+  /** Plank shapes, so a candidate that would lie over track is passed over. */
+  geometry?: FitGeometry,
 ): RunMove {
   const place = placeAll(graph, ports);
   const grabbed = graph.pieces.find((p) => p.pieceId === pieceId);
@@ -620,18 +695,30 @@ export function snapRunMove(
   const sites = connectorSites(graph, ports, place);
   const mine = sites.placed.filter((p) => p.free && place.forest.component.get(p.pieceId) === comp);
   const others = sites.placed.filter((p) => p.free && place.forest.component.get(p.pieceId) !== comp);
-  let best: { d: number; move: RunMove } | null = null;
+  /*
+   * Every end-to-end snap within the radius. Peg on peg is never one; socket
+   * on socket is, with an adapter. Ranked ordinary-first, then by distance,
+   * and the first that `moveRun` would ACCEPT wins (outside voice OV3): a
+   * preference for ordinary joints must never turn a drop that fits into a
+   * refusal. With none accepted, the nearest is returned, as before, so the
+   * move is refused and says why.
+   */
+  const candidates: { d: number; adapter: boolean; move: RunMove }[] = [];
   for (const end of mine) {
     const landed = toXY(add(add(pivot, mulZetaPow(sub(end.pos, pivot), move.turns)), move.by));
     for (const target of others) {
-      if (target.polarity === end.polarity) continue;
+      if (target.polarity === end.polarity && end.polarity === 'peg') continue;
       const [tx, ty] = toXY(target.pos);
       const d = Math.hypot(tx - landed[0], ty - landed[1]);
-      if (d > radiusMm || (best && d >= best.d)) continue;
+      if (d > radiusMm) continue;
       const turns = norm16(target.heading + 8 - end.heading);
       const rotated = add(pivot, mulZetaPow(sub(end.pos, pivot), turns));
-      best = { d, move: { turns, by: sub(target.pos, rotated) } };
+      candidates.push({ d, adapter: target.polarity === end.polarity, move: { turns, by: sub(target.pos, rotated) } });
     }
   }
-  return best?.move ?? move;
+  if (candidates.length === 0) return move;
+  const ranked = [...candidates].sort((a, b) => (a.adapter === b.adapter ? a.d - b.d : a.adapter ? 1 : -1));
+  const accepted = ranked.find((c) => moveRun(graph, ports, pieceId, c.move, geometry).refused === null);
+  if (accepted) return accepted.move;
+  return [...candidates].sort((a, b) => a.d - b.d)[0]!.move;
 }

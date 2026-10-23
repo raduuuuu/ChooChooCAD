@@ -233,7 +233,19 @@ describe('both engines reach the same verdict', () => {
     const r = solveLayout(layout, resolve);
     if (!r.ok) return { kind: r.reason };
     if (r.clashes.length > 0) return { kind: 'IMPOSSIBLE' };
-    if (r.polarityViolations.length > 0) return { kind: 'IMPOSSIBLE' };
+    /*
+     * PEGS ONLY. Since 2026-10-23 two sockets meeting is buildable with a
+     * male-male adapter, and the user-visible verdict only refuses two pegs.
+     * The legacy chain engine still lists a socket pair as a violation, a
+     * documented disagreement (docs/plan/2026-10-23-socket-adapter.md, NOT in
+     * scope), so the reduction to "what the user sees" applies the app's rule
+     * here rather than changing the legacy engine.
+     *
+     * MUTATION PROOF, run: count every chain violation again (drop the
+     * filter): fails with `expected [ …(6) ] to deeply equal []`, first entry
+     * "A3L C1R closed=true chain=IMPOSSIBLE graph=EXCEEDS".
+     */
+    if (r.polarityViolations.some((v) => v.polarity === 'peg')) return { kind: 'IMPOSSIBLE' };
     if (r.closesExactly) return { kind: 'EXACT' };
     return { kind: r.withinBound ? 'NEEDS_GIVE' : 'EXCEEDS' };
   }

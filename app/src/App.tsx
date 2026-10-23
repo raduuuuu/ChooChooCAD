@@ -70,7 +70,7 @@ import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
 import { CANVAS_SEGMENT_CEILING, TrackCanvas } from './TrackCanvas.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
 import { VerdictLine, VerdictScope } from './VerdictLine.js';
-import { fitOptions, ghostFit, shiftMm, snapRunMove } from './layoutModel.js';
+import { fitOptions, ghostFit, rotateCycle, shiftMm, snapRunMove } from './layoutModel.js';
 import { InventoryPanel } from './Inventory.js';
 import { TablePanel } from './TablePanel.js';
 import { fitSentence, loadTable, saveTable, tableFit, trackExtent, type Table } from './tableModel.js';
@@ -79,6 +79,7 @@ import {
   loadInventory,
   saveInventory,
   shortfalls as computeShortfalls,
+  adapterShortfall,
   usedCounts,
   wouldExceed,
   type Inventory,
@@ -543,7 +544,7 @@ export function App() {
    */
   const moveRunBy = (pieceId: string, dx: number, dy: number, turns: number, snapRadiusMm = 0) => {
     const asked = { turns, by: shiftMm(dx, dy) };
-    const move = snapRadiusMm > 0 ? snapRunMove(graph, ports, pieceId, asked, snapRadiusMm) : asked;
+    const move = snapRadiusMm > 0 ? snapRunMove(graph, ports, pieceId, asked, snapRadiusMm, { resolve }) : asked;
     dispatch({ kind: 'moveRun', pieceId, turns: move.turns, by: move.by });
   };
   const runOf = (pieceId: string): ReadonlySet<string> => {
@@ -699,6 +700,28 @@ export function App() {
   }, [result, render, graph]);
 
   /*
+   * WHERE A MALE-MALE ADAPTER GOES (socket adapter plan, R3): one amber mark
+   * per socket-to-socket weld, found the way `badJoints` finds its spots and
+   * built only below the same ceiling. A red mark on the same spot wins: a
+   * clash or a refused joint there is the more urgent fact, and the note
+   * still counts the adapter.
+   */
+  const adapterMarks = useMemo(() => {
+    if (!result) return [];
+    if (render.segments.length > CANVAS_SEGMENT_CEILING) return [];
+    const byPort = new Map(render.ports.map((p) => [`${p.pieceId}#${p.port}`, p]));
+    const red = [...badJoints, ...clashMarks.map((c) => c.at)];
+    return result.adapterJoints.flatMap((j) => {
+      const w = graph.welds[j.weld];
+      if (!w) return [];
+      const a = byPort.get(`${w.a.pieceId}#${w.a.port}`);
+      if (!a) return [];
+      if (red.some(([x, y]) => Math.hypot(x - a.x, y - a.y) < 1e-6)) return [];
+      return [[a.x, a.y] as const];
+    });
+  }, [result, render, graph, badJoints, clashMarks]);
+
+  /*
    * Where each piece ends (request 2). Refused joints are left to their own
    * marker, and nothing is built above the drawing ceiling, for the reason
    * `badJoints` gives.
@@ -788,7 +811,7 @@ export function App() {
     const part = resolve(ghost.partId);
     const piece: GPiece = { pieceId: '\u0000ghost', partId: ghost.partId, turn: ghost.turn };
     const fit = ghost.at ? fitOptions(graph, ports, ghost.at, ghost.partId) : null;
-    const { frame, conflicts: found, joinsTo } = ghostFit(graph, ports, ghost, placement, sites, {
+    const { frame, conflicts: found, joins, adapterHere } = ghostFit(graph, ports, ghost, placement, sites, {
       resolve,
       segments: render.segments,
     });
@@ -796,7 +819,7 @@ export function App() {
     const own = placeAll(alone, ports);
     const ghostRender = renderGraph(alone, ports, resolve, own);
     const ends = ports(piece);
-    let status: { glyph: 'O' | 'X'; text: string };
+    let status: { glyph: 'O' | 'X' | '!'; text: string };
     const conflicts = found.map((c) => {
       switch (c.kind) {
         case 'here':
@@ -811,12 +834,24 @@ export function App() {
           return `It would lie over piece ${pieceNumber.get(c.pieceId)}.`;
       }
     });
+    /*
+     * THE THIRD STATE, '!' (socket adapter plan, item 4): it fits, and a
+     * male-male adapter is needed, said per connection so the sentence names
+     * the right joint (outside voice OV2). Amber, not red: not a conflict, so
+     * Place and a drop both accept it. A conflict still wins.
+     */
     if (conflicts.length > 0) {
       status = { glyph: 'X', text: `${conflicts.join(' ')} You can still place it.` };
-    } else if (joinsTo) {
-      status = { glyph: 'O', text: `Joins piece ${pieceNumber.get(joinsTo.pieceId)}.` };
     } else {
-      status = { glyph: 'O', text: 'Fits here.' };
+      const joined = joins.map(
+        (j) => `Joins piece ${pieceNumber.get(j.to.pieceId)}${j.adapter ? ' with a male-male adapter' : ''}.`,
+      );
+      const adapter = adapterHere || joins.some((j) => j.adapter);
+      const text =
+        adapterHere && joined.length === 0
+          ? 'Two sockets meet here: needs a male-male adapter.'
+          : [...(adapterHere ? ['Needs a male-male adapter here.'] : []), ...joined].join(' ') || 'Fits here.';
+      status = { glyph: adapter ? '!' : 'O', text };
     }
     const reach =
       Math.max(...ends.map((e) => Math.hypot(...toXY(e.at.pos)))) + part.plankWidthMm;
@@ -825,7 +860,7 @@ export function App() {
       red: conflicts.length > 0,
       status,
       reach,
-      canRotate: ghost.at === null || (fit !== null && fit.options.filter((o) => o.turn === ghost.turn).length > 1),
+      canRotate: ghost.at === null || (fit !== null && rotateCycle(fit.options, ghost.turn).length > 1),
       canFlip: part.kind !== 'straight' && (ghost.at === null || (fit !== null && fit.options.some((o) => o.turn !== ghost.turn))),
       name: `${part.name} (${shortCode(part)})`,
     };
@@ -847,7 +882,10 @@ export function App() {
       <p className="mode-strip-text">
         Placing: {ghostView.name}{' '}
         <span className="ghost-status" role="status" aria-live="polite">
-          <span className={`ghost-mark${ghostView.red ? ' is-fail' : ''}`} aria-hidden="true">
+          <span
+            className={`ghost-mark${ghostView.red ? ' is-fail' : ghostView.status.glyph === '!' ? ' is-adapter' : ''}`}
+            aria-hidden="true"
+          >
             {ghostView.status.glyph}
           </span>{' '}
           {ghostView.status.text}
@@ -873,6 +911,8 @@ export function App() {
 
   const counts = usedCounts(graph.pieces.map((p) => p.partId));
   const shortfalls = computeShortfalls(inventory, counts);
+  const adaptersUsed = result ? result.adapterJoints.length : 0;
+  const adapterShort = adapterShortfall(inventory, adaptersUsed);
 
   /* One brand's shelf. Used twice: BRIO inside the scrolling region, the
      rest pinned below it. See the comment at the call site. */
@@ -1031,6 +1071,7 @@ export function App() {
           clashes={clashMarks}
           gaps={gaps}
           badJoints={badJoints}
+          adapterJoints={adapterMarks}
           emptyAction={
             <>
               <button
@@ -1112,7 +1153,7 @@ export function App() {
         * the BOX, not the geometry, and merging them would let a stock problem
         * read as a layout problem. Advice, never a gate (D8).
         */}
-      {shortfalls.length > 0 && (
+      {(shortfalls.length > 0 || adapterShort > 0) && (
         <p className="shortfall">
           Short by{' '}
           {shortfalls.map((sf, i) => (
@@ -1120,7 +1161,14 @@ export function App() {
               {i > 0 && ', '}
               <span className="num">{sf.shortBy}</span>&nbsp;{sf.partId}
             </span>
-          ))}{' '}
+          ))}
+          {adapterShort > 0 && (
+            <span>
+              {shortfalls.length > 0 && ', '}
+              <span className="num">{adapterShort}</span>&nbsp;male-male{' '}
+              {adapterShort === 1 ? 'adapter' : 'adapters'}
+            </span>
+          )}{' '}
           against what you own. Still fine to draw.
         </p>
       )}
@@ -1250,6 +1298,8 @@ export function App() {
             inventory={inventory}
             used={counts}
             shortfalls={shortfalls}
+            adaptersUsed={adaptersUsed}
+            adapterShort={adapterShort}
             onChange={(next) => {
               setInventoryActed(true);
               setInventory(next);

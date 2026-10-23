@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../../engine/data/library.js';
-import { findVertexClashes, findWeldPolarityViolations } from '../../engine/src/graph/feasible.js';
+import { classifyWelds, findVertexClashes, findWeldPolarityViolations } from '../../engine/src/graph/feasible.js';
 import { placeAll, portFrame, residuals, closesExactly } from '../../engine/src/graph/frames.js';
 import { portsOf, type Piece, type Port } from '../../engine/src/graph/model.js';
 import {
@@ -269,9 +269,17 @@ describe('addPiece turns a piece round so peg meets socket', () => {
     expect(g.pieces.map((p) => p.turn)).toEqual(['left', 'left', 'left']);
   });
 
-  it('cannot turn round a piece with no end of the other kind, and says so', () => {
+  /*
+   * REWRITTEN 2026-10-23 (socket adapter plan, regression contract): two
+   * sockets meeting used to be a bad joint; it is now an adapter joint.
+   *
+   * MUTATION PROOF, run: socket pairs filed as violations again (in
+   * `classifyWelds`): fails with `expected 1 to be +0`.
+   */
+  it('cannot turn round a piece with no end of the other kind: it needs an adapter', () => {
     const { g } = build([['A', 'left'], ['C2', 'left'], ['C2', 'left']]);
     expect(g.welds[1]!.b.port).toBe(0);
-    expect(badJoints(g)).toBe(1);
+    expect(badJoints(g)).toBe(0);
+    expect(classifyWelds(g, resolve, ports).adapters).toHaveLength(1);
   });
 });

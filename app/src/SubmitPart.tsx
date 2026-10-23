@@ -21,7 +21,7 @@
  */
 
 import { useState } from 'react';
-import { newSubmissionId, userMeasured, type Submission } from '../../engine/data/library.js';
+import { newSubmissionId, RESERVED_ID_PREFIX, userMeasured, type Submission } from '../../engine/data/library.js';
 import type { Brand, Part, Polarity } from '../../engine/src/parts/schema.js';
 
 const BRANDS: readonly Brand[] = ['BRIO', 'IKEA', 'PLAYTIVE', 'HAPE', 'THOMAS', 'MELISSA_DOUG'];
@@ -78,7 +78,9 @@ export function SubmitPart({ existingIds, switchIds, onSubmit, onCancel }: Submi
     : `${brand}-${name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '-').slice(0, 20) || 'PART'}`;
   const idCollides = correcting === '' && existingIds.has(id);
   const correctsSwitch = switchIds.has(correcting);
-  const blocked = idCollides || correctsSwitch;
+  // Not a part id, ever: the inventory keeps its adapter count under one (eng review E2).
+  const reserved = id.startsWith(RESERVED_ID_PREFIX);
+  const blocked = idCollides || correctsSwitch || reserved;
 
   const submit = () => {
     if (!ready || blocked) return;
@@ -206,6 +208,10 @@ export function SubmitPart({ existingIds, switchIds, onSubmit, onCancel }: Submi
           and curves, so it cannot correct one: a switch has a third end that a layout may
           already be using.
         </p>
+      )}
+
+      {reserved && (
+        <p className="submit-err">Ids starting with __ are reserved.</p>
       )}
 
       {idCollides && (

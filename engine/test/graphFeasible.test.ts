@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../data/library.js';
-import { findVertexClashes, findWeldPolarityViolations } from '../src/graph/feasible.js';
+import { classifyWelds, findVertexClashes, findWeldPolarityViolations } from '../src/graph/feasible.js';
 import { placeAll } from '../src/graph/frames.js';
 import { graphFromChain } from '../src/graph/fromChain.js';
 import { portsOf, type Graph, type Piece, type Port, type Weld } from '../src/graph/model.js';
@@ -119,7 +119,9 @@ describe('polarity is a property of the weld', () => {
   /*
    * B2 is "mini straight, two pegs" and C2 is "two sockets": real adapter
    * pieces that exist because two pegs cannot be joined. Welding B2 to B2
-   * is the physical impossibility the check is for.
+   * is the physical impossibility the check is for. Two SOCKETS can be
+   * joined, with a male-male adapter (2026-10-23), so C2 to C2 is an adapter
+   * joint, not a violation; see the spec below.
    */
   it('two pieces of the same polarity cannot be welded', () => {
     const g: Graph = {
@@ -132,6 +134,36 @@ describe('polarity is a property of the weld', () => {
     const found = findWeldPolarityViolations(g, resolve, ports);
     expect(found).toHaveLength(1);
     expect(found[0]!.between).toEqual(['B2', 'B2']);
+  });
+
+  /*
+   * ONE PASS, TWO DISJOINT LISTS (eng review E1): every weld whose ends are
+   * the same kind lands in exactly one of `violations` (pegs) and `adapters`
+   * (sockets), and no other weld lands in either.
+   *
+   * MUTATION PROOF, run: socket pairs pushed to both lists: fails with
+   * `expected [ +0, 1 ] to deeply equal [ +0 ]`.
+   */
+  it('every same-kind weld is in exactly one list: pegs violations, sockets adapters', () => {
+    const g: Graph = {
+      pieces: [
+        { pieceId: 'p', partId: 'B2' },
+        { pieceId: 'q', partId: 'B2' },
+        { pieceId: 's', partId: 'C2' },
+        { pieceId: 't', partId: 'C2' },
+        { pieceId: 'a', partId: 'A' },
+      ],
+      welds: [
+        { a: { pieceId: 'p', port: 1 }, b: { pieceId: 'q', port: 1 } }, // peg + peg
+        { a: { pieceId: 's', port: 1 }, b: { pieceId: 't', port: 1 } }, // socket + socket
+        { a: { pieceId: 'q', port: 0 }, b: { pieceId: 's', port: 0 } }, // peg + socket
+        { a: { pieceId: 'a', port: 1 }, b: { pieceId: 't', port: 0 } }, // peg + socket
+      ],
+    };
+    const { violations, adapters } = classifyWelds(g, resolve, ports);
+    expect(violations.map((v) => v.weld)).toEqual([0]);
+    expect(adapters.map((a) => a.weld)).toEqual([1]);
+    expect(violations[0]!.polarity).toBe('peg');
   });
 
   it('a heel is exempt, so a switch raises nothing', () => {

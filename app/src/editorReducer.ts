@@ -42,6 +42,7 @@ import {
   lastPieceId,
   moveRun,
   nextRunAnchor,
+  rotateCycle,
   weldEnds,
   type Fit,
   type FitGeometry,
@@ -388,7 +389,9 @@ function freeEnds(graph: Graph, ports: PortsOf): PortRef[] {
  */
 function ghostAt(graph: Graph, ports: PortsOf, partId: string, at: PortRef, turn: Turn | null): Ghost {
   const { options } = fitOptions(graph, ports, at, partId);
-  const fit = options.find((o) => o.turn === turn) ?? defaultFit(graph, ports, at, partId);
+  // The kept turn only among ways that need no adapter (outside voice OV5): a
+  // preview moved from a peg end to a socket end must not land the adapter way.
+  const fit = options.find((o) => o.turn === turn && !o.adapter) ?? defaultFit(graph, ports, at, partId);
   return { partId, at, frame: null, turn: fit.turn, port: fit.port };
 }
 
@@ -404,12 +407,12 @@ function newGhost(state: EditorState, partId: string, ports: PortsOf): Ghost {
   return { partId, at: null, frame, turn: 'left', port: 0 };
 }
 
-/** The next option with the same turn (R), or null when there is no other. */
+/** The next way in R's cycle (`rotateCycle`), or null when there is no other. */
 function rotated(options: readonly Fit[], g: Ghost): Fit | null {
-  const same = options.filter((o) => o.turn === g.turn);
-  if (same.length < 2) return null;
-  const i = same.findIndex((o) => o.port === g.port);
-  return same[(i + 1) % same.length]!;
+  const cycle = rotateCycle(options, g.turn);
+  if (cycle.length < 2) return null;
+  const i = cycle.findIndex((o) => o.port === g.port && o.turn === g.turn);
+  return cycle[(i + 1) % cycle.length]!;
 }
 
 /** The option with the other turn, the same end if it can (F), or null. */

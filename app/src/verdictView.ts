@@ -61,6 +61,8 @@ export interface VerdictView {
   /** Places where one plank runs over another, ends nowhere near (overlap.ts). */
   readonly overlapCount: number;
   readonly polarityCount: number;
+  /** Welds where two sockets meet, each needing a male-male adapter. Never changes the kind. */
+  readonly adapterCount: number;
   /** Joints in the worst loop, which is the number the gap is spread across. */
   readonly jointCount: number;
   /**
@@ -87,6 +89,7 @@ const EMPTY: VerdictView = {
   clashCount: 0,
   overlapCount: 0,
   polarityCount: 0,
+  adapterCount: 0,
   jointCount: 0,
   pieces: null,
 };
@@ -115,9 +118,16 @@ export function viewOf(result: GraphResult | null): VerdictView {
         clashCount: result.clashes.length,
         overlapCount: result.overlaps.length,
         polarityCount: result.polarityViolations.length,
+        adapterCount: result.adapterJoints.length,
       };
     }
-    return { ...EMPTY, kind: result.reason, detail: result.detail, rank: result.rank };
+    return {
+      ...EMPTY,
+      kind: result.reason,
+      detail: result.detail,
+      rank: result.rank,
+      adapterCount: result.adapterJoints.length,
+    };
   }
 
   const base = {
@@ -131,6 +141,7 @@ export function viewOf(result: GraphResult | null): VerdictView {
     clashCount: result.clashes.length,
     overlapCount: result.overlaps.length,
     polarityCount: result.polarityViolations.length,
+    adapterCount: result.adapterJoints.length,
     jointCount: result.worst?.welds.length ?? 0,
     pieces: null,
   };

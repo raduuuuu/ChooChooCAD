@@ -83,6 +83,7 @@ const view = (kind: VerdictKind): VerdictView => ({
   rank: 1,
   failingLoops: kind === 'EXCEEDS' ? 1 : 0,
   overlapCount: 0,
+  adapterCount: 0,
   clashCount: kind === 'IMPOSSIBLE' ? 1 : 0,
   polarityCount: 0,
   jointCount: 10,

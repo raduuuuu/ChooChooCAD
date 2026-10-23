@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../data/library.js';
 import { spanningForest } from '../src/graph/forest.js';
 import { placeAll, portFrame, residuals } from '../src/graph/frames.js';
-import { findWeldPolarityViolations } from '../src/graph/feasible.js';
+import { classifyWelds, findWeldPolarityViolations } from '../src/graph/feasible.js';
 import { solveGraph } from '../src/graph/solve.js';
 import {
   portsOf,
@@ -166,11 +166,16 @@ describe('the heel is an ordinary connector', () => {
   });
 
   /*
-   * MUTATION PROOF, run: in feasible.ts `findWeldPolarityViolations`, skip
-   * the weld when either port is a heel. Fails with `expected [] to have a
-   * length of 1`.
+   * REWRITTEN 2026-10-23 (socket adapter plan, regression contract): a socket
+   * heel meeting a socket used to be a violation; it is now an adapter joint.
+   *
+   * MUTATION PROOFS, run:
+   * - in `classifyWelds`, skip the weld when either port is a heel: fails
+   *   with `expected [] to have a length of 1` (the adapter is not listed).
+   * - socket pairs filed as violations again: fails with `expected [ { weld:
+   *   +0, …(2) } ] to deeply equal []`.
    */
-  it('is checked for polarity: a socket heel refuses a socket', () => {
+  it('is checked for polarity: a socket heel meeting a socket is an adapter joint', () => {
     expect(SW.ends.start).toBe('socket');
     const weldOnto = (partId: string): Graph => ({
       pieces: [
@@ -179,10 +184,11 @@ describe('the heel is an ordinary connector', () => {
       ],
       welds: [{ a: { pieceId: 'x', port: 1 }, b: { pieceId: 'sw', port: 0 } }],
     });
-    // C2 is two sockets: its far end against the socket heel cannot mate.
-    const bad = findWeldPolarityViolations(weldOnto('C2'), resolve, ports);
-    expect(bad).toHaveLength(1);
-    expect(bad[0]!.polarity).toBe('socket');
+    // C2 is two sockets: its far end against the socket heel needs a male-male adapter.
+    const { violations, adapters } = classifyWelds(weldOnto('C2'), resolve, ports);
+    expect(violations).toEqual([]);
+    expect(adapters).toHaveLength(1);
+    expect(adapters[0]!.between).toEqual(['C2', SW.id]);
     // A's far end is a peg, which is what a socket heel takes.
     expect(findWeldPolarityViolations(weldOnto('A'), resolve, ports)).toEqual([]);
   });

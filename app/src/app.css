@@ -360,6 +360,18 @@
  * of the notes rather than a second verdict; no marker, because it is not a
  * discount.
  */
+/*
+ * The adapter note (socket adapter plan, R3): a plain line in the notes, in
+ * ink, not a tone. The verdict above keeps its own colour; this only says
+ * what to have ready, and the amber canvas mark shows where.
+ */
+.verdict-adapters {
+  margin: var(--s1) 0 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ink);
+  max-width: 76ch;
+}
 .verdict-basis {
   margin: var(--s1) 0 0;
   font-size: 14px;
@@ -1457,6 +1469,8 @@
 .ghost.is-red .ghost-edge { stroke: var(--fail); stroke-width: 2; }
 .ghost-mark { color: var(--ink); font-weight: 600; }
 .ghost-mark.is-fail { color: var(--fail); }
+/* Fits, with a male-male adapter: the caution tone, the words say why. */
+.ghost-mark.is-adapter { color: var(--tight); }
 .mode-strip .primary {
   background: var(--ink);
   color: var(--paper);
