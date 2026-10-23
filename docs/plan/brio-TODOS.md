@@ -514,6 +514,14 @@ until this lands; start from that comparison and make it pass for manual joins t
 **Priority:** P2
 **Depends on:** the editing plan's before/after frame comparison (PR 2)
 
+> **DONE 2026-10-23.** Fixed in `spanningForest` rather than by remembering the previous tree: the
+> closing welds are now chosen by weld ORDER (union-find in declaration order; a weld joining pieces
+> already connected closes), and the walk follows tree welds only. A new weld can never change an
+> earlier weld's status, so an exact join moves nothing, whichever piece the walk enters at. The
+> full suite, including the differential harness and every verdict fixture, passed unchanged except
+> the two specs that pinned D6's refusal, which now pin the join being welded with no frame moving.
+> The D6 before/after guard in `autoJoin` and `moveRun` stays as a backstop; nothing reaches it today.
+
 ---
 
 ## P2 — Draw your table or room on the grid (deferred by /plan-ceo-review 2026-10-22, E4)

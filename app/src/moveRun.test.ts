@@ -4,13 +4,14 @@
  * Value: protects=a run moves rigidly by whole millimetres and 22.5 degree
  * turns with every frame exact, so a closed loop stays closed; a move that
  * would put an end on an end it cannot join is refused and changes nothing; a
- * facing landing of the other kind joins; a join that would re-lay a loop that
- * does not close is refused
+ * facing landing of the other kind joins, including into a loop that does not
+ * close, without moving any of it
  * Value: fails_when=the move rounds, turns about the wrong point, moves more or
- * less than the run, or lets a clash or a gappy join through
+ * less than the run, lets a clash through, or a join re-lays track
  * Value: why_new=moving placed track is new
  * Value: seam=none (the pure model)
- * Value: no_claim=track crossing track mid-piece; the engine never checks it
+ * Value: no_claim=track crossing track mid-piece; overlap.ts owns that, and a
+ * run moved onto track is reported by the verdict, not refused
  */
 
 import { describe, expect, it } from 'vitest';
@@ -107,7 +108,16 @@ describe('where a run may land', () => {
     expect(result.graph.welds).toHaveLength(1);
   });
 
-  it('is refused when the join would re-lay a loop that does not close (eng D6)', () => {
+  /*
+   * REVERSED 2026-10-23 (backlog D7): this move was refused, because the join
+   * re-laid the loop. The forest now picks the gap by weld order, so the
+   * join moves nothing and the move is allowed.
+   *
+   * MUTATION PROOF, run: `spanningForest` back to leaving over whatever its
+   * walk did not use: `expected 'joining there would shift pieces of a…' to
+   * be null`.
+   */
+  it('joins a loop that does not close without moving any of it (eng D6, D7)', () => {
     // The eng review's probe, declared straight-first so the join enters the
     // loop through its switch.
     const loop = (() => {
@@ -131,8 +141,12 @@ describe('where a run may land', () => {
     };
     const result = moveRun(graph, ports, 'probe', { turns: 0, by: sub(target.pos, away.pos) });
     expect(toXY(sub(target.pos, away.pos)).map(Math.round)).toEqual([-200, 0]);
-    expect(result.refused).toBe('joining there would shift pieces of a loop that does not close');
-    expect(result.graph).toBe(graph);
+    expect(result.refused).toBeNull();
+    expect(result.graph.welds).toHaveLength(loop.welds.length + 1);
+    const was = placeAll(graph, ports).frames;
+    const now = placeAll(result.graph, ports).frames;
+    for (const p of loop.pieces) expect(now.get(p.pieceId), p.pieceId).toEqual(was.get(p.pieceId));
+    expect(now.get('probe')).toEqual(target);
   });
 });
 
