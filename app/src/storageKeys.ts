@@ -40,6 +40,9 @@ export const GRAPH_STORAGE_KEY = 'brio.graph.v1';
 /** What the user says they own. A map of part id to count. */
 export const INVENTORY_STORAGE_KEY = 'brio.inventory.v0';
 
+/** The table or room the track must fit on: `{ widthMm, depthMm }` (backlog E4). */
+export const TABLE_STORAGE_KEY = 'brio.table.v0';
+
 /**
  * The last layout blob this app REFUSED to load, kept verbatim (task T5, E1).
  *

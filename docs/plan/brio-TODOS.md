@@ -538,6 +538,14 @@ the model for a small persisted value.
 **Priority:** P2
 **Depends on:** the metric grid (PR 1 of the 2026-10-22 editing plan)
 
+> **DONE 2026-10-23.** Owner ruling: the outline is centred on the track and only its size is saved
+> (`brio.table.v0`), so the "origin or draggable" question closed as neither. "Your table" sits beside
+> "Your box"; the outline draws over the grid and under the track, red when the track hangs over, and
+> a caption names the overhang against the table's own sides. The fit is measured on the plank edges
+> and curve bulges (`trackExtent` in `app/src/tableModel.ts`), not on `renderBounds`, and the table is
+> tried both ways round. Its own notice, dismissal, acted flag and save gate, pinned in
+> `app/src/tableOutline.dom.test.tsx`.
+
 ---
 
 ## Open and unassigned: the overlap narrowphase primitive
