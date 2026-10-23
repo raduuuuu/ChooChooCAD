@@ -552,7 +552,7 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
 
     case 'moveRun': {
       if (state.ghost) return state;
-      const result = moveRun(state.graph, ports, action.pieceId, { turns: action.turns, by: action.by });
+      const result = moveRun(state.graph, ports, action.pieceId, { turns: action.turns, by: action.by }, geometry);
       // A refused move changes no track; it says why until the next action.
       if (result.refused !== null) return { ...state, refusal: result.refused };
       return {

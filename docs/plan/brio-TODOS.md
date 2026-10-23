@@ -566,8 +566,9 @@ the model for a small persisted value.
 > one exact spot (the vertex check owns those). It feeds IMPOSSIBLE in the verdict, the canvas
 > markers and the placing preview. Measured at 69 ms for 10,000 pieces. The drop guard followed the
 > same day: `ghostFit` takes optional part geometry and reports an `over` conflict, the reducer is
-> handed it, so a palette drop onto track places nothing (6A). Dragging a placed RUN onto track is
-> not refused; the verdict reports it.
+> handed it, so a palette drop onto track places nothing (6A). A placed run moved onto track (drag,
+> arrow keys, strip buttons) is refused the same way, through `moveRun`: "it would lie over other
+> track". Overlaps the move neither causes nor keeps are left to the verdict.
 
 > **SUPERSEDED 2026-10-09 by the fourth eng review.** Decision D10 of the CEO
 > re-review replaced the whole footprint-overlap approach with an exact
