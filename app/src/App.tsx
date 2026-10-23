@@ -777,9 +777,10 @@ export function App() {
    * Computed for the one piece, not by re-laying the layout: its frame is the
    * exact arithmetic Place uses (`frameAt`, held equal by ghostFit.test.ts),
    * and what its ends land on is a lookup in the committed layout's map of
-   * ends (`connectorSites`). Only a landing that would JOIN costs a full
-   * check, because a join into a loop that does not close can re-lay track
-   * (eng D6); then the placement is simulated once.
+   * ends (`connectorSites`). A landing that would JOIN costs a full check,
+   * the placement simulated once to confirm nothing moves (eng D6, a
+   * backstop since D7), and the wood check clips the piece against the track
+   * already drawn (overlap.ts).
    */
   const sites = useMemo(() => connectorSites(graph, ports, placement), [graph, ports, placement]);
   const ghostView = useMemo(() => {

@@ -264,7 +264,11 @@ export type FitConflict =
   | { readonly kind: 'polarity'; readonly polarity: Polarity; readonly pieceId: string }
   /** Another of its ends lands where it cannot join (crowded, or not facing). */
   | { readonly kind: 'crowded'; readonly pieceId: string }
-  /** It would join, but the join re-lays a loop that does not close (eng D6). */
+  /**
+   * It would join, but the join would move placed track (eng D6). A backstop
+   * since backlog D7: the forest picks a loop's gap by weld order, so an exact
+   * join moves nothing and nothing reaches this today.
+   */
   | { readonly kind: 'loop' }
   /** Its wood would lie over a placed piece's (overlap.ts). Needs `geometry`. */
   | { readonly kind: 'over'; readonly pieceId: string };
@@ -320,7 +324,7 @@ export function ghostFit(
     }
   }
   if (joinsTo && conflicts.length === 0) {
-    // Would the join move anything? Only then is it refused (eng D6).
+    // Would the join move anything? Only then is it refused (eng D6; a backstop since D7).
     const placed = ghost.at
       ? addPiece(graph, ghost.partId, ghost.turn, ends.length, ghost.at, ports, { port: ghost.port, turn: ghost.turn })
       : addPiece(graph, ghost.partId, ghost.turn, ends.length, null, ports, { port: 0, turn: ghost.turn }, frame);
@@ -386,11 +390,11 @@ export function defaultFit(graph: Graph, ports: PortsOf, at: PortRef, partId: st
  * (decisions D13, D20 and eng D6).
  *
  * Each free end of `pieceId` that lands exactly on one free end of the other
- * kind, facing it, is welded. Unless the weld would move anything: a join can
- * re-lay a run that holds a loop which does not close (the forest enters it
- * at the join, so another weld becomes the gap; measured 600mm), and then it
- * is left unwelded, which the preview reports as a conflict. One weld at a
- * time, each checked against the frames before it.
+ * kind, facing it, is welded, one weld at a time, each checked against the
+ * frames before it: a weld that would move anything is left unwelded, which
+ * the preview reports as a conflict. That check was written because a join
+ * could re-lay a loop that does not close (measured 600mm). Backlog D7 fixed
+ * the cause in the forest, so it is now a backstop that nothing reaches.
  */
 export function autoJoin(graph: Graph, ports: PortsOf, pieceId: string): { graph: Graph; joined: number } {
   const piece = graph.pieces.find((p) => p.pieceId === pieceId);
@@ -508,9 +512,11 @@ export const shiftMm = (dx: number, dy: number): Cyc =>
  * rewrites the anchor of the run's root, and the forest lays the rest from it.
  *
  * REFUSED, with a reason, when any end of the moved run would then sit on
- * another end that it cannot join (crowded, same kind, or not facing), or on
- * one it could join but where joining would re-lay a loop that does not close.
- * A refused move changes nothing. Otherwise every exact, facing landing joins.
+ * another end that it cannot join (crowded, same kind, or not facing), or,
+ * given `geometry`, when its wood would lie over track outside the run. A
+ * refused move changes nothing. Otherwise every exact, facing landing joins.
+ * A join that would move placed track is refused too, as a backstop: since
+ * backlog D7 none does.
  */
 export function moveRun(
   graph: Graph,

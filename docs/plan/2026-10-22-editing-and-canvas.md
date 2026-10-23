@@ -670,6 +670,10 @@ Claude Code or Codex; checkbox as you ship. Ratios: features ~30x, tests ~50x, a
   - Surfaced by: Stale Diagram Audit
   - Files: app/src/TrackCanvas.tsx, app/src/editorReducer.ts, engine/src/graph/edit.ts
   - Verify: review diff
+  - Swept 2026-10-23. edit.ts (D19) and the undo-history docblock were already current. Rewritten:
+    the TrackCanvas header and layer comment, the EditorState heading, and comments the same day's
+    fixes made false (the join guard's re-lay claim after D7, moveRun's refusal list, feasible.ts's
+    "crossings are not checked").
 
 ## Completion Summary
 ```

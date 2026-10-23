@@ -515,8 +515,8 @@ export function findVertexClashes(
    * places, so each piece names the pair its own free ends sit in and a pair
    * named twice is a pile-up. Identical answer, one pass.
    *
-   * This is an endpoint test, not a body test. Pieces that cross mid-span are
-   * still not checked, which the verdict copy says out loud.
+   * This is an endpoint test, not a body test. Pieces that cross mid-span
+   * are found by `overlap.ts`, which exempts pairs already caught here.
    */
   const placesOfPiece = new Map<string, string[]>();
   for (const site of sites) {
