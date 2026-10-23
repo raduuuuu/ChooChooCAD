@@ -437,10 +437,15 @@ describe('the cursor survives a disarm and a remove-last (reported 2026-10-20)',
  * 1.6s, 6,674 with an end armed, 20,092 with a piece selected and 3,235 with
  * a piece being placed; the old depth-4 walk of every ROUTE saw 1,708.
  * PR 4 added two run moves for the first piece; measured 2.8s, so this spec
- * carries an explicit 15s ceiling instead of vitest's 5s default. On CI's
- * pinned Node 26.7.0 it took 6.9s (2026-10-23); the 17.4s timeout that failed
- * two Pages deploys was the runner's unpinned default Node, fixed by making
- * pages.yml call ci.yml rather than copy it. Depth 6 was approved first (eng decision D3, ENG-R2) on an
+ * carries an explicit ceiling instead of vitest's 5s default.
+ *
+ * THE CEILING IS 60s, AND IT CATCHES A HANG, NOT A SLOWDOWN. This walk pins
+ * consistency, not speed. Its time on CI swings with what runs beside it:
+ * 6.9s on pinned Node 26.7.0, then 13.9s and 15.0s on 2026-10-23 when two CI
+ * runs of PR #46 shared runners with the new DOM specs, while it took 3.7s
+ * locally on the same commit. A 15s ceiling failed one of those two runs
+ * and blocked a merge on noise. (The earlier 17.4s Pages failure was also an
+ * unpinned Node; pages.yml now calls ci.yml.) Depth 6 was approved first (eng decision D3, ENG-R2) on an
  * estimate of under 2s; measured, it is 378,088 states in 10.5s and found
  * nothing depth 5 did not, so the owner chose depth 5 (2026-10-22).
  *
@@ -612,7 +617,7 @@ describe('the editor state stays consistent across every reachable state', () =>
     expect(armedStates, 'the walk never armed an end').toBeGreaterThan(1_000);
     expect(selectedStates, 'the walk never selected a piece').toBeGreaterThan(1_000);
     expect(ghostStates, 'the walk never placed through a preview').toBeGreaterThan(1_000);
-  }, 15_000);
+  }, 60_000);
 });
 
 /*
