@@ -96,7 +96,10 @@ describe('placing a piece', () => {
     await user.click(button(/^Add Medium straight, two pegs/));
     const status = within(strip()!).getByRole('status');
     expect(status.textContent).toMatch(/^X Peg meets peg here\. You can still place it\./);
-    expect(status.textContent).toMatch(/Track crossing mid-piece is not checked\./);
+    // The caveat that crossings went unchecked is gone now they are checked
+    // (overlap.ts). MUTATION PROOF, run: the footnote span restored: `expected
+    // 'X Peg meets peg here. You can still p…' not to match /mid-piece/`.
+    expect(status.textContent).not.toMatch(/mid-piece/);
     await user.click(button('Place (Enter)'));
     expect(listCount()).toMatch(/2 pieces/);
   });
