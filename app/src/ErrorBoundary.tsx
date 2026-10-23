@@ -56,7 +56,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   componentDidCatch(error: Error, info: ErrorInfo) {
     // Still log it. The on-screen repro is for the user to send; this is for
     // whoever has the devtools open right now.
-    console.error('brio-designer crashed', error, info.componentStack);
+    console.error('ChooChooCAD crashed', error, info.componentStack);
   }
 
   /*

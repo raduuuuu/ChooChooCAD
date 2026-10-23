@@ -105,7 +105,7 @@ try {
 const oneLine = (s: string) => s.replace(/[\r\n\u2028\u2029]+/g, ' ').slice(0, 300);
 
 export function reproText(input: ReproInput): string {
-  return `// brio-designer crash repro
+  return `// ChooChooCAD crash repro
 // Save as crash-repro.ts in the repo root, then: bun run crash-repro.ts
 //
 // version   ${oneLine(input.version)}
