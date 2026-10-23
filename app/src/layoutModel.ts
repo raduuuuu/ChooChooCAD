@@ -19,6 +19,9 @@
 import { add, fromInt, mulZetaPow, scale, sub, toXY, zetaPow, type Cyc } from '../../engine/src/geom/cyclotomic.js';
 import { removePiece, removeWeld } from '../../engine/src/graph/edit.js';
 import { connectorSites, landingOf } from '../../engine/src/graph/feasible.js';
+import { findPlankOverlaps } from '../../engine/src/graph/overlap.js';
+import { renderGraph } from '../../engine/src/graph/render.js';
+import type { Segment } from '../../engine/src/geom/fk.js';
 import { placeAll, portFrame, type PortsOf } from '../../engine/src/graph/frames.js';
 import {
   compose,
@@ -31,7 +34,7 @@ import {
   type PortRef,
   type Weld,
 } from '../../engine/src/graph/model.js';
-import type { Polarity, Turn } from '../../engine/src/parts/schema.js';
+import type { Part, Polarity, Turn } from '../../engine/src/parts/schema.js';
 
 export const EMPTY_GRAPH: Graph = { pieces: [], welds: [] };
 
@@ -262,7 +265,19 @@ export type FitConflict =
   /** Another of its ends lands where it cannot join (crowded, or not facing). */
   | { readonly kind: 'crowded'; readonly pieceId: string }
   /** It would join, but the join re-lays a loop that does not close (eng D6). */
-  | { readonly kind: 'loop' };
+  | { readonly kind: 'loop' }
+  /** Its wood would lie over a placed piece's (overlap.ts). Needs `geometry`. */
+  | { readonly kind: 'over'; readonly pieceId: string };
+
+/**
+ * What the wood check needs that ports alone do not carry: plank widths and
+ * curve radii, through the part. `segments` is the placed layout's render,
+ * when the caller already has it; otherwise it is drawn here.
+ */
+export interface FitGeometry {
+  readonly resolve: (id: string) => Part;
+  readonly segments?: readonly Segment[];
+}
 
 /**
  * WHETHER A PENDING PIECE FITS WHERE IT IS SHOWN (decisions E1, D13, D20, eng
@@ -279,6 +294,8 @@ export function ghostFit(
   ghost: PendingPiece,
   placement: ReturnType<typeof placeAll> = placeAll(graph, ports),
   sites: ReturnType<typeof connectorSites> = connectorSites(graph, ports, placement),
+  /** Without it, wood over wood goes unchecked: only ends are compared. */
+  geometry?: FitGeometry,
 ): { readonly frame: Frame; readonly conflicts: readonly FitConflict[]; readonly joinsTo: PortRef | null } {
   const piece: Piece = { pieceId: '\u0000ghost', partId: ghost.partId, turn: ghost.turn };
   const frame = ghost.at
@@ -311,6 +328,36 @@ export function ghostFit(
     if (autoJoin(placed.graph, ports, id).joined === 0) {
       conflicts.push({ kind: 'loop' });
       joinsTo = null;
+    }
+  }
+  if (geometry) {
+    /*
+     * WOOD ON WOOD, for the preview AND the drop guard, decided once here so
+     * the two cannot disagree. The piece it goes on by and the one it would
+     * join only meet it at a joint, so they are welds here, as they would be
+     * once placed. Only pairs with the new piece are read: the layout's own
+     * overlaps are the verdict's. A piece its ends already clash with is
+     * named once, by that conflict.
+     */
+    const { resolve } = geometry;
+    const alone = placeAll({ pieces: [piece], welds: [], anchors: new Map([[piece.pieceId, frame]]) }, ports);
+    const welds = [ghost.at, joinsTo]
+      .filter((r): r is PortRef => r !== null)
+      .map((r) => ({ a: r, b: { pieceId: piece.pieceId, port: 0 } }));
+    const named = new Set(conflicts.flatMap((c) => ('pieceId' in c ? [c.pieceId] : [])));
+    const over = findPlankOverlaps(
+      { pieces: [...graph.pieces, piece], welds },
+      [
+        ...(geometry.segments ?? renderGraph(graph, ports, resolve, placement).segments),
+        ...renderGraph({ pieces: [piece], welds: [] }, ports, resolve, alone).segments,
+      ],
+      (id) => resolve(id).plankWidthMm / 2,
+      sites,
+    );
+    for (const o of over) {
+      if (o.a !== piece.pieceId && o.b !== piece.pieceId) continue;
+      const other = o.a === piece.pieceId ? o.b : o.a;
+      if (!named.has(other)) conflicts.push({ kind: 'over', pieceId: other });
     }
   }
   return { frame, conflicts, joinsTo };

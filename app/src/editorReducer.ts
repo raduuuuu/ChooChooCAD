@@ -44,7 +44,9 @@ import {
   nextRunAnchor,
   weldEnds,
   type Fit,
+  type FitGeometry,
 } from './layoutModel.js';
+import { connectorSites } from '../../engine/src/graph/feasible.js';
 
 /**
  * The graph and the two selections are ONE value, and that is not tidiness.
@@ -416,8 +418,13 @@ export function reduce(
   state: EditorState,
   action: EditorAction,
   ports: PortsOf,
+  /**
+   * Plank shapes, for the drop guard's wood check. Optional so a test of
+   * anything else can leave it out; the app always passes it.
+   */
+  geometry?: FitGeometry,
 ): EditorState {
-  const raw = step(state, action, ports);
+  const raw = step(state, action, ports, geometry);
   // Same object back means nothing happened; keeping its identity lets React
   // skip the render, and the acknowledgement cannot change.
   if (raw === state) return raw;
@@ -434,7 +441,7 @@ export function reduce(
   return edited === (next.edited === true) ? next : { ...next, edited };
 }
 
-function step(state: EditorState, action: EditorAction, ports: PortsOf): EditorState {
+function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry?: FitGeometry): EditorState {
   switch (action.kind) {
     case 'add': {
       const count = portCountOf(ports, action.partId, action.turn);
@@ -531,8 +538,11 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf): EditorS
     case 'dropGhost': {
       const g = state.ghost;
       if (!g) return state;
-      if (ghostFit(state.graph, ports, g).conflicts.length === 0) return step(state, { kind: 'placeGhost' }, ports);
-      // A drop never puts down a red piece (6A). A fresh object, not `state`,
+      const placement = placeAll(state.graph, ports);
+      const fit = ghostFit(state.graph, ports, g, placement, connectorSites(state.graph, ports, placement), geometry);
+      if (fit.conflicts.length === 0) return step(state, { kind: 'placeGhost' }, ports);
+      // A drop never puts down a red piece (6A), and that includes one lying
+      // over track. A fresh object, not `state`,
       // so the refusal is still said: the same object back means nothing happened.
       return { ...state };
     }

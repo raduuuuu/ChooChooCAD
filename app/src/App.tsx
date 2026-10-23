@@ -45,7 +45,6 @@ import { layoutTrust } from '../../engine/src/joints/trust.js';
 import { spanningForest } from '../../engine/src/graph/forest.js';
 import { toXY } from '../../engine/src/geom/cyclotomic.js';
 import { connectorSites } from '../../engine/src/graph/feasible.js';
-import { findPlankOverlaps } from '../../engine/src/graph/overlap.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Piece as GPiece, type Port, type PortRef } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
@@ -522,7 +521,7 @@ export function App() {
        * `ErrorBoundary` sees it. Calling `reduce` in the handler instead would
        * throw where no boundary looks. Pinned by editFailure.dom.test.tsx.
        */
-      const next = reduce(e, action, ports);
+      const next = reduce(e, action, ports, { resolve });
       // Described here, from the exact state the action ran on, because the
       // updater is the one place that sees it (see `said` below). Pure, so
       // StrictMode calling this twice writes the same sentence twice.
@@ -788,7 +787,10 @@ export function App() {
     const part = resolve(ghost.partId);
     const piece: GPiece = { pieceId: '\u0000ghost', partId: ghost.partId, turn: ghost.turn };
     const fit = ghost.at ? fitOptions(graph, ports, ghost.at, ghost.partId) : null;
-    const { frame, conflicts: found, joinsTo } = ghostFit(graph, ports, ghost, placement, sites);
+    const { frame, conflicts: found, joinsTo } = ghostFit(graph, ports, ghost, placement, sites, {
+      resolve,
+      segments: render.segments,
+    });
     const alone = { pieces: [piece], welds: [], anchors: new Map([[piece.pieceId, frame]]) };
     const own = placeAll(alone, ports);
     const ghostRender = renderGraph(alone, ports, resolve, own);
@@ -804,30 +806,10 @@ export function App() {
           return `Ends would clash with piece ${pieceNumber.get(c.pieceId)}.`;
         case 'loop':
           return 'Joining here would shift pieces of a loop that does not close.';
+        case 'over':
+          return `It would lie over piece ${pieceNumber.get(c.pieceId)}.`;
       }
     });
-    /*
-     * WOOD ON WOOD (overlap.ts): would it lie over track already down? The
-     * piece it goes on by and the one it would join only meet it at a joint,
-     * so they are welds here, as they would be once placed. Only pairs with
-     * the preview are read; the layout's own overlaps are the verdict's.
-     */
-    const ghostWelds = [ghost.at, joinsTo]
-      .filter((r): r is PortRef => r !== null)
-      .map((r) => ({ a: r, b: { pieceId: piece.pieceId, port: 0 } }));
-    const over = findPlankOverlaps(
-      { pieces: [...graph.pieces, piece], welds: ghostWelds },
-      [...render.segments, ...ghostRender.segments.map((sg) => ({ ...sg, pieceId: piece.pieceId }))],
-      (id) => resolve(id).plankWidthMm / 2,
-      sites,
-    ).filter((o) => o.a === piece.pieceId || o.b === piece.pieceId);
-    // A piece its ends already clash with is named once, by that sentence.
-    const named = new Set(found.flatMap((c) => ('pieceId' in c ? [c.pieceId] : [])));
-    for (const o of over) {
-      const other = o.a === piece.pieceId ? o.b : o.a;
-      if (named.has(other)) continue;
-      conflicts.push(`It would lie over piece ${pieceNumber.get(other)}.`);
-    }
     if (conflicts.length > 0) {
       status = { glyph: 'X', text: `${conflicts.join(' ')} You can still place it.` };
     } else if (joinsTo) {
@@ -867,8 +849,7 @@ export function App() {
           <span className={`ghost-mark${ghostView.red ? ' is-fail' : ''}`} aria-hidden="true">
             {ghostView.status.glyph}
           </span>{' '}
-          {ghostView.status.text}{' '}
-          <span className="ghost-footnote">Track crossing mid-piece is not checked.</span>
+          {ghostView.status.text}
         </span>
       </p>
       <button onClick={() => dispatch({ kind: 'rotateGhost' })} disabled={!ghostView.canRotate}>

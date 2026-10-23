@@ -1457,7 +1457,6 @@
 .ghost.is-red .ghost-edge { stroke: var(--fail); stroke-width: 2; }
 .ghost-mark { color: var(--ink); font-weight: 600; }
 .ghost-mark.is-fail { color: var(--fail); }
-.ghost-footnote { color: var(--ink-soft); }
 .mode-strip .primary {
   background: var(--ink);
   color: var(--paper);

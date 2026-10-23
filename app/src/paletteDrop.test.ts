@@ -52,6 +52,44 @@ describe('over open floor', () => {
   });
 });
 
+describe('a drop onto track (the crossing bug, 2026-10-23)', () => {
+  const withWood = (st: EditorState, a: EditorAction) => reduce(st, a, ports, { resolve });
+
+  /*
+   * MUTATION PROOFS, run:
+   * - the reducer's dropGhost not handing `geometry` to ghostFit: `expected
+   *   [ { pieceId: 'p0', …(2) }, …(1) ] to have a length of 1 but got 2`, the
+   *   straight dropped on top of the first.
+   * - ghostFit's wood check skipped (`if (geometry && false)`): `expected []
+   *   to deeply equal [ { kind: 'over', pieceId: 'p0' } ]`.
+   */
+  it('lying along a placed straight places nothing and leaves the piece pending', () => {
+    // The first straight runs 0..144 on y = 0; this one floats 10 mm off it
+    // and 50 mm back, so no end of either is near the other's.
+    const floated = withWood(withWood(run(['A']), { kind: 'pick', partId: 'A' }), {
+      kind: 'floatGhost',
+      pos: shiftMm(-50, 10),
+    });
+    expect(ghostFit(floated.graph, ports, floated.ghost!, undefined, undefined, { resolve }).conflicts).toEqual([
+      { kind: 'over', pieceId: 'p0' },
+    ]);
+    const dropped = withWood(floated, { kind: 'dropGhost' });
+    expect(dropped.graph.pieces).toHaveLength(1);
+    expect(dropped.ghost).toEqual(floated.ghost);
+    expect(describeAction(floated, { kind: 'dropGhost' }, dropped, resolve)).toBe(
+      "Didn't place it: it doesn't fit there. Enter places it anyway, Escape cancels.",
+    );
+  });
+
+  it('beside a placed straight, edges touching, places it', () => {
+    const floated = withWood(withWood(run(['A']), { kind: 'pick', partId: 'A' }), {
+      kind: 'floatGhost',
+      pos: shiftMm(-50, 40),
+    });
+    expect(withWood(floated, { kind: 'dropGhost' }).graph.pieces).toHaveLength(2);
+  });
+});
+
 describe('a drop', () => {
   /*
    * MUTATION PROOFS, run:
