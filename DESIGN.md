@@ -131,6 +131,11 @@ nothing else uses:
 - **A preview is translucent wood with a SOLID edge** (`--ghost-opacity`).
   Only its wood is translucent; its edge, glyph and words stay opaque, so no
   contrast depends on the opacity.
+- **An offset shadow means raised.** Track on the raised level casts a
+  shadow onto the floor (`--track-shadow`, 3.03:1 on `--floor`), a ramp's
+  tapering from its low end to its high end; floor track casts none. Depth,
+  not hue, because colour is spent on verdicts. Where raised track crosses
+  floor track, a gap in the floor plank (the bridge casing) says it too.
 - **Strokes keep their device size** (`vector-effect: non-scaling-stroke`),
   because the canvas fits the whole layout into a fixed box and a stroke in
   millimetres thins to nothing on a big board.

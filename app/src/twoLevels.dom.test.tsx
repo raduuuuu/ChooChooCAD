@@ -122,6 +122,29 @@ describe('a bridge on the canvas', () => {
   });
 });
 
+describe('raised track casts a shadow; floor track does not (owner, 2026-10-23)', () => {
+  /*
+   * MUTATION PROOFS, run:
+   * - the shadow pass removed: fails with `expected +0 to be 1`.
+   * - shadows for every piece (the level filter dropped): fails with
+   *   `expected 2 to be 1`.
+   * - shadows drawn after the floor wood (the raised pass): fails with
+   *   `expected false to be true` (a shadow after the first plank).
+   */
+  it('one shadow, the raised piece\'s, under all the wood', () => {
+    mount(BRIDGE);
+    const shadows = document.querySelectorAll('path.raised-shadow');
+    expect(shadows.length).toBe(1);
+    const firstWood = document.querySelector('svg[aria-label="Track layout"] path[stroke]:not(.raised-shadow):not(.grid)')!;
+    expect(Boolean(shadows[0]!.compareDocumentPosition(firstWood) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+  });
+
+  it('a ramp\'s shadow is the tapering quad, filled', () => {
+    mount([{ id: 'r', part: 'N', x: 0, y: 0, heading: 0 }]);
+    expect(count('path.raised-shadow.is-ramp')).toBe(1);
+  });
+});
+
 describe('a ramp: chevron, palette, strip and list', () => {
   /*
    * MUTATION PROOFS, run:
