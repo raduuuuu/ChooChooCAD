@@ -818,7 +818,7 @@ export function App() {
     const part = resolve(ghost.partId);
     const piece: GPiece = { pieceId: '\u0000ghost', partId: ghost.partId, turn: ghost.turn };
     const fit = ghost.at ? fitOptions(graph, ports, ghost.at, ghost.partId) : null;
-    const { frame, conflicts: found, joins, adapterHere } = ghostFit(graph, ports, ghost, placement, sites, {
+    const { frame, conflicts: found, joins, adapterHere, relevels } = ghostFit(graph, ports, ghost, placement, sites, {
       resolve,
       segments: render.segments,
     });
@@ -848,6 +848,8 @@ export function App() {
           return 'Joining here would shift pieces of a loop that does not close.';
         case 'over':
           return <>It would lie over piece {num(c.pieceId)}.</>;
+        case 'level':
+          return 'It would lift track to a third level. Only two levels are supported.';
       }
     });
     /*
@@ -869,7 +871,21 @@ export function App() {
         adapterHere && joined.length === 0
           ? ['Two sockets meet here: needs a male-male adapter.']
           : [...(adapterHere ? ['Needs a male-male adapter here.'] : []), ...joined];
-      status = { glyph: adapter ? '◇' : 'O', text: parts.length > 0 ? sentences(parts) : 'Fits here.' };
+      /*
+       * A RAMP SAYS WHICH WAY IT GOES before Place (design 2A): entered at its
+       * low end it climbs, at its high end it comes down. Laid descending
+       * from the floor it raises the run it joins (L1), and that is said too.
+       * Only in this branch: when a level is wrong, the conflict's sentence is
+       * the truth to show instead (eng re-run D3).
+       */
+      const rising = part.kind === 'straight' && part.rise !== undefined;
+      const level: string[] = !rising
+        ? []
+        : ghost.port === 0
+          ? ['Climbs from the floor to the raised level.']
+          : ['Comes down to the floor.', ...(relevels ? ['Placing it raises the whole run.'] : [])];
+      const all = [...level, ...parts];
+      status = { glyph: adapter ? '◇' : 'O', text: all.length > 0 ? sentences(all) : 'Fits here.' };
     }
     const reach =
       Math.max(...ends.map((e) => Math.hypot(...toXY(e.at.pos)))) + part.plankWidthMm;
