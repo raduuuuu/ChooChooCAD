@@ -72,6 +72,8 @@ import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
 import { VerdictLine, VerdictScope } from './VerdictLine.js';
 import { fitOptions, ghostFit, shiftMm, snapRunMove } from './layoutModel.js';
 import { InventoryPanel } from './Inventory.js';
+import { TablePanel } from './TablePanel.js';
+import { fitSentence, loadTable, saveTable, tableFit, trackExtent, type Table } from './tableModel.js';
 import { SubmitPart } from './SubmitPart.js';
 import {
   loadInventory,
@@ -192,6 +194,7 @@ export function App() {
     loadGraph(libraryIds, (piece: GPiece) => portsOf(resolve(piece.partId), piece.turn)),
   );
   const [inventoryLoad] = useState(() => loadInventory(libraryIds));
+  const [tableLoad] = useState(loadTable);
 
   /*
    * TWO NOTICES, TWO DISMISSALS (task T5, finding E12).
@@ -208,6 +211,7 @@ export function App() {
       : undefined);
   const [layoutDismissed, setLayoutDismissed] = useState(false);
   const [inventoryDismissed, setInventoryDismissed] = useState(false);
+  const [tableDismissed, setTableDismissed] = useState(false);
 
   /*
    * NOTHING IS PERSISTED WHILE AN UNREAD LOSS NOTICE IS ON SCREEN
@@ -281,6 +285,7 @@ export function App() {
    * and the notice concern the same store.
    */
   const [inventoryActed, setInventoryActed] = useState(false);
+  const [tableActed, setTableActed] = useState(false);
   const [submissionsActed, setSubmissionsActed] = useState(false);
   /*
    * THREE INDEPENDENT GATES, one per store, because each store answers for
@@ -293,6 +298,12 @@ export function App() {
     notice: inventoryLoad.discarded,
     dismissed: inventoryDismissed,
     userHasActed: inventoryActed,
+  });
+  // The table is a fourth store with its own notice, so a fourth gate and flag.
+  const tableSaveBlocked = savesSuppressed({
+    notice: tableLoad.discarded,
+    dismissed: tableDismissed,
+    userHasActed: tableActed,
   });
   const submissionsSaveBlocked = savesSuppressed({
     notice: submissionsNotice,
@@ -359,6 +370,8 @@ export function App() {
   // `null` is UNDECLARED, which is not the same as owning none. See inventoryModel.ts.
   const [inventory, setInventory] = useState<Inventory>(inventoryLoad.value);
   const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [table, setTable] = useState<Table>(tableLoad.value);
+  const [tableOpen, setTableOpen] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
 
   useEffect(() => {
@@ -381,6 +394,11 @@ export function App() {
     if (inventorySaveBlocked) return;
     saveInventory(inventory);
   }, [inventory, inventorySaveBlocked]);
+
+  useEffect(() => {
+    if (tableSaveBlocked) return;
+    saveTable(table);
+  }, [table, tableSaveBlocked]);
 
   const ports = useMemo(
     () => (piece: GPiece): readonly Port[] => portsOf(resolve(piece.partId), piece.turn),
@@ -411,6 +429,20 @@ export function App() {
     () => renderGraph(graph, ports, resolve, placement),
     [graph, ports, resolve, placement],
   );
+
+  /*
+   * THE TABLE, CENTRED ON THE TRACK (backlog E4). Measured on the plank
+   * edges, not the centreline, so "fits" is never said of wood that hangs
+   * over; see tableModel.ts. Memoised so the canvas's framing only moves
+   * when the track or the table does.
+   */
+  const tableView = useMemo(() => {
+    if (table === null) return null;
+    const extent = trackExtent(render.segments, (id) => resolve(id).plankWidthMm / 2);
+    if (extent === null) return null;
+    const fit = tableFit(extent, table);
+    return { outline: fit.outline, fits: fit.fits, note: fitSentence(fit, table) };
+  }, [render, resolve, table]);
 
   /*
    * ONE MAP, NOT A SCAN PER CALL. This passed a callback that did
@@ -970,6 +1002,7 @@ export function App() {
           onRunMove={(d, radius) => moveRunBy(d.pieceId, d.dx, d.dy, d.turns, radius)}
           runOf={runOf}
           probe={canvasProbe}
+          table={tableView}
           /*
             * `result`, not `result?.ok`. The clash list lives on BOTH branches
             * of GraphResult, and gating the DRAWING on `ok` undid half of the
@@ -1004,6 +1037,17 @@ export function App() {
             <p className="notice-line">{layoutNotice}</p>
           </div>
           <button className="notice-close" onClick={() => setLayoutDismissed(true)}>
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {tableLoad.discarded !== undefined && !tableDismissed && (
+        <div className="notice" role="status" aria-live="polite" aria-atomic="false">
+          <div>
+            <p className="notice-line">{tableLoad.discarded}</p>
+          </div>
+          <button className="notice-close" onClick={() => setTableDismissed(true)}>
             Dismiss
           </button>
         </div>
@@ -1150,6 +1194,7 @@ export function App() {
             <button onClick={() => setInventoryOpen(true)}>
               Your box
             </button>
+            {!tableOpen && <button onClick={() => setTableOpen(true)}>Your table</button>}
             <button onClick={() => setSubmitOpen(true)}>Add a part</button>
             {inventory === null && (
               <span className="inventory-hint">
@@ -1169,6 +1214,17 @@ export function App() {
               setSubmitOpen(false);
             }}
             onCancel={() => setSubmitOpen(false)}
+          />
+        )}
+
+        {tableOpen && graph.pieces.length > 0 && (
+          <TablePanel
+            table={table}
+            onChange={(next) => {
+              setTableActed(true);
+              setTable(next);
+            }}
+            onClose={() => setTableOpen(false)}
           />
         )}
 

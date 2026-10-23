@@ -105,6 +105,33 @@
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
+/*
+ * THE TABLE OUTLINE (backlog E4). A solid line, because dashed is the cursor's
+ * and the ghost's edge is the only other solid outline; --ink-soft, the
+ * caption's colour, so it reads as a guide and the track still leads. It
+ * turns --fail when the track hangs over, with the caption saying by how much
+ * in words, so no meaning rides on the colour alone.
+ */
+.table-outline {
+  fill: var(--ink-soft);
+  fill-opacity: 0.05;
+  stroke: var(--ink-soft);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.table-outline.is-over { stroke: var(--fail); }
+.table-caption {
+  position: absolute;
+  inset-inline-start: var(--s3);
+  inset-block-end: var(--s3);
+  margin: 0;
+  max-width: 60%;
+  font-size: 13px;
+  color: var(--ink-soft);
+  pointer-events: none;
+}
+.table-caption.is-over { color: var(--fail); }
 .seam {
   stroke: var(--seam);
   stroke-width: 1.5;

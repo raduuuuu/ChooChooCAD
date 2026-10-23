@@ -20,6 +20,7 @@ import type { Segment } from '../../engine/src/geom/fk.js';
 import { renderBounds, type GraphRender } from '../../engine/src/graph/render.js';
 import { useDragSession, type RunDrag } from './useDragSession.js';
 import type { CanvasProbe } from './usePaletteDrag.js';
+import type { Extent } from './tableModel.js';
 import type { PortRef } from '../../engine/src/graph/model.js';
 import type { Part, Polarity } from '../../engine/src/parts/schema.js';
 import {
@@ -220,6 +221,12 @@ export interface TrackCanvasProps {
    * palette drag that starts outside it (see usePaletteDrag).
    */
   readonly probe?: RefObject<CanvasProbe | null>;
+  /**
+   * The table or room outline (backlog E4), centred on the track, in model
+   * millimetres, and the fit sentence to show with it. Red when the track
+   * does not fit.
+   */
+  readonly table?: { readonly outline: Extent; readonly fits: boolean; readonly note: string } | null;
 }
 
 export function TrackCanvas({
@@ -246,6 +253,7 @@ export function TrackCanvas({
   onRunMove,
   runOf,
   probe,
+  table = null,
 }: TrackCanvasProps) {
   const { segments, ports: renderedPorts } = render;
   /*
@@ -259,8 +267,17 @@ export function TrackCanvas({
   const box = useMemo(() => {
     if (segments.length === 0 && ghost) return { minX: -500, minY: -300, maxX: 500, maxY: 300 };
     const b = renderBounds(render);
-    return { minX: b.minX - reach, minY: b.minY - reach, maxX: b.maxX + reach, maxY: b.maxY + reach };
-  }, [render, reach, segments.length, ghost !== null]);
+    const fit = { minX: b.minX - reach, minY: b.minY - reach, maxX: b.maxX + reach, maxY: b.maxY + reach };
+    // A table bigger than the track widens the view so its whole outline shows.
+    if (!table || segments.length === 0) return fit;
+    const t = table.outline;
+    return {
+      minX: Math.min(fit.minX, t.minX),
+      minY: Math.min(fit.minY, t.minY),
+      maxX: Math.max(fit.maxX, t.maxX),
+      maxY: Math.max(fit.maxY, t.maxY),
+    };
+  }, [render, reach, segments.length, ghost !== null, table?.outline]);
   const pad = 90;
   const w = Math.max(box.maxX - box.minX, 1) + pad * 2;
   const h = Math.max(box.maxY - box.minY, 1) + pad * 2;
@@ -625,6 +642,20 @@ export function TrackCanvas({
           * line. One path for the whole grid; see `gridPath`.
           */}
         <path className="grid" d={gridPath(shown.minX, shown.minY, shown.width, shown.height, step)} />
+        {/*
+          * THE TABLE (backlog E4): over the grid and under the track, so the
+          * wood that hangs past an edge is drawn on top of the line it
+          * crosses. Ink only, like the grid, so a click reaches the floor.
+          */}
+        {table && (
+          <rect
+            className={`table-outline${table.fits ? '' : ' is-over'}`}
+            x={table.outline.minX}
+            y={table.outline.minY}
+            width={table.outline.maxX - table.outline.minX}
+            height={table.outline.maxY - table.outline.minY}
+          />
+        )}
         {/*
           * Layer by layer across ALL segments, not all layers per segment.
           * Otherwise a piece's grooves would paint over the neighbouring
@@ -1072,6 +1103,7 @@ export function TrackCanvas({
     </svg>
     {/* HTML, not SVG text, so it is never flipped or scaled with the drawing. */}
     <p className="grid-caption num">Grid: {gridLabel(step)}</p>
+    {table && <p className={`table-caption${table.fits ? '' : ' is-over'}`}>{table.note}</p>}
     </div>
     {strip}
     </div>
