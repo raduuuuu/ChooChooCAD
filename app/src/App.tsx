@@ -46,7 +46,7 @@ import { spanningForest } from '../../engine/src/graph/forest.js';
 import { toXY } from '../../engine/src/geom/cyclotomic.js';
 import { connectorSites } from '../../engine/src/graph/feasible.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
-import { portsOf, type Piece as GPiece, type Port, type PortRef } from '../../engine/src/graph/model.js';
+import { levelOf, portsOf, type Piece as GPiece, type Port, type PortRef } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
 import { gapMarks, seamLines, weldTargets } from './trackPath.js';
 import { useEditorKeys } from './useEditorKeys.js';
@@ -911,7 +911,7 @@ export function App() {
       const rising = part.kind === 'straight' && part.rise !== undefined;
       const level: string[] = !rising
         ? []
-        : ghost.port === 0
+        : levelOf(ends[ghost.port]!.at) === 0
           ? ['Climbs from the floor to the raised level.']
           : ['Comes down to the floor.', ...(relevels ? ['Placing it raises the whole run.'] : [])];
       const all = [...level, ...parts];
@@ -925,7 +925,8 @@ export function App() {
       status,
       reach,
       canRotate: ghost.at === null || (fit !== null && rotateCycle(fit.options, ghost.turn).length > 1),
-      canFlip: part.kind !== 'straight' && (ghost.at === null || (fit !== null && fit.options.some((o) => o.turn !== ghost.turn))),
+      // Curves flip to turn the other way; a ramp flips over to come down (both faces are track).
+      canFlip: (part.kind !== 'straight' || part.rise !== undefined) && (ghost.at === null || (fit !== null && fit.options.some((o) => o.turn !== ghost.turn))),
       name: `${part.name} (${shortCode(part)})`,
     };
   }, [ghost, graph, ports, placement, render, resolve, sites, pieceNumber]);

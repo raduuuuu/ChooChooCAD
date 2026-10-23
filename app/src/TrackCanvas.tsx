@@ -17,7 +17,7 @@
  * allocation does.
  */
 
-import { memo, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { memo, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { Segment } from '../../engine/src/geom/fk.js';
 import { renderBounds, type GraphRender } from '../../engine/src/graph/render.js';
 import { useDragSession, type RunDrag } from './useDragSession.js';
@@ -161,11 +161,13 @@ function rampShadow(seg: Segment, half: number): string {
   const o = SHADOW_OFFSET_MM;
   const nx = -Math.sin(seg.from.h) * half;
   const ny = Math.cos(seg.from.h) * half;
+  // Full offset at the high end, none at the low end; a flipped ramp is high at `from`.
+  const [oFrom, oTo] = seg.highAtStart ? [o, 0] : [0, o];
   const pts = [
-    [seg.from.x + nx, seg.from.y + ny],
-    [seg.to.x + nx + o, seg.to.y + ny - o],
-    [seg.to.x - nx + o, seg.to.y - ny - o],
-    [seg.from.x - nx, seg.from.y - ny],
+    [seg.from.x + nx + oFrom, seg.from.y + ny - oFrom],
+    [seg.to.x + nx + oTo, seg.to.y + ny - oTo],
+    [seg.to.x - nx + oTo, seg.to.y - ny - oTo],
+    [seg.from.x - nx + oFrom, seg.from.y - ny - oFrom],
   ];
   return `M ${pts.map(([x, y]) => `${x} ${y}`).join(' L ')} Z`;
 }
@@ -587,6 +589,8 @@ export function TrackCanvas({
    * committed leaves the layers alone (the memo spec in moveRunApp.dom.test):
    * a fresh `filter` on every render would hand `TrackLayers` a new array.
    */
+  // Unique per canvas: two canvases on a page must not share a mask.
+  const casingMaskId = `casing-mask-${useId().replace(/:/g, '')}`;
   const [floorSegments, raisedSegments] = useMemo(
     () => [segments.filter((sg) => (sg.level ?? 0) < 1), segments.filter((sg) => (sg.level ?? 0) >= 1)] as const,
     [segments],
@@ -765,17 +769,39 @@ export function TrackCanvas({
           * not a mark), and ink only. Ramps never get one: nothing may lie
           * over a ramp, and the casing would nick its high end.
           */}
-        {raised &&
-          segments.filter(onLevel(raised)).map((seg, i) =>
-            seg.pieceId === undefined || hiddenRun?.has(seg.pieceId) ? null : (
-              <path
-                key={`casing-${i}`}
-                d={segmentPath(seg)}
-                className="bridge-casing"
-                strokeWidth={resolve(seg.partId).plankWidthMm + BRIDGE_CASING_MM}
-              />
-            ),
-          )}
+        {raised && raisedSegments.length > 0 && (
+          <>
+            {/*
+              * MASKED TO FLOOR WOOD. Unmasked, the casing also painted the
+              * floor colour over the raised piece's own shadow and left a
+              * light stripe between wood and shadow (browser check,
+              * 2026-10-23). The gap is only ever meant to cut floor track.
+              */}
+            <mask id={casingMaskId}>
+              {floorSegments.map((seg, i) => (
+                <path
+                  key={`casing-mask-${i}`}
+                  d={segmentPath(seg)}
+                  fill="none"
+                  stroke="white"
+                  strokeWidth={resolve(seg.partId).plankWidthMm}
+                />
+              ))}
+            </mask>
+            <g mask={`url(#${casingMaskId})`}>
+              {raisedSegments.map((seg, i) =>
+                seg.pieceId === undefined || hiddenRun?.has(seg.pieceId) ? null : (
+                  <path
+                    key={`casing-${i}`}
+                    d={segmentPath(seg)}
+                    className="bridge-casing"
+                    strokeWidth={resolve(seg.partId).plankWidthMm + BRIDGE_CASING_MM}
+                  />
+                ),
+              )}
+            </g>
+          </>
+        )}
         {/*
           * Layer by layer across ALL segments, not all layers per segment.
           * Otherwise a piece's grooves would paint over the neighbouring
@@ -1257,7 +1283,9 @@ export function TrackCanvas({
           if (!seg.rise || (seg.pieceId !== undefined && hiddenRun?.has(seg.pieceId))) return null;
           const mx = (seg.from.x + seg.to.x) / 2;
           const my = (seg.from.y + seg.to.y) / 2;
-          const deg = (Math.atan2(seg.to.y - seg.from.y, seg.to.x - seg.from.x) * 180) / Math.PI;
+          // Up the slope: towards `to`, or towards `from` on a ramp flipped over.
+          const deg =
+            (Math.atan2(seg.to.y - seg.from.y, seg.to.x - seg.from.x) * 180) / Math.PI + (seg.highAtStart ? 180 : 0);
           return (
             <path
               key={`rise-${i}`}

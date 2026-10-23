@@ -82,7 +82,12 @@ export function renderGraph(
     // Written only off the floor (SC1), so a flat layout renders as before.
     const level = levelOf(frame);
     const rise = part.kind === 'straight' ? (part.rise ?? 0) : 0;
-    const levels = { ...(level !== 0 ? { level } : {}), ...(rise !== 0 ? { rise } : {}) };
+    const highAtStart = rise !== 0 && levelOf(ports(piece)[0]!.at) > 0;
+    const levels = {
+      ...(level !== 0 ? { level } : {}),
+      ...(rise !== 0 ? { rise } : {}),
+      ...(highAtStart ? { highAtStart: true as const } : {}),
+    };
     const portList = ports(piece);
     const count = portList.length;
     for (let i = 0; i < count; i++) {

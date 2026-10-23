@@ -37,7 +37,7 @@ export function describeAction(
   const where = (graph: Graph, ref: PortRef): string => {
     const i = graph.pieces.findIndex((p) => p.pieceId === ref.pieceId);
     const piece = graph.pieces[i];
-    const name = piece ? endName(resolve(piece.partId), ref.port) : `end ${ref.port + 1}`;
+    const name = piece ? endName(resolve(piece.partId), ref.port, piece.turn) : `end ${ref.port + 1}`;
     return `the ${name} of piece ${i + 1}`;
   };
 
@@ -113,9 +113,11 @@ export function describeAction(
     const part = resolve(piece.partId);
     const joinedBy = next.graph.welds.find((w) => w.a.pieceId === id || w.b.pieceId === id);
     const by = joinedBy ? (joinedBy.a.pieceId === id ? joinedBy.a.port : joinedBy.b.port) : 0;
+    // It climbs when it went on by its low end, whichever face is up.
+    const lowEndIn = levelOf(portsOfPiece(piece)[by]!.at) === 0;
     const own =
       part.kind === 'straight' && part.rise !== undefined
-        ? by === 0
+        ? lowEndIn
           ? ' It climbs to the raised level.'
           : ' It comes down to the floor.'
         : at(after, id) >= 1
