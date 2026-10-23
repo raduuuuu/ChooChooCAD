@@ -20,12 +20,14 @@
  * the catalogue yet.
  */
 
-import { type Cyc, isZero, magnitude, sub } from '../geom/cyclotomic.js';
+import { type Cyc, isZero, magnitude, sub, toXY } from '../geom/cyclotomic.js';
 import { spanningForest, type Forest } from './forest.js';
 import {
   IDENTITY,
   compose,
   frameForPortAt,
+  frameOf,
+  levelOf,
   opposed,
   type Frame,
   type Graph,
@@ -118,7 +120,93 @@ export function placeAll(
     frames.set(id, frameForPortAt(thisLocal.at, target));
   }
 
+  /*
+   * LEVELS ARE RELATIVE TO EACH RUN, and the floor is the bottom (decision L1).
+   * A run starts at its root's level (its anchor's, or the floor), and a ramp
+   * walked from its high end puts what lies beyond it one level down. Track
+   * cannot go below the floor, so a run that reaches below it is lifted until
+   * its lowest piece sits on the floor: a ramp laid descending from a floor
+   * loop raises that loop. A piece's frame carries the level of its port 0,
+   * the low end of a ramp, so the lowest frame is the lowest track.
+   */
+  const lowest = new Map<number, number>();
+  for (const [id, f] of frames) {
+    const c = forest.component.get(id)!;
+    lowest.set(c, Math.min(lowest.get(c) ?? 0, levelOf(f)));
+  }
+  for (const [id, f] of frames) {
+    const shift = -(lowest.get(forest.component.get(id)!) ?? 0);
+    if (shift > 0) frames.set(id, frameOf(f.pos, f.heading, levelOf(f) + shift));
+  }
+
   return { frames, forest };
+}
+
+/**
+ * The levels a layout's track may use: the floor and one raised level
+ * (owner decision D9 of 2026-10-07, kept by L1). A third layer is a filed TODO.
+ */
+export const LEVEL_COUNT = 2;
+
+/** A joint whose two ends sit on different levels: the loop never comes back down. */
+export interface LevelMismatch {
+  /** Index into `graph.welds`. */
+  readonly weld: number;
+  /** Where to mark it, float mm: the joint. */
+  readonly at: readonly [number, number];
+}
+
+/** A ramp whose high end would sit above the raised level. */
+export interface ThirdLevel {
+  readonly pieceId: string;
+  /** Where to mark it, float mm: the end that climbs too high. */
+  readonly at: readonly [number, number];
+}
+
+export interface LevelFaults {
+  readonly mismatches: readonly LevelMismatch[];
+  readonly thirdLevels: readonly ThirdLevel[];
+}
+
+/**
+ * THE TWO LEVEL FAULTS, in one place (eng decision D1), read by the verdict
+ * and by the preview and drop (CEO E1), so they can never disagree.
+ *
+ * Mismatches are the closing welds whose `levelSteps` is not zero: one per
+ * joint. Third levels are checked on every PORT, not on piece frames (eng
+ * EOV1): a piece's frame is its low end, so checking frames would miss a
+ * ramp's high end. After the normalisation in `placeAll` nothing sits below
+ * the floor, so only the top can be exceeded, by an anchored raised run with
+ * a climbing ramp or by two ramps climbing in a row. One per ramp.
+ */
+export function findLevelFaults(
+  graph: Graph,
+  ports: PortsOf,
+  placement: Placement,
+  rs: readonly WeldResidual[] = residuals(graph, ports, placement),
+): LevelFaults {
+  const byId = new Map(graph.pieces.map((p) => [p.pieceId, p]));
+  const mismatches = rs
+    .filter((r) => r.levelSteps !== 0)
+    .map((r) => {
+      const w = graph.welds[r.weld]!;
+      return { weld: r.weld, at: toXY(portFrame(placement, ports, byId.get(w.a.pieceId)!, w.a.port).pos) };
+    });
+  const thirdLevels: ThirdLevel[] = [];
+  for (const piece of graph.pieces) {
+    const own = ports(piece);
+    for (let i = 0; i < own.length; i++) {
+      // Only a climbing end counts, so the count is per ramp (design 6A), not
+      // per piece that happens to lie beyond it.
+      if (levelOf(own[i]!.at) === 0) continue;
+      const f = portFrame(placement, ports, piece, i);
+      if (levelOf(f) >= LEVEL_COUNT) {
+        thirdLevels.push({ pieceId: piece.pieceId, at: toXY(f.pos) });
+        break;
+      }
+    }
+  }
+  return { mismatches, thirdLevels };
 }
 
 export interface WeldResidual {
@@ -148,6 +236,17 @@ export interface WeldResidual {
    * ends up labelled with a different number than the sentence under it.
    */
   readonly gapMm: number;
+  /**
+   * Level mismatch, the second port's level minus the first's (eng OV2).
+   * Non-zero means the loop climbs and never comes back down, however
+   * exactly it meets on the floor plan.
+   */
+  readonly levelSteps: number;
+  /**
+   * Meets in position, heading AND level. `openUnmetJoins` (edit.ts) trusts
+   * this, so a weld joining two levels is opened on delete like a gappy one,
+   * and never steers placement between levels.
+   */
   readonly closes: boolean;
 }
 
@@ -173,12 +272,14 @@ export function residuals(
     const want = opposed(a);
     const gap = sub(b.pos, want.pos);
     const headingSteps = (((want.heading - b.heading) % 16) + 16) % 16;
+    const levelSteps = levelOf(b) - levelOf(a);
     return {
       weld: index,
       gap,
       headingSteps,
       gapMm: magnitude(gap),
-      closes: isZero(gap) && headingSteps === 0,
+      levelSteps,
+      closes: isZero(gap) && headingSteps === 0 && levelSteps === 0,
     };
   });
 }

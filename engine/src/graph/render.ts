@@ -19,7 +19,7 @@
 import { toXY } from '../geom/cyclotomic.js';
 import type { FPose, Segment } from '../geom/fk.js';
 import { portFrame, type Placement, type PortsOf } from './frames.js';
-import { portPolarity, type Frame, type Graph } from './model.js';
+import { levelOf, portPolarity, type Frame, type Graph } from './model.js';
 import { centrelineRadiusMm, type Part, type Polarity } from '../parts/schema.js';
 
 /** Zeta steps to radians: one step is 22.5 degrees. */
@@ -77,6 +77,10 @@ export function renderGraph(
     if (!frame) continue;
     const part = resolve(piece.partId);
     const from = pose(frame);
+    // Written only off the floor (SC1), so a flat layout renders as before.
+    const level = levelOf(frame);
+    const rise = part.kind === 'straight' ? (part.rise ?? 0) : 0;
+    const levels = { ...(level !== 0 ? { level } : {}), ...(rise !== 0 ? { rise } : {}) };
     const portList = ports(piece);
     const count = portList.length;
     for (let i = 0; i < count; i++) {
@@ -99,7 +103,7 @@ export function renderGraph(
       const isCurve =
         part.kind === 'curve' || (part.kind === 'switch' && i === 2);
       if (!isCurve) {
-        segments.push({ kind: 'straight', from, to, partId: piece.partId, pieceId: piece.pieceId });
+        segments.push({ kind: 'straight', from, to, partId: piece.partId, pieceId: piece.pieceId, ...levels });
         continue;
       }
       segments.push({
@@ -112,6 +116,7 @@ export function renderGraph(
         sweep: piece.turn === 'right' ? 'right' : 'left',
         partId: piece.partId,
         pieceId: piece.pieceId,
+        ...levels,
       });
     }
   }

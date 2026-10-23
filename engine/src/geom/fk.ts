@@ -43,6 +43,13 @@ export interface Segment {
    * both roads. Absent for the chain walk, which has no piece ids.
    */
   readonly pieceId?: string;
+  /**
+   * The level of the piece's entry, and how many levels its far end climbs
+   * (two-layer plan): a ramp spans `level` to `level + rise`. Absent for the
+   * chain walk and for flat floor track, which is level 0, rise 0.
+   */
+  readonly level?: number;
+  readonly rise?: number;
 }
 
 export interface FkResult {

@@ -80,6 +80,10 @@ const exceedsResult = (): Extract<GraphResult, { ok: true }> => {
     overlaps: [],
     polarityViolations: [],
     adapterJoints: [],
+    levelMismatches: [],
+    thirdLevels: [],
+    bridges: [],
+    raised: false,
     residuals: [],
     repair: null,
   };
@@ -100,6 +104,10 @@ const impossibleResult = (): Extract<GraphResult, { ok: true }> => {
     overlaps: [],
     polarityViolations: [],
     adapterJoints: [],
+    levelMismatches: [],
+    thirdLevels: [],
+    bridges: [],
+    raised: false,
     residuals: [],
     repair: null,
   };

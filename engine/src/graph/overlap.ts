@@ -167,6 +167,31 @@ export function findPlankOverlaps(
   plankHalfWidth: (partId: string) => number,
   sites: ConnectorSites,
 ): readonly PlankOverlap[] {
+  return planksSharingArea(graph, segments, plankHalfWidth, sites, true);
+}
+
+/**
+ * Every pair of planks crossing on DIFFERENT levels: the bridges. Counted for
+ * the clearance note (design decision 3A), which names how many places raised
+ * track passes over floor track. Never a fault: clearance is estimated, not
+ * checked (decision L3).
+ */
+export function findBridges(
+  graph: Graph,
+  segments: readonly Segment[],
+  plankHalfWidth: (partId: string) => number,
+  sites: ConnectorSites,
+): readonly PlankOverlap[] {
+  return planksSharingArea(graph, segments, plankHalfWidth, sites, false);
+}
+
+function planksSharingArea(
+  graph: Graph,
+  segments: readonly Segment[],
+  plankHalfWidth: (partId: string) => number,
+  sites: ConnectorSites,
+  wantSameLevel: boolean,
+): readonly PlankOverlap[] {
   const pairKey = (a: string, b: string) => (a < b ? `${a}\u0000${b}` : `${b}\u0000${a}`);
   const exempt = new Set<string>();
   for (const w of graph.welds) exempt.add(pairKey(w.a.pieceId, w.b.pieceId));
@@ -179,6 +204,24 @@ export function findPlankOverlaps(
       }
     }
   }
+
+  /*
+   * LEVELS (two-layer plan, core 3). Planks cross freely on different levels:
+   * that is a bridge. A ramp spans the levels of both its ends, so it clashes
+   * with track on either, which is the safe reading of a plank whose height
+   * changes along its length.
+   */
+  const span = new Map<string, readonly [number, number]>();
+  for (const s of segments) {
+    if (s.pieceId === undefined) continue;
+    const lo = s.level ?? 0;
+    span.set(s.pieceId, [lo, lo + (s.rise ?? 0)]);
+  }
+  const sameLevel = (a: string, b: string): boolean => {
+    const [alo, ahi] = span.get(a)!;
+    const [blo, bhi] = span.get(b)!;
+    return alo <= bhi && blo <= ahi;
+  };
 
   const quads: Quad[] = [];
   for (const s of segments) {
@@ -213,6 +256,7 @@ export function findPlankOverlaps(
         if (p.maxX <= q.minX || q.maxX <= p.minX || p.maxY <= q.minY || q.maxY <= p.minY) continue;
         const pk = pairKey(p.pieceId, q.pieceId);
         if (exempt.has(pk)) continue;
+        if (sameLevel(p.pieceId, q.pieceId) !== wantSameLevel) continue;
         // Two quads can share several cells; clip each pair once.
         const qk = `${i},${j}`;
         if (seen.has(qk)) continue;

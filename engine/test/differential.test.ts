@@ -63,8 +63,17 @@ function viaGraph(layout: Layout) {
  * Two-ended parts only. The chain engine refuses a switch by design (pose.ts
  * `refuseMultiPort`), so a switch in the pool would compare a throw with a
  * verdict rather than two verdicts. Switches are the graph engine's alone.
+ *
+ * And FLAT parts only (eng decision D3 of the two-layer review): the chain
+ * engine has no levels, so a ramp would compare a level-blind verdict with a
+ * level-aware one, and adding the ramp to this list would also change
+ * `BRIO.length` and with it every seeded layout below, so the promise that
+ * existing verdicts are unchanged would be tested on a different corpus.
+ * Ramps get their own seeded enumeration in levels.test.ts.
  */
-const BRIO = BUILT_IN.filter((p) => p.brand === 'BRIO' && p.kind !== 'switch').map((p) => p.id);
+const BRIO = BUILT_IN.filter(
+  (p) => p.brand === 'BRIO' && p.kind !== 'switch' && !(p.kind === 'straight' && p.rise),
+).map((p) => p.id);
 
 /** Deterministic, so a failure is reproducible from the seed alone. */
 function lcg(seed: number) {
@@ -79,6 +88,18 @@ function randomChain(rand: () => number, n: number, closed: boolean): Layout {
   }));
   return { placements, closed };
 }
+
+describe('the corpus is the one the engines agreed on before levels', () => {
+  /*
+   * MUTATION PROOF, run: the `rise` filter removed from `BRIO`: fails with
+   * `expected [ 'A2', 'A1', 'A', 'D', 'A3', …(9) ] to deeply equal [ 'A2',
+   * 'A1', 'A', 'D', 'A3', …(8) ]`. Every seeded layout below draws from this list by
+   * index, so a part added to it changes every one of them.
+   */
+  it('draws from the flat, two-ended BRIO parts only', () => {
+    expect(BRIO).toEqual(['A2', 'A1', 'A', 'D', 'A3', 'B2', 'C2', 'B', 'C', 'B1', 'C1', 'E', 'E1']);
+  });
+});
 
 describe('both engines agree exactly', () => {
   const named: Array<[string, Layout]> = [

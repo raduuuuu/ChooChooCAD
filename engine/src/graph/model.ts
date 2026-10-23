@@ -40,6 +40,30 @@ export interface Frame {
   readonly pos: Cyc;
   /** Power of zeta, always normalised to 0..15 by `norm16`. */
   readonly heading: number;
+  /**
+   * Which level of track: 0 is the floor, 1 the raised level (two-layer
+   * plan, decisions L1 and A1). ABSENT MEANS THE FLOOR, and 0 is never
+   * written (eng decision SC1): every frame built before levels existed, every
+   * test literal and every saved layout without raised track stays byte-for-
+   * byte what it was, and `movesAnything` (layoutModel.ts), which compares
+   * frames as JSON, never sees `level: 0` against a missing field and calls
+   * it a move.
+   *
+   * Read it ONLY through `levelOf`. A raw `f.level` is `undefined` on the
+   * floor, and arithmetic on it is NaN; levelAccess.test.ts fails if any
+   * source file outside this one reads it.
+   */
+  readonly level?: number;
+}
+
+/** A frame's level, 0 when absent (the floor). The one reader of `Frame.level`. */
+export function levelOf(f: Frame): number {
+  return f.level ?? 0;
+}
+
+/** A frame with `level` written only when it is not the floor (SC1). */
+export function frameOf(pos: Cyc, heading: number, level: number): Frame {
+  return level === 0 ? { pos, heading } : { pos, heading, level };
 }
 
 /**
@@ -164,7 +188,8 @@ export function portsOf(part: Part, turn: Turn = 'left'): readonly Port[] {
   };
   const far = part.ends.end;
   if (part.kind === 'straight') {
-    return [entry, { kind: 'end', at: { pos: straightEnd(part.lengthMm), heading: 0 }, polarity: far }];
+    // A ramp's far end sits `rise` levels above its entry; compose adds it.
+    return [entry, { kind: 'end', at: frameOf(straightEnd(part.lengthMm), 0, part.rise ?? 0), polarity: far }];
   }
   if (part.kind === 'curve') {
     return [
@@ -247,10 +272,11 @@ export function weldGiveMm(slopA: number, slopB: number): number {
 
 /** Compose: where a local pose lands once its piece's frame is placed. */
 export function compose(frame: Frame, local: Frame): Frame {
-  return {
-    pos: add(frame.pos, mulZetaPow(local.pos, frame.heading)),
-    heading: norm16(frame.heading + local.heading),
-  };
+  return frameOf(
+    add(frame.pos, mulZetaPow(local.pos, frame.heading)),
+    norm16(frame.heading + local.heading),
+    levelOf(frame) + levelOf(local),
+  );
 }
 
 /**
@@ -262,10 +288,10 @@ export function compose(frame: Frame, local: Frame): Frame {
  */
 export function frameForPortAt(local: Frame, target: Frame): Frame {
   const heading = norm16(target.heading - local.heading);
-  return { pos: sub(target.pos, mulZetaPow(local.pos, heading)), heading };
+  return frameOf(sub(target.pos, mulZetaPow(local.pos, heading)), heading, levelOf(target) - levelOf(local));
 }
 
-/** Facing the other way. A weld joins two ports whose headings are opposite. */
+/** Facing the other way, on the same level. A weld joins two ports whose headings are opposite. */
 export function opposed(f: Frame): Frame {
-  return { pos: f.pos, heading: norm16(f.heading + 8) };
+  return frameOf(f.pos, norm16(f.heading + 8), levelOf(f));
 }
