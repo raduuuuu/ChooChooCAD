@@ -550,6 +550,16 @@ the model for a small persisted value.
 
 ## Open and unassigned: the overlap narrowphase primitive
 
+> **DONE 2026-10-23, after an owner bug report:** two planks laid across each other drew as one
+> merged shape that read as a switch, and the verdict said nothing. `engine/src/graph/overlap.ts`
+> cuts each plank into convex quads (curves in 5.6 degree slices), clips pairs from different pieces
+> through a spatial hash, and reports pairs sharing over 100 mm². It uses the catalogue's plank width
+> (40 mm). Exempt: a piece against itself (a switch's roads), welded pieces, and pieces with ends on
+> one exact spot (the vertex check owns those). It feeds IMPOSSIBLE in the verdict, the canvas
+> markers and the placing preview. Measured at 69 ms for 10,000 pieces. Still open: the drop guard
+> and auto-join use `ghostFit`, which has no part geometry, so a palette drop onto track places the
+> piece and the verdict then reports it.
+
 > **SUPERSEDED 2026-10-09 by the fourth eng review.** Decision D10 of the CEO
 > re-review replaced the whole footprint-overlap approach with an exact
 > coincident-connector refusal: no two non-adjacent connector positions may be
