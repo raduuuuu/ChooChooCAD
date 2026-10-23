@@ -31,7 +31,7 @@
  *     (R21). There is no per-joint ratio and no per-joint glyph.
  */
 
-import { useEffect, useMemo, useRef, useState , type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState , type ReactNode } from 'react';
 import {
   droppedSubmissionsNotice,
   loadSubmissionsResult,
@@ -721,6 +721,13 @@ export function App() {
     });
   }, [result, render, graph, badJoints, clashMarks]);
 
+  // Adapter joints a red mark hides, said in the note (DR1). None above the
+  // ceiling: there the canvas already says nothing is drawn.
+  const adaptersUnmarked =
+    result && render.segments.length <= CANVAS_SEGMENT_CEILING
+      ? result.adapterJoints.length - adapterMarks.length
+      : 0;
+
   /*
    * Where each piece ends (request 2). Refused joints are left to their own
    * marker, and nothing is built above the drawing ceiling, for the reason
@@ -819,39 +826,50 @@ export function App() {
     const own = placeAll(alone, ports);
     const ghostRender = renderGraph(alone, ports, resolve, own);
     const ends = ports(piece);
-    let status: { glyph: 'O' | 'X' | '!'; text: string };
-    const conflicts = found.map((c) => {
+    let status: { glyph: 'O' | 'X' | '◇'; text: ReactNode };
+    // Piece numbers in the number face (DESIGN.md rule 4; design review DR9).
+    const num = (id: string) => <span className="num">{pieceNumber.get(id)}</span>;
+    const sentences = (parts: readonly ReactNode[]) =>
+      parts.map((p, i) => (
+        <Fragment key={i}>
+          {i > 0 && ' '}
+          {p}
+        </Fragment>
+      ));
+    const conflicts: ReactNode[] = found.map((c) => {
       switch (c.kind) {
         case 'here':
           return `${capitalise(c.polarity)} meets ${c.polarity} here.`;
         case 'polarity':
-          return `${capitalise(c.polarity)} meets ${c.polarity} at piece ${pieceNumber.get(c.pieceId)}.`;
+          return <>{capitalise(c.polarity)} meets {c.polarity} at piece {num(c.pieceId)}.</>;
         case 'crowded':
-          return `Ends would clash with piece ${pieceNumber.get(c.pieceId)}.`;
+          return <>Ends would clash with piece {num(c.pieceId)}.</>;
         case 'loop':
           return 'Joining here would shift pieces of a loop that does not close.';
         case 'over':
-          return `It would lie over piece ${pieceNumber.get(c.pieceId)}.`;
+          return <>It would lie over piece {num(c.pieceId)}.</>;
       }
     });
     /*
-     * THE THIRD STATE, '!' (socket adapter plan, item 4): it fits, and a
-     * male-male adapter is needed, said per connection so the sentence names
-     * the right joint (outside voice OV2). Amber, not red: not a conflict, so
-     * Place and a drop both accept it. A conflict still wins.
+     * THE THIRD STATE, ◇ (socket adapter plan, item 4; design review DR6): it
+     * fits, and a male-male adapter is needed, said per connection so the
+     * sentence names the right joint (outside voice OV2). The diamond is the
+     * canvas mark's shape, in ink: not a conflict, so Place and a drop both
+     * accept it, and not '!', which is the serious-caveat glyph. A conflict
+     * still wins.
      */
     if (conflicts.length > 0) {
-      status = { glyph: 'X', text: `${conflicts.join(' ')} You can still place it.` };
+      status = { glyph: 'X', text: sentences([...conflicts, 'You can still place it.']) };
     } else {
-      const joined = joins.map(
-        (j) => `Joins piece ${pieceNumber.get(j.to.pieceId)}${j.adapter ? ' with a male-male adapter' : ''}.`,
-      );
+      const joined: ReactNode[] = joins.map((j) => (
+        <>Joins piece {num(j.to.pieceId)}{j.adapter ? ' with a male-male adapter' : ''}.</>
+      ));
       const adapter = adapterHere || joins.some((j) => j.adapter);
-      const text =
+      const parts: ReactNode[] =
         adapterHere && joined.length === 0
-          ? 'Two sockets meet here: needs a male-male adapter.'
-          : [...(adapterHere ? ['Needs a male-male adapter here.'] : []), ...joined].join(' ') || 'Fits here.';
-      status = { glyph: adapter ? '!' : 'O', text };
+          ? ['Two sockets meet here: needs a male-male adapter.']
+          : [...(adapterHere ? ['Needs a male-male adapter here.'] : []), ...joined];
+      status = { glyph: adapter ? '◇' : 'O', text: parts.length > 0 ? sentences(parts) : 'Fits here.' };
     }
     const reach =
       Math.max(...ends.map((e) => Math.hypot(...toXY(e.at.pos)))) + part.plankWidthMm;
@@ -883,7 +901,7 @@ export function App() {
         Placing: {ghostView.name}{' '}
         <span className="ghost-status" role="status" aria-live="polite">
           <span
-            className={`ghost-mark${ghostView.red ? ' is-fail' : ghostView.status.glyph === '!' ? ' is-adapter' : ''}`}
+            className={`ghost-mark${ghostView.red ? ' is-fail' : ghostView.status.glyph === '◇' ? ' adapter-glyph' : ''}`}
             aria-hidden="true"
           >
             {ghostView.status.glyph}
@@ -1139,7 +1157,7 @@ export function App() {
       )}
 
       <VerdictScope.Provider value={ghost ? 'Placed track:' : null}>
-        <VerdictLine view={verdictView} trust={trust} />
+        <VerdictLine view={verdictView} trust={trust} adaptersUnmarked={adaptersUnmarked} />
       </VerdictScope.Provider>
 
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="false">

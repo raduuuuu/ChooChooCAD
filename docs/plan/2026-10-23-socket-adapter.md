@@ -851,18 +851,131 @@ Test plan artifact: ~/.gstack/projects/brio-designer/radudiaconescu-main-eng-rev
 - Parallelization: 2 lanes, 2 parallel / 1 sequential
 - Lake Score: N/A (no completeness-scored questions)
 
+## Design review (2026-10-23)
+
+Target: this plan, as shipped (PR #39). DESIGN.md is the reference. No mockups: the gstack
+designer has no OpenAI key (0 of 3 saved). Outside voices: Codex (completed) and a Claude
+subagent; no hard rejections; the amber colour, groove contrast, scaling stroke and the
+double-meaning '!' confirmed by both.
+
+Initial ratings: Pass 1 IA 8/10; Pass 2 States 6/10; Pass 3 Journey 7/10; Pass 4 Specificity
+8/10; Pass 5 Design system 4/10; Pass 6 Accessibility 6/10.
+
+Pass 1, no issue: the adapter note sits after the basis line and before the generic trust
+caveats, and the action stays last. Layout-specific facts before generic caveats, the thing to
+do at the end: the existing hierarchy, correct for this line too (the subagent's "action first"
+was weighed and not taken: the action is always the closing line by design).
+
+Decisions (each its own question, owner answers 2026-10-23):
+- DR1 (D1: 1A) When some adapter joints are not drawn because a red mark holds the spot, the note
+  adds "N is/are not marked, because a clash is drawn there." Not above the canvas ceiling, where
+  the canvas already says nothing is drawn.
+- DR2 (D2: 2B) No "enough owned" line: silence means enough, as for parts.
+- DR3 (D3: 3B) No explainer: "male-male adapter" is the name the part is sold under.
+- DR4 (D4: 4A) The Your box adapters row leaves the source column blank.
+- DR5 (D5: 5A) The canvas mark and the strip glyph use `--ink`, not `--tight`; amber stays the
+  NEEDS_GIVE verdict only (rule 1). Ratios recorded in tokens.css (rule 5): --ink 8.30:1 on
+  --track-fill, 3.94:1 on --track-groove.
+- DR6 (D6: 6A) The strip's adapter glyph is ◇ (ink, aria-hidden), the shape of the canvas mark;
+  '!' stays the serious-caveat glyph only. Statuses: O fits, ◇ fits with an adapter, X conflict.
+- DR7 resolved by DR5: ink clears 3:1 on both wood and groove; no halo needed.
+- DR8 (D7: 7A) `.adapter-joint-mark` in CSS: `vector-effect: non-scaling-stroke`, 2px (lighter
+  than the armed end's 3px ring); the centre dot becomes a small filled diamond. Pinned by a
+  stylesheet-text spec. Size stays 32 mm in the drawing (DR12).
+- DR9 (D8: 8A) Counts in the adapter note and piece numbers in the preview status render in
+  `.num`; announcements stay plain strings.
+- DR10 (D9: 9A) Your box intro: "...Fill any number in, or start from a quick-fill." (no "below").
+- DR11 (D10: 10A) The adapter note starts with an aria-hidden ◇ in ink: the key to the canvas mark.
+- DR12 (D11: 11B) The diamond keeps its drawing size; on-screen sizing for all marks is a TODO
+  (D12: A, added to docs/plan/brio-TODOS.md).
+
+Ratings after: Pass 1 8/10; Pass 2 8/10; Pass 3 8/10; Pass 4 9/10; Pass 5 9/10 (the red marks'
+shared stroke defect remains, TODO); Pass 6 9/10. Overall (lowest pass) 4/10 -> 8/10.
+
+Journey storyboard:
+
+```
+  STEP | USER DOES                          | USER FEELS             | PLAN SPECIFIES?
+  -----|------------------------------------|------------------------|----------------------------
+  1    | picks a piece at a socket end      | "will this go on?"     | ◇ + "needs a male-male adapter"
+  2    | presses R past the ordinary way    | in control             | R reaches the adapter way, last
+  3    | places it                          | done                   | "...joined ... with a male-male adapter."
+  4    | looks at the verdict               | reassured, not alarmed | kind unchanged; ◇ note in ink
+  5    | scans the drawing                  | "where do they go?"    | ink diamonds; list rows name each
+  6    | opens Your box                     | "do I have enough?"    | row + "Short by N" only when short
+```
+
+States:
+
+```
+  FEATURE          | EMPTY            | ERROR / CONFLICT          | SUCCESS            | PARTIAL
+  -----------------|------------------|---------------------------|--------------------|---------------------------
+  Adapter note     | absent at 0      | shown on refusals too     | "◇ Needs N ..."    | "+ N not marked" (red wins)
+  Canvas mark      | none             | red mark wins the spot    | ink diamond        | none above the ceiling
+  Strip glyph      | O fits           | X conflict (wins over ◇)  | ◇ with words       | n/a
+  Your box row     | blank undeclared | "needs a number"          | "N in use"         | "Short by N" when short
+```
+
+NOT in scope (design): on-screen minimum size for marks (TODO, D12); a first-use explainer
+(3B); an "enough owned" line (2B). What already exists and is reused: the notes list, the strip
+status, the port-dot polarity language (filled peg, hollow socket), the inventory row pattern.
+
+### Design implementation tasks
+
+- [ ] **D-T1 (P2, human: ~1h / CC: ~10min)** — canvas — Ink diamond with a non-scaling 2px stroke and a filled inner diamond (DR5, DR8)
+  - Files: app/src/TrackCanvas.tsx, app/src/app.css, app/src/tokens.css (ratio comment)
+  - Verify: stylesheet-text spec on `.adapter-joint-mark` (stroke --ink, non-scaling, 2px); mark count specs unchanged
+- [ ] **D-T2 (P2, human: ~1h / CC: ~10min)** — strip + note — ◇ glyph in ink for adapter fits; ◇ leading the note; `.num` on counts and piece numbers (DR6, DR9, DR11)
+  - Files: app/src/App.tsx, app/src/VerdictLine.tsx, app/src/app.css
+  - Verify: strip status reads "◇ Two sockets meet here..."; note markup has `.num` and an aria-hidden ◇; no '!' in the strip
+- [ ] **D-T3 (P2, human: ~30min / CC: ~5min)** — note — "N not marked, because a clash is drawn there" when red wins (DR1)
+  - Files: app/src/VerdictLine.tsx, app/src/verdictView.ts, app/src/App.tsx
+  - Verify: the clash-on-adapter dom spec reads the clause; no clause when every adapter is marked
+- [ ] **D-T4 (P3, human: ~15min / CC: ~3min)** — Your box — blank source cell; intro without "below" (DR4, DR10)
+  - Files: app/src/Inventory.tsx
+  - Verify: panel text has no "below" and no "adapter" in the source column
+
+## Design Review Completion Summary
+
+```
+  +====================================================================+
+  |         DESIGN PLAN REVIEW — COMPLETION SUMMARY                    |
+  +====================================================================+
+  | System Audit         | DESIGN.md present; UI: mark, glyph, note,  |
+  |                      | box row, list phrase                        |
+  | Step 0               | 6/10 initial; all 7 dimensions              |
+  | Pass 1  (Info Arch)  | 8/10 → 8/10 after fixes (no issue)         |
+  | Pass 2  (States)     | 6/10 → 8/10 after fixes                    |
+  | Pass 3  (Journey)    | 7/10 → 8/10 after fixes                    |
+  | Pass 4  (AI Slop)    | 8/10 → 9/10 after fixes                    |
+  | Pass 5  (Design Sys) | 4/10 → 9/10 after fixes                    |
+  | Pass 6  (Responsive) | 6/10 → 9/10 after fixes                    |
+  | Pass 7  (Decisions)  | 1 resolved, 0 deferred (TODO logged)       |
+  +--------------------------------------------------------------------+
+  | NOT in scope         | written (3 items)                           |
+  | What already exists  | written                                     |
+  | TODOS.md updates     | 1 item proposed, 1 added                    |
+  | Approved Mockups     | 0 generated (designer has no key), 0 approved|
+  | Decisions made       | 11 added to plan                            |
+  | Decisions deferred   | 0                                           |
+  | Overall design score | 4/10 → 8/10                                 |
+  +====================================================================+
+```
+
+Unresolved decisions: none.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 2 | CLEAR | 3 proposals, 3 accepted, 0 deferred |
-| Outside Review | Codex (`codex exec`, plan review, default-on) | Independent 2nd opinion | 3 | completed | CEO pass: 4 findings, 4 resolved; eng pass: 2 findings, 2 resolved; 0 unresolved |
+| Outside Review | Codex (`codex exec`, plan review + design voices) | Independent 2nd opinion | 3 plan + 2 design | completed | plan: 6 findings, 6 resolved; design: 7 findings, 5 on this feature resolved, 2 pre-existing (caret motion, out of scope; rule 7 copy, fixed by 9A) |
 | Eng Review | `/plan-eng-review` | Architecture & tests (required) | 2 | ISSUES OPEN | 4 issues, 0 critical gaps (all 4 resolved: mapped work, not open defects) |
-| Design Review | `/plan-design-review` | UI/UX gaps | 1 | CLEAR (prior plan, 2026-10-22) | score: 4/10 → 8/10, 21 decisions (not this plan) |
+| Design Review | `/plan-design-review` | UI/UX gaps | 2 | CLEAR | score: 4/10 → 8/10, 11 decisions |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
 
-- **OUTSIDE COVERAGE:** Codex, plan-review phase, completed twice for this plan on 2026-10-23 (CEO pass 4 findings; eng pass 2 findings, plan body truncated to 30KB with the decisions passed alongside). All 6 resolved. The 2026-10-22 run was for another plan and unavailable.
-- **CROSS-MODEL:** native Claude reviews (three CEO spec reviews and this eng review) and Codex agree on scope and the engine split. Codex alone found the preview-move default (OV5) and the false reserved-key premise (OV6); both are resolved. No open disagreement.
-- **VERDICT:** CEO CLEARED; eng review recorded ISSUES OPEN by rule (4 findings logged, all resolved, 0 unresolved, 0 critical gaps) — eng review required.
+- **OUTSIDE COVERAGE:** Codex completed the design-voice phase on 2026-10-23 (app UI, no hard rejections, 3 High, 1 Medium, 3 Low). A native Claude subagent ran alongside. Mockups unavailable: the gstack designer has no OpenAI key.
+- **CROSS-MODEL:** Codex and the Claude subagent agree on the four mark/glyph findings (amber colour, groove contrast, scaling stroke, double-meaning '!'). The subagent alone raised the note-versus-marks count and the missing states; Codex alone raised `.num` and the positional copy. No disagreement remains.
+- **VERDICT:** CEO + DESIGN CLEARED; eng review recorded ISSUES OPEN by rule (all findings resolved, 0 unresolved) — eng review required. The design fixes (D-T1 to D-T4) are not built yet.
 
 NO UNRESOLVED DECISIONS
