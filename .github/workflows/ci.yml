@@ -47,10 +47,23 @@ name: CI
 on:
   push:
   pull_request:
+  # Pages calls this workflow as its gate (pages.yml), so the deploy runs the
+  # SAME pinned steps rather than a copy of them. The copy drifted: it never
+  # pinned Node, ran the suite on the runner's default, and a state-walk spec
+  # that takes ~7s here took 17.4s there and timed out, failing the deploys of
+  # PR #40 and #41 while this workflow stayed green (found 2026-10-23).
+  workflow_call:
+    inputs:
+      publish:
+        description: Upload app/dist as the Pages artifact after a green build.
+        type: boolean
+        default: false
 
-# A second push to the same branch makes the first run pointless.
+# A second push to the same branch makes the first run pointless. The
+# workflow name is in the group so the Pages gate (which runs this file under
+# the name "Pages") never cancels, or is cancelled by, the push run on main.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -100,3 +113,11 @@ jobs:
 
       - name: Build
         run: bun run build
+
+      # Only when Pages asked for it: the artifact the deploy job publishes is
+      # the one this exact run built and tested.
+      - name: Upload Pages artifact
+        if: inputs.publish
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: app/dist
