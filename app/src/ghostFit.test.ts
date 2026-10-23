@@ -5,14 +5,15 @@
  * Value: protects=the orientation options for an end are the real distinct
  * ways the part fits, with the automatic one first; the preview's frame is
  * exactly where Place puts the piece; a peg landing on a facing socket
- * joins, and a landing that is crossed, same-kind, crowded, or would shift a
- * loop that does not close does not
+ * joins, and a landing that is crossed, same-kind or crowded does not; an
+ * exact join into a loop that does not close is welded and moves nothing
  * Value: fails_when=options repeat or include a same-kind join, the preview
- * frame drifts from the placed one, or auto-join welds a crossed or gappy
- * landing
+ * frame drifts from the placed one, auto-join welds a crossed landing, or an
+ * exact join re-lays track
  * Value: why_new=all new with the preview
  * Value: seam=none (pure model and engine, no DOM)
- * Value: no_claim=track crossing track mid-piece; the engine never checks it
+ * Value: no_claim=track crossing track mid-piece; overlap.ts and
+ * paletteDrop.test.ts own that
  */
 
 import { describe, expect, it } from 'vitest';
@@ -160,7 +161,17 @@ describe('auto-join', () => {
     expect(autoJoin(crossed, ports, crossed.pieces[1]!.pieceId).joined).toBe(0);
   });
 
-  it('leaves a join unwelded when it would re-lay a loop that does not close (eng D6)', () => {
+  /*
+   * REVERSED 2026-10-23 (backlog D7). This spec used to pin that the join was
+   * left unwelded, because welding it re-laid the loop: the forest chose the
+   * loop's gap by where its walk started. The gap is now chosen by weld
+   * order, so the join moves nothing and auto-join welds it, as the backlog
+   * entry said it then could.
+   *
+   * MUTATION PROOF, run: `spanningForest` back to leaving over whatever its
+   * walk did not use: `the exact join was not welded: expected +0 to be 1`.
+   */
+  it('welds an exact join into a loop that does not close, and nothing moves (eng D6, D7)', () => {
     // The eng review's probe: a loop closed with a gap, a second switch inside
     // it, and a separate straight lying exactly on that switch's spare road,
     // facing it, peg to socket.
@@ -194,6 +205,9 @@ describe('auto-join', () => {
       landingOf(connectorSites(landed, ports, placed), portFrame(placed, ports, newest, by), ports(newest)[by]!.polarity, new Set([newest.pieceId])),
     ).toEqual({ kind: 'joins', with: { pieceId: spare.pieceId, port: 2 } });
 
-    expect(autoJoin(landed, ports, newest.pieceId).joined, 'auto-join welded a landing that re-lays the gappy loop').toBe(0);
+    const joined = autoJoin(landed, ports, newest.pieceId);
+    expect(joined.joined, 'the exact join was not welded').toBe(1);
+    const now = placeAll(joined.graph, ports).frames;
+    for (const p of landed.pieces) expect(now.get(p.pieceId), p.pieceId).toEqual(placed.frames.get(p.pieceId));
   });
 });

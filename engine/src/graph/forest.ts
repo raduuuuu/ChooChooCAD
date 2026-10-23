@@ -14,6 +14,22 @@
  * graph always yields the same parent pointers, the same roots and the same
  * set of closing welds. Without that, which welds count as "closing" would
  * vary between runs and so would the cycles the verdict reports.
+ *
+ * WHICH WELDS CLOSE IS DECIDED BY WELD ORDER ALONE, not by the walk (backlog
+ * D7, ENG-R5 of the 2026-10-22 editing plan). Welds are taken in declaration
+ * order, and one that joins pieces already connected by earlier welds is a
+ * closing weld; every other weld is a tree edge. The walk below then follows
+ * tree edges only.
+ *
+ * It used to be whatever the depth-first walk left over, and the walk starts
+ * at each component's first-declared piece. A join that merged two runs could
+ * move that start into the middle of a loop that does not close, the walk
+ * then went round the loop the other way, a different weld became the gap,
+ * and track that was already down was re-laid: measured at 293 mm for an
+ * exact, facing join (engine/test/joinStability.test.ts). By weld order, a
+ * new weld can never change the status of an earlier one, so an exact join
+ * moves nothing. On a chain, and on anything built one piece at a time, the
+ * last weld declared closes, which is what the walk left over too.
  */
 
 import type { Graph } from './model.js';
@@ -53,11 +69,28 @@ export function spanningForest(graph: Graph): Forest {
     }
   });
 
+  // Union-find over pieces, fed welds in declaration order.
+  const link = new Map<string, string>();
+  const find = (k: string): string => {
+    const p = link.get(k);
+    if (p === undefined || p === k) return k;
+    const root = find(p);
+    link.set(k, root);
+    return root;
+  };
+  const treeWeld = new Set<number>();
+  graph.welds.forEach((w, i) => {
+    const a = find(w.a.pieceId);
+    const b = find(w.b.pieceId);
+    if (a === b) return;
+    link.set(a, b);
+    treeWeld.add(i);
+  });
+
   const order: string[] = [];
   const parent = new Map<string, ParentLink>();
   const component = new Map<string, number>();
   const roots: string[] = [];
-  const usedAsTreeEdge = new Set<number>();
   const visited = new Set<string>();
 
   for (const start of graph.pieces) {
@@ -97,10 +130,7 @@ export function spanningForest(graph: Graph): Forest {
       const { id, via } = stack.pop()!;
       if (visited.has(id)) continue;
       visited.add(id);
-      if (via) {
-        parent.set(id, via);
-        usedAsTreeEdge.add(via.weld);
-      }
+      if (via) parent.set(id, via);
       order.push(id);
       component.set(id, componentIndex);
       const neighbours = adjacency.get(id) ?? [];
@@ -108,11 +138,11 @@ export function spanningForest(graph: Graph): Forest {
       // the first-declared weld the first one followed.
       for (let i = neighbours.length - 1; i >= 0; i--) {
         const { weld, other } = neighbours[i]!;
-        if (!visited.has(other)) stack.push({ id: other, via: { from: id, weld } });
+        if (treeWeld.has(weld) && !visited.has(other)) stack.push({ id: other, via: { from: id, weld } });
       }
     }
   }
 
-  const closing = graph.welds.map((_, i) => i).filter((i) => !usedAsTreeEdge.has(i));
+  const closing = graph.welds.map((_, i) => i).filter((i) => !treeWeld.has(i));
   return { order, parent, roots, closing, component };
 }

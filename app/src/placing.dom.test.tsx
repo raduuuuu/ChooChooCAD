@@ -53,8 +53,8 @@ describe('placing a piece', () => {
    * - keys reach the preview from a text field: `expected '' to be 'f'`.
    * - an empty floor ignores the preview: `expected <p
    *   class="canvas-empty-lead"></p> to be null`.
-   * - a refused fit not reported: `expected 'O Fits here. Track crossing
-   *   mid-piece…' to match /^X Peg meets peg here\. You can still…/`.
+   * - a refused fit not reported: `expected 'O Fits here.' to match /^X Peg
+   *   meets peg here\. You can still…/`.
    * - no double-click placement: the setup's straight is never placed, so
    *   the first two specs fail as above.
    */
