@@ -27,7 +27,7 @@
 
 import { type Cyc, equals, toXY } from '../geom/cyclotomic.js';
 import { portFrame, type Placement, type PortsOf } from './frames.js';
-import { norm16, portPolarity, type Frame, type Graph, type PortRef } from './model.js';
+import { levelOf, norm16, portPolarity, type Frame, type Graph, type PortRef } from './model.js';
 import type { Polarity } from '../parts/schema.js';
 import type { Part } from '../parts/schema.js';
 
@@ -110,6 +110,16 @@ function latticeKey(pos: Cyc): string {
   return pos.join(',');
 }
 
+/**
+ * A SPOT is a lattice point ON A LEVEL (two-layer plan, decision A1). A raised
+ * end directly above a floor end is not at the same spot: it neither clashes
+ * with it nor joins it. Every caller asking "which ends are here" goes through
+ * `connectorSites`, so the level enters the question once, here.
+ */
+function spotKey(pos: Cyc, level: number): string {
+  return `${level}|${latticeKey(pos)}`;
+}
+
 /** One placed connector: where it is, which way it faces, and what it is. */
 export interface PlacedPort {
   readonly pieceId: string;
@@ -119,12 +129,14 @@ export interface PlacedPort {
   /** True when no weld claims it. */
   readonly free: boolean;
   readonly pos: Cyc;
+  /** Its level, 0 the floor (decision A1). Ends on different levels never share a spot. */
+  readonly level: number;
   /** The way the end points, OUT of its piece, in sixteenths of a turn. */
   readonly heading: number;
   readonly polarity: Polarity;
 }
 
-/** Every placed connector, and the indices of those at each exact lattice point. */
+/** Every placed connector, and the indices of those at each spot: an exact lattice point on one level. */
 export interface ConnectorSites {
   readonly placed: readonly PlacedPort[];
   readonly at: ReadonlyMap<string, readonly number[]>;
@@ -132,7 +144,8 @@ export interface ConnectorSites {
 
 /**
  * WHICH ENDS SIT AT EACH EXACT SPOT, for every caller that asks (eng decision
- * D2 of the 2026-10-22 editing plan, ENG-R1).
+ * D2 of the 2026-10-22 editing plan, ENG-R1). A spot is a lattice point ON A
+ * LEVEL (two-layer plan, A1): a raised end over a floor end is elsewhere.
  *
  * The verdict's clash check, the preview's fit check, the drop guard and
  * auto-join all need full membership per place, keyed the same exact way. Two
@@ -156,6 +169,7 @@ export function connectorSites(graph: Graph, ports: PortsOf, placement: Placemen
         vertex: find(key),
         free: !claimed.has(key),
         pos: frame.pos,
+        level: levelOf(frame),
         heading: frame.heading,
         polarity: own[i]!.polarity,
       });
@@ -163,7 +177,7 @@ export function connectorSites(graph: Graph, ports: PortsOf, placement: Placemen
   }
   const at = new Map<string, number[]>();
   for (let i = 0; i < placed.length; i++) {
-    const key = latticeKey(placed[i]!.pos);
+    const key = spotKey(placed[i]!.pos, placed[i]!.level);
     const group = at.get(key);
     if (group) group.push(i);
     else at.set(key, [i]);
@@ -201,7 +215,7 @@ export function landingOf(
   polarity: Polarity,
   ignore: ReadonlySet<string> = new Set(),
 ): Landing {
-  const here = (sites.at.get(latticeKey(frame.pos)) ?? [])
+  const here = (sites.at.get(spotKey(frame.pos, levelOf(frame))) ?? [])
     .map((i) => sites.placed[i]!)
     .filter((p) => !ignore.has(p.pieceId));
   if (here.length === 0) return { kind: 'clear' };

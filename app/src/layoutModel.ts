@@ -22,10 +22,12 @@ import { connectorSites, landingOf } from '../../engine/src/graph/feasible.js';
 import { findPlankOverlaps } from '../../engine/src/graph/overlap.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
 import type { Segment } from '../../engine/src/geom/fk.js';
-import { placeAll, portFrame, type PortsOf } from '../../engine/src/graph/frames.js';
+import { findLevelFaults, placeAll, portFrame, type PortsOf } from '../../engine/src/graph/frames.js';
 import {
   compose,
   frameForPortAt,
+  frameOf,
+  levelOf,
   norm16,
   opposed,
   type Frame,
@@ -304,7 +306,9 @@ export type FitConflict =
    */
   | { readonly kind: 'loop' }
   /** Its wood would lie over a placed piece's (overlap.ts). Needs `geometry`. */
-  | { readonly kind: 'over'; readonly pieceId: string };
+  | { readonly kind: 'over'; readonly pieceId: string }
+  /** A ramp that would lift track to a third level (two-layer plan, E1). */
+  | { readonly kind: 'level' };
 
 /**
  * What the wood check needs that ports alone do not carry: plank widths and
@@ -342,6 +346,12 @@ export function ghostFit(
   readonly joins: readonly { readonly to: PortRef; readonly adapter: boolean }[];
   /** True when the end it goes on by is a socket meeting a socket. */
   readonly adapterHere: boolean;
+  /**
+   * True when placing it would change the level of track already placed: a
+   * ramp laid descending from a floor end raises that whole run (L1). The
+   * placing strip says so before Place (design 2A).
+   */
+  readonly relevels: boolean;
 } {
   const piece: Piece = { pieceId: '\u0000ghost', partId: ghost.partId, turn: ghost.turn };
   const frame = ghost.at
@@ -422,7 +432,46 @@ export function ghostFit(
       if (!named.has(other)) conflicts.push({ kind: 'over', pieceId: other });
     }
   }
-  return { frame, conflicts, joinsTo, joins, adapterHere };
+  /*
+   * LEVELS (two-layer plan, E1 and OV1). Only a ramp changes a level, so only
+   * a ramp pays for this: the placement simulated once, then two questions the
+   * local checks above cannot answer. Would it lift track to a third level,
+   * its own high end or, by raising a whole run, a ramp already there? And
+   * would raising that run lay it over track it used to pass under or beside?
+   * The local check above only sees the new piece; a run that changes level
+   * is checked whole.
+   */
+  let relevels = false;
+  if (ends.some((e) => levelOf(e.at) !== 0)) {
+    const placed = ghost.at
+      ? addPiece(graph, ghost.partId, ghost.turn, ends.length, ghost.at, ports, { port: ghost.port, turn: ghost.turn })
+      : addPiece(graph, ghost.partId, ghost.turn, ends.length, null, ports, { port: 0, turn: ghost.turn }, frame);
+    const id = placed.graph.pieces[placed.graph.pieces.length - 1]!.pieceId;
+    const candidate = autoJoin(placed.graph, ports, id).graph;
+    const after = placeAll(candidate, ports);
+    relevels = graph.pieces.some((p) => levelOf(placement.frames.get(p.pieceId)!) !== levelOf(after.frames.get(p.pieceId)!));
+    const thirdBefore = findLevelFaults(graph, ports, placement).thirdLevels.length;
+    if (findLevelFaults(candidate, ports, after).thirdLevels.length > thirdBefore) conflicts.push({ kind: 'level' });
+    if (relevels && geometry) {
+      const { resolve } = geometry;
+      const half = (pid: string) => resolve(pid).plankWidthMm / 2;
+      const pair = (a: string, b: string) => (a < b ? `${a}\u0000${b}` : `${b}\u0000${a}`);
+      const had = new Set(
+        findPlankOverlaps(graph, renderGraph(graph, ports, resolve, placement).segments, half, sites).map((o) => pair(o.a, o.b)),
+      );
+      const moved = new Set(graph.pieces.filter((p) => levelOf(placement.frames.get(p.pieceId)!) !== levelOf(after.frames.get(p.pieceId)!)).map((p) => p.pieceId));
+      const named = new Set(conflicts.flatMap((c) => ('pieceId' in c ? [c.pieceId] : [])));
+      for (const o of findPlankOverlaps(candidate, renderGraph(candidate, ports, resolve, after).segments, half, connectorSites(candidate, ports, after))) {
+        if (had.has(pair(o.a, o.b))) continue;
+        const other = moved.has(o.a) || o.a === id ? o.b : o.a;
+        if (!named.has(other)) {
+          named.add(other);
+          conflicts.push({ kind: 'over', pieceId: other });
+        }
+      }
+    }
+  }
+  return { frame, conflicts, joinsTo, joins, adapterHere, relevels };
 }
 
 /**
@@ -604,10 +653,13 @@ export function moveRun(
   const members = new Set(graph.pieces.map((p) => p.pieceId).filter((id) => place.forest.component.get(id) === comp));
   const pivot = portFrame(place, ports, grabbed, 0).pos;
   const rootFrame = place.frames.get(root)!;
-  const moved: Frame = {
-    pos: add(add(pivot, mulZetaPow(sub(rootFrame.pos, pivot), move.turns)), move.by),
-    heading: norm16(rootFrame.heading + move.turns),
-  };
+  // A move turns and shifts a run; it never changes its level (I1: a raised
+  // run with no ramp keeps its level only here, in its root's anchor).
+  const moved: Frame = frameOf(
+    add(add(pivot, mulZetaPow(sub(rootFrame.pos, pivot), move.turns)), move.by),
+    norm16(rootFrame.heading + move.turns),
+    levelOf(rootFrame),
+  );
   const anchors = new Map(graph.anchors ?? []);
   anchors.set(root, moved);
   const next: Graph = { ...graph, anchors };
@@ -678,6 +730,30 @@ export function moveRun(
  * arithmetic throughout, so a snapped join is a real joint, and `moveRun`
  * then joins it.
  */
+/**
+ * Whether a free end on ANOTHER level lies within `radiusMm` of one of the
+ * run's free ends once `move` is applied (two-layer plan, design 5A). Snapping
+ * never reaches such an end (OV3); this is what lets the drop say why.
+ */
+export function otherLevelEndNear(graph: Graph, ports: PortsOf, pieceId: string, move: RunMove, radiusMm: number): boolean {
+  const place = placeAll(graph, ports);
+  const grabbed = graph.pieces.find((p) => p.pieceId === pieceId);
+  const comp = place.forest.component.get(pieceId);
+  if (!grabbed || comp === undefined) return false;
+  const pivot = portFrame(place, ports, grabbed, 0).pos;
+  const sites = connectorSites(graph, ports, place);
+  const mine = sites.placed.filter((p) => p.free && place.forest.component.get(p.pieceId) === comp);
+  const others = sites.placed.filter((p) => p.free && place.forest.component.get(p.pieceId) !== comp);
+  return mine.some((end) => {
+    const [x, y] = toXY(add(add(pivot, mulZetaPow(sub(end.pos, pivot), move.turns)), move.by));
+    return others.some((t) => {
+      if (t.level === end.level) return false;
+      const [tx, ty] = toXY(t.pos);
+      return Math.hypot(tx - x, ty - y) <= radiusMm;
+    });
+  });
+}
+
 export function snapRunMove(
   graph: Graph,
   ports: PortsOf,
@@ -708,6 +784,8 @@ export function snapRunMove(
     const landed = toXY(add(add(pivot, mulZetaPow(sub(end.pos, pivot), move.turns)), move.by));
     for (const target of others) {
       if (target.polarity === end.polarity && end.polarity === 'peg') continue;
+      // Only an end on the same level can ever be joined (eng OV3).
+      if (target.level !== end.level) continue;
       const [tx, ty] = toXY(target.pos);
       const d = Math.hypot(tx - landed[0], ty - landed[1]);
       if (d > radiusMm) continue;

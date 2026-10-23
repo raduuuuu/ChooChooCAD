@@ -4,6 +4,39 @@ Created 2026-10-06 by /plan-ceo-review. The repo exists now
 (`raduuuuu/brio-designer`, private); this is the exported copy that lives in
 the tree, and `docs/plan/README.md` says where the canonical one is.
 
+## P1 — A raised look for raised track
+
+**What:** Draw track on the raised level so it reads as raised everywhere,
+not only where it crosses floor track. DESIGN.md rule 2: the shape carries the
+meaning, so a colour alone will not do (an edge, a shadow, or a pier mark).
+
+**Why:** Two-layer circuits (docs/plan/2026-10-23-two-layers.md) ship with
+drawing order, a casing gap where raised track crosses floor track, and a rise
+chevron on each ramp (design decision 1A, 2026-10-23). What remains is the
+look of raised track everywhere else. A raised straight
+that crosses nothing looks exactly like a floor straight; only the piece list
+says "raised".
+
+**Context:** Deferred at D4 (R1) of the 2026-10-23 CEO review, scope reduction,
+so the bridge rule ships first. Needs a /plan-design-review: the mark must
+stay legible at fit-to-screen zoom (see "Canvas marks keep their screen size").
+
+**Effort:** human ~2 days / CC ~30 min. **Priority:** P1.
+**Depends on:** two-layer circuits landing.
+
+## P3 — Point mouse users to the list for ends hidden under a bridge
+
+**What:** When a free floor end sits under raised track, show a one-line hint
+that it can be reached from the piece list.
+
+**Why:** Raised track wins clicks where it crosses floor track (OV4 of the
+2026-10-23 two-layer review), so such an end is reachable only through the
+list. Keyboard users already use the list; a mouse user may not know it exists.
+
+**Context:** Filed by the 2026-10-23 design review. Rare: needs an end exactly
+under a bridge. **Effort:** human ~2h / CC ~10min. **Priority:** P3.
+**Depends on:** two-layer circuits landing.
+
 ## P2 — Community custom-part registry
 
 **What:** Let the part database accept community-defined parametric parts, so

@@ -283,6 +283,22 @@ export interface StraightPart extends PartBase {
   readonly kind: 'straight';
   /** Length in millimetres. Always an integer on real track. */
   readonly lengthMm: number;
+  /**
+   * A RAMP: how many levels the far end (port 1) sits above the entry (port
+   * 0). Absent on flat track, which is every part but the ascending track.
+   *
+   * An integer level, not millimetres, by decision L1 of the two-layer plan
+   * (docs/plan/2026-10-23-two-layers.md): a run's level is worked out from
+   * its ramps the way its position is worked out from its welds, so the
+   * check "a loop comes back down to the level it left" stays exact. This is
+   * NOT `heightMm`, the continuous height decision 12A added, which nothing
+   * reads; the two will meet if risers of arbitrary height ever arrive.
+   *
+   * Comes from the built-in catalogue only (decision S1): `resolveLibrary`
+   * ignores a stored submission's rise and keeps a built-in's rise through a
+   * correction, so nothing in storage can create, flatten or reshape a ramp.
+   */
+  readonly rise?: 1;
 }
 
 export interface CurvePart extends PartBase {

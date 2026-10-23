@@ -19,9 +19,9 @@
 
 import { analyseCycles, type CycleReport } from './cycles.js';
 import { classifyWelds, connectorSites, findVertexClashes, type AdapterJoint, type VertexClash, type WeldPolarityViolation } from './feasible.js';
-import { findPlankOverlaps, type PlankOverlap } from './overlap.js';
+import { findBridges, findPlankOverlaps, type PlankOverlap } from './overlap.js';
 import { renderGraph } from './render.js';
-import { placeAll, residuals, type PortsOf, type WeldResidual } from './frames.js';
+import { findLevelFaults, placeAll, residuals, type LevelMismatch, type PortsOf, type ThirdLevel, type WeldResidual } from './frames.js';
 import type { Graph } from './model.js';
 import { pieceRepair, type PieceRepair, type RepairLibrary } from './repair.js';
 import type { Part } from '../parts/schema.js';
@@ -52,6 +52,14 @@ export type GraphResult =
       readonly polarityViolations: readonly WeldPolarityViolation[];
       /** Welds where two sockets meet: buildable with a male-male adapter. Every branch. */
       readonly adapterJoints: readonly AdapterJoint[];
+      /** Joints whose ends sit on different levels (frames.ts). Every branch: IMPOSSIBLE. */
+      readonly levelMismatches: readonly LevelMismatch[];
+      /** Ramps that would climb above the raised level. Every branch: IMPOSSIBLE. */
+      readonly thirdLevels: readonly ThirdLevel[];
+      /** Planks crossing on different levels: bridges. Never a fault; the clearance note counts them. */
+      readonly bridges: readonly PlankOverlap[];
+      /** Whether any track is off the floor, for the supports note (design 3A). */
+      readonly raised: boolean;
       /**
        * One per closing weld, with the mismatch in millimetres.
        *
@@ -90,6 +98,14 @@ export type GraphResult =
       readonly polarityViolations: readonly WeldPolarityViolation[];
       /** Welds where two sockets meet: buildable with a male-male adapter. Every branch. */
       readonly adapterJoints: readonly AdapterJoint[];
+      /** Joints whose ends sit on different levels (frames.ts). Every branch: IMPOSSIBLE. */
+      readonly levelMismatches: readonly LevelMismatch[];
+      /** Ramps that would climb above the raised level. Every branch: IMPOSSIBLE. */
+      readonly thirdLevels: readonly ThirdLevel[];
+      /** Planks crossing on different levels: bridges. Never a fault; the clearance note counts them. */
+      readonly bridges: readonly PlankOverlap[];
+      /** Whether any track is off the floor, for the supports note (design 3A). */
+      readonly raised: boolean;
       /**
        * Also on this branch, for the reason the clashes are: two ends being
        * 12mm apart is a fact about where the pieces ARE. It does not become
@@ -112,13 +128,18 @@ export function solveGraph(
 
   // Computed once, up front, because every branch below reports them.
   const clashes = findVertexClashes(graph, ports, placement);
+  const segments = renderGraph(graph, ports, resolve, placement).segments;
   const overlaps = findPlankOverlaps(
     graph,
-    renderGraph(graph, ports, resolve, placement).segments,
+    segments,
     (id) => resolve(id).plankWidthMm / 2,
     connectorSites(graph, ports, placement),
   );
   const { violations: polarityViolations, adapters: adapterJoints } = classifyWelds(graph, resolve, ports);
+  const { mismatches: levelMismatches, thirdLevels } = findLevelFaults(graph, ports, placement, rs);
+  const bridges = findBridges(graph, segments, (id) => resolve(id).plankWidthMm / 2, connectorSites(graph, ports, placement));
+  const raised = segments.some((sg) => (sg.level ?? 0) + (sg.rise ?? 0) > 0);
+  const levels = { levelMismatches, thirdLevels, bridges, raised };
 
   if (rank === 0) {
     /*
@@ -159,6 +180,7 @@ export function solveGraph(
       overlaps,
       polarityViolations,
       adapterJoints,
+      ...levels,
       residuals: rs,
     };
   }
@@ -215,6 +237,7 @@ export function solveGraph(
       overlaps,
       polarityViolations,
       adapterJoints,
+      ...levels,
       residuals: rs,
     };
   }
@@ -252,6 +275,7 @@ export function solveGraph(
       overlaps,
       polarityViolations,
       adapterJoints,
+      ...levels,
       residuals: rs,
     };
   }
@@ -266,6 +290,7 @@ export function solveGraph(
       overlaps,
       polarityViolations,
       adapterJoints,
+      ...levels,
       residuals: rs,
     };
   }
@@ -282,6 +307,7 @@ export function solveGraph(
       overlaps,
       polarityViolations,
       adapterJoints,
+      ...levels,
       residuals: rs,
     };
   }
@@ -303,6 +329,7 @@ export function solveGraph(
     overlaps,
     polarityViolations,
     adapterJoints,
+    ...levels,
     residuals: rs,
     repair:
       withinBound || !library

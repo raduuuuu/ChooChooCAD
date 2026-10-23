@@ -126,6 +126,32 @@ export const TrackLayers = memo(function TrackLayers({
 export const layerRenders = { count: 0 };
 
 const EDGE_MM = 1.2;
+
+/**
+ * How much wider than its plank a raised piece's bridge casing is, in total:
+ * 4mm each side (eng re-run D2). Floor track running closer than that
+ * alongside raised track would be nicked; BRIO's own spacing is wider.
+ */
+const BRIDGE_CASING_MM = 8;
+
+/**
+ * A red fault mark: a ring and an inner glyph, drawn twice, first in
+ * `--paper` two units wider, then in `--fail` (design 10B, eng re-run D5).
+ * `--fail` is 1.78:1 on `--track-groove`, under the 3:1 a mark you must see
+ * is owed, and 6.09:1 on `--paper`, so the halo carries it across a groove.
+ * Drawing units, like the red strokes always were: the screen-size TODO
+ * covers every mark at once. Ink, not a target.
+ */
+function RedMark({ className, x, y, r, d }: { className: string; x: number; y: number; r: number; d: string }) {
+  return (
+    <g className={className} pointerEvents="none" transform={`translate(${x}, ${y})`}>
+      <circle r={r} fill="none" stroke="var(--paper)" strokeWidth={6} className="mark-halo" />
+      <path d={d} fill="none" stroke="var(--paper)" strokeWidth={6} className="mark-halo" />
+      <circle r={r} fill="none" stroke="var(--fail)" strokeWidth={4} />
+      <path d={d} fill="none" stroke="var(--fail)" strokeWidth={4} />
+    </g>
+  );
+}
 /** The concentric strokes a part's plank is drawn with; see TrackCanvas. */
 function trackLayers(part: Part): Array<{ w: number; stroke: string }> {
   const out: Array<{ w: number; stroke: string }> = [
@@ -180,6 +206,14 @@ export interface TrackCanvasProps {
    * 1; design review DR5).
    */
   readonly adapterJoints?: readonly (readonly [number, number])[];
+  /**
+   * Joints whose ends sit on different levels, and ramps that would climb to
+   * a third level (two-layer plan, design 6A). Resolved by `App.tsx`, which
+   * leaves out any spot a clash already holds (eng re-run D4); the verdict
+   * still counts them and says how many are not marked.
+   */
+  readonly levelMismatches?: readonly (readonly [number, number])[];
+  readonly thirdLevels?: readonly (readonly [number, number])[];
   /**
    * Where the next piece will attach. Drawn differently from `armed`, because
    * they used to be one value and a user who clicked the end they had just
@@ -247,6 +281,8 @@ export function TrackCanvas({
   gaps = [],
   badJoints = [],
   adapterJoints = [],
+  levelMismatches = [],
+  thirdLevels = [],
   cursor = null,
   armed = null,
   onPortClick,
@@ -510,6 +546,15 @@ export function TrackCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [drag?.pieceId],
   );
+  /*
+   * The track split by level, memoised so a preview that changes nothing
+   * committed leaves the layers alone (the memo spec in moveRunApp.dom.test):
+   * a fresh `filter` on every render would hand `TrackLayers` a new array.
+   */
+  const [floorSegments, raisedSegments] = useMemo(
+    () => [segments.filter((sg) => (sg.level ?? 0) < 1), segments.filter((sg) => (sg.level ?? 0) >= 1)] as const,
+    [segments],
+  );
   const dragPivot = useMemo(() => {
     if (!drag) return null;
     const p = renderedPorts.find((rp) => rp.pieceId === drag.pieceId && rp.port === 0);
@@ -631,42 +676,42 @@ export function TrackCanvas({
     );
   }
 
-  return (
-    <div className="canvas-frame">
-    <div className="canvas-area">
-    <svg
-      ref={setSvgEl}
-      className="canvas"
-      viewBox={vb}
-      role="img"
-      aria-label="Track layout"
-      onClick={(e) => {
-        // Bare floor only: the svg itself or the grid, never a piece, end or joint.
-        const t = e.target as Element;
-        if (t === e.currentTarget || t.classList.contains('grid')) onFloorClick?.();
-      }}
-    >
-      {/* y grows downward in SVG; flip so the geometry reads as it would on a floor. */}
-      <g ref={setDrawGroup} transform={`translate(0, ${2 * box.minY - 2 * pad + h}) scale(1, -1)`}>
+  /*
+   * TWO PASSES, FLOOR THEN RAISED (two-layer plan, core 6 and OV4). Track,
+   * seams, selection, piece targets, joints and free ends are drawn once per
+   * level, so raised track and its targets sit on top: where a bridge crosses
+   * floor track, a click lands on the bridge, never on the floor joint under
+   * it. A floor end hidden that way is still reachable from the piece list
+   * (keyboard route, U7b). Ramps sit in the floor pass: their entry frame is
+   * the floor, and nothing may overlap one anyway.
+   */
+  const raisedIds = new Set(segments.flatMap((sg) => ((sg.level ?? 0) >= 1 && sg.pieceId !== undefined ? [sg.pieceId] : [])));
+  const raisedPiece = (id: string) => raisedIds.has(id);
+  const onLevel = (raised: boolean) => (sg: Segment) => ((sg.level ?? 0) >= 1) === raised;
+  const portLevel = new Map(renderedPorts.map((p) => [`${p.pieceId}#${p.port}`, p.level ?? 0]));
+  const raisedPort = (ref: { pieceId: string; port: number }) => (portLevel.get(`${ref.pieceId}#${ref.port}`) ?? 0) >= 1;
+  const levelLayer = (raised: boolean) => (
+    <>
         {/*
-          * Under everything, so no track mark is ever drawn behind a grid
-          * line. One path for the whole grid; see `gridPath`.
+          * THE BRIDGE GAP (design 1A, eng re-run D2): before the raised wood,
+          * each raised piece is drawn as a stroke a little wider than its
+          * plank in the canvas ground's colour. Where it crosses floor track
+          * that cuts a clean gap, so a bridge reads as over and under; over
+          * bare floor it is invisible. Millimetres, like the wood (geometry,
+          * not a mark), and ink only. Ramps never get one: nothing may lie
+          * over a ramp, and the casing would nick its high end.
           */}
-        <path className="grid" d={gridPath(shown.minX, shown.minY, shown.width, shown.height, step)} />
-        {/*
-          * THE TABLE (backlog E4): over the grid and under the track, so the
-          * wood that hangs past an edge is drawn on top of the line it
-          * crosses. Ink only, like the grid, so a click reaches the floor.
-          */}
-        {table && (
-          <rect
-            className={`table-outline${table.fits ? '' : ' is-over'}`}
-            x={table.outline.minX}
-            y={table.outline.minY}
-            width={table.outline.maxX - table.outline.minX}
-            height={table.outline.maxY - table.outline.minY}
-          />
-        )}
+        {raised &&
+          segments.filter(onLevel(raised)).map((seg, i) =>
+            seg.pieceId === undefined || hiddenRun?.has(seg.pieceId) ? null : (
+              <path
+                key={`casing-${i}`}
+                d={segmentPath(seg)}
+                className="bridge-casing"
+                strokeWidth={resolve(seg.partId).plankWidthMm + BRIDGE_CASING_MM}
+              />
+            ),
+          )}
         {/*
           * Layer by layer across ALL segments, not all layers per segment.
           * Otherwise a piece's grooves would paint over the neighbouring
@@ -675,13 +720,13 @@ export function TrackCanvas({
           * by the seam layer's one thin line (decision 11A), not by this
           * accident of paint order.
           */}
-        <TrackLayers segments={segments} resolve={resolve} maxLayers={maxLayers} hidden={hiddenRun} />
+        <TrackLayers segments={raised ? raisedSegments : floorSegments} resolve={resolve} maxLayers={maxLayers} hidden={hiddenRun} />
         {/*
           * THE RUN BEING DRAGGED (decision E6): the same wood, moved by one
           * transform, nothing solved. Its pieces are hidden from the layers
           * above for the drag's duration.
           */}
-        {drag && dragPivot && (
+        {!raised && drag && dragPivot && (
           <g
             className="drag-run"
             pointerEvents="none"
@@ -706,7 +751,7 @@ export function TrackCanvas({
           * target: `pointer-events: none` comes from the stylesheet.
           */}
         {/* The dragged run's seams travel with it, in the overlay above. */}
-        {seams.map((m, i) => hiddenRun?.has(m.pieceId) ? null : (
+        {seams.filter((m) => raisedPiece(m.pieceId) === raised).map((m, i) => hiddenRun?.has(m.pieceId) ? null : (
           <line
             key={`seam-${i}`}
             className="seam"
@@ -723,7 +768,7 @@ export function TrackCanvas({
           * each keeps its device weight at every zoom (non-scaling strokes).
           */}
         {selected !== null &&
-          segments.map((seg, i) => {
+          segments.filter(onLevel(raised)).map((seg, i) => {
             if (seg.pieceId === undefined) return null;
             const isSelected = seg.pieceId === selected;
             if (!isSelected && !selectedRun?.has(seg.pieceId)) return null;
@@ -746,7 +791,7 @@ export function TrackCanvas({
           * (decision 17A), shown only under `:focus-visible`.
           */}
         {onPieceSelect &&
-          pieceOrder.map((id) => {
+          pieceOrder.filter((id) => raisedPiece(id) === raised).map((id) => {
             const segs = segments.filter((seg) => seg.pieceId === id);
             const width = resolve(segs[0]!.partId).plankWidthMm;
             return (
@@ -852,7 +897,7 @@ export function TrackCanvas({
           * is the commit; Undo is the way back.
           */}
         {onWeldClick &&
-          welds.map((w) => (
+          welds.filter((w) => raisedPort(w.a) === raised).map((w) => (
             <g
               key={`weld-${w.a.pieceId}#${w.a.port}-${w.b.pieceId}#${w.b.port}`}
               className="weld"
@@ -886,7 +931,7 @@ export function TrackCanvas({
           * scaled to fit so its on-screen size changes with the layout.
           */}
         {renderedPorts
-          .filter((p) => p.free)
+          .filter((p) => p.free && (p.level ?? 0) >= 1 === raised)
           .map((p) => {
             const isArmed =
               armed !== null &&
@@ -1012,6 +1057,47 @@ export function TrackCanvas({
               </g>
             );
           })}
+    </>
+  );
+
+  return (
+    <div className="canvas-frame">
+    <div className="canvas-area">
+    <svg
+      ref={setSvgEl}
+      className="canvas"
+      viewBox={vb}
+      role="img"
+      aria-label="Track layout"
+      onClick={(e) => {
+        // Bare floor only: the svg itself or the grid, never a piece, end or joint.
+        const t = e.target as Element;
+        if (t === e.currentTarget || t.classList.contains('grid')) onFloorClick?.();
+      }}
+    >
+      {/* y grows downward in SVG; flip so the geometry reads as it would on a floor. */}
+      <g ref={setDrawGroup} transform={`translate(0, ${2 * box.minY - 2 * pad + h}) scale(1, -1)`}>
+        {/*
+          * Under everything, so no track mark is ever drawn behind a grid
+          * line. One path for the whole grid; see `gridPath`.
+          */}
+        <path className="grid" d={gridPath(shown.minX, shown.minY, shown.width, shown.height, step)} />
+        {/*
+          * THE TABLE (backlog E4): over the grid and under the track, so the
+          * wood that hangs past an edge is drawn on top of the line it
+          * crosses. Ink only, like the grid, so a click reaches the floor.
+          */}
+        {table && (
+          <rect
+            className={`table-outline${table.fits ? '' : ' is-over'}`}
+            x={table.outline.minX}
+            y={table.outline.minY}
+            width={table.outline.maxX - table.outline.minX}
+            height={table.outline.maxY - table.outline.minY}
+          />
+        )}
+        {levelLayer(false)}
+        {levelLayer(true)}
         {/*
           * THE GAP, DRAWN (task W2, decision D4).
           *
@@ -1071,11 +1157,7 @@ export function TrackCanvas({
            * will retune, and a spec pinned to `r="18"` would then fail for a
            * reason that has nothing to do with the marker existing.
            */
-          <g key={`badjoint-${i}`} className="bad-joint-mark" pointerEvents="none">
-            <circle cx={x} cy={y} r={18} fill="none" stroke="var(--fail)" strokeWidth={4} />
-            <line x1={x - 10} y1={y} x2={x + 10} y2={y}
-              stroke="var(--fail)" strokeWidth={4} />
-          </g>
+          <RedMark key={`badjoint-${i}`} className="bad-joint-mark" x={x} y={y} r={18} d="M -10 0 L 10 0" />
         ))}
         {adapterJoints.map(([x, y], i) => (
           // Ink, not a target, like the other marks; the class is what specs count.
@@ -1085,21 +1167,41 @@ export function TrackCanvas({
             <path className="adapter-core" d={`M ${x} ${y - 5} L ${x + 5} ${y} L ${x} ${y + 5} L ${x - 5} ${y} Z`} />
           </g>
         ))}
-        {dedupedClashes.map(([x, y], i) => (
-          <g key={`clash-${i}`} className="clash-mark" pointerEvents="none">
-            <circle
-              cx={x}
-              cy={y}
-              r={28}
-              fill="none"
-              stroke="var(--fail)"
-              strokeWidth={4}
+        {/*
+          * THE LEVEL FAULTS (design 6A): a ring with a step where a joint
+          * joins two levels, a ring with a double chevron on a ramp that
+          * would climb to a third level. Shapes no other mark uses, red like
+          * every fault, with the paper halo (10B).
+          */}
+        {levelMismatches.map(([x, y], i) => (
+          <RedMark key={`levelmismatch-${i}`} className="level-mismatch-mark" x={x} y={y} r={18} d="M -10 -4 H 0 V 4 H 10" />
+        ))}
+        {thirdLevels.map(([x, y], i) => (
+          <RedMark key={`thirdlevel-${i}`} className="third-level-mark" x={x} y={y} r={18} d="M -7 -2 L 0 5 L 7 -2 M -7 -9 L 0 -2 L 7 -9" />
+        ))}
+        {/*
+          * THE RISE CHEVRON (design 1A): an ink chevron at the middle of each
+          * ramp, pointing up the slope, from its low end to its high end.
+          * Ink, no colour (rule 1); device-sized stroke like the adapter mark
+          * (app.css); never a target.
+          */}
+        {segments.map((seg, i) => {
+          if (!seg.rise || (seg.pieceId !== undefined && hiddenRun?.has(seg.pieceId))) return null;
+          const mx = (seg.from.x + seg.to.x) / 2;
+          const my = (seg.from.y + seg.to.y) / 2;
+          const deg = (Math.atan2(seg.to.y - seg.from.y, seg.to.x - seg.from.x) * 180) / Math.PI;
+          return (
+            <path
+              key={`rise-${i}`}
+              className="rise-chevron"
+              pointerEvents="none"
+              transform={`translate(${mx}, ${my}) rotate(${deg})`}
+              d="M -6 -9 L 6 0 L -6 9"
             />
-            <line x1={x - 14} y1={y - 14} x2={x + 14} y2={y + 14}
-              stroke="var(--fail)" strokeWidth={4} />
-            <line x1={x - 14} y1={y + 14} x2={x + 14} y2={y - 14}
-              stroke="var(--fail)" strokeWidth={4} />
-          </g>
+          );
+        })}
+        {dedupedClashes.map(([x, y], i) => (
+          <RedMark key={`clash-${i}`} className="clash-mark" x={x} y={y} r={28} d="M -14 -14 L 14 14 M -14 14 L 14 -14" />
         ))}
         {selectedLabel}
         {/*

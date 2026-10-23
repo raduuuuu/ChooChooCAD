@@ -72,7 +72,24 @@ export const ACTION_FOR_VERDICT: Record<OutcomeKind, string> = {
  * read over a crossing it pointed at a spot the canvas never marked as one.
  */
 export const ACTION_WHEN_CROSSING =
-  'Move one of the crossing pieces so the two no longer touch.';
+  'Move one of the crossing pieces so the two no longer touch, or raise one on ramps.';
+
+/**
+ * IMPOSSIBLE's actions when the cause is a level fault and nothing else
+ * (two-layer plan, design decision 8A). The ends-share-a-spot fallback would
+ * point at a spot no level fault has.
+ */
+export const ACTION_WHEN_LEVEL_MISMATCH =
+  'Add a ramp so the loop comes back down to the level it left, or turn one ramp round.';
+export const ACTION_WHEN_THIRD_LEVEL = 'Turn that ramp round or remove it.';
+
+/**
+ * EXACT's action when any track is raised (design decision 4A). "Nothing to
+ * fix. Build it." would sit one line from a note saying supports and
+ * clearance were not checked.
+ */
+export const ACTION_WHEN_RAISED =
+  'The track fits. Check the supports and the clearance under each bridge before you build.';
 
 /**
  * The failure kinds, declared ONCE.

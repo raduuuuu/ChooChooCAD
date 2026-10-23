@@ -61,6 +61,14 @@ export interface VerdictView {
   /** Places where one plank runs over another, ends nowhere near (overlap.ts). */
   readonly overlapCount: number;
   readonly polarityCount: number;
+  /** Joints whose ends sit on different levels: the loop never comes back down. */
+  readonly levelMismatchCount: number;
+  /** Ramps that would climb to a third level. */
+  readonly thirdLevelCount: number;
+  /** Places where raised track crosses floor track: bridges, for the clearance note. */
+  readonly bridgeCount: number;
+  /** Any track off the floor, for the supports note (design 3A). */
+  readonly raised: boolean;
   /** Welds where two sockets meet, each needing a male-male adapter. Never changes the kind. */
   readonly adapterCount: number;
   /** Joints in the worst loop, which is the number the gap is spread across. */
@@ -89,14 +97,30 @@ const EMPTY: VerdictView = {
   clashCount: 0,
   overlapCount: 0,
   polarityCount: 0,
+  levelMismatchCount: 0,
+  thirdLevelCount: 0,
+  bridgeCount: 0,
+  raised: false,
   adapterCount: 0,
   jointCount: 0,
   pieces: null,
 };
 
-/** Track in a place it cannot be: ends piled up, planks crossing, or ends that do not fit. */
+/** Track in a place it cannot be: ends piled up, planks crossing, ends that do not fit, or levels that do not. */
 const impossible = (r: GraphResult): boolean =>
-  r.clashes.length > 0 || r.overlaps.length > 0 || r.polarityViolations.length > 0;
+  r.clashes.length > 0 ||
+  r.overlaps.length > 0 ||
+  r.polarityViolations.length > 0 ||
+  r.levelMismatches.length > 0 ||
+  r.thirdLevels.length > 0;
+
+/** The level counts, on every branch: faults outrank closure, and the notes need the rest. */
+const levelsOf = (r: GraphResult) => ({
+  levelMismatchCount: r.levelMismatches.length,
+  thirdLevelCount: r.thirdLevels.length,
+  bridgeCount: r.bridges.length,
+  raised: r.raised,
+});
 
 export function viewOf(result: GraphResult | null): VerdictView {
   if (!result) return EMPTY;
@@ -119,6 +143,7 @@ export function viewOf(result: GraphResult | null): VerdictView {
         overlapCount: result.overlaps.length,
         polarityCount: result.polarityViolations.length,
         adapterCount: result.adapterJoints.length,
+        ...levelsOf(result),
       };
     }
     return {
@@ -127,6 +152,7 @@ export function viewOf(result: GraphResult | null): VerdictView {
       detail: result.detail,
       rank: result.rank,
       adapterCount: result.adapterJoints.length,
+      ...levelsOf(result),
     };
   }
 
@@ -142,6 +168,7 @@ export function viewOf(result: GraphResult | null): VerdictView {
     overlapCount: result.overlaps.length,
     polarityCount: result.polarityViolations.length,
     adapterCount: result.adapterJoints.length,
+    ...levelsOf(result),
     jointCount: result.worst?.welds.length ?? 0,
     pieces: null,
   };

@@ -16,7 +16,8 @@
  * undo with nothing to undo) must not announce that it did something.
  */
 
-import { portPolarity, type Graph, type PortRef } from '../../engine/src/graph/model.js';
+import { levelOf, portPolarity, portsOf, type Graph, type Piece, type PortRef } from '../../engine/src/graph/model.js';
+import { placeAll } from '../../engine/src/graph/frames.js';
 import type { Part } from '../../engine/src/parts/schema.js';
 import { shortCode } from '../../engine/src/parts/schema.js';
 import type { EditorAction, EditorState } from './editorReducer.js';
@@ -92,6 +93,37 @@ export function describeAction(
     return ` It also joined ${where(next.graph, other)}${withAdapter(next.graph, far)}.`;
   };
 
+  /*
+   * LEVELS, said with every placement that involves one (two-layer plan, R2
+   * and the L1 note): a ramp says which way it went, a raised piece says it is
+   * raised, and a placement that lifted the run it joined says so, because
+   * nothing on the canvas shows a run changing level except the drawing order.
+   */
+  const portsOfPiece = (p: Piece) => portsOf(resolve(p.partId), p.turn);
+  const levels = (id: string): string => {
+    const piece = next.graph.pieces.find((p) => p.pieceId === id);
+    if (!piece) return '';
+    const before = placeAll(prev.graph, portsOfPiece).frames;
+    const after = placeAll(next.graph, portsOfPiece).frames;
+    const at = (frames: typeof after, pid: string) => {
+      const f = frames.get(pid);
+      return f ? levelOf(f) : 0;
+    };
+    const raisedRun = prev.graph.pieces.some((p) => at(after, p.pieceId) > at(before, p.pieceId));
+    const part = resolve(piece.partId);
+    const joinedBy = next.graph.welds.find((w) => w.a.pieceId === id || w.b.pieceId === id);
+    const by = joinedBy ? (joinedBy.a.pieceId === id ? joinedBy.a.port : joinedBy.b.port) : 0;
+    const own =
+      part.kind === 'straight' && part.rise !== undefined
+        ? by === 0
+          ? ' It climbs to the raised level.'
+          : ' It comes down to the floor.'
+        : at(after, id) >= 1
+          ? ' It is raised.'
+          : '';
+    return `${own}${raisedRun ? ' The run it joined is now raised.' : ''}`;
+  };
+
   switch (action.kind) {
     case 'add': {
       const n = next.graph.pieces.length;
@@ -101,9 +133,9 @@ export function describeAction(
         (w) => w.a.pieceId === piece.pieceId || w.b.pieceId === piece.pieceId,
       );
       const head = `Added piece ${n}, ${part.name} (${shortCode(part)})`;
-      if (!joint) return `${head}, starting a new run.`;
+      if (!joint) return `${head}, starting a new run.${levels(piece.pieceId)}`;
       const other = joint.a.pieceId === piece.pieceId ? joint.b : joint.a;
-      return `${head}, joined to ${where(next.graph, other)}${withAdapter(next.graph, joint)}.${closed(piece.pieceId)}`;
+      return `${head}, joined to ${where(next.graph, other)}${withAdapter(next.graph, joint)}.${closed(piece.pieceId)}${levels(piece.pieceId)}`;
     }
     case 'dropGhost':
       // Still pending means the drop was refused (6A); the strip says why.
@@ -117,9 +149,9 @@ export function describeAction(
         (w) => w.a.pieceId === piece.pieceId || w.b.pieceId === piece.pieceId,
       );
       const head = `Added piece ${n}, ${part.name} (${shortCode(part)})`;
-      if (joints.length === 0) return `${head}, starting a new run.`;
+      if (joints.length === 0) return `${head}, starting a new run.${levels(piece.pieceId)}`;
       const other = joints[0]!.a.pieceId === piece.pieceId ? joints[0]!.b : joints[0]!.a;
-      return `${head}, joined to ${where(next.graph, other)}${withAdapter(next.graph, joints[0]!)}.${closed(piece.pieceId)}`;
+      return `${head}, joined to ${where(next.graph, other)}${withAdapter(next.graph, joints[0]!)}.${closed(piece.pieceId)}${levels(piece.pieceId)}`;
     }
     case 'pick':
       return `Placing ${resolve(action.partId).name}. Press R to rotate, Enter to place, Escape to cancel.`;
@@ -137,7 +169,7 @@ export function describeAction(
     case 'moveRun': {
       if (next.refusal) return `Can't move it there: ${next.refusal}.`;
       const added = next.graph.welds.filter((w) => !prev.graph.welds.includes(w));
-      if (added.length === 0) return 'Moved the run.';
+      if (added.length === 0) return next.dropHint ? `Moved the run. ${next.dropHint}.` : 'Moved the run.';
       const adapters = added.filter((w) => adapterJoint(next.graph, w)).length;
       const using =
         adapters === 0 ? '' : adapters === 1 ? ' with a male-male adapter' : ` with ${adapters} male-male adapters`;

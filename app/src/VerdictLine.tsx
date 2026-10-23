@@ -24,10 +24,14 @@
 import { Children, cloneElement, createContext, isValidElement, useContext, type ReactNode } from 'react';
 import type { TrustIssue } from '../../engine/src/joints/trust.js';
 import type { VerdictView } from './verdictView.js';
+import { CLEARANCE } from '../../engine/data/rampSeeds.js';
 import {
   ACTION_FOR_FAILURE,
   ACTION_FOR_VERDICT,
   ACTION_WHEN_CROSSING,
+  ACTION_WHEN_LEVEL_MISMATCH,
+  ACTION_WHEN_RAISED,
+  ACTION_WHEN_THIRD_LEVEL,
   FAILURE_COPY,
   isFailure,
 } from './verdictAction.js';
@@ -201,12 +205,14 @@ function notesFor(
   basis = false,
   adapters = 0,
   unmarked = 0,
+  raised: { readonly bridges: number } | null = null,
 ) {
-  if (trust.length === 0 && !action && adapters === 0) return undefined;
+  if (trust.length === 0 && !action && adapters === 0 && !raised) return undefined;
   return (
     <>
       {basis && <Basis trust={trust} />}
       {adapters > 0 && <AdapterNote n={adapters} unmarked={unmarked} />}
+      {raised && <RaisedNote bridges={raised.bridges} />}
       <Trust trust={trust} />
       <Action action={action} />
     </>
@@ -241,6 +247,59 @@ function AdapterNote({ n, unmarked }: { n: number; unmarked: number }) {
     </p>
   );
 }
+
+/**
+ * THE RAISED-TRACK NOTE (two-layer plan, L3 and design decision 3A). Never
+ * truncated, like the adapter note: it is a green verdict's only word on what
+ * was NOT checked, and folding it into "and 1 more note" would claim more
+ * than was checked (DESIGN.md rule 3). Supports whenever any track is
+ * raised; the clearance figure, with the numbers it is made of, only where
+ * raised track crosses floor track. Every number in the number face (rule 4).
+ */
+function RaisedNote({ bridges }: { bridges: number }) {
+  const { riseMm, plankMm, trainMm } = CLEARANCE;
+  return (
+    <p className="verdict-raised">
+      Raised track: supports are not checked.
+      {bridges > 0 && (
+        <>
+          {' '}It crosses other track at <span className="num">{bridges}</span> {bridges === 1 ? 'place' : 'places'};
+          clearance is about <span className="num">{riseMm - plankMm - trainMm}</span>mm (
+          <span className="num">{riseMm}</span>mm rise, <span className="num">{plankMm}</span>mm plank,{' '}
+          <span className="num">{trainMm}</span>mm train), estimated.
+        </>
+      )}
+    </p>
+  );
+}
+
+/**
+ * IMPOSSIBLE's action, matched to the one cause the sentence names. The
+ * sentence shows, in order, refused ends, then piled-up ends, then crossing
+ * planks, then the two level faults; the action follows the same order.
+ */
+function impossibleAction(e: VerdictView): string {
+  if (e.polarityCount > 0 || e.clashCount > 0) return ACTION_FOR_VERDICT.IMPOSSIBLE;
+  if (e.overlapCount > 0) return ACTION_WHEN_CROSSING;
+  if (e.levelMismatchCount > 0) return ACTION_WHEN_LEVEL_MISMATCH;
+  if (e.thirdLevelCount > 0) return ACTION_WHEN_THIRD_LEVEL;
+  return ACTION_FOR_VERDICT.IMPOSSIBLE;
+}
+
+/** "N is not marked, because a clash is drawn there", the adapter note's clause (DR1). */
+function Unmarked({ n }: { n: number }) {
+  if (n === 0) return null;
+  return (
+    <>
+      {' '}
+      <span className="num">{n}</span> {n === 1 ? 'is' : 'are'} not marked, because {n === 1 ? 'a clash is' : 'clashes are'}{' '}
+      drawn there.
+    </>
+  );
+}
+
+/** The facts the raised-track note needs, or null when nothing is off the floor. */
+const raisedOf = (e: VerdictView) => (e.raised ? { bridges: e.bridgeCount } : null);
 
 export function adapterNote(n: number): string {
   return n === 1
@@ -347,12 +406,15 @@ export function VerdictLine({
   view,
   trust = [],
   adaptersUnmarked = 0,
+  levelUnmarked = 0,
 }: {
   view: VerdictView;
   /** Why this verdict is worth less than it looks. See engine/joints/trust.ts. */
   trust?: readonly TrustIssue[];
   /** Adapter joints the canvas does not mark because a red mark holds the spot (DR1). */
   adaptersUnmarked?: number;
+  /** Level faults the canvas does not mark because a clash holds the spot (eng re-run D4). */
+  levelUnmarked?: number;
 }) {
   const e = view;
 
@@ -384,7 +446,7 @@ export function VerdictLine({
     return (
       <Verdict
         tone="unknown"
-        notes={notesFor([], ACTION_FOR_FAILURE[e.kind] ?? null, false, e.adapterCount, adaptersUnmarked)}
+        notes={notesFor([], ACTION_FOR_FAILURE[e.kind] ?? null, false, e.adapterCount, adaptersUnmarked, raisedOf(e))}
       >
         <Mark glyph="?" />
         <span className="verdict-text">
@@ -425,12 +487,11 @@ export function VerdictLine({
           tone="fail"
           notes={notesFor(
             trust,
-            e.polarityCount === 0 && e.clashCount === 0 && e.overlapCount > 0
-              ? ACTION_WHEN_CROSSING
-              : ACTION_FOR_VERDICT.IMPOSSIBLE,
+            impossibleAction(e),
             false,
             e.adapterCount,
             adaptersUnmarked,
+            raisedOf(e),
           )}
         >
           <Mark glyph="X" />
@@ -449,8 +510,23 @@ export function VerdictLine({
                 */}
               Can&rsquo;t be built. <span className="num">{e.overlapCount}</span>{' '}
               {e.overlapCount === 1
-                ? 'place has track running over other track. Track can only cross on a crossing piece or a bridge.'
-                : 'places have track running over other track. Track can only cross on a crossing piece or a bridge.'}
+                ? 'place has track running over other track. Track can only cross on a crossing piece, or raised on ramps over the other track.'
+                : 'places have track running over other track. Track can only cross on a crossing piece, or raised on ramps over the other track.'}
+            </span>
+          ) : e.clashCount === 0 && e.levelMismatchCount > 0 ? (
+            <span className="verdict-text">
+              {/* Design decision 8A; the unmarked clause is eng re-run D4. */}
+              Can&rsquo;t be built. <span className="num">{e.levelMismatchCount}</span>{' '}
+              {e.levelMismatchCount === 1 ? 'joint joins' : 'joints join'} track at two different levels: the loop
+              climbs and never comes back down.
+              <Unmarked n={levelUnmarked} />
+            </span>
+          ) : e.clashCount === 0 && e.thirdLevelCount > 0 ? (
+            <span className="verdict-text">
+              Can&rsquo;t be built. <span className="num">{e.thirdLevelCount}</span>{' '}
+              {e.thirdLevelCount === 1 ? 'ramp' : 'ramps'} would lift track to a third level. Only two levels are
+              supported.
+              <Unmarked n={levelUnmarked} />
             </span>
           ) : (
             <span className="verdict-text">
@@ -501,7 +577,14 @@ export function VerdictLine({
       return (
         <Verdict
           tone="pass"
-          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], true, e.adapterCount, adaptersUnmarked)}
+          notes={notesFor(
+            trust,
+            e.raised ? ACTION_WHEN_RAISED : ACTION_FOR_VERDICT.EXACT,
+            true,
+            e.adapterCount,
+            adaptersUnmarked,
+            raisedOf(e),
+          )}
         >
           <Mark glyph="O" />
           <span className="verdict-text">This works. Closes exactly, no give needed at any joint.</span>
@@ -512,7 +595,7 @@ export function VerdictLine({
       return (
         <Verdict
           tone="tight"
-          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], true, e.adapterCount, adaptersUnmarked)}
+          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], true, e.adapterCount, adaptersUnmarked, raisedOf(e))}
         >
           <Mark glyph={'/\\'} />
           <span className="verdict-text">
@@ -563,7 +646,7 @@ export function VerdictLine({
          */
         <Verdict
           tone="fail"
-          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], true, e.adapterCount, adaptersUnmarked)}
+          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], true, e.adapterCount, adaptersUnmarked, raisedOf(e))}
         >
           <Mark glyph="X" />
           <span className="verdict-text">

@@ -149,6 +149,14 @@ product's one novel claim. If 216 is the run, everything is fine. The code
 comment at `engine/data/brio.ts:12` asserts "216 run" but nobody has checked.
 One tape measure settles it.
 
+> **Built on estimates, 2026-10-23.** Two-layer circuits shipped without this
+> afternoon (owner decisions L2 and L3 of `docs/plan/2026-10-23-two-layers.md`):
+> the ascending track takes 216mm as its RUN (Q4 open, so the part is marked
+> unverified), and the clearance note states 64 - 12 - 44 = 8mm as an estimate
+> with supports not checked. The constants are `CLEARANCE` in
+> `engine/data/rampSeeds.ts`. Measuring Q4 and Q5 replaces them; nothing else
+> has to change.
+
 ## Q5 — The three numbers that decide whether a bridge works
 
 The layer feature lives or dies on one subtraction. A bridge sits one ramp-rise

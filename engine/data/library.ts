@@ -37,6 +37,7 @@
 import type { DimensionSource, Part } from '../src/parts/schema.js';
 import { DIMENSION_TRUST, trustRank, type DimensionStatus } from '../src/parts/schema.js';
 import { BRIO_PARTS } from './brio.js';
+import { RAMP_SEEDS } from './rampSeeds.js';
 import { SWITCH_SEEDS } from './switchSeeds.js';
 import { THIRD_PARTY_SEEDS } from './thirdParty.js';
 
@@ -44,7 +45,7 @@ import { THIRD_PARTY_SEEDS } from './thirdParty.js';
  * Built-in parts: published BRIO, unverified BRIO switches measured off 3D-print
  * reproductions, and unverified third-party seeds.
  */
-export const BUILT_IN: readonly Part[] = [...BRIO_PARTS, ...SWITCH_SEEDS, ...THIRD_PARTY_SEEDS];
+export const BUILT_IN: readonly Part[] = [...BRIO_PARTS, ...RAMP_SEEDS, ...SWITCH_SEEDS, ...THIRD_PARTY_SEEDS];
 
 /**
  * One submitted part. A `Part` plus the bookkeeping a shared library needs.
@@ -81,6 +82,18 @@ export interface Submission {
  * re-modelling anything, but nothing reads it yet. Until it does, a corroborated
  * community figure is treated exactly like an uncorroborated one.
  */
+/** The built-in rising parts and their rise; nothing else may rise (S1). */
+const BUILT_IN_RISE = new Map(
+  BUILT_IN.flatMap((p) => (p.kind === 'straight' && p.rise !== undefined ? [[p.id, p.rise] as const] : [])),
+);
+
+/** `part` with the built-in rise, or with none: a stored rise never survives. */
+function withRise(part: Part, rise: 1 | undefined): Part {
+  if (part.kind !== 'straight') return part;
+  const { rise: _dropped, ...flat } = part;
+  return rise === undefined ? flat : { ...flat, rise };
+}
+
 /** How many ends a part has: a switch has a heel and two roads. */
 const endCount = (p: Part): number => (p.kind === 'switch' ? 3 : 2);
 
@@ -101,8 +114,21 @@ export function resolveLibrary(submissions: readonly Submission[]): readonly Par
      * stays.
      */
     if (held && endCount(held.part) !== endCount(s.part)) continue;
+    /*
+     * A PART'S RISE COMES FROM THE BUILT-IN CATALOGUE ONLY (two-layer plan,
+     * decision S1). A stored submission is checked field by field and passed
+     * through, so a rise on one would make it a ramp; and the ramp is
+     * `unverified`, so any measured correction outranks it and, without this,
+     * would quietly flatten every ramp. So a submission's rise is dropped, a
+     * correction of a rising part keeps the built-in rise, and one that turns
+     * the ramp into another kind of piece is refused like an end-count change
+     * (eng decision D5): a curved ramp is not something the engine models.
+     */
+    const rise = BUILT_IN_RISE.get(s.part.id);
+    if (rise !== undefined && s.part.kind !== 'straight') continue;
+    const part = withRise(s.part, rise);
     if (!held || rank < held.rank || (rank === held.rank && s.at >= held.at)) {
-      byId.set(s.part.id, { part: s.part, rank, at: s.at });
+      byId.set(s.part.id, { part, rank, at: s.at });
     }
   }
   return [...byId.values()].map((v) => v.part);

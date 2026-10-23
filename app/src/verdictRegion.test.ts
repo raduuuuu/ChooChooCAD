@@ -86,6 +86,10 @@ const view = (kind: VerdictKind): VerdictView => ({
   adapterCount: 0,
   clashCount: kind === 'IMPOSSIBLE' ? 1 : 0,
   polarityCount: 0,
+  levelMismatchCount: 0,
+  thirdLevelCount: 0,
+  bridgeCount: 0,
+  raised: false,
   jointCount: 10,
   pieces: null,
 });

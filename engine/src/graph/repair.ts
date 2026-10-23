@@ -78,8 +78,15 @@ interface Step {
   readonly heading: number;
 }
 
+/*
+ * FLAT STRAIGHTS ONLY (eng decision D4 of the two-layer review). A repair is
+ * offered only when it provably closes the loop, and this file proves it on
+ * the floor plan alone: suggesting a ramp, or taking one out, would fix the
+ * gap and break the loop's levels.
+ */
 const isClean = (p: Part): p is StraightPart =>
   p.kind === 'straight' &&
+  p.rise === undefined &&
   Number.isInteger(p.lengthMm) &&
   p.lengthMm > 0 &&
   p.ends.start !== p.ends.end;

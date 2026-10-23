@@ -56,8 +56,10 @@ describe('track laid over track', () => {
     ]);
     const verdict = document.querySelector('.verdict-text')!.textContent!;
     expect(verdict).toMatch(/^Can’t be built\. 1 place has track running over other track\./);
+    // Design decision 9A: bridges can be built now, so the copy points at ramps.
+    expect(verdict).toContain('or raised on ramps over the other track.');
     expect(document.querySelector('.verdict-action')!.textContent).toBe(
-      'Move one of the crossing pieces so the two no longer touch.',
+      'Move one of the crossing pieces so the two no longer touch, or raise one on ramps.',
     );
     // The clash marker: a ring and a cross, drawn at the crossing.
     expect(document.querySelectorAll('circle[stroke="var(--fail)"]').length).toBe(1);

@@ -37,7 +37,7 @@
  * that loss recoverable even if a later save does land.
  */
 
-import type { Frame, Graph, Piece, Weld } from '../../engine/src/graph/model.js';
+import { frameOf, levelOf, type Frame, type Graph, type Piece, type Weld } from '../../engine/src/graph/model.js';
 import { scale, toXY, zetaPow, type Cyc } from '../../engine/src/geom/cyclotomic.js';
 import { placeAll, portFrame, type PortsOf } from '../../engine/src/graph/frames.js';
 import { CHAIN_STORAGE_KEY, GRAPH_RESCUE_KEY, GRAPH_STORAGE_KEY } from './storageKeys.js';
@@ -68,7 +68,8 @@ export interface GraphLoadResult {
 interface StoredGraph {
   pieces: Array<{ pieceId: string; partId: string; turn?: string }>;
   welds: Array<{ a: { pieceId: string; port: number }; b: { pieceId: string; port: number } }>;
-  anchors?: Array<[string, { pos: number[]; heading: number }]>;
+  /** `level` only off the floor (two-layer plan, I1 and SC1): absent is the floor. */
+  anchors?: Array<[string, { pos: number[]; heading: number; level?: number }]>;
 }
 
 /**
@@ -123,6 +124,15 @@ function isCyc(v: unknown): v is Cyc {
  */
 function isHeading(v: unknown): v is number {
   return typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 15;
+}
+
+/**
+ * A level this engine could have written: absent (the floor) or 1, the raised
+ * level (two-layer plan, decision I1). The saver never writes 0 (SC1). Any
+ * other value is dropped with its anchor, like an out-of-range heading.
+ */
+function isAnchorLevel(v: unknown): v is number | undefined {
+  return v === undefined || v === 1;
 }
 
 /** Copy the refused bytes aside, untouched. Never throws; losing the rescue is not worth losing the session. */
@@ -476,7 +486,7 @@ export function loadGraph(
         orphans.push(id);
         continue;
       }
-      const { pos, heading } = frame as Record<string, unknown>;
+      const { pos, heading, level } = frame as Record<string, unknown>;
       // Anchors are exact lattice points. A non-integer or absurdly large one
       // is not an anchor this engine wrote, so it is dropped rather than
       // rounded or truncated into place. Both checks live in `isCyc`.
@@ -490,7 +500,12 @@ export function loadGraph(
         orphans.push(id);
         continue;
       }
-      anchorMap.set(id, { pos, heading });
+      if (!isAnchorLevel(level)) {
+        droppedAnchors++;
+        orphans.push(id);
+        continue;
+      }
+      anchorMap.set(id, frameOf(pos, heading, level ?? 0));
     }
 
     /*
@@ -549,7 +564,11 @@ export function saveGraph(graph: Graph): void {
     const payload: StoredGraph = {
       pieces: graph.pieces.map((p) => ({ pieceId: p.pieceId, partId: p.partId, turn: p.turn })),
       welds: graph.welds.map((w) => ({ a: { ...w.a }, b: { ...w.b } })),
-      anchors: [...(graph.anchors ?? [])].map(([id, f]) => [id, { pos: [...f.pos], heading: f.heading }]),
+      // The level only off the floor (SC1), so a flat layout saves exactly as before.
+      anchors: [...(graph.anchors ?? [])].map(([id, f]) => [
+        id,
+        { pos: [...f.pos], heading: f.heading, ...(levelOf(f) !== 0 ? { level: levelOf(f) } : {}) },
+      ]),
     };
     localStorage.setItem(GRAPH_STORAGE_KEY, JSON.stringify(payload));
   } catch {
