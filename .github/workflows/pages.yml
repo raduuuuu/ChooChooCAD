@@ -3,11 +3,13 @@
 # The app is a static SPA with no backend and no network calls of any kind, so
 # "deploy" is literally: build, upload `app/dist`, serve it. 372 KB.
 #
-# WHY THIS IS SEPARATE FROM ci.yml. CI gates the branch: typecheck, tests,
-# build, on every push. This one publishes, and only from `main`. Keeping them
-# apart means a red test run cannot be mistaken for a failed deploy, and a
-# deploy cannot be mistaken for a passing gate. `needs: gate` makes the
-# dependency explicit rather than implied by job order.
+# THE GATE IS ci.yml ITSELF, called as a reusable workflow. This file used to
+# repeat ci.yml's install, typecheck, test and build steps, and the copy
+# drifted: it never pinned Node, so the suite ran on the runner's default and a
+# spec that passes in ~7s under the pinned Node timed out at 17.4s. The deploys
+# of PR #40 and #41 failed while CI stayed green, and the site sat on PR #39.
+# Calling ci.yml means there is one list of steps and one set of pins, and the
+# artifact published is the one that run built and tested.
 #
 # The CNAME file lives in `app/public/` rather than being set only in the Pages
 # settings, so the custom domain survives a redeploy and is visible in the repo
@@ -30,21 +32,10 @@ concurrency:
 jobs:
   gate:
     # Publishing an app whose tests have not run is how a broken build reaches
-    # a real URL. ci.yml runs the same three commands on every push; this
-    # repeats them here so the deploy cannot outrun them.
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.14
-      - run: bun install --frozen-lockfile
-      - run: bun run typecheck
-      - run: bun run test
-      - run: bun run build
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: app/dist
+    # a real URL. The same workflow every push runs, plus the artifact upload.
+    uses: ./.github/workflows/ci.yml
+    with:
+      publish: true
 
   deploy:
     needs: gate

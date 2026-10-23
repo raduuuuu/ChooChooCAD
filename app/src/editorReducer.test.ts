@@ -437,7 +437,10 @@ describe('the cursor survives a disarm and a remove-last (reported 2026-10-20)',
  * 1.6s, 6,674 with an end armed, 20,092 with a piece selected and 3,235 with
  * a piece being placed; the old depth-4 walk of every ROUTE saw 1,708.
  * PR 4 added two run moves for the first piece; measured 2.8s, so this spec
- * carries an explicit 15s ceiling instead of vitest's 5s default. Depth 6 was approved first (eng decision D3, ENG-R2) on an
+ * carries an explicit 15s ceiling instead of vitest's 5s default. On CI's
+ * pinned Node 26.7.0 it took 6.9s (2026-10-23); the 17.4s timeout that failed
+ * two Pages deploys was the runner's unpinned default Node, fixed by making
+ * pages.yml call ci.yml rather than copy it. Depth 6 was approved first (eng decision D3, ENG-R2) on an
  * estimate of under 2s; measured, it is 378,088 states in 10.5s and found
  * nothing depth 5 did not, so the owner chose depth 5 (2026-10-22).
  *
