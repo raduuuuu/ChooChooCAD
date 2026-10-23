@@ -108,7 +108,14 @@ describe('what an end landing at a spot meets', () => {
     const facing = { pos: start.pos, heading: (start.heading + 8) % 16 };
 
     expect(landingOf(sites, facing, other)).toEqual({ kind: 'joins', with: { pieceId: p0!.pieceId, port: 0 } });
-    expect(landingOf(sites, facing, startPolarity)).toMatchObject({ kind: 'conflict', reason: 'polarity' });
+    // REWRITTEN 2026-10-23: a start is a socket, and a socket facing a socket
+    // joins with a male-male adapter (socket adapter plan).
+    expect(startPolarity).toBe('socket');
+    expect(landingOf(sites, facing, startPolarity)).toEqual({
+      kind: 'joins',
+      with: { pieceId: p0!.pieceId, port: 0 },
+      adapter: true,
+    });
     expect(landingOf(sites, { pos: start.pos, heading: (start.heading + 4) % 16 }, other)).toMatchObject({
       kind: 'conflict',
       reason: 'facing',
@@ -116,6 +123,35 @@ describe('what an end landing at a spot meets', () => {
     // The joint between the two straights: two ends there, both joined.
     const joint = portFrame(placement, ports, p0!, 1);
     expect(landingOf(sites, joint, other)).toMatchObject({ kind: 'conflict', reason: 'crowded' });
+  });
+
+  /*
+   * THE FOUR SAME-KIND OUTCOMES (socket adapter plan, item 1). Pegs keep the
+   * polarity refusal whether or not they face, so its wording never changes;
+   * sockets that do not face are a facing conflict, like any end.
+   *
+   * MUTATION PROOFS, run:
+   * - pegs checked for facing first (the socket order applied to both): the
+   *   peg-not-facing line fails with `expected { kind: 'conflict', …(2) } to
+   *   match object { Object (kind, reason) }` (it is a facing conflict).
+   * - sockets refused as before (`&& polarity === 'peg'` dropped from the
+   *   guard): the rewritten line above fails with `expected { kind:
+   *   'conflict', …(2) } to deeply equal { kind: 'joins', with: { …(2) },
+   *   …(1) }`, and the socket-not-facing line with `… to match object {
+   *   kind: 'conflict', reason: 'facing' }`.
+   */
+  it('same kind: pegs are refused facing or not; sockets join facing, else facing conflict', () => {
+    const { graph } = run(['A', 'A']);
+    const placement = placeAll(graph, ports);
+    const sites = connectorSites(graph, ports, placement);
+    const [p0, p1] = graph.pieces;
+    const start = portFrame(placement, ports, p0!, 0);
+    const far = portFrame(placement, ports, p1!, 1);
+    expect(ports(p1!)[1]!.polarity).toBe('peg');
+    const turned = (f: typeof start, by: number) => ({ pos: f.pos, heading: (f.heading + by) % 16 });
+    expect(landingOf(sites, turned(far, 8), 'peg')).toMatchObject({ kind: 'conflict', reason: 'polarity' });
+    expect(landingOf(sites, turned(far, 4), 'peg')).toMatchObject({ kind: 'conflict', reason: 'polarity' });
+    expect(landingOf(sites, turned(start, 4), 'socket')).toMatchObject({ kind: 'conflict', reason: 'facing' });
   });
 
   it('an end that is joined but alone at its spot is still taken', () => {

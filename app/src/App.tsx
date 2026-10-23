@@ -70,7 +70,7 @@ import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
 import { CANVAS_SEGMENT_CEILING, TrackCanvas } from './TrackCanvas.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
 import { VerdictLine, VerdictScope } from './VerdictLine.js';
-import { fitOptions, ghostFit, shiftMm, snapRunMove } from './layoutModel.js';
+import { fitOptions, ghostFit, rotateCycle, shiftMm, snapRunMove } from './layoutModel.js';
 import { InventoryPanel } from './Inventory.js';
 import { TablePanel } from './TablePanel.js';
 import { fitSentence, loadTable, saveTable, tableFit, trackExtent, type Table } from './tableModel.js';
@@ -543,7 +543,7 @@ export function App() {
    */
   const moveRunBy = (pieceId: string, dx: number, dy: number, turns: number, snapRadiusMm = 0) => {
     const asked = { turns, by: shiftMm(dx, dy) };
-    const move = snapRadiusMm > 0 ? snapRunMove(graph, ports, pieceId, asked, snapRadiusMm) : asked;
+    const move = snapRadiusMm > 0 ? snapRunMove(graph, ports, pieceId, asked, snapRadiusMm, { resolve }) : asked;
     dispatch({ kind: 'moveRun', pieceId, turns: move.turns, by: move.by });
   };
   const runOf = (pieceId: string): ReadonlySet<string> => {
@@ -825,7 +825,7 @@ export function App() {
       red: conflicts.length > 0,
       status,
       reach,
-      canRotate: ghost.at === null || (fit !== null && fit.options.filter((o) => o.turn === ghost.turn).length > 1),
+      canRotate: ghost.at === null || (fit !== null && rotateCycle(fit.options, ghost.turn).length > 1),
       canFlip: part.kind !== 'straight' && (ghost.at === null || (fit !== null && fit.options.some((o) => o.turn !== ghost.turn))),
       name: `${part.name} (${shortCode(part)})`,
     };

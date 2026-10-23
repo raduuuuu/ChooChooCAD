@@ -90,6 +90,7 @@ function solved(over: Partial<Extract<GraphResult, { ok: true }>> = {}): GraphRe
     clashes: [],
     overlaps: [],
     polarityViolations: [],
+    adapterJoints: [],
     residuals: [],
     repair: null,
     ...over,
@@ -106,6 +107,7 @@ function refused(over: Partial<Extract<GraphResult, { ok: false }>> = {}): Graph
     clashes: [],
     overlaps: [],
     polarityViolations: [],
+    adapterJoints: [],
     residuals: [],
     ...over,
   };

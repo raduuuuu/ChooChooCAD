@@ -79,6 +79,7 @@ const exceedsResult = (): Extract<GraphResult, { ok: true }> => {
     clashes: [],
     overlaps: [],
     polarityViolations: [],
+    adapterJoints: [],
     residuals: [],
     repair: null,
   };
@@ -98,6 +99,7 @@ const impossibleResult = (): Extract<GraphResult, { ok: true }> => {
     clashes: [{ a: { pieceId: 'p1', port: 0 }, b: { pieceId: 'p2', port: 1 }, at: [0, 0] }],
     overlaps: [],
     polarityViolations: [],
+    adapterJoints: [],
     residuals: [],
     repair: null,
   };
