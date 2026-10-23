@@ -23,6 +23,7 @@ import { shortCode } from '../../engine/src/parts/schema.js';
 import type { EditorAction, EditorState } from './editorReducer.js';
 import { lastStep, nextStep } from './editorReducer.js';
 import { endName, laidFrom, pieceName } from './GraphListing.js';
+import { afterKey, ghostKeys, keyHelp } from './ghostKeys.js';
 
 const same = (a: PortRef | null, b: PortRef | null): boolean =>
   a !== null && b !== null && a.pieceId === b.pieceId && a.port === b.port;
@@ -156,10 +157,11 @@ export function describeAction(
       return `${head}, joined to ${where(next.graph, other)}${withAdapter(next.graph, joints[0]!)}.${closed(piece.pieceId)}${levels(piece.pieceId)}`;
     }
     case 'pick':
-      return `Placing ${resolve(action.partId).name}. Press R to rotate, Enter to place, Escape to cancel.`;
+      if (!next.ghost) return null;
+      return `Placing ${resolve(action.partId).name}. ${keyHelp(ghostKeys(next.graph, portsOfPiece, next.ghost, resolve(action.partId)))}`;
     case 'rotateGhost':
     case 'flipGhost':
-      return next.ghost ? `${action.kind === 'flipGhost' ? 'Flipped' : 'Rotated'} the piece being placed.` : null;
+      return next.ghost ? afterKey(action.kind, resolve(next.ghost.partId), next.ghost) : null;
     case 'moveGhost':
     case 'stepGhost':
       return next.ghost?.at ? `Placing at ${where(next.graph, next.ghost.at)}.` : null;

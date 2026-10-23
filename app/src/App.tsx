@@ -70,7 +70,8 @@ import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
 import { CANVAS_SEGMENT_CEILING, TrackCanvas } from './TrackCanvas.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
 import { VerdictLine, VerdictScope } from './VerdictLine.js';
-import { fitOptions, ghostFit, otherLevelEndNear, rotateCycle, shiftMm, snapRunMove } from './layoutModel.js';
+import { ghostFit, otherLevelEndNear, shiftMm, snapRunMove } from './layoutModel.js';
+import { ghostKeys } from './ghostKeys.js';
 import { InventoryPanel } from './Inventory.js';
 import { TablePanel } from './TablePanel.js';
 import { fitSentence, loadTable, saveTable, tableFit, trackExtent, type Table } from './tableModel.js';
@@ -847,7 +848,6 @@ export function App() {
     if (!ghost) return null;
     const part = resolve(ghost.partId);
     const piece: GPiece = { pieceId: '\u0000ghost', partId: ghost.partId, turn: ghost.turn };
-    const fit = ghost.at ? fitOptions(graph, ports, ghost.at, ghost.partId) : null;
     const { frame, conflicts: found, joins, adapterHere, relevels } = ghostFit(graph, ports, ghost, placement, sites, {
       resolve,
       segments: render.segments,
@@ -924,9 +924,8 @@ export function App() {
       red: conflicts.length > 0,
       status,
       reach,
-      canRotate: ghost.at === null || (fit !== null && rotateCycle(fit.options, ghost.turn).length > 1),
-      // Curves flip to turn the other way; a ramp flips over to come down (both faces are track).
-      canFlip: (part.kind !== 'straight' || part.rise !== undefined) && (ghost.at === null || (fit !== null && fit.options.some((o) => o.turn !== ghost.turn))),
+      // What R and F do here, in words (the label says the result, not the key's name).
+      keys: ghostKeys(graph, ports, ghost, part),
       name: `${part.name} (${shortCode(part)})`,
     };
   }, [ghost, graph, ports, placement, render, resolve, sites, pieceNumber]);
@@ -981,10 +980,15 @@ export function App() {
           {ghostView.status.text}
         </span>
       </p>
-      <button onClick={() => dispatch({ kind: 'rotateGhost' })} disabled={!ghostView.canRotate}>
-        Rotate (R)
+      <button onClick={() => dispatch({ kind: 'rotateGhost' })} disabled={!ghostView.keys.rotate.enabled}>
+        {ghostView.keys.rotate.label} (R)
       </button>
-      {ghostView.canFlip && <button onClick={() => dispatch({ kind: 'flipGhost' })}>Flip (F)</button>}
+      {/* Shown greyed when it can't act here, so F is always discoverable on a part that has it. */}
+      {ghostView.keys.flip && (
+        <button onClick={() => dispatch({ kind: 'flipGhost' })} disabled={!ghostView.keys.flip.enabled}>
+          {ghostView.keys.flip.label} (F)
+        </button>
+      )}
       <button onClick={cancelGhost}>Cancel (Esc)</button>
       <button ref={placeButton} className="primary" onClick={placeGhost}>
         Place (Enter)

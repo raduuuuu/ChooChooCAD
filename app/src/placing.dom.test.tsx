@@ -48,8 +48,8 @@ describe('placing a piece', () => {
    *   match /^.?Placed track:/`.
    * - Cancel keeps focus where it was: `expected <body…> to be <button
    *   class="piece-main" …>`.
-   * - no F key: `expected 'Placing Large curve. Press R to rotat…' to be
-   *   'Flipped the piece being placed.'`.
+   * - no F key: `expected 'Placing Large curve. Press F to bend …' to be
+   *   'Now bends the other way.'`.
    * - keys reach the preview from a text field: `expected '' to be 'f'`.
    * - an empty floor ignores the preview: `expected <p
    *   class="canvas-empty-lead"></p> to be null`.
@@ -70,7 +70,7 @@ describe('placing a piece', () => {
     expect(verdict().textContent).toMatch(/^.?Placed track:/);
 
     await user.keyboard('f');
-    expect(announced().textContent).toBe('Flipped the piece being placed.');
+    expect(announced().textContent).toBe('Now bends the other way.');
 
     await user.keyboard('{Escape}');
     expect(strip()).toBeNull();
@@ -129,6 +129,6 @@ describe('placing a piece', () => {
     await user.click(screen.getByLabelText('Name'));
     await user.keyboard('f');
     expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('f');
-    expect(announced().textContent).not.toMatch(/Flipped/);
+    expect(announced().textContent).not.toMatch(/^Now bends/);
   });
 });

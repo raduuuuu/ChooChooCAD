@@ -192,8 +192,8 @@ describe('after raised track, a ramp comes down instead of opening red (owner, 2
    * - `defaultFit` without the level preference: fails with `expected 'X It
    *   would lift track to a third level…' to match /^O Comes down to the
    *   floor\./`.
-   * - Flip hidden for ramps (`canFlip` back to curves and switches only):
-   *   fails with `expected null not to be null`.
+   * - F withheld from ramps (`ghostKeys` without its ramp branch): fails
+   *   with `expected null not to be null`.
    */
   it('the preview comes down, and Flip turns it over', async () => {
     const user = mount([{ id: 'd', part: 'D', x: 0, y: 0, heading: 0, level: 1 }]);
@@ -201,7 +201,7 @@ describe('after raised track, a ramp comes down instead of opening red (owner, 2
     await user.click(button(/^Add Ascending track\./));
     const group = screen.getByRole('group', { name: /Placing/ });
     expect(within(group).getByRole('status').textContent).toMatch(/^O Comes down to the floor\./);
-    expect(within(group).queryByRole('button', { name: 'Flip (F)' })).not.toBeNull();
+    expect(within(group).queryByRole('button', { name: 'Turn over: climb (F)' })).not.toBeNull();
   });
 });
 
