@@ -145,6 +145,40 @@ describe('raised track casts a shadow; floor track does not (owner, 2026-10-23)'
   });
 });
 
+describe('the shadow outside the still canvas (design review of PR #46: 1A, 2A, 3A)', () => {
+  /*
+   * MUTATION PROOFS, run:
+   * - the caption without the key: `expected 'Grid: 10 cm' to contain
+   *   'Shadow: raised'`.
+   * - the ghost's shadows removed: `expected +0 to be 1`.
+   * - the drag overlay's shadows removed: `expected +0 to be 1`.
+   */
+  it('the caption names the shadow only when track is raised', () => {
+    mount(BRIDGE);
+    expect(document.querySelector('.grid-caption')!.textContent).toContain('Shadow: raised');
+  });
+
+  it('a flat layout keeps the plain caption', () => {
+    mount([{ id: 'f', part: 'A', x: 0, y: 0, heading: 0 }]);
+    expect(document.querySelector('.grid-caption')!.textContent).not.toContain('Shadow');
+  });
+
+  it('a piece about to go on raised track casts its shadow in the preview', async () => {
+    const user = mount([{ id: 'u', part: 'A', x: 0, y: 0, heading: 0, level: 1 }]);
+    await user.click(screen.getByRole('button', { name: /end of piece 1/i }));
+    await user.click(button(/^Add Medium straight$/));
+    expect(document.querySelectorAll('g.ghost path.raised-shadow').length).toBe(1);
+  });
+
+  it('a dragged raised run keeps its shadow while it moves', () => {
+    mount([{ id: 'u', part: 'A', x: 0, y: 0, heading: 0, level: 1 }]);
+    const piece = button(/^Piece 1:/);
+    fireEvent.pointerDown(piece, { pointerId: 1, button: 0, clientX: 0, clientY: 0, pointerType: 'mouse' });
+    fireEvent.pointerMove(piece, { pointerId: 1, button: 0, clientX: 0, clientY: -200, pointerType: 'mouse' });
+    expect(document.querySelectorAll('g.drag-run path.raised-shadow').length).toBe(1);
+  });
+});
+
 describe('a ramp: chevron, palette, strip and list', () => {
   /*
    * MUTATION PROOFS, run:

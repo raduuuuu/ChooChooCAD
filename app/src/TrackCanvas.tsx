@@ -735,26 +735,24 @@ export function TrackCanvas({
    * 2026-10-23). Where raised track crosses floor track the bridge casing
    * says so. Ink only, never a target.
    */
+  /** One segment's shadow, or null when it casts none (floor track). */
+  const shadowOf = (seg: Segment, key: string) =>
+    (seg.level ?? 0) < 1 && !seg.rise ? null : seg.rise ? (
+      <path key={key} d={rampShadow(seg, resolve(seg.partId).plankWidthMm / 2)} className="raised-shadow is-ramp" />
+    ) : (
+      <path
+        key={key}
+        d={segmentPath(seg)}
+        className="raised-shadow"
+        strokeWidth={resolve(seg.partId).plankWidthMm}
+        transform={`translate(${SHADOW_OFFSET_MM}, ${-SHADOW_OFFSET_MM})`}
+      />
+    );
   const shadows = () =>
     segments.map((seg, i) =>
-      seg.pieceId === undefined || hiddenRun?.has(seg.pieceId) || ((seg.level ?? 0) < 1 && !seg.rise) ? null : (
-        seg.rise ? (
-          <path
-            key={`shadow-${i}`}
-            d={rampShadow(seg, resolve(seg.partId).plankWidthMm / 2)}
-            className="raised-shadow is-ramp"
-          />
-        ) : (
-          <path
-            key={`shadow-${i}`}
-            d={segmentPath(seg)}
-            className="raised-shadow"
-            strokeWidth={resolve(seg.partId).plankWidthMm}
-            transform={`translate(${SHADOW_OFFSET_MM}, ${-SHADOW_OFFSET_MM})`}
-          />
-        )
-      ),
+      seg.pieceId === undefined || hiddenRun?.has(seg.pieceId) ? null : shadowOf(seg, `shadow-${i}`),
     );
+  const raisedHere = segments.some((seg) => (seg.level ?? 0) >= 1 || Boolean(seg.rise));
   const levelLayer = (raised: boolean) => (
     <>
         {!raised && shadows()}
@@ -798,6 +796,10 @@ export function TrackCanvas({
             pointerEvents="none"
             transform={`translate(${drag.dx}, ${drag.dy}) rotate(${drag.turns * 22.5}, ${dragPivot[0]}, ${dragPivot[1]})`}
           >
+            {/* Its shadows travel with it, under its wood (design review 2A, PR #46). */}
+            {segments.map((sg, i) =>
+              sg.pieceId !== undefined && hiddenRun!.has(sg.pieceId) ? shadowOf(sg, `drag-shadow-${i}`) : null,
+            )}
             <TrackLayers
               segments={segments.filter((sg) => sg.pieceId !== undefined && hiddenRun!.has(sg.pieceId))}
               resolve={resolve}
@@ -1278,6 +1280,13 @@ export function TrackCanvas({
           */}
         {ghost && (
           <g className={`ghost${ghost.red ? ' is-red' : ''}`} pointerEvents="none">
+            {/*
+              * Its shadow if it would be raised, or a ramp's taper (design
+              * review 3A): the preview looks like what Place makes. Solid,
+              * outside the translucent wood, so no contrast rests on the
+              * opacity.
+              */}
+            {ghost.render.segments.map((seg, i) => shadowOf(seg, `ghost-shadow-${i}`))}
             <g className="ghost-wood">
               <TrackLayers segments={ghost.render.segments} resolve={resolve} maxLayers={maxLayers} keyPrefix="ghost-" />
             </g>
@@ -1291,7 +1300,11 @@ export function TrackCanvas({
       </g>
     </svg>
     {/* HTML, not SVG text, so it is never flipped or scaled with the drawing. */}
-    <p className="grid-caption num">Grid: {gridLabel(step)}</p>
+    {/* The shadow's key, only when there is raised track to read it on (design review 1A). */}
+    <p className="grid-caption num">
+      Grid: {gridLabel(step)}
+      {raisedHere && ' · Shadow: raised'}
+    </p>
     {table && <p className={`table-caption${table.fits ? '' : ' is-over'}`}>{table.note}</p>}
     </div>
     {strip}
