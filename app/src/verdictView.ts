@@ -58,6 +58,8 @@ export interface VerdictView {
   /** How many of them do not fit. Zero when the layout works. */
   readonly failingLoops: number;
   readonly clashCount: number;
+  /** Places where one plank runs over another, ends nowhere near (overlap.ts). */
+  readonly overlapCount: number;
   readonly polarityCount: number;
   /** Joints in the worst loop, which is the number the gap is spread across. */
   readonly jointCount: number;
@@ -83,10 +85,15 @@ const EMPTY: VerdictView = {
   rank: 0,
   failingLoops: 0,
   clashCount: 0,
+  overlapCount: 0,
   polarityCount: 0,
   jointCount: 0,
   pieces: null,
 };
+
+/** Track in a place it cannot be: ends piled up, planks crossing, or ends that do not fit. */
+const impossible = (r: GraphResult): boolean =>
+  r.clashes.length > 0 || r.overlaps.length > 0 || r.polarityViolations.length > 0;
 
 export function viewOf(result: GraphResult | null): VerdictView {
   if (!result) return EMPTY;
@@ -100,12 +107,13 @@ export function viewOf(result: GraphResult | null): VerdictView {
      * user the one thing that was not wrong and stayed silent about the one
      * that was.
      */
-    if (result.clashes.length > 0 || result.polarityViolations.length > 0) {
+    if (impossible(result)) {
       return {
         ...EMPTY,
         kind: 'IMPOSSIBLE',
         rank: result.rank,
         clashCount: result.clashes.length,
+        overlapCount: result.overlaps.length,
         polarityCount: result.polarityViolations.length,
       };
     }
@@ -121,13 +129,14 @@ export function viewOf(result: GraphResult | null): VerdictView {
     rank: result.rank,
     failingLoops: result.cycles.filter((c) => !c.withinGive).length,
     clashCount: result.clashes.length,
+    overlapCount: result.overlaps.length,
     polarityCount: result.polarityViolations.length,
     jointCount: result.worst?.welds.length ?? 0,
     pieces: null,
   };
 
   // 1. Impossible outranks closure. Checked first for that reason.
-  if (result.clashes.length > 0 || result.polarityViolations.length > 0) {
+  if (impossible(result)) {
     return { ...base, kind: 'IMPOSSIBLE' };
   }
   if (result.closesExactly) return { ...base, kind: 'EXACT' };

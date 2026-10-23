@@ -67,6 +67,14 @@ export const ACTION_FOR_VERDICT: Record<OutcomeKind, string> = {
 };
 
 /**
+ * IMPOSSIBLE's action when the cause is track crossing track mid-span
+ * (overlap.ts) and nothing else. "Share a spot" is about ends piled up, and
+ * read over a crossing it pointed at a spot the canvas never marked as one.
+ */
+export const ACTION_WHEN_CROSSING =
+  'Move one of the crossing pieces so the two no longer touch.';
+
+/**
  * The failure kinds, declared ONCE.
  *
  * This was declared identically here and in `VerdictLine.tsx`, and adding

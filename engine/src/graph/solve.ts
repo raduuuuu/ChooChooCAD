@@ -18,7 +18,9 @@
  */
 
 import { analyseCycles, type CycleReport } from './cycles.js';
-import { findVertexClashes, findWeldPolarityViolations, type VertexClash, type WeldPolarityViolation } from './feasible.js';
+import { connectorSites, findVertexClashes, findWeldPolarityViolations, type VertexClash, type WeldPolarityViolation } from './feasible.js';
+import { findPlankOverlaps, type PlankOverlap } from './overlap.js';
+import { renderGraph } from './render.js';
 import { placeAll, residuals, type PortsOf, type WeldResidual } from './frames.js';
 import type { Graph } from './model.js';
 import { pieceRepair, type PieceRepair, type RepairLibrary } from './repair.js';
@@ -45,6 +47,8 @@ export type GraphResult =
       readonly cycles: readonly CycleReport[];
       readonly worst: CycleReport | null;
       readonly clashes: readonly VertexClash[];
+      /** Planks crossing planks, ends nowhere near (overlap.ts). Both branches, like clashes. */
+      readonly overlaps: readonly PlankOverlap[];
       readonly polarityViolations: readonly WeldPolarityViolation[];
       /**
        * One per closing weld, with the mismatch in millimetres.
@@ -79,6 +83,8 @@ export type GraphResult =
        * it does not become true only once you close a loop.
        */
       readonly clashes: readonly VertexClash[];
+      /** Planks crossing planks, ends nowhere near (overlap.ts). Both branches, like clashes. */
+      readonly overlaps: readonly PlankOverlap[];
       readonly polarityViolations: readonly WeldPolarityViolation[];
       /**
        * Also on this branch, for the reason the clashes are: two ends being
@@ -102,6 +108,12 @@ export function solveGraph(
 
   // Computed once, up front, because every branch below reports them.
   const clashes = findVertexClashes(graph, ports, placement);
+  const overlaps = findPlankOverlaps(
+    graph,
+    renderGraph(graph, ports, resolve, placement).segments,
+    (id) => resolve(id).plankWidthMm / 2,
+    connectorSites(graph, ports, placement),
+  );
   const polarityViolations = findWeldPolarityViolations(graph, resolve, ports);
 
   if (rank === 0) {
@@ -140,6 +152,7 @@ export function solveGraph(
           : `${runs} separate runs of track, none of them a loop`,
       rank,
       clashes,
+      overlaps,
       polarityViolations,
       residuals: rs,
     };
@@ -194,6 +207,7 @@ export function solveGraph(
         : `checking all ${rank} loops across ${graph.pieces.length} pieces would take too long`,
       rank,
       clashes,
+      overlaps,
       polarityViolations,
       residuals: rs,
     };
@@ -229,6 +243,7 @@ export function solveGraph(
       detail: `${rank} ${rank === 1 ? 'loop' : 'loops'} in this layout, but the check could not follow ${rank === 1 ? 'it' : 'them'} round`,
       rank,
       clashes,
+      overlaps,
       polarityViolations,
       residuals: rs,
     };
@@ -241,6 +256,7 @@ export function solveGraph(
       detail: 'the track does not come back pointing the way it started',
       rank,
       clashes,
+      overlaps,
       polarityViolations,
       residuals: rs,
     };
@@ -255,6 +271,7 @@ export function solveGraph(
       detail: 'a figure came out non-finite',
       rank,
       clashes,
+      overlaps,
       polarityViolations,
       residuals: rs,
     };
@@ -274,6 +291,7 @@ export function solveGraph(
     cycles: space.cycles,
     worst: space.worst,
     clashes,
+    overlaps,
     polarityViolations,
     residuals: rs,
     repair:

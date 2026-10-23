@@ -27,6 +27,7 @@ import type { VerdictView } from './verdictView.js';
 import {
   ACTION_FOR_FAILURE,
   ACTION_FOR_VERDICT,
+  ACTION_WHEN_CROSSING,
   FAILURE_COPY,
   isFailure,
 } from './verdictAction.js';
@@ -377,7 +378,12 @@ export function VerdictLine({
       return (
         <Verdict
           tone="fail"
-          notes={notesFor(trust, ACTION_FOR_VERDICT.IMPOSSIBLE)}
+          notes={notesFor(
+            trust,
+            e.polarityCount === 0 && e.clashCount === 0 && e.overlapCount > 0
+              ? ACTION_WHEN_CROSSING
+              : ACTION_FOR_VERDICT.IMPOSSIBLE,
+          )}
         >
           <Mark glyph="X" />
           {e.polarityCount > 0 ? (
@@ -385,6 +391,18 @@ export function VerdictLine({
               Can&rsquo;t be built. <span className="num">{e.polarityCount}</span>{' '}
               {e.polarityCount === 1 ? 'joint puts' : 'joints put'} two ends of
               the same kind together, and those do not fit.
+            </span>
+          ) : e.clashCount === 0 && e.overlapCount > 0 ? (
+            <span className="verdict-text">
+              {/*
+                * Planks crossing mid-span (overlap.ts). One record per PAIR
+                * of pieces, which is also what the canvas marks. Flat track
+                * only crosses on a crossing piece or a bridge.
+                */}
+              Can&rsquo;t be built. <span className="num">{e.overlapCount}</span>{' '}
+              {e.overlapCount === 1
+                ? 'place has track running over other track. Track can only cross on a crossing piece or a bridge.'
+                : 'places have track running over other track. Track can only cross on a crossing piece or a bridge.'}
             </span>
           ) : (
             <span className="verdict-text">

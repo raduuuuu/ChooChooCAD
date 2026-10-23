@@ -45,6 +45,7 @@ import { layoutTrust } from '../../engine/src/joints/trust.js';
 import { spanningForest } from '../../engine/src/graph/forest.js';
 import { toXY } from '../../engine/src/geom/cyclotomic.js';
 import { connectorSites } from '../../engine/src/graph/feasible.js';
+import { findPlankOverlaps } from '../../engine/src/graph/overlap.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Piece as GPiece, type Port, type PortRef } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
@@ -492,6 +493,17 @@ export function App() {
   );
 
   /*
+   * Ends piled up AND planks crossing, drawn with one marker: both are "track
+   * where track cannot be". Only `at` is read, and the verdict counts the two
+   * separately.
+   */
+  const clashMarks = useMemo(
+    () => (result ? [...result.clashes, ...result.overlaps] : []),
+    [result],
+  );
+
+
+  /*
    * EVERY EDIT GOES THROUGH THE REDUCER (task T4).
    *
    * `editorReducer.ts` holds the five transitions and is unit-tested without
@@ -794,6 +806,28 @@ export function App() {
           return 'Joining here would shift pieces of a loop that does not close.';
       }
     });
+    /*
+     * WOOD ON WOOD (overlap.ts): would it lie over track already down? The
+     * piece it goes on by and the one it would join only meet it at a joint,
+     * so they are welds here, as they would be once placed. Only pairs with
+     * the preview are read; the layout's own overlaps are the verdict's.
+     */
+    const ghostWelds = [ghost.at, joinsTo]
+      .filter((r): r is PortRef => r !== null)
+      .map((r) => ({ a: r, b: { pieceId: piece.pieceId, port: 0 } }));
+    const over = findPlankOverlaps(
+      { pieces: [...graph.pieces, piece], welds: ghostWelds },
+      [...render.segments, ...ghostRender.segments.map((sg) => ({ ...sg, pieceId: piece.pieceId }))],
+      (id) => resolve(id).plankWidthMm / 2,
+      sites,
+    ).filter((o) => o.a === piece.pieceId || o.b === piece.pieceId);
+    // A piece its ends already clash with is named once, by that sentence.
+    const named = new Set(found.flatMap((c) => ('pieceId' in c ? [c.pieceId] : [])));
+    for (const o of over) {
+      const other = o.a === piece.pieceId ? o.b : o.a;
+      if (named.has(other)) continue;
+      conflicts.push(`It would lie over piece ${pieceNumber.get(other)}.`);
+    }
     if (conflicts.length > 0) {
       status = { glyph: 'X', text: `${conflicts.join(' ')} You can still place it.` };
     } else if (joinsTo) {
@@ -812,7 +846,7 @@ export function App() {
       canFlip: part.kind !== 'straight' && (ghost.at === null || (fit !== null && fit.options.some((o) => o.turn !== ghost.turn))),
       name: `${part.name} (${shortCode(part)})`,
     };
-  }, [ghost, graph, ports, placement, resolve, sites, pieceNumber]);
+  }, [ghost, graph, ports, placement, render, resolve, sites, pieceNumber]);
 
   const placingStrip = ghostView ? (
     <div
@@ -1012,7 +1046,7 @@ export function App() {
             * the canvas marked none of them. A count you cannot locate is not
             * actionable, which was decision A4's whole point.
             */
-          clashes={result ? result.clashes : []}
+          clashes={clashMarks}
           gaps={gaps}
           badJoints={badJoints}
           emptyAction={
