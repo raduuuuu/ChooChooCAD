@@ -254,7 +254,9 @@ function AdapterNote({ n, unmarked }: { n: number; unmarked: number }) {
  * was NOT checked, and folding it into "and 1 more note" would claim more
  * than was checked (DESIGN.md rule 3). Supports whenever any track is
  * raised; the clearance figure, with the numbers it is made of, only where
- * raised track crosses floor track. Every number in the number face (rule 4).
+ * raised track crosses floor track. Only the train's height is called an
+ * estimate: the rise and the plank are published (rampSeeds.ts `CLEARANCE`).
+ * Every number in the number face (rule 4).
  */
 function RaisedNote({ bridges }: { bridges: number }) {
   const { riseMm, plankMm, trainMm } = CLEARANCE;
@@ -266,7 +268,7 @@ function RaisedNote({ bridges }: { bridges: number }) {
           {' '}It crosses other track at <span className="num">{bridges}</span> {bridges === 1 ? 'place' : 'places'};
           clearance is about <span className="num">{riseMm - plankMm - trainMm}</span>mm (
           <span className="num">{riseMm}</span>mm rise, <span className="num">{plankMm}</span>mm plank,{' '}
-          <span className="num">{trainMm}</span>mm train), estimated.
+          <span className="num">{trainMm}</span>mm train); the train&rsquo;s height is an estimate.
         </>
       )}
     </p>

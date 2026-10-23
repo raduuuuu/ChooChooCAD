@@ -64,7 +64,10 @@ export const RAMP_SEEDS: readonly Part[] = [
 /**
  * The clearance under a bridge, millimetres, for the verdict's note only
  * (decision L3): ramp rise minus plank thickness minus the tallest train.
- * Rise and train are estimates; the plank is published.
+ * The rise and the plank are published: "Raises or lowers the track by 64mm"
+ * and "40mm wide and 12mm high" (woodenrailway.info/track/brio-track-guide).
+ * The train's height is the estimate, `VEHICLE.heightMm` in brio.ts, and the
+ * note names it as the one guess in the figure.
  */
 export const CLEARANCE = {
   riseMm: 64,
