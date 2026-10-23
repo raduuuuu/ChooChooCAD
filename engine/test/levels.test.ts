@@ -358,3 +358,43 @@ describe('ramp loops, seeded: the level rules hold on random runs (T1 / D3)', ()
     });
   }
 });
+
+describe('coming down on N1 needs no adapter (N1, two pegs)', () => {
+  /*
+   * Raised medium straight, a two-socket C, the ramp entered at its HIGH end
+   * (coming down), then a floor straight. With N1 every peg meets a socket;
+   * with an N turned round, its low end is a socket meeting a socket.
+   *
+   * MUTATION PROOF, run: N1's ends set to N's ({ start: 'socket', end: 'peg' }):
+   * the N1 spec fails with `expected [ { weld: 2, between: [ 'N1', 'A' ] } ]
+   * to deeply equal []` (its low end a socket again: an adapter).
+   */
+  const down = (ramp: string): Graph => ({
+    pieces: [
+      { pieceId: 'a', partId: 'A', turn: 'left' },
+      { pieceId: 'c', partId: 'C', turn: 'left' },
+      { pieceId: 'r', partId: ramp, turn: 'left' },
+      { pieceId: 'b', partId: 'A', turn: 'left' },
+    ],
+    welds: [
+      { a: { pieceId: 'a', port: 1 }, b: { pieceId: 'c', port: 0 } },
+      { a: { pieceId: 'c', port: 1 }, b: { pieceId: 'r', port: 1 } },
+      { a: { pieceId: 'r', port: 0 }, b: { pieceId: 'b', port: 0 } },
+    ],
+  });
+  const solve = (g: Graph) => solveGraph(g, ports, resolve, () => 0.8);
+
+  it('N1: no polarity fault, no adapter, and the track before it is raised', () => {
+    const r = solve(down('N1'));
+    expect(r.polarityViolations).toEqual([]);
+    expect(r.adapterJoints).toEqual([]);
+    expect(levelOf(placeAll(down('N1'), ports).frames.get('a')!)).toBe(1);
+    expect(levelOf(placeAll(down('N1'), ports).frames.get('b')!)).toBe(0);
+  });
+
+  it('an N turned round instead: buildable, with one male-male adapter', () => {
+    const r = solve(down('N'));
+    expect(r.polarityViolations).toEqual([]);
+    expect(r.adapterJoints.map((j) => j.weld)).toEqual([2]);
+  });
+});
