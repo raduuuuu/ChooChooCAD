@@ -50,6 +50,8 @@ export interface RenderedPort {
    * a heel until 2026-10-22, matching an exemption the check no longer makes.
    */
   readonly polarity: Polarity;
+  /** Its level, absent on the floor (two-layer plan, SC1). The canvas draws raised ends last (OV4). */
+  readonly level?: number;
 }
 
 export interface GraphRender {
@@ -94,6 +96,7 @@ export function renderGraph(
         h: p.h,
         free: !claimed.has(`${piece.pieceId}#${i}`),
         polarity: portPolarity(part, i),
+        ...(levelOf(world) !== 0 ? { level: levelOf(world) } : {}),
       });
     }
 

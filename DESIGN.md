@@ -94,6 +94,12 @@ dependency, so it goes silently wrong the next time the layout moves. It already
 did once: the empty state pointed at a palette that had become a right-hand
 rail.
 
+Words for track HEIGHT are allowed: floor, raised, climbs, comes down. They
+are physical facts about the track, not screen positions, and no layout can
+make them wrong. "Above" and "below" stay banned even for height, because
+they read as screen positions (design review of the two-layer plan, 7A,
+2026-10-23).
+
 ## 8. One authored motion
 
 There is one deliberate moment of movement, and `prefers-reduced-motion` turns

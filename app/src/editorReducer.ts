@@ -148,6 +148,12 @@ export interface EditorState {
    */
   readonly refusal?: string | null;
   /**
+   * Why the last drop joined nothing although an end was in reach: that end
+   * is on the other level (two-layer plan, design 5A as amended by eng
+   * re-run D1). Shown until the next action, like `refusal`.
+   */
+  readonly dropHint?: string | null;
+  /**
    * Whether any action so far CHANGED THE GRAPH. Absent means false.
    *
    * This is the graph store's "the user has acted" acknowledgement, and it
@@ -270,7 +276,14 @@ export type EditorAction =
    * Move the whole run holding `pieceId`: turn it `turns` sixteenths about
    * that piece's first end, then shift it by `by` (decisions E6, D10, D14).
    */
-  | { readonly kind: 'moveRun'; readonly pieceId: string; readonly turns: number; readonly by: Cyc }
+  | {
+      readonly kind: 'moveRun';
+      readonly pieceId: string;
+      readonly turns: number;
+      readonly by: Cyc;
+      /** A free end on the other level was in snap reach on release (computed by the caller). */
+      readonly otherLevelNear?: boolean;
+    }
   | { readonly kind: 'clear' }
   | { readonly kind: 'preset'; readonly ids: readonly string[] };
 
@@ -436,7 +449,8 @@ export function reduce(
   // skip the render, and the acknowledgement cannot change.
   if (raw === state) return raw;
   // A refusal is said until the next action, whatever that is.
-  const stepped = action.kind !== 'moveRun' && raw.refusal ? { ...raw, refusal: null } : raw;
+  const stepped =
+    action.kind !== 'moveRun' && (raw.refusal || raw.dropHint) ? { ...raw, refusal: null, dropHint: null } : raw;
   // A selection never outlives its piece, whichever action removed it.
   const next =
     stepped.selected != null && !stepped.graph.pieces.some((p) => p.pieceId === stepped.selected)
@@ -561,13 +575,15 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
       if (state.ghost) return state;
       const result = moveRun(state.graph, ports, action.pieceId, { turns: action.turns, by: action.by }, geometry);
       // A refused move changes no track; it says why until the next action.
-      if (result.refused !== null) return { ...state, refusal: result.refused };
+      if (result.refused !== null) return { ...state, refusal: result.refused, dropHint: null };
       return {
         ...state,
         graph: result.graph,
         cursor: stillFree(result.graph, state.cursor) ?? resumeCursor(result.graph, ports),
         armed: stillFree(result.graph, state.armed),
         refusal: null,
+        // Derived from what the drop actually did (eng re-run outside voice 3).
+        dropHint: result.joined === 0 && action.otherLevelNear ? "Didn't join: that end is on the other level" : null,
         ...remember(state, 'move'),
       };
     }

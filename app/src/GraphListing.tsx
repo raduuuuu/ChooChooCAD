@@ -51,7 +51,8 @@
  */
 
 import type { Graph, Piece, Port, PortRef } from '../../engine/src/graph/model.js';
-import { portPolarity } from '../../engine/src/graph/model.js';
+import { levelOf, portPolarity } from '../../engine/src/graph/model.js';
+import { placeAll, portFrame } from '../../engine/src/graph/frames.js';
 import { useLayoutEffect, useRef } from 'react';
 import type { Part } from '../../engine/src/parts/schema.js';
 import { shortCode } from '../../engine/src/parts/schema.js';
@@ -62,10 +63,25 @@ export const LISTING_CEILING = 2000;
 /** What one end of a part is called. */
 export function endName(part: Part, port: number): string {
   if (part.kind === 'switch') return ['heel', 'straight road', 'curved road'][port] ?? `end ${port + 1}`;
+  // A ramp's ends say which way it climbs (design 11A): port 0 is always the low end.
+  if (part.kind === 'straight' && part.rise !== undefined) return port === 0 ? 'low end' : 'high end';
   return port === 0 ? 'start' : port === 1 ? 'end' : `end ${port + 1}`;
 }
 
 const capital = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+
+/**
+ * A level in words (design 11A, eng re-run D3). Height words are allowed by
+ * DESIGN.md rule 7; a level the layout may not use is named as such, so a
+ * mismatch is heard, never smoothed over as "raised".
+ */
+function levelName(level: number): string {
+  return level === 0 ? 'the floor' : level === 1 ? 'the raised level' : 'a third level, which is not allowed';
+}
+
+function levelWords(level: number): string {
+  return level === 0 ? 'On the floor' : level === 1 ? 'Raised' : 'On a third level, which is not allowed';
+}
 
 /**
  * WHICH END EACH PIECE WENT ON BY: the port of its first joint to a piece
@@ -175,6 +191,19 @@ export function GraphListing({
 
   const from = laidFrom(graph);
 
+  /*
+   * LEVELS, said only once a layout has any (design 11A): every end's
+   * description names its level, and a raised piece says so in its
+   * description, never its name, so names stay stable as the list's other
+   * states do. A flat layout reads exactly as before.
+   */
+  const placement = placeAll(graph, ports);
+  const levelAt = (ref: PortRef) => {
+    const piece = byId.get(ref.pieceId);
+    return piece ? levelOf(portFrame(placement, ports, piece, ref.port)) : 0;
+  };
+  const leveled = graph.pieces.some((p) => ports(p).some((_, port) => levelAt({ pieceId: p.pieceId, port }) !== 0));
+
   const same = (a: PortRef | null, b: PortRef) =>
     a !== null && a.pieceId === b.pieceId && a.port === b.port;
 
@@ -216,22 +245,33 @@ export function GraphListing({
           const part = resolve(piece.partId);
           const n = i + 1;
           const name = pieceName(n, piece, part, from.get(piece.pieceId));
+          const raisedId = `graph-listing-raised-${piece.pieceId}`;
+          const raised = levelOf(placement.frames.get(piece.pieceId)!) >= 1;
           return (
-            <li key={piece.pieceId} aria-label={name}>
+            <li key={piece.pieceId} aria-label={name} aria-describedby={raised ? raisedId : undefined}>
               {name}
+              {raised && (
+                <>
+                  {' '}
+                  <span id={raisedId} className="graph-listing-state">
+                    Raised.
+                  </span>
+                </>
+              )}
               <ul aria-label={`Ends of piece ${n}`}>
                 {ports(piece).map((_, port) => {
                   const id = `graph-listing-end-${piece.pieceId}-${port}`;
                   const other = partner.get(`${piece.pieceId}#${port}`);
                   const name = `${capital(endName(part, port))} of piece ${n}, a ${portPolarity(part, port)}`;
                   const ref = { pieceId: piece.pieceId, port };
-                  const state = other
+                  const plain = other
                     ? `Joined to the ${where(other)}`
                     : same(armed, ref)
                       ? 'Selected. Choose another free end to join it to'
                       : same(cursor, ref)
                         ? 'Free. The next piece attaches here'
                         : 'Free';
+                  const state = leveled ? `${levelWords(levelAt(ref))}. ${plain}` : plain;
                   /*
                    * OPERABLE ONLY WHERE THERE IS SOMETHING TO DO (U7b): a free
                    * end is a real button, which selects it or joins it to the
@@ -284,7 +324,11 @@ export function GraphListing({
               return piece ? portPolarity(resolve(piece.partId), ref.port) : undefined;
             };
             const adapter = kindOf(w.a) === 'socket' && kindOf(w.b) === 'socket';
-            const name = `Joint ${k + 1}: ${where(w.a)} to ${where(w.b)}${adapter ? ', two sockets, needs an adapter' : ''}`;
+            // A joint across levels names both, so the mismatch is heard (11A).
+            const la = levelAt(w.a);
+            const lb = levelAt(w.b);
+            const across = la !== lb ? `, joins ${levelName(la)} to ${levelName(lb)}` : '';
+            const name = `Joint ${k + 1}: ${where(w.a)} to ${where(w.b)}${adapter ? ', two sockets, needs an adapter' : ''}${across}`;
             return (
               <li key={`${w.a.pieceId}#${w.a.port}-${w.b.pieceId}#${w.b.port}`} aria-label={name}>
                 {name}

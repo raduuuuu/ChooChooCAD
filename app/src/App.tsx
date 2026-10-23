@@ -70,7 +70,7 @@ import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
 import { CANVAS_SEGMENT_CEILING, TrackCanvas } from './TrackCanvas.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
 import { VerdictLine, VerdictScope } from './VerdictLine.js';
-import { fitOptions, ghostFit, rotateCycle, shiftMm, snapRunMove } from './layoutModel.js';
+import { fitOptions, ghostFit, otherLevelEndNear, rotateCycle, shiftMm, snapRunMove } from './layoutModel.js';
 import { InventoryPanel } from './Inventory.js';
 import { TablePanel } from './TablePanel.js';
 import { fitSentence, loadTable, saveTable, tableFit, trackExtent, type Table } from './tableModel.js';
@@ -113,7 +113,19 @@ const BRAND_LABEL: Record<Brand, string> = {
   THOMAS: 'Thomas',
   MELISSA_DOUG: 'Melissa & Doug',
 };
-const partsByBrand = (lib: readonly Part[], b: Brand) => lib.filter((p) => p.brand === b);
+/**
+ * A brand's parts in library order, except that a ramp sits right after the
+ * long straight it shares a length with (design 12A): the ascending track is
+ * a seed outside `BRIO_PARTS`, so library order would put it after the curves.
+ */
+const isRamp = (p: Part) => p.kind === 'straight' && p.rise !== undefined;
+const partsByBrand = (lib: readonly Part[], b: Brand) => {
+  const own = lib.filter((p) => p.brand === b);
+  const ramps = own.filter(isRamp);
+  const flat = own.filter((p) => !isRamp(p));
+  const at = flat.findIndex((p) => p.id === 'D');
+  return at === -1 ? [...flat, ...ramps] : [...flat.slice(0, at + 1), ...ramps, ...flat.slice(at + 1)];
+};
 
 
 /**
@@ -545,7 +557,8 @@ export function App() {
   const moveRunBy = (pieceId: string, dx: number, dy: number, turns: number, snapRadiusMm = 0) => {
     const asked = { turns, by: shiftMm(dx, dy) };
     const move = snapRadiusMm > 0 ? snapRunMove(graph, ports, pieceId, asked, snapRadiusMm, { resolve }) : asked;
-    dispatch({ kind: 'moveRun', pieceId, turns: move.turns, by: move.by });
+    const otherLevelNear = snapRadiusMm > 0 && otherLevelEndNear(graph, ports, pieceId, move, snapRadiusMm);
+    dispatch({ kind: 'moveRun', pieceId, turns: move.turns, by: move.by, otherLevelNear });
   };
   const runOf = (pieceId: string): ReadonlySet<string> => {
     const component = placement.forest.component;
@@ -721,6 +734,22 @@ export function App() {
     });
   }, [result, render, graph, badJoints, clashMarks]);
 
+  /*
+   * THE LEVEL FAULTS' MARKS (design 6A, eng re-run D4): one per joint that
+   * joins two levels and one per ramp that would reach a third level, each
+   * left out where a clash already holds the spot. The verdict counts them all
+   * and says how many are not marked, as the adapter note does.
+   */
+  const levelMarks = useMemo(() => {
+    if (!result || render.segments.length > CANVAS_SEGMENT_CEILING) return { mismatches: [], thirds: [], hidden: 0 };
+    const clashAt = clashMarks.map((c) => c.at);
+    const free = (at: readonly [number, number]) => !clashAt.some(([x, y]) => Math.hypot(x - at[0], y - at[1]) < 1e-6);
+    const mismatches = result.levelMismatches.map((m) => m.at).filter(free);
+    const thirds = result.thirdLevels.map((t) => t.at).filter(free);
+    const hidden = result.levelMismatches.length + result.thirdLevels.length - mismatches.length - thirds.length;
+    return { mismatches, thirds, hidden };
+  }, [result, render, clashMarks]);
+
   // Adapter joints a red mark hides, said in the note (DR1). None above the
   // ceiling: there the canvas already says nothing is drawn.
   const adaptersUnmarked =
@@ -784,6 +813,7 @@ export function App() {
               Can&rsquo;t move it there: {editor.refusal}.
             </span>
           )}
+          {editor.dropHint && <span className="move-refusal"> {editor.dropHint}.</span>}
         </p>
         {/*
           * MOVE AND ROTATE THE RUN WITHOUT A DRAG (decisions 2A, E6 keyboard
@@ -899,6 +929,31 @@ export function App() {
       name: `${part.name} (${shortCode(part)})`,
     };
   }, [ghost, graph, ports, placement, render, resolve, sites, pieceNumber]);
+
+  /*
+   * WHAT THE LAST DROP DID, when no piece is selected (design 5A, eng re-run
+   * D1). A dragged run is not selected, so the selection strip's refusal line
+   * never showed for a drag and only a screen reader heard why it was
+   * refused. Shown on release, until the next action; nothing is checked
+   * while the run moves.
+   */
+  const dropStrip =
+    editor.refusal || editor.dropHint ? (
+      <div className="mode-strip" role="group" aria-label="Last move">
+        <p className="mode-strip-text">
+          {editor.refusal ? (
+            <span className="move-refusal">
+              <span className="ghost-mark is-fail" aria-hidden="true">
+                X
+              </span>{' '}
+              Can&rsquo;t move it there: {editor.refusal}.
+            </span>
+          ) : (
+            <span className="move-refusal">{editor.dropHint}.</span>
+          )}
+        </p>
+      </div>
+    ) : null;
 
   const placingStrip = ghostView ? (
     <div
@@ -1051,6 +1106,7 @@ export function App() {
                 title="Double-click to place directly"
                 aria-label={
                   `Add ${part.name}` +
+                  (isRamp(part) ? '. Climbs one level.' : '') +
                   (unverified ? '. Unverified size.' : '') +
                   (unowned ? '. More than you own.' : '')
                 }
@@ -1059,6 +1115,12 @@ export function App() {
                 <span className="piece-name">{part.name}</span>
                 <span className="piece-dim num">
                   {part.kind === 'straight' ? `${part.lengthMm}mm` : `r${centrelineRadiusMm(part)}`}
+                  {isRamp(part) && (
+                    /* The canvas's rise chevron, in ink (design 12A, rule 1); the name says it in words. */
+                    <svg className="rise-chevron-icon" viewBox="-8 -10 16 20" aria-hidden="true">
+                      <path className="rise-chevron" d="M -6 -9 L 6 0 L -6 9" transform="rotate(-90)" />
+                    </svg>
+                  )}
                 </span>
               </button>
               {counts[part.id] ? <span className="piece-count num">{counts[part.id]}</span> : null}
@@ -1087,7 +1149,7 @@ export function App() {
           onPieceRemove={removePiece}
           onFloorClick={() => selected !== null && selectPiece(null)}
           pieceName={canvasPieceName}
-          strip={placingStrip ?? selectionStrip}
+          strip={placingStrip ?? selectionStrip ?? dropStrip}
           ghost={ghostView ? { render: ghostView.render, red: ghostView.red, reach: ghostView.reach } : null}
           onRunMove={(d, radius) => moveRunBy(d.pieceId, d.dx, d.dy, d.turns, radius)}
           runOf={runOf}
@@ -1106,6 +1168,8 @@ export function App() {
           gaps={gaps}
           badJoints={badJoints}
           adapterJoints={adapterMarks}
+          levelMismatches={levelMarks.mismatches}
+          thirdLevels={levelMarks.thirds}
           emptyAction={
             <>
               <button
@@ -1173,7 +1237,7 @@ export function App() {
       )}
 
       <VerdictScope.Provider value={ghost ? 'Placed track:' : null}>
-        <VerdictLine view={verdictView} trust={trust} adaptersUnmarked={adaptersUnmarked} />
+        <VerdictLine view={verdictView} trust={trust} adaptersUnmarked={adaptersUnmarked} levelUnmarked={levelMarks.hidden} />
       </VerdictScope.Provider>
 
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="false">

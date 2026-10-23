@@ -730,6 +730,30 @@ export function moveRun(
  * arithmetic throughout, so a snapped join is a real joint, and `moveRun`
  * then joins it.
  */
+/**
+ * Whether a free end on ANOTHER level lies within `radiusMm` of one of the
+ * run's free ends once `move` is applied (two-layer plan, design 5A). Snapping
+ * never reaches such an end (OV3); this is what lets the drop say why.
+ */
+export function otherLevelEndNear(graph: Graph, ports: PortsOf, pieceId: string, move: RunMove, radiusMm: number): boolean {
+  const place = placeAll(graph, ports);
+  const grabbed = graph.pieces.find((p) => p.pieceId === pieceId);
+  const comp = place.forest.component.get(pieceId);
+  if (!grabbed || comp === undefined) return false;
+  const pivot = portFrame(place, ports, grabbed, 0).pos;
+  const sites = connectorSites(graph, ports, place);
+  const mine = sites.placed.filter((p) => p.free && place.forest.component.get(p.pieceId) === comp);
+  const others = sites.placed.filter((p) => p.free && place.forest.component.get(p.pieceId) !== comp);
+  return mine.some((end) => {
+    const [x, y] = toXY(add(add(pivot, mulZetaPow(sub(end.pos, pivot), move.turns)), move.by));
+    return others.some((t) => {
+      if (t.level === end.level) return false;
+      const [tx, ty] = toXY(t.pos);
+      return Math.hypot(tx - x, ty - y) <= radiusMm;
+    });
+  });
+}
+
 export function snapRunMove(
   graph: Graph,
   ports: PortsOf,

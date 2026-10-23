@@ -144,7 +144,8 @@ export interface ConnectorSites {
 
 /**
  * WHICH ENDS SIT AT EACH EXACT SPOT, for every caller that asks (eng decision
- * D2 of the 2026-10-22 editing plan, ENG-R1).
+ * D2 of the 2026-10-22 editing plan, ENG-R1). A spot is a lattice point ON A
+ * LEVEL (two-layer plan, A1): a raised end over a floor end is elsewhere.
  *
  * The verdict's clash check, the preview's fit check, the drop guard and
  * auto-join all need full membership per place, keyed the same exact way. Two
