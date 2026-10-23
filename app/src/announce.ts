@@ -16,7 +16,7 @@
  * undo with nothing to undo) must not announce that it did something.
  */
 
-import type { Graph, PortRef } from '../../engine/src/graph/model.js';
+import { portPolarity, type Graph, type PortRef } from '../../engine/src/graph/model.js';
 import type { Part } from '../../engine/src/parts/schema.js';
 import { shortCode } from '../../engine/src/parts/schema.js';
 import type { EditorAction, EditorState } from './editorReducer.js';
@@ -39,6 +39,21 @@ export function describeAction(
     const name = piece ? endName(resolve(piece.partId), ref.port) : `end ${ref.port + 1}`;
     return `the ${name} of piece ${i + 1}`;
   };
+
+  /*
+   * A joint where two sockets meet is made with a male-male adapter (socket
+   * adapter plan, item 5), however it was made: placed, dropped, moved or
+   * joined by hand. Read from the two ends' kinds, so every route says it.
+   */
+  const adapterJoint = (graph: Graph, w: Graph['welds'][number]): boolean => {
+    const kind = (ref: PortRef) => {
+      const piece = graph.pieces.find((p) => p.pieceId === ref.pieceId);
+      return piece ? portPolarity(resolve(piece.partId), ref.port) : undefined;
+    };
+    return kind(w.a) === 'socket' && kind(w.b) === 'socket';
+  };
+  const withAdapter = (graph: Graph, w: Graph['welds'][number]): string =>
+    adapterJoint(graph, w) ? ' with a male-male adapter' : '';
 
   const numberOf = (graph: Graph, id: string): number =>
     graph.pieces.findIndex((p) => p.pieceId === id) + 1;
@@ -74,7 +89,7 @@ export function describeAction(
     if (added.length < 2) return '';
     const far = added[added.length - 1]!;
     const other = far.a.pieceId === id ? far.b : far.a;
-    return ` It also joined ${where(next.graph, other)}.`;
+    return ` It also joined ${where(next.graph, other)}${withAdapter(next.graph, far)}.`;
   };
 
   switch (action.kind) {
@@ -88,7 +103,7 @@ export function describeAction(
       const head = `Added piece ${n}, ${part.name} (${shortCode(part)})`;
       if (!joint) return `${head}, starting a new run.`;
       const other = joint.a.pieceId === piece.pieceId ? joint.b : joint.a;
-      return `${head}, joined to ${where(next.graph, other)}.${closed(piece.pieceId)}`;
+      return `${head}, joined to ${where(next.graph, other)}${withAdapter(next.graph, joint)}.${closed(piece.pieceId)}`;
     }
     case 'dropGhost':
       // Still pending means the drop was refused (6A); the strip says why.
@@ -104,7 +119,7 @@ export function describeAction(
       const head = `Added piece ${n}, ${part.name} (${shortCode(part)})`;
       if (joints.length === 0) return `${head}, starting a new run.`;
       const other = joints[0]!.a.pieceId === piece.pieceId ? joints[0]!.b : joints[0]!.a;
-      return `${head}, joined to ${where(next.graph, other)}.${closed(piece.pieceId)}`;
+      return `${head}, joined to ${where(next.graph, other)}${withAdapter(next.graph, joints[0]!)}.${closed(piece.pieceId)}`;
     }
     case 'pick':
       return `Placing ${resolve(action.partId).name}. Press R to rotate, Enter to place, Escape to cancel.`;
@@ -121,12 +136,17 @@ export function describeAction(
       return 'Cancelled placing the piece.';
     case 'moveRun': {
       if (next.refusal) return `Can't move it there: ${next.refusal}.`;
-      const joined = next.graph.welds.length - prev.graph.welds.length;
-      return `Moved the run.${joined > 0 ? ' It joined the track it landed on.' : ''}`;
+      const added = next.graph.welds.filter((w) => !prev.graph.welds.includes(w));
+      if (added.length === 0) return 'Moved the run.';
+      const adapters = added.filter((w) => adapterJoint(next.graph, w)).length;
+      const using =
+        adapters === 0 ? '' : adapters === 1 ? ' with a male-male adapter' : ` with ${adapters} male-male adapters`;
+      return `Moved the run. It joined the track it landed on${using}.`;
     }
     case 'clickPort': {
       if (next.graph.welds.length > prev.graph.welds.length && prev.armed) {
-        return `Joined ${where(prev.graph, prev.armed)} to ${where(prev.graph, action.ref)}.`;
+        const made = next.graph.welds[next.graph.welds.length - 1]!;
+        return `Joined ${where(prev.graph, prev.armed)} to ${where(prev.graph, action.ref)}${withAdapter(next.graph, made)}.`;
       }
       if (next.armed && !same(prev.armed, next.armed)) {
         return `Selected ${where(next.graph, next.armed)}. Choose another free end to join it to.`;

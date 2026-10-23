@@ -277,7 +277,14 @@ export function GraphListing({
       ) : (
         <ul aria-labelledby="graph-listing-joints">
           {graph.welds.map((w, k) => {
-            const name = `Joint ${k + 1}: ${where(w.a)} to ${where(w.b)}`;
+            // Two sockets meeting are joined with a male-male adapter (socket adapter
+            // plan, X3): said here, the non-visual route to where each one goes.
+            const kindOf = (ref: PortRef) => {
+              const piece = graph.pieces.find((p) => p.pieceId === ref.pieceId);
+              return piece ? portPolarity(resolve(piece.partId), ref.port) : undefined;
+            };
+            const adapter = kindOf(w.a) === 'socket' && kindOf(w.b) === 'socket';
+            const name = `Joint ${k + 1}: ${where(w.a)} to ${where(w.b)}${adapter ? ', two sockets, needs an adapter' : ''}`;
             return (
               <li key={`${w.a.pieceId}#${w.a.port}-${w.b.pieceId}#${w.b.port}`} aria-label={name}>
                 {name}

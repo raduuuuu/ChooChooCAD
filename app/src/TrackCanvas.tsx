@@ -173,6 +173,13 @@ export interface TrackCanvasProps {
    */
   readonly badJoints?: readonly (readonly [number, number])[];
   /**
+   * Where a male-male adapter goes: a socket-to-socket joint (socket adapter
+   * plan, R3). Resolved by `App.tsx`, which leaves out any spot a red mark
+   * already holds. Amber, a diamond, so it reads as "have this ready", never
+   * as one of the red refusals.
+   */
+  readonly adapterJoints?: readonly (readonly [number, number])[];
+  /**
    * Where the next piece will attach. Drawn differently from `armed`, because
    * they used to be one value and a user who clicked the end they had just
    * built onto silently sent the next piece off to start its own run.
@@ -238,6 +245,7 @@ export function TrackCanvas({
   clashes = [],
   gaps = [],
   badJoints = [],
+  adapterJoints = [],
   cursor = null,
   armed = null,
   onPortClick,
@@ -1066,6 +1074,14 @@ export function TrackCanvas({
             <circle cx={x} cy={y} r={18} fill="none" stroke="var(--fail)" strokeWidth={4} />
             <line x1={x - 10} y1={y} x2={x + 10} y2={y}
               stroke="var(--fail)" strokeWidth={4} />
+          </g>
+        ))}
+        {adapterJoints.map(([x, y], i) => (
+          // Ink, not a target, like the other marks; the class is what specs count.
+          <g key={`adapter-${i}`} className="adapter-joint-mark" pointerEvents="none">
+            <path d={`M ${x} ${y - 16} L ${x + 16} ${y} L ${x} ${y + 16} L ${x - 16} ${y} Z`}
+              fill="none" stroke="var(--tight)" strokeWidth={3} />
+            <circle cx={x} cy={y} r={3.5} fill="var(--tight)" />
           </g>
         ))}
         {dedupedClashes.map(([x, y], i) => (

@@ -16,6 +16,7 @@
 import { useState } from 'react';
 import { isUncorroborated, isUnverified, type Part } from '../../engine/src/parts/schema.js';
 import {
+  ADAPTER_INVENTORY_KEY,
   QUICK_FILLS,
   sanitizeCount,
   type Inventory as InventoryCounts,
@@ -28,6 +29,10 @@ export interface InventoryPanelProps {
   readonly inventory: InventoryCounts;
   readonly used: Readonly<Record<string, number>>;
   readonly shortfalls: readonly Shortfall[];
+  /** Male-male adapters the layout needs (its socket-to-socket joints). */
+  readonly adaptersUsed: number;
+  /** How many more adapters it needs than are owned; 0 when undeclared. */
+  readonly adapterShort: number;
   readonly onChange: (next: InventoryCounts) => void;
   readonly onClose: () => void;
 }
@@ -37,6 +42,8 @@ export function InventoryPanel({
   inventory,
   used,
   shortfalls,
+  adaptersUsed,
+  adapterShort,
   onChange,
   onClose,
 }: InventoryPanelProps) {
@@ -135,6 +142,40 @@ export function InventoryPanel({
         })}
       </div>
 
+      {/*
+        * MALE-MALE ADAPTERS (socket adapter plan, X2): not a catalogue part, so
+        * a row of its own after the parts, kept under a reserved key. Same
+        * field, same guard, same "in use" figure as a part row.
+        */}
+      <div className="inventory-rows">
+        <label className={'inventory-row' + (declared && adapterShort > 0 ? ' is-short' : '') + (invalid[ADAPTER_INVENTORY_KEY] ? ' is-invalid' : '')}>
+          <span className="inventory-row-id num">MM</span>
+          <span className="inventory-row-name">Male-male adapters</span>
+          <input
+            className="inventory-row-input num"
+            type="number"
+            min={0}
+            step={1}
+            inputMode="numeric"
+            value={inventory?.[ADAPTER_INVENTORY_KEY] ?? ''}
+            placeholder="—"
+            aria-label="How many male-male adapters you own"
+            aria-invalid={invalid[ADAPTER_INVENTORY_KEY] === true}
+            onChange={(e) => setOne(ADAPTER_INVENTORY_KEY, e.target.value)}
+          />
+          <span className="inventory-row-used num">{adaptersUsed > 0 ? `${adaptersUsed} in use` : ''}</span>
+          {invalid[ADAPTER_INVENTORY_KEY] && <span className="inventory-row-bad">needs a number</span>}
+          <span className="inventory-row-src">adapter</span>
+        </label>
+      </div>
+
+      {adapterShort > 0 && (
+        <p className="inventory-shortfall">
+          This layout needs <span className="num">{adapterShort}</span> more male-male{' '}
+          {adapterShort === 1 ? 'adapter' : 'adapters'}.
+        </p>
+      )}
+
       {shortfalls.length > 0 && (
         <p className="inventory-shortfall">
           This layout needs{' '}
@@ -151,7 +192,19 @@ export function InventoryPanel({
       <div className="inventory-fills">
         <span className="inventory-fills-label">Quick-fill:</span>
         {QUICK_FILLS.map((q) => (
-          <button key={q.label} title={q.note} onClick={() => onChange({ ...q.counts })}>
+          // A quick-fill is part counts; it says nothing about adapters, so it keeps theirs.
+          <button
+            key={q.label}
+            title={q.note}
+            onClick={() =>
+              onChange({
+                ...q.counts,
+                ...(inventory?.[ADAPTER_INVENTORY_KEY] !== undefined
+                  ? { [ADAPTER_INVENTORY_KEY]: inventory[ADAPTER_INVENTORY_KEY] }
+                  : {}),
+              })
+            }
+          >
             {q.label}
           </button>
         ))}

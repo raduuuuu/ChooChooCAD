@@ -195,15 +195,29 @@ const NOTES_ID = 'verdict-notes';
  * null outside `ACTION_WHEN_EMPTY`), but relying on that silently is how the
  * live region ended up holding the trust list in the first place.
  */
-function notesFor(trust: readonly TrustIssue[], action: string | null, basis = false) {
-  if (trust.length === 0 && !action) return undefined;
+function notesFor(trust: readonly TrustIssue[], action: string | null, basis = false, adapters = 0) {
+  if (trust.length === 0 && !action && adapters === 0) return undefined;
   return (
     <>
       {basis && <Basis trust={trust} />}
+      {adapters > 0 && <p className="verdict-adapters">{adapterNote(adapters)}</p>}
       <Trust trust={trust} />
       <Action action={action} />
     </>
   );
+}
+
+/**
+ * THE ADAPTER NOTE (socket adapter plan, R3). Two sockets meeting is
+ * buildable with a male-male adapter, so the verdict keeps whatever kind it
+ * would have and this line says what to have ready. On every verdict with a
+ * layout, failures included: an adapter joint is a fact about the track
+ * whatever else is wrong with it.
+ */
+export function adapterNote(n: number): string {
+  return n === 1
+    ? 'Needs 1 male-male adapter: two sockets meet at 1 joint.'
+    : `Needs ${n} male-male adapters: two sockets meet at ${n} joints.`;
 }
 
 /**
@@ -339,7 +353,7 @@ export function VerdictLine({
     return (
       <Verdict
         tone="unknown"
-        notes={notesFor([], ACTION_FOR_FAILURE[e.kind] ?? null)}
+        notes={notesFor([], ACTION_FOR_FAILURE[e.kind] ?? null, false, e.adapterCount)}
       >
         <Mark glyph="?" />
         <span className="verdict-text">
@@ -383,6 +397,8 @@ export function VerdictLine({
             e.polarityCount === 0 && e.clashCount === 0 && e.overlapCount > 0
               ? ACTION_WHEN_CROSSING
               : ACTION_FOR_VERDICT.IMPOSSIBLE,
+            false,
+            e.adapterCount,
           )}
         >
           <Mark glyph="X" />
@@ -453,7 +469,7 @@ export function VerdictLine({
       return (
         <Verdict
           tone="pass"
-          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], true)}
+          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], true, e.adapterCount)}
         >
           <Mark glyph="O" />
           <span className="verdict-text">This works. Closes exactly, no give needed at any joint.</span>
@@ -464,7 +480,7 @@ export function VerdictLine({
       return (
         <Verdict
           tone="tight"
-          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], true)}
+          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], true, e.adapterCount)}
         >
           <Mark glyph={'/\\'} />
           <span className="verdict-text">
@@ -515,7 +531,7 @@ export function VerdictLine({
          */
         <Verdict
           tone="fail"
-          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], true)}
+          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], true, e.adapterCount)}
         >
           <Mark glyph="X" />
           <span className="verdict-text">
