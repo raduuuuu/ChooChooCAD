@@ -1,10 +1,12 @@
 /**
  * The canvas. Dominant by design: it is the first thing the eye lands on, and
- * the track is the only texture on screen.
+ * the track leads it. Everything else drawn here is a guide kept quieter than
+ * the wood: the floor grid, the seams at joints, the table outline.
  *
- * SVG rather than a canvas library for this MVP. There is no scene graph
- * and there is no drag yet, so nothing needs a scene graph; SVG gives exact
- * arcs and prints legibly in greyscale, which the build sheet will require.
+ * SVG rather than a canvas library. Dragging a run moves one transformed group
+ * and nothing is solved mid-drag (decision E6), so there is still nothing a
+ * scene graph would buy; SVG gives exact arcs and prints legibly in
+ * greyscale, which the build sheet will require.
  *
  * NO PER-JOINT GLYPHS. They used to render a four-channel per-joint verdict
  * (colour, shape, ratio on hover, dotted ring for an unmeasured tolerance), and
@@ -659,8 +661,10 @@ export function TrackCanvas({
         {/*
           * Layer by layer across ALL segments, not all layers per segment.
           * Otherwise a piece's grooves would paint over the neighbouring
-          * piece's plank edge wherever two pieces meet, and every joint would
-          * show a seam that is not there.
+          * piece's plank edge wherever two pieces meet, and the wood would
+          * break up at every joint. Where one piece ends is shown on purpose,
+          * by the seam layer's one thin line (decision 11A), not by this
+          * accident of paint order.
           */}
         <TrackLayers segments={segments} resolve={resolve} maxLayers={maxLayers} hidden={hiddenRun} />
         {/*

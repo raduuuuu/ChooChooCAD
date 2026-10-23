@@ -49,7 +49,11 @@ import {
 import { connectorSites } from '../../engine/src/graph/feasible.js';
 
 /**
- * The graph and the two selections are ONE value, and that is not tidiness.
+ * The graph and everything the user has pointed at are ONE value, and that is
+ * not tidiness. It began as the graph and two port selections, `cursor` and
+ * `armed`, which is what most of this note is about; the selected piece, the
+ * piece being placed and the undo history joined it later, for the same
+ * reason.
  *
  * They were two `useState`s and the eight-runs bug above is what that cost.
  * Attaching a piece MOVES the cursor to its far end, so they change together
