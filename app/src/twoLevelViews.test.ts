@@ -88,11 +88,16 @@ describe('raised track on a verdict that works (3A, 4A)', () => {
    *   supports an…'`.
    * - `raisedOf` returning null: the same, to contain `'Raised track:
    *   supports are not checke…'`.
+   * - the note back to calling the whole figure "estimated": the same, to
+   *   contain `'44mm train); the train’s height is an…'`.
    */
   it('says what was not checked, past a long notes list, and never "Build it"', () => {
     const out = verdict(view({ kind: 'EXACT', gapKnown: true, raised: true, bridgeCount: 2 }), { trust: FIVE });
     expect(out).toContain('Raised track: supports are not checked.');
     expect(out).toMatch(/crosses other track at 2 places; clearance is about 8mm/);
+    // Only the train's height is the guess; rise and plank are published.
+    expect(out).toContain('44mm train); the train’s height is an estimate.');
+    expect(out).not.toContain('), estimated.');
     expect(out).toContain('The track fits. Check the supports and the clearance under each bridge before you build.');
     expect(out).not.toContain('Build it.');
   });

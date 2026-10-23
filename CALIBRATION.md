@@ -152,8 +152,9 @@ One tape measure settles it.
 > **Built on estimates, 2026-10-23.** Two-layer circuits shipped without this
 > afternoon (owner decisions L2 and L3 of `docs/plan/2026-10-23-two-layers.md`):
 > the ascending track takes 216mm as its RUN (Q4 open, so the part is marked
-> unverified), and the clearance note states 64 - 12 - 44 = 8mm as an estimate
-> with supports not checked. The constants are `CLEARANCE` in
+> unverified), and the clearance note states 64 - 12 - 44 = 8mm, naming the
+> 44mm train height as its one estimate (rise and plank are published), with
+> supports not checked. The constants are `CLEARANCE` in
 > `engine/data/rampSeeds.ts`. Measuring Q4 and Q5 replaces them; nothing else
 > has to change.
 
@@ -163,8 +164,10 @@ The layer feature lives or dies on one subtraction. A bridge sits one ramp-rise
 above the floor; the wood of that bridge takes up some of the gap; a train has to
 fit through what is left.
 
-- [ ] Ramp rise: floor to railhead at the top of the ascending
-      track (#33332) ..................................... ______ mm
+- [x] Ramp rise, from the track guide ..................  64 mm
+      (PUBLISHED, not measured: "Raises or lowers the track by 64mm",
+      woodenrailway.info/track/brio-track-guide, read 2026-10-23. Re-measure
+      it if you are checking the margin for real, as for the plank.)
 - [x] Plank thickness, from Q3 above .....................  12 mm
       (PUBLISHED, not measured. Q3 closed this one without calipers, and the
       worked figure below already uses it. Re-measure it if you are checking
@@ -181,9 +184,9 @@ Then compute:
 ```
 
 **Why this is the whole feature:** with the numbers currently in the code the
-margin is **8mm**. Two of the three are guesses (a 64mm rise that exists only in
-a docblock, with no constant and no N part in the catalogue, and a 44mm vehicle
-height); the 12mm plank is PUBLISHED, per Q3 and Q5 above. None of those three
+margin is **8mm**. One of the three is a guess, the 44mm vehicle height; the
+64mm rise and the 12mm plank are PUBLISHED (the rise found 2026-10-23, after
+the ascending track entered the catalogue). None of those three
 has been measured. A vehicle 6mm taller, or a plank 4mm thicker, and the margin
 is gone: every single-level bridge becomes illegal, and the only legal bridging
 would be two levels up, which the two-layer model does not have.
