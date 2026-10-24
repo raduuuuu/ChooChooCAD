@@ -91,6 +91,9 @@ const view = (kind: VerdictKind): VerdictView => ({
   bridgeCount: 0,
   raised: false,
   jointCount: 10,
+  openRuns: 0,
+  loopRuns: 1,
+  loopAt: null,
   pieces: null,
 });
 

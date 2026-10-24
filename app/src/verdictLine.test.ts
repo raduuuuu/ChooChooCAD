@@ -84,6 +84,7 @@ const exceedsResult = (): Extract<GraphResult, { ok: true }> => {
     thirdLevels: [],
     bridges: [],
     raised: false,
+    runs: { count: 1, open: 0, loops: [{ firstPiece: 1, pieces: [], headingBroken: false }] },
     residuals: [],
     repair: null,
   };
@@ -108,6 +109,7 @@ const impossibleResult = (): Extract<GraphResult, { ok: true }> => {
     thirdLevels: [],
     bridges: [],
     raised: false,
+    runs: { count: 1, open: 0, loops: [{ firstPiece: 1, pieces: [], headingBroken: false }] },
     residuals: [],
     repair: null,
   };

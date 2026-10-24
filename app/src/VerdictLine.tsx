@@ -32,6 +32,7 @@ import {
   ACTION_WHEN_LEVEL_MISMATCH,
   ACTION_WHEN_RAISED,
   ACTION_WHEN_THIRD_LEVEL,
+  actionWhenOpenRuns,
   FAILURE_COPY,
   isFailure,
 } from './verdictAction.js';
@@ -404,6 +405,32 @@ function Mark({ glyph }: { glyph: string }) {
   );
 }
 
+/*
+ * SEVERAL RUNS OF TRACK (TODO "Multiple independent components"). A layout can
+ * hold runs that share no joint. Beside a loop's verdict, say how many other
+ * runs are still open, so "This works" is never read as the whole layout, and
+ * when several runs hold loops, name the one a figure is about by its lowest
+ * piece number, as the layout list numbers them.
+ */
+function OpenRuns({ n }: { n: number }) {
+  if (n === 0) return null;
+  return (
+    <>
+      {' '}
+      <span className="num">{n}</span> other {n === 1 ? 'run of track is' : 'runs of track are'} not a loop yet.
+    </>
+  );
+}
+
+function LoopAt({ at }: { at: number | null }) {
+  if (at === null) return null;
+  return (
+    <>
+      {' '}In the loop through piece <span className="num">{at}</span>.
+    </>
+  );
+}
+
 export function VerdictLine({
   view,
   trust = [],
@@ -581,7 +608,7 @@ export function VerdictLine({
           tone="pass"
           notes={notesFor(
             trust,
-            e.raised ? ACTION_WHEN_RAISED : ACTION_FOR_VERDICT.EXACT,
+            e.openRuns > 0 ? actionWhenOpenRuns(e.openRuns) : e.raised ? ACTION_WHEN_RAISED : ACTION_FOR_VERDICT.EXACT,
             true,
             e.adapterCount,
             adaptersUnmarked,
@@ -589,7 +616,20 @@ export function VerdictLine({
           )}
         >
           <Mark glyph="O" />
-          <span className="verdict-text">This works. Closes exactly, no give needed at any joint.</span>
+          <span className="verdict-text">
+            This works.{' '}
+            {e.loopRuns > 2 ? (
+              <>
+                All <span className="num">{e.loopRuns}</span> loops close
+              </>
+            ) : e.loopRuns === 2 ? (
+              'Both loops close'
+            ) : (
+              'Closes'
+            )}{' '}
+            exactly, no give needed at any joint.
+            <OpenRuns n={e.openRuns} />
+          </span>
         </Verdict>
       );
 
@@ -615,6 +655,8 @@ export function VerdictLine({
             <span className="num">{e.jointCount}</span> joints, which give{' '}
             <span className="num">{e.giveMm.toFixed(0)}mm</span> between them. That
             means the gap could fit inside the total give, not that it will.
+            <LoopAt at={e.loopAt} />
+            <OpenRuns n={e.openRuns} />
           </span>
         </Verdict>
       );
@@ -684,7 +726,9 @@ export function VerdictLine({
             Exceeds the modelled give. Needs{' '}
             <span className="num">{e.gapMm.toFixed(0)}mm</span> absorbed, and the
             joints are modelled to give{' '}
-            <span className="num">{e.giveMm.toFixed(0)}mm</span> in total.{loopNote}
+            <span className="num">{e.giveMm.toFixed(0)}mm</span> in total.
+            <LoopAt at={e.loopAt} />
+            {loopNote}
             {/*
               * THE GAP IN PIECES (task X6), only when `repair.ts` proved it
               * exactly. It sits AFTER the measurement rather than replacing
@@ -706,6 +750,7 @@ export function VerdictLine({
                 ) {e.pieces.direction === 'short' ? 'short' : 'too long'}.
               </>
             )}
+            <OpenRuns n={e.openRuns} />
           </span>
         </Verdict>
       );

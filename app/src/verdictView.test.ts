@@ -95,6 +95,7 @@ function solved(over: Partial<Extract<GraphResult, { ok: true }>> = {}): GraphRe
     thirdLevels: [],
     bridges: [],
     raised: false,
+    runs: { count: 1, open: 0, loops: [{ firstPiece: 1, pieces: [], headingBroken: false }] },
     residuals: [],
     repair: null,
     ...over,
@@ -116,6 +117,7 @@ function refused(over: Partial<Extract<GraphResult, { ok: false }>> = {}): Graph
     thirdLevels: [],
     bridges: [],
     raised: false,
+    runs: { count: 1, open: 1, loops: [] },
     residuals: [],
     ...over,
   };

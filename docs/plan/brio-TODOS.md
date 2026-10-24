@@ -643,6 +643,19 @@ Needs a decision before X4 is implemented.
 
 ## P1 — Multiple independent components (several separate tracks in one layout)
 
+**DONE (2026-10-24).** The premise below is from the chain engine and no longer
+holds. The graph engine already kept several runs: each run has its own anchor,
+a lattice point with a heading in sixteenths (so exact closure holds per run),
+and runs are placed, dragged, snapped and checked for overlap against each
+other. What was missing was the verdict speaking about each run. It said
+"Nothing to fix. Build it." beside a second run still open, said a turned loop's
+reason twice without naming the loop, and read two closed loops as one. Now
+`solveGraph` returns a `runs` summary (count, open, and each loop's lowest
+piece number), and the verdict says "Both loops close exactly", "1 other run of
+track is not a loop yet." with "Join the free ends of the open run, or remove
+it." in place of "Build it", and "In the loop through piece 9." beside a gap or
+a turn when there are several loops. Specs: app/src/verdictRuns.test.ts.
+
 **What:** Let a layout hold more than one connected run of track, so a loop can
 sit beside or under another unrelated loop.
 
