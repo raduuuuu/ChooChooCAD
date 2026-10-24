@@ -207,6 +207,45 @@ export function gapAnnotations(
   });
 }
 
+/**
+ * WHERE A REFUSED JOINT IS MARKED (brio-TODOS.md P2, "The polarity marker,
+ * and three things it does not yet do", limits 1 and 3).
+ *
+ * At BOTH ends of the weld. The ends of a tree weld coincide and one mark is
+ * the whole truth, but a closing weld can have a gap, and a self-weld of one
+ * B2 has its ends 54mm apart; marking end `a` alone put the mark wherever the
+ * first click happened to be. Where a clash or a crossing is already drawn,
+ * that mark holds the spot and the bar inside it is left out; a joint left
+ * with no mark at all is counted in `hidden`, which the verdict says aloud,
+ * as it does for level faults.
+ */
+export function badJointMarks(
+  refused: readonly number[],
+  welds: readonly Weld[],
+  ports: readonly RenderedPort[],
+  taken: readonly (readonly [number, number])[],
+): { readonly marks: readonly (readonly [number, number])[]; readonly hidden: number } {
+  // The common case, built for nothing otherwise: the Map is over every end.
+  if (refused.length === 0) return { marks: [], hidden: 0 };
+  const byPort = new Map(ports.map((p) => [`${p.pieceId}#${p.port}`, p]));
+  const same = (a: readonly [number, number], b: readonly [number, number]) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 1e-6;
+  const marks: (readonly [number, number])[] = [];
+  let hidden = 0;
+  for (const i of refused) {
+    const w = welds[i];
+    if (!w) continue;
+    const ends = [w.a, w.b]
+      .map((r) => byPort.get(`${r.pieceId}#${r.port}`))
+      .filter((p): p is RenderedPort => p !== undefined)
+      .map((p) => [p.x, p.y] as const);
+    const spots = ends.filter((at, k) => k === 0 || !same(at, ends[0]!));
+    const shown = spots.filter((at) => !taken.some((t) => same(t, at)));
+    if (spots.length > 0 && shown.length === 0) hidden++;
+    marks.push(...shown);
+  }
+  return { marks, hidden };
+}
+
 /** One seam: a short line across the plank where two pieces meet. */
 export interface SeamLine {
   readonly from: readonly [number, number];

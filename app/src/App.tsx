@@ -48,7 +48,7 @@ import { connectorSites } from '../../engine/src/graph/feasible.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
 import { levelOf, portsOf, type Piece as GPiece, type Port, type PortRef } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
-import { gapMarks, seamLines, weldTargets } from './trackPath.js';
+import { badJointMarks, gapMarks, seamLines, weldTargets } from './trackPath.js';
 import { useEditorKeys } from './useEditorKeys.js';
 import { usePaletteDrag, type CanvasProbe } from './usePaletteDrag.js';
 import { UndoControl } from './UndoControl.js';
@@ -707,22 +707,20 @@ export function App() {
    * and the clash rings go unnamed. That ternary predates this change, and it
    * is filed with the entry above rather than fixed here.
    */
-  const badJoints = useMemo(() => {
-    if (!result) return [];
-    // Nothing is drawn above the ceiling, so build nothing: the Map below is
-    // over every port in the layout, and that is the size the ceiling exists
-    // to refuse. The notice the canvas shows instead already says the verdict
-    // still applies to the whole layout.
-    if (render.segments.length > CANVAS_SEGMENT_CEILING) return [];
-    const byPort = new Map(render.ports.map((p) => [`${p.pieceId}#${p.port}`, p]));
-    return result.polarityViolations.flatMap((v) => {
-      const w = graph.welds[v.weld];
-      if (!w) return [];
-      const a = byPort.get(`${w.a.pieceId}#${w.a.port}`);
-      if (!a) return [];
-      return [[a.x, a.y] as const];
-    });
-  }, [result, render, graph]);
+  const refusedMarks = useMemo(() => {
+    // Nothing is drawn above the ceiling, so build nothing: the lookup in
+    // `badJointMarks` is over every port in the layout, and that is the size
+    // the ceiling exists to refuse. The notice the canvas shows instead
+    // already says the verdict still applies to the whole layout.
+    if (!result || render.segments.length > CANVAS_SEGMENT_CEILING) return { marks: [], hidden: 0 };
+    return badJointMarks(
+      result.polarityViolations.map((v) => v.weld),
+      graph.welds,
+      render.ports,
+      clashMarks.map((c) => c.at),
+    );
+  }, [result, render, graph, clashMarks]);
+  const badJoints = refusedMarks.marks;
 
   /*
    * WHERE A MALE-MALE ADAPTER GOES (socket adapter plan, R3): one amber mark
@@ -1282,7 +1280,13 @@ export function App() {
       )}
 
       <VerdictScope.Provider value={ghost ? 'Placed track:' : null}>
-        <VerdictLine view={verdictView} trust={trust} adaptersUnmarked={adaptersUnmarked} levelUnmarked={levelMarks.hidden} />
+        <VerdictLine
+          view={verdictView}
+          trust={trust}
+          adaptersUnmarked={adaptersUnmarked}
+          levelUnmarked={levelMarks.hidden}
+          polarityUnmarked={refusedMarks.hidden}
+        />
       </VerdictScope.Provider>
 
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="false">

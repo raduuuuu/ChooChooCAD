@@ -436,6 +436,7 @@ export function VerdictLine({
   trust = [],
   adaptersUnmarked = 0,
   levelUnmarked = 0,
+  polarityUnmarked = 0,
 }: {
   view: VerdictView;
   /** Why this verdict is worth less than it looks. See engine/joints/trust.ts. */
@@ -444,6 +445,8 @@ export function VerdictLine({
   adaptersUnmarked?: number;
   /** Level faults the canvas does not mark because a clash holds the spot (eng re-run D4). */
   levelUnmarked?: number;
+  /** Refused joints the canvas does not mark because a clash holds every end of them (`badJointMarks`). */
+  polarityUnmarked?: number;
 }) {
   const e = view;
 
@@ -529,6 +532,27 @@ export function VerdictLine({
               Can&rsquo;t be built. <span className="num">{e.polarityCount}</span>{' '}
               {e.polarityCount === 1 ? 'joint puts' : 'joints put'} two ends of
               the same kind together, and those do not fit.
+              <Unmarked n={polarityUnmarked} />
+              {/*
+                * The clashes and crossings too, when there are both: the
+                * canvas draws every kind of red mark, and the words used to
+                * account for one (brio-TODOS.md P2, the polarity marker's
+                * limit 2).
+                */}
+              {e.clashCount > 0 && (
+                <>
+                  {' '}And <span className="num">{e.clashCount}</span>{' '}
+                  {e.clashCount === 1
+                    ? 'spot has two or more track ends on top of each other.'
+                    : 'spots have two or more track ends on top of each other.'}
+                </>
+              )}
+              {e.overlapCount > 0 && (
+                <>
+                  {' '}And <span className="num">{e.overlapCount}</span>{' '}
+                  {e.overlapCount === 1 ? 'place has track running over other track.' : 'places have track running over other track.'}
+                </>
+              )}
             </span>
           ) : e.clashCount === 0 && e.overlapCount > 0 ? (
             <span className="verdict-text">
