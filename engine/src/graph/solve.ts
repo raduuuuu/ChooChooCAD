@@ -22,6 +22,7 @@ import { classifyWelds, connectorSites, findVertexClashes, type AdapterJoint, ty
 import { findBridges, findPlankOverlaps, type PlankOverlap } from './overlap.js';
 import { renderGraph } from './render.js';
 import { findLevelFaults, placeAll, residuals, type LevelMismatch, type PortsOf, type ThirdLevel, type WeldResidual } from './frames.js';
+import type { Forest } from './forest.js';
 import type { Graph } from './model.js';
 import { pieceRepair, type PieceRepair, type RepairLibrary } from './repair.js';
 import type { Part } from '../parts/schema.js';
@@ -32,6 +33,44 @@ export type GraphFailure =
   | 'TOO_MANY_LOOPS'
   | 'TOO_BIG_TO_CHECK'
   | 'NUMERIC';
+
+/**
+ * THE SEPARATE RUNS OF TRACK (TODO "Multiple independent components"). A
+ * layout can hold several runs that share no joint; the verdict used to speak
+ * of "the loop" and say "Build it" beside a second run that was still open.
+ */
+export interface RunSummary {
+  /** Connected runs of track. */
+  readonly count: number;
+  /** Runs with no loop in them at all. */
+  readonly open: number;
+  /** One per run that holds a loop, in run order. */
+  readonly loops: readonly RunLoop[];
+}
+
+export interface RunLoop {
+  /** Its lowest piece number, counting from 1 in placement order, as the layout list does. */
+  readonly firstPiece: number;
+  readonly pieces: readonly string[];
+  /** A loop in this run comes back pointing a different way from the way it left. */
+  readonly headingBroken: boolean;
+}
+
+function summariseRuns(graph: Graph, forest: Forest, rs: readonly WeldResidual[]): RunSummary {
+  const count = forest.roots.length;
+  const looped = new Map<number, boolean>();
+  for (const w of forest.closing) {
+    const comp = forest.component.get(graph.welds[w]!.a.pieceId)!;
+    const turned = rs.some((r) => r.weld === w && r.headingSteps !== 0);
+    looped.set(comp, (looped.get(comp) ?? false) || turned);
+  }
+  const loops = [...looped.keys()].sort((a, b) => a - b).map((comp) => {
+    const pieces = graph.pieces.filter((p) => forest.component.get(p.pieceId) === comp).map((p) => p.pieceId);
+    const firstPiece = graph.pieces.findIndex((p) => forest.component.get(p.pieceId) === comp) + 1;
+    return { firstPiece, pieces, headingBroken: looped.get(comp)! };
+  });
+  return { count, open: count - loops.length, loops };
+}
 
 export type GraphResult =
   | {
@@ -60,6 +99,8 @@ export type GraphResult =
       readonly bridges: readonly PlankOverlap[];
       /** Whether any track is off the floor, for the supports note (design 3A). */
       readonly raised: boolean;
+      /** The separate runs of track, so the verdict can speak about each one. Every branch. */
+      readonly runs: RunSummary;
       /**
        * One per closing weld, with the mismatch in millimetres.
        *
@@ -106,6 +147,8 @@ export type GraphResult =
       readonly bridges: readonly PlankOverlap[];
       /** Whether any track is off the floor, for the supports note (design 3A). */
       readonly raised: boolean;
+      /** The separate runs of track, so the verdict can speak about each one. Every branch. */
+      readonly runs: RunSummary;
       /**
        * Also on this branch, for the reason the clashes are: two ends being
        * 12mm apart is a fact about where the pieces ARE. It does not become
@@ -139,7 +182,7 @@ export function solveGraph(
   const { mismatches: levelMismatches, thirdLevels } = findLevelFaults(graph, ports, placement, rs);
   const bridges = findBridges(graph, segments, (id) => resolve(id).plankWidthMm / 2, connectorSites(graph, ports, placement));
   const raised = segments.some((sg) => (sg.level ?? 0) + (sg.rise ?? 0) > 0);
-  const levels = { levelMismatches, thirdLevels, bridges, raised };
+  const levels = { levelMismatches, thirdLevels, bridges, raised, runs: summariseRuns(graph, placement.forest, rs) };
 
   if (rank === 0) {
     /*
@@ -281,10 +324,23 @@ export function solveGraph(
   }
 
   if (space.rotationBroken) {
+    /*
+     * WHICH LOOP, not the headline again. This said "the track does not come
+     * back pointing the way it started" under a headline saying the same, so
+     * the line read the one fact twice. With one loop there is nothing to add;
+     * with several, it names the one that comes back turned.
+     */
+    const { loops } = levels.runs;
+    const turned = loops.filter((l) => l.headingBroken);
     return {
       ok: false,
       reason: 'HEADING_MISMATCH',
-      detail: 'the track does not come back pointing the way it started',
+      detail:
+        loops.length < 2
+          ? ''
+          : turned.length === 1
+            ? `In the loop through piece ${turned[0]!.firstPiece}.`
+            : `In ${turned.length} of ${loops.length} loops.`,
       rank,
       clashes,
       overlaps,

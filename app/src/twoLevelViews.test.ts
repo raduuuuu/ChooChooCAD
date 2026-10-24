@@ -47,6 +47,9 @@ const view = (over: Partial<VerdictView>): VerdictView => ({
   raised: false,
   adapterCount: 0,
   jointCount: 8,
+  openRuns: 0,
+  loopRuns: 1,
+  loopAt: null,
   pieces: null,
   ...over,
 });

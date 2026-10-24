@@ -92,6 +92,14 @@ export const ACTION_WHEN_RAISED =
   'The track fits. Check the supports and the clearance under each bridge before you build.';
 
 /**
+ * EXACT's action when another run of track is still open (TODO "Multiple
+ * independent components"). "Nothing to fix. Build it." beside a run with two
+ * loose ends told the builder the layout was done.
+ */
+export const actionWhenOpenRuns = (n: number): string =>
+  n === 1 ? 'Join the free ends of the open run, or remove it.' : 'Join the free ends of each open run, or remove them.';
+
+/**
  * The failure kinds, declared ONCE.
  *
  * This was declared identically here and in `VerdictLine.tsx`, and adding

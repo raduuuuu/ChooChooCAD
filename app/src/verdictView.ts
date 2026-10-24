@@ -71,6 +71,16 @@ export interface VerdictView {
   readonly raised: boolean;
   /** Welds where two sockets meet, each needing a male-male adapter. Never changes the kind. */
   readonly adapterCount: number;
+  /** Runs of track with no loop in them (TODO "Multiple independent components"). */
+  readonly openRuns: number;
+  /** Runs of track that hold a loop. */
+  readonly loopRuns: number;
+  /**
+   * The loop the headline speaks about, named by its lowest piece number --
+   * ONLY when there is more than one run with a loop, so "the loop" alone
+   * would not say which. Null otherwise.
+   */
+  readonly loopAt: number | null;
   /** Joints in the worst loop, which is the number the gap is spread across. */
   readonly jointCount: number;
   /**
@@ -102,6 +112,9 @@ const EMPTY: VerdictView = {
   bridgeCount: 0,
   raised: false,
   adapterCount: 0,
+  openRuns: 0,
+  loopRuns: 0,
+  loopAt: null,
   jointCount: 0,
   pieces: null,
 };
@@ -120,6 +133,8 @@ const levelsOf = (r: GraphResult) => ({
   thirdLevelCount: r.thirdLevels.length,
   bridgeCount: r.bridges.length,
   raised: r.raised,
+  openRuns: r.runs.open,
+  loopRuns: r.runs.loops.length,
 });
 
 export function viewOf(result: GraphResult | null): VerdictView {
@@ -170,6 +185,10 @@ export function viewOf(result: GraphResult | null): VerdictView {
     adapterCount: result.adapterJoints.length,
     ...levelsOf(result),
     jointCount: result.worst?.welds.length ?? 0,
+    loopAt:
+      result.runs.loops.length > 1
+        ? (result.runs.loops.find((l) => l.pieces.includes(result.worst?.pieces[0] ?? ''))?.firstPiece ?? null)
+        : null,
     pieces: null,
   };
 
