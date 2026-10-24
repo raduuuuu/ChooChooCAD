@@ -21,6 +21,7 @@ import { analyseCycles, type CycleReport } from './cycles.js';
 import { classifyWelds, connectorSites, findVertexClashes, type AdapterJoint, type VertexClash, type WeldPolarityViolation } from './feasible.js';
 import { findBridges, findPlankOverlaps, type PlankOverlap } from './overlap.js';
 import { renderGraph } from './render.js';
+import type { Segment } from '../geom/fk.js';
 import { findLevelFaults, residuals, type LevelMismatch, type Placement, type PortsOf, type ThirdLevel, type WeldResidual } from './frames.js';
 import type { Forest } from './forest.js';
 import type { Graph } from './model.js';
@@ -170,13 +171,18 @@ export function solveGraph(
   placement: Placement,
   /** Parts a repair may suggest, and how brands join. Omit for no suggestion. */
   library?: RepairLibrary,
+  /**
+   * The track drawn from `placement`, when the caller has drawn it already
+   * (App.tsx's `render` memo); drawn here otherwise. The overlap and bridge
+   * checks read it, so it must be of this placement.
+   */
+  segments: readonly Segment[] = renderGraph(graph, ports, resolve, placement).segments,
 ): GraphResult {
   const rs = residuals(graph, ports, placement);
   const rank = placement.forest.closing.length;
 
   // Computed once, up front, because every branch below reports them.
   const clashes = findVertexClashes(graph, ports, placement);
-  const segments = renderGraph(graph, ports, resolve, placement).segments;
   const overlaps = findPlankOverlaps(
     graph,
     segments,
