@@ -1591,8 +1591,16 @@ afresh. That covers the unattached add and pick (`nextRunAnchor`), and the
 float, drop and join-refusal checks, which also placed the layout again.
 Measured at 42,000 pieces before the change: `placeAll` 48ms of
 `nextRunAnchor`'s 68ms, the port scan the other 26ms. Spec:
-app/src/reducerPlacement.test.ts. **Still open:** the port scan, and
-`solveGraph`'s own `renderGraph` call, which repeats App's `render` memo.
+app/src/reducerPlacement.test.ts.
+
+**DONE 2026-10-24, the rest.** App hands the reducer its `render` with the
+placement, and `solveGraph` takes it too (an optional last argument, drawn
+there only when omitted). `nextRunAnchor` reads the drawn ends instead of
+composing a frame per port, and the drop's wood check reads the drawn
+segments instead of drawing the layout again. Measured at 42,000 loose
+straights: the scan 17.5ms to 1.1ms, `solveGraph` 335ms to 243ms, and each
+drop one `renderGraph` (51ms) fewer. Specs: engine/test/solvePlacement.test.ts,
+app/src/reducerPlacement.test.ts.
 
 **What:** `App.tsx` builds `placement = placeAll(graph, ports)` and passes it to
 `renderGraph`. `solveGraph` does not take it — `solve.ts:90` calls

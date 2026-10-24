@@ -27,6 +27,7 @@
 import type { Cyc } from '../../engine/src/geom/cyclotomic.js';
 import { IDENTITY, norm16, type Frame, type Graph, type Piece as GPiece, type PortRef } from '../../engine/src/graph/model.js';
 import { placeAll, type Placement, type PortsOf } from '../../engine/src/graph/frames.js';
+import type { GraphRender } from '../../engine/src/graph/render.js';
 import type { Turn } from '../../engine/src/parts/schema.js';
 import {
   EMPTY_GRAPH,
@@ -418,7 +419,7 @@ function newGhost(state: EditorState, partId: string, ports: PortsOf, geometry?:
   const at = stillFree(state.graph, state.cursor);
   if (at) return ghostAt(state.graph, ports, partId, at, null);
   const frame =
-    state.graph.pieces.length === 0 ? IDENTITY : nextRunAnchor(state.graph, ports, placementOf(state.graph, ports, geometry));
+    state.graph.pieces.length === 0 ? IDENTITY : nextRunAnchor(state.graph, ports, placementOf(state.graph, ports, geometry), drawnOf(state.graph, geometry)?.ports);
   return { partId, at: null, frame, turn: 'left', port: 0 };
 }
 
@@ -475,6 +476,18 @@ function placementOf(graph: Graph, ports: PortsOf, geometry?: FitGeometry): Plac
   return known && known.graph === graph ? known.placement : placeAll(graph, ports);
 }
 
+/** App's drawing of `graph`, on the same terms as `placementOf`; undefined means draw it here. */
+function drawnOf(graph: Graph, geometry?: FitGeometry): GraphRender | undefined {
+  const known = geometry?.placed;
+  return known && known.graph === graph ? known.render : undefined;
+}
+
+/** `geometry` with App's segments for `graph` when it has them, so the wood check draws nothing again. */
+function withSegments(graph: Graph, geometry?: FitGeometry): FitGeometry | undefined {
+  const drawn = drawnOf(graph, geometry);
+  return geometry && drawn && !geometry.segments ? { ...geometry, segments: drawn.segments } : geometry;
+}
+
 function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry?: FitGeometry): EditorState {
   switch (action.kind) {
     case 'add': {
@@ -495,7 +508,7 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
         // placement App already made rather than a fresh one.
         at || state.graph.pieces.length === 0
           ? undefined
-          : nextRunAnchor(state.graph, ports, placementOf(state.graph, ports, geometry)),
+          : nextRunAnchor(state.graph, ports, placementOf(state.graph, ports, geometry), drawnOf(state.graph, geometry)?.ports),
       );
       /*
        * Now a DIRECT placement (decision 9A: a double-click on the palette, or
@@ -578,7 +591,7 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
       const g = state.ghost;
       if (!g) return state;
       const placement = placementOf(state.graph, ports, geometry);
-      const fit = ghostFit(state.graph, ports, g, placement, connectorSites(state.graph, ports, placement), geometry);
+      const fit = ghostFit(state.graph, ports, g, placement, connectorSites(state.graph, ports, placement), withSegments(state.graph, geometry));
       if (fit.conflicts.length === 0) return step(state, { kind: 'placeGhost' }, ports);
       // A drop never puts down a red piece (6A), and that includes one lying
       // over track. A fresh object, not `state`,

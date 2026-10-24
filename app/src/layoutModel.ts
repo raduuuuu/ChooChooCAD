@@ -20,7 +20,7 @@ import { add, fromInt, mulZetaPow, scale, sub, toXY, zetaPow, type Cyc } from '.
 import { removePiece, removeWeld } from '../../engine/src/graph/edit.js';
 import { connectorSites, landingOf, type ConnectorSites } from '../../engine/src/graph/feasible.js';
 import { findPlankOverlaps } from '../../engine/src/graph/overlap.js';
-import { renderGraph } from '../../engine/src/graph/render.js';
+import { renderGraph, type GraphRender, type RenderedPort } from '../../engine/src/graph/render.js';
 import type { Segment } from '../../engine/src/geom/fk.js';
 import { findLevelFaults, placeAll, portFrame, type Placement, type PortsOf } from '../../engine/src/graph/frames.js';
 import {
@@ -97,16 +97,21 @@ export const RUN_SPACING_MM = 216;
  * of an exact lattice vector, so the anchor itself stays exact and the
  * engine never sees a rounded number.
  */
-export function nextRunAnchor(graph: Graph, ports: PortsOf, place: Placement = placeAll(graph, ports)): Frame {
+export function nextRunAnchor(
+  graph: Graph,
+  ports: PortsOf,
+  place: Placement = placeAll(graph, ports),
+  /** Every end of `graph` as drawn from `place`, when the caller has it: the scan then reads it. */
+  drawn?: readonly RenderedPort[],
+): Frame {
   let maxY = 0;
   let minY = 0;
-  for (const piece of graph.pieces) {
-    const count = ports(piece).length;
-    for (let i = 0; i < count; i++) {
-      const [, y] = toXY(portFrame(place, ports, piece, i).pos);
-      if (y > maxY) maxY = y;
-      if (y < minY) minY = y;
-    }
+  const ys = drawn
+    ? drawn.map((p) => p.y)
+    : graph.pieces.flatMap((piece) => ports(piece).map((_, i) => toXY(portFrame(place, ports, piece, i).pos)[1]));
+  for (const y of ys) {
+    if (y > maxY) maxY = y;
+    if (y < minY) minY = y;
   }
   const clearance = maxY - minY + RUN_SPACING_MM;
   const steps = Math.max(1, Math.ceil(clearance / RUN_SPACING_MM));
@@ -318,11 +323,12 @@ export interface FitGeometry {
   readonly resolve: (id: string) => Part;
   readonly segments?: readonly Segment[];
   /**
-   * The placement App already made, and the graph it is of. The reducer
-   * reuses it when handed that same graph instead of placing it again; any
-   * other graph is placed afresh (`placementOf` in editorReducer.ts).
+   * The placement App already made, the drawing it made from it, and the
+   * graph both are of. The reducer reuses them when handed that same graph
+   * instead of placing and drawing it again; any other graph is placed and
+   * drawn afresh (`placementOf` and `drawnOf` in editorReducer.ts).
    */
-  readonly placed?: { readonly graph: Graph; readonly placement: Placement };
+  readonly placed?: { readonly graph: Graph; readonly placement: Placement; readonly render: GraphRender };
 }
 
 /**
