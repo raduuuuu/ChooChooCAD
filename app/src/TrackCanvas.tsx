@@ -21,6 +21,7 @@ import { JOIN_REFUSED_SHORT } from './joinWords.js';
 import type { JoinRefusal } from './layoutModel.js';
 import { memo, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { Segment } from '../../engine/src/geom/fk.js';
+import { onPlank } from '../../engine/src/graph/overlap.js';
 import { renderBounds, type GraphRender } from '../../engine/src/graph/render.js';
 import { useDragSession, type RunDrag } from './useDragSession.js';
 import type { CanvasProbe } from './usePaletteDrag.js';
@@ -599,6 +600,21 @@ export function TrackCanvas({
   const [floorSegments, raisedSegments] = useMemo(
     () => [segments.filter((sg) => (sg.level ?? 0) < 1), segments.filter((sg) => (sg.level ?? 0) >= 1)] as const,
     [segments],
+  );
+  /*
+   * FREE FLOOR ENDS UNDER RAISED WOOD (TODO P3). Raised track is drawn after
+   * the floor's ends, so where it covers one the wood takes the click and the
+   * end can be reached only from the layout list. Keyboard users already use
+   * the list; this line tells a mouse user it exists.
+   */
+  const hiddenEnds = useMemo(
+    () =>
+      raisedSegments.length === 0
+        ? 0
+        : renderedPorts.filter(
+            (p) => p.free && (p.level ?? 0) === 0 && onPlank(p.x, p.y, raisedSegments, (id) => resolve(id).plankWidthMm / 2),
+          ).length,
+    [renderedPorts, raisedSegments, resolve],
   );
   const dragPivot = useMemo(() => {
     if (!drag) return null;
@@ -1350,6 +1366,12 @@ export function TrackCanvas({
       {raisedHere && ' · Shadow: raised'}
     </p>
     {table && <p className={`table-caption${table.fits ? '' : ' is-over'}`}>{table.note}</p>}
+    {hiddenEnds > 0 && (
+      <p className="hidden-end-hint">
+        {hiddenEnds === 1 ? '1 free end is' : `${hiddenEnds} free ends are`} under raised track. Reach{' '}
+        {hiddenEnds === 1 ? 'it' : 'them'} from &ldquo;This layout, as a list&rdquo;.
+      </p>
+    )}
     </div>
     {strip}
     </div>
