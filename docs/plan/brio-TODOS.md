@@ -1582,9 +1582,17 @@ divergence it exists for.
 slop, placement, library?)` takes the placement as a required argument and
 places nothing itself; App.tsx hands it the same `placement` memo the canvas
 draws from, so a clash mark is in the drawing's frame by construction. Spec:
-engine/test/solvePlacement.test.ts. **Still open:** the `nextRunAnchor` half
-below, and `solveGraph`'s own `renderGraph` call, which repeats App's `render`
-memo (the segments could be handed in the same way).
+engine/test/solvePlacement.test.ts.
+
+**`nextRunAnchor` HALF DONE (2026-10-24).** App hands the reducer its
+placement with the graph it is of (`FitGeometry.placed`), and `placementOf`
+in editorReducer.ts uses it when handed that same graph object, else places
+afresh. That covers the unattached add and pick (`nextRunAnchor`), and the
+float, drop and join-refusal checks, which also placed the layout again.
+Measured at 42,000 pieces before the change: `placeAll` 48ms of
+`nextRunAnchor`'s 68ms, the port scan the other 26ms. Spec:
+app/src/reducerPlacement.test.ts. **Still open:** the port scan, and
+`solveGraph`'s own `renderGraph` call, which repeats App's `render` memo.
 
 **What:** `App.tsx` builds `placement = placeAll(graph, ports)` and passes it to
 `renderGraph`. `solveGraph` does not take it — `solve.ts:90` calls

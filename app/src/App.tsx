@@ -546,7 +546,7 @@ export function App() {
        * `ErrorBoundary` sees it. Calling `reduce` in the handler instead would
        * throw where no boundary looks. Pinned by editFailure.dom.test.tsx.
        */
-      const next = reduce(e, action, ports, { resolve });
+      const next = reduce(e, action, ports, { resolve, placed: { graph, placement } });
       // Described here, from the exact state the action ran on, because the
       // updater is the one place that sees it (see `said` below). Pure, so
       // StrictMode calling this twice writes the same sentence twice.
