@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit",
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "calibration": "bun engine/tools/calibration.ts"
   },
   "dependencies": {
     "react": "^19.3.0",

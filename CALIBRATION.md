@@ -4,8 +4,12 @@ Four unknowns gate every number this engine prints. All four are settled by one
 afternoon with real BRIO track, a caliper and a tape measure. Nothing else in
 the plan needs doing first.
 
-Record answers directly in this file. Then `engine/data/brio.ts` gets the real
-numbers and `calibrationStatus` can finally move off `estimated`.
+Take `docs/calibration-sheet.html` to the floor (print it: two pages, one box
+per reading). Copy the boxes into `engine/data/measurements.ts`, whose keys
+match the sheet. The part data reads that file, so filling it in is what puts
+the real numbers into `engine/data/brio.ts`; `calibrationStatus` moves off
+`estimated` only for a budget whose every number was read. This file explains
+why each question matters.
 
 Why this comes first, corrected 2026-10-14: **the engine does not currently use
 the angular budget at all.** `totalGiveMm` (`engine/src/solver/residual.ts:135`)
@@ -265,14 +269,19 @@ measurement cannot quietly invalidate work that is already built.
 
 ## After the afternoon
 
-1. Write the measured numbers into `engine/data/brio.ts`, replacing
-   `ESTIMATED_SLOP`, with the measurement date and method recorded beside them
-   (task V3 and T46's provenance requirement).
-2. Set `calibrationStatus: 'measured'` ONLY for values genuinely measured here.
-   Anything still inferred stays `estimated` and keeps its dotted ring.
-3. Re-run `bun run test`. If Q1 seated comfortably and the engine still says
-   FAIL, that is the bug, and it is the most important one on the project.
-4. Then run `/plan-eng-review` with real numbers in hand.
+1. Copy the sheet into `engine/data/measurements.ts`, with `measuredOn` and
+   `method` (task V3 and T46's provenance requirement: the raw readings are
+   committed as read, and `engine/data/calibration.ts` derives the engine's
+   numbers from them). A typo such as a negative length stops the load.
+2. `calibrationStatus: 'measured'` follows on its own, and ONLY for values
+   genuinely measured here: an empty box keeps its estimate and its dotted ring.
+3. Run `bun run calibration`. It prints the give and train height now in use,
+   each answer against its row in the contingency table above, and the Q1
+   cross-check: if the loop seated and the engine still says EXCEEDS, it says
+   so first, because that is the most important bug on the project.
+4. Re-run `bun run test`. Specs that pin today's 0.8mm estimate will fail;
+   update them to the measured figure, which is the point of the afternoon.
+5. Then run `/plan-eng-review` with real numbers in hand.
 
 A caliper is ideal. A steel rule and a phone camera will answer Q1, Q3 and Q4
 well enough to be decisive; only Q2's bend angle really wants care.
