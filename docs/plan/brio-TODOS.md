@@ -859,6 +859,19 @@ and it was taken with the consequences stated. What follows from it:
 
 ## P2 — The polarity marker, and three things it does not yet do (filed by /ship, 2026-10-16)
 
+> **DONE 2026-10-24.** (1) A refused joint is marked at BOTH ends when they
+> are apart, so the self-welded B2 shows a mark at 0 and at 54 whichever end
+> was clicked first. (2) The IMPOSSIBLE sentence for refused joints now also
+> names the clashes and the crossings: "And 2 spots have two or more track
+> ends on top of each other." (3) Where a clash or crossing ring holds a spot,
+> the bar is left out instead of drawn inside the X, and a joint left with no
+> mark is said ("1 is not marked, because a clash is drawn there"), as for
+> level faults. The resolution moved out of App.tsx into `badJointMarks`
+> beside `gapAnnotations` in trackPath.ts, with its own spec
+> (app/src/badJointMarks.test.ts), and returns early when nothing is refused,
+> which was the adversarial pass's allocation finding. Not done: the ceiling
+> ambiguity of an empty result, still harmless for the reason given below.
+
 A refused joint is now marked on the canvas (`App.tsx`'s `badJoints`, drawn by
 `TrackCanvas` as a ring and bar). Three limits were found in review and left
 deliberately, rather than widened mid-branch:
