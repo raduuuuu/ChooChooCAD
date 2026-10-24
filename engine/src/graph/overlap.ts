@@ -120,6 +120,30 @@ export function plankQuads(s: Segment, half: number, pieceId: string): readonly 
   return out;
 }
 
+/**
+ * Whether the point lies on any of these segments' planks (P3, the hidden-end
+ * hint): a free floor end under raised wood is covered, and the wood takes
+ * its clicks. Each quad is convex and wound counter-clockwise, so inside means
+ * on the left of (or on) every edge.
+ */
+export function onPlank(
+  x: number,
+  y: number,
+  segments: readonly Segment[],
+  plankHalfWidth: (partId: string) => number,
+): boolean {
+  return segments.some((s) =>
+    plankQuads(s, plankHalfWidth(s.partId), s.pieceId ?? '').some(
+      (q) =>
+        x >= q.minX && x <= q.maxX && y >= q.minY && y <= q.maxY &&
+        q.pts.every((a, i) => {
+          const b = q.pts[(i + 1) % q.pts.length]!;
+          return (b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0]) >= 0;
+        }),
+    ),
+  );
+}
+
 function signedArea(pts: readonly Pt[]): number {
   let a = 0;
   for (let i = 0; i < pts.length; i++) {

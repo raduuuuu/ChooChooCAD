@@ -132,6 +132,21 @@
   pointer-events: none;
 }
 .table-caption.is-over { color: var(--fail); }
+/*
+ * A FREE END UNDER A BRIDGE (TODO P3): the raised wood takes its clicks, so the
+ * list is the way to it. Top left, clear of the two bottom captions; the same
+ * quiet caption voice, because it is a pointer, not a fault.
+ */
+.hidden-end-hint {
+  position: absolute;
+  inset-inline-start: var(--s3);
+  inset-block-start: var(--s3);
+  margin: 0;
+  max-width: 60%;
+  font-size: 13px;
+  color: var(--ink-soft);
+  pointer-events: none;
+}
 .seam {
   stroke: var(--seam);
   stroke-width: 1.5;

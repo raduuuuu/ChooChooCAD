@@ -13,6 +13,11 @@ DESIGN.md rule 11; `--track-shadow` measured 3.03:1 on `--floor`.
 
 ## P3 — Point mouse users to the list for ends hidden under a bridge
 
+**DONE (2026-10-24).** When a free floor end's centre lies on raised wood, the
+canvas shows one quiet line at top left: "1 free end is under raised track.
+Reach it from “This layout, as a list”." The plank test is `onPlank` in
+overlap.ts. Specs: app/src/hiddenEndHint.test.ts.
+
 **What:** When a free floor end sits under raised track, show a one-line hint
 that it can be reached from the piece list.
 
