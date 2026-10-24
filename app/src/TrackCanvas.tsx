@@ -176,20 +176,35 @@ function rampShadow(seg: Segment, half: number): string {
 }
 
 /**
- * A red fault mark: a ring and an inner glyph, drawn twice, first in
- * `--paper` two units wider, then in `--fail` (design 10B, eng re-run D5).
- * `--fail` is 1.78:1 on `--track-groove`, under the 3:1 a mark you must see
- * is owed, and 6.09:1 on `--paper`, so the halo carries it across a groove.
- * Drawing units, like the red strokes always were: the screen-size TODO
- * covers every mark at once. Ink, not a target.
+ * THE SMALLEST A MARK IS DRAWN, as pixels per drawing unit (brio-TODOS.md P2,
+ * "Canvas marks keep their screen size"). The fault marks and the adapter
+ * diamond are sized in millimetres, and the canvas shrinks a big board to
+ * fit, so on a 3m board at 0.3px/mm a clash ring was 17px across: a dot,
+ * exactly where a fault is hardest to find. Below this zoom they stop
+ * shrinking; above it they keep their size on the wood.
  */
-function RedMark({ className, x, y, r, d }: { className: string; x: number; y: number; r: number; d: string }) {
+export const MARK_MIN_PX_PER_MM = 0.75;
+
+/** How much to enlarge a mark so it is never drawn below `MARK_MIN_PX_PER_MM`. 1 before layout. */
+export function markScale(pxPerMm: number | null | undefined): number {
+  return pxPerMm ? Math.max(1, MARK_MIN_PX_PER_MM / pxPerMm) : 1;
+}
+
+/**
+ * A red fault mark: a ring and an inner glyph, drawn twice, first in a wider
+ * `--paper` halo, then in `--fail` (design 10B, eng re-run D5). `--fail` is
+ * 1.78:1 on `--track-groove`, under the 3:1 a mark you must see is owed, and
+ * 6.09:1 on `--paper`, so the halo carries it across a groove. The strokes
+ * keep their device size (app.css, `.red-mark`; rule 11) and the shape is
+ * enlarged by `k` on a zoomed-out board. Ink, not a target.
+ */
+function RedMark({ className, x, y, r, d, k }: { className: string; x: number; y: number; r: number; d: string; k: number }) {
   return (
-    <g className={className} pointerEvents="none" transform={`translate(${x}, ${y})`}>
-      <circle r={r} fill="none" stroke="var(--paper)" strokeWidth={6} className="mark-halo" />
-      <path d={d} fill="none" stroke="var(--paper)" strokeWidth={6} className="mark-halo" />
-      <circle r={r} fill="none" stroke="var(--fail)" strokeWidth={4} />
-      <path d={d} fill="none" stroke="var(--fail)" strokeWidth={4} />
+    <g className={`red-mark ${className}`} pointerEvents="none" transform={`translate(${x}, ${y}) scale(${k})`}>
+      <circle r={r} fill="none" stroke="var(--paper)" className="mark-halo" />
+      <path d={d} fill="none" stroke="var(--paper)" className="mark-halo" />
+      <circle r={r} fill="none" stroke="var(--fail)" className="mark-ink" />
+      <path d={d} fill="none" stroke="var(--fail)" className="mark-ink" />
     </g>
   );
 }
@@ -550,6 +565,8 @@ export function TrackCanvas({
     q.addEventListener?.('change', on);
     return () => q.removeEventListener?.('change', on);
   }, []);
+  // The fault marks' and adapter diamond's enlargement on a zoomed-out board.
+  const k = markScale(shown.pxPerMm);
   const hitWidth = (plank: number) =>
     coarse ? Math.max(plank, 44 / (shown.pxPerMm ?? 1)) : plank;
   if (probe) {
@@ -1307,14 +1324,14 @@ export function TrackCanvas({
            * will retune, and a spec pinned to `r="18"` would then fail for a
            * reason that has nothing to do with the marker existing.
            */
-          <RedMark key={`badjoint-${i}`} className="bad-joint-mark" x={x} y={y} r={18} d="M -10 0 L 10 0" />
+          <RedMark key={`badjoint-${i}`} className="bad-joint-mark" x={x} y={y} r={18} d="M -10 0 L 10 0" k={k} />
         ))}
         {adapterJoints.map(([x, y], i) => (
           // Ink, not a target, like the other marks; the class is what specs count.
-          <g key={`adapter-${i}`} className="adapter-joint-mark" pointerEvents="none">
+          <g key={`adapter-${i}`} className="adapter-joint-mark" pointerEvents="none" transform={`translate(${x}, ${y}) scale(${k})`}>
             {/* Stroke, weight and fill live in app.css (.adapter-joint-mark): non-scaling, rule 11. */}
-            <path className="adapter-outline" d={`M ${x} ${y - 16} L ${x + 16} ${y} L ${x} ${y + 16} L ${x - 16} ${y} Z`} />
-            <path className="adapter-core" d={`M ${x} ${y - 5} L ${x + 5} ${y} L ${x} ${y + 5} L ${x - 5} ${y} Z`} />
+            <path className="adapter-outline" d="M 0 -16 L 16 0 L 0 16 L -16 0 Z" />
+            <path className="adapter-core" d="M 0 -5 L 5 0 L 0 5 L -5 0 Z" />
           </g>
         ))}
         {/*
@@ -1324,10 +1341,10 @@ export function TrackCanvas({
           * every fault, with the paper halo (10B).
           */}
         {levelMismatches.map(([x, y], i) => (
-          <RedMark key={`levelmismatch-${i}`} className="level-mismatch-mark" x={x} y={y} r={18} d="M -10 -4 H 0 V 4 H 10" />
+          <RedMark key={`levelmismatch-${i}`} className="level-mismatch-mark" x={x} y={y} r={18} d="M -10 -4 H 0 V 4 H 10" k={k} />
         ))}
         {thirdLevels.map(([x, y], i) => (
-          <RedMark key={`thirdlevel-${i}`} className="third-level-mark" x={x} y={y} r={18} d="M -7 -2 L 0 5 L 7 -2 M -7 -9 L 0 -2 L 7 -9" />
+          <RedMark key={`thirdlevel-${i}`} className="third-level-mark" x={x} y={y} r={18} d="M -7 -2 L 0 5 L 7 -2 M -7 -9 L 0 -2 L 7 -9" k={k} />
         ))}
         {/*
           * THE RISE CHEVRON (design 1A): an ink chevron at the middle of each
@@ -1353,7 +1370,7 @@ export function TrackCanvas({
           );
         })}
         {dedupedClashes.map(([x, y], i) => (
-          <RedMark key={`clash-${i}`} className="clash-mark" x={x} y={y} r={28} d="M -14 -14 L 14 14 M -14 14 L 14 -14" />
+          <RedMark key={`clash-${i}`} className="clash-mark" x={x} y={y} r={28} d="M -14 -14 L 14 14 M -14 14 L 14 -14" k={k} />
         ))}
         {selectedLabel}
         {ghost && !ghostOnFloor && ghostLayer}

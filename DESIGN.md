@@ -139,6 +139,10 @@ nothing else uses:
 - **Strokes keep their device size** (`vector-effect: non-scaling-stroke`),
   because the canvas fits the whole layout into a fixed box and a stroke in
   millimetres thins to nothing on a big board.
+- **Marks keep a floor size.** The fault marks and the adapter diamond stop
+  shrinking below 0.75px per millimetre (`MARK_MIN_PX_PER_MM`), all by one
+  factor, so on a big board they stay findable and keep their sizes relative
+  to each other. Above that zoom they keep their size on the wood.
 
 Controls for a mode the canvas is in (placing a piece, a selected piece) live
 in a strip on the canvas edge, not in the parts rail, so they sit next to the

@@ -1507,6 +1507,19 @@
 .adapter-joint-mark .adapter-core { fill: var(--ink); }
 
 /*
+ * THE RED FAULT MARKS (TrackCanvas `RedMark`: clash, refused joint, level
+ * faults). Device-sized strokes (rule 11), so a big board does not thin them
+ * to hairlines; `markScale` keeps the shape from shrinking past a floor. 3px,
+ * the armed end's weight: a fault is as loud as the heaviest port mark. The
+ * paper halo is 1px proud of the red on each side, which is what carries
+ * --fail across a groove (6.09:1 on --paper).
+ */
+.red-mark .mark-halo,
+.red-mark .mark-ink { vector-effect: non-scaling-stroke; }
+.red-mark .mark-halo { stroke-width: 5; }
+.red-mark .mark-ink { stroke-width: 3; }
+
+/*
  * TWO LEVELS (docs/plan/2026-10-23-two-layers.md, design 1A, eng re-run D2).
  * The bridge casing is the canvas ground's colour, so it shows only where it
  * cuts floor track: millimetres, like the wood it frames, and never a target.

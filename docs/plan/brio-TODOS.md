@@ -2605,6 +2605,12 @@ before. Pinned in `GraphListing.test.ts` through the real reducer.
 
 ## P2 — Canvas marks keep their screen size (filed by /plan-design-review 2026-10-23)
 
+**DONE (2026-10-24).** Every red fault mark (clash, refused joint, both level
+faults) and the adapter diamond are enlarged by one factor, `markScale` in
+TrackCanvas.tsx, so none is drawn below 0.75px per millimetre; the red strokes
+are non-scaling, 3px on a 5px paper halo (app.css `.red-mark`). DESIGN.md
+rule 11 records the floor. Spec: app/src/markScale.dom.test.tsx.
+
 **What:** Give the red clash mark, the red refused-joint mark and the adapter diamond a minimum
 on-screen size, and the two red marks non-scaling strokes.
 
