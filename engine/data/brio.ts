@@ -24,16 +24,20 @@
  */
 
 import type { DimensionSource, Part, PartEnds, SlopBudget } from '../src/parts/schema.js';
+import { checkMeasurements, clearance, jointSlop } from './calibration.js';
+import { MEASUREMENTS } from './measurements.js';
 import { RAMP_SEEDS } from './rampSeeds.js';
 import { SWITCH_SEEDS } from './switchSeeds.js';
 import { THIRD_PARTY_SEEDS } from './thirdParty.js';
 
-/** Placeholder. Not measured. See CALIBRATION WARNING above. */
-const ESTIMATED_SLOP: SlopBudget = {
-  axialMm: 0.8,
-  angularDeg: 1.5,
-  calibrationStatus: 'estimated',
-};
+checkMeasurements(MEASUREMENTS);
+
+/**
+ * One joint's give, shared by every BRIO part. The estimate (0.8mm, 1.5
+ * degrees) until `measurements.ts` has Q2 filled in; see CALIBRATION WARNING
+ * above and `jointSlop` for how a reading becomes this.
+ */
+export const BRIO_SLOP: SlopBudget = jointSlop(MEASUREMENTS);
 
 /**
  * Every BRIO piece has one male and one female end. Recorded the same way round
@@ -76,7 +80,7 @@ export const BRIO_PARTS: readonly Part[] = [
     id: 'A2', brand: 'BRIO', kind: 'straight', name: 'Mini straight',
     partNumber: '33333', lengthMm: 54,
     dimensions: BRIO_PUBLISHED,
-    slop: ESTIMATED_SLOP, ends: STANDARD_ENDS, heightMm: 0,
+    slop: BRIO_SLOP, ends: STANDARD_ENDS, heightMm: 0,
     gaugeWidthMm: GAUGE_WIDTH_MM, plankWidthMm: PLANK_WIDTH_MM,
     plankThicknessMm: PLANK_THICKNESS_MM, grooveWidthMm: GROOVE_WIDTH_MM,
   },
@@ -84,7 +88,7 @@ export const BRIO_PARTS: readonly Part[] = [
     id: 'A1', brand: 'BRIO', kind: 'straight', name: 'Short straight',
     partNumber: '33334', lengthMm: 108,
     dimensions: BRIO_PUBLISHED,
-    slop: ESTIMATED_SLOP, ends: STANDARD_ENDS, heightMm: 0,
+    slop: BRIO_SLOP, ends: STANDARD_ENDS, heightMm: 0,
     gaugeWidthMm: GAUGE_WIDTH_MM, plankWidthMm: PLANK_WIDTH_MM,
     plankThicknessMm: PLANK_THICKNESS_MM, grooveWidthMm: GROOVE_WIDTH_MM,
   },
@@ -92,7 +96,7 @@ export const BRIO_PARTS: readonly Part[] = [
     id: 'A', brand: 'BRIO', kind: 'straight', name: 'Medium straight',
     partNumber: '33335', lengthMm: 144,
     dimensions: BRIO_PUBLISHED,
-    slop: ESTIMATED_SLOP, ends: STANDARD_ENDS, heightMm: 0,
+    slop: BRIO_SLOP, ends: STANDARD_ENDS, heightMm: 0,
     gaugeWidthMm: GAUGE_WIDTH_MM, plankWidthMm: PLANK_WIDTH_MM,
     plankThicknessMm: PLANK_THICKNESS_MM, grooveWidthMm: GROOVE_WIDTH_MM,
   },
@@ -100,7 +104,7 @@ export const BRIO_PARTS: readonly Part[] = [
     id: 'D', brand: 'BRIO', kind: 'straight', name: 'Long straight',
     partNumber: '33341', lengthMm: 216,
     dimensions: BRIO_PUBLISHED,
-    slop: ESTIMATED_SLOP, ends: STANDARD_ENDS, heightMm: 0,
+    slop: BRIO_SLOP, ends: STANDARD_ENDS, heightMm: 0,
     gaugeWidthMm: GAUGE_WIDTH_MM, plankWidthMm: PLANK_WIDTH_MM,
     plankThicknessMm: PLANK_THICKNESS_MM, grooveWidthMm: GROOVE_WIDTH_MM,
   },
@@ -108,7 +112,7 @@ export const BRIO_PARTS: readonly Part[] = [
     id: 'A3', brand: 'BRIO', kind: 'straight', name: 'Middle straight',
     lengthMm: 72,
     dimensions: BRIO_PUBLISHED,
-    slop: ESTIMATED_SLOP, ends: STANDARD_ENDS, heightMm: 0,
+    slop: BRIO_SLOP, ends: STANDARD_ENDS, heightMm: 0,
     gaugeWidthMm: GAUGE_WIDTH_MM, plankWidthMm: PLANK_WIDTH_MM,
     plankThicknessMm: PLANK_THICKNESS_MM, grooveWidthMm: GROOVE_WIDTH_MM,
   },
@@ -132,7 +136,7 @@ export const BRIO_PARTS: readonly Part[] = [
     id: 'B2', brand: 'BRIO', kind: 'straight', name: 'Mini straight, two pegs',
     partNumber: '33333', lengthMm: 54,
     dimensions: BRIO_PUBLISHED,
-    slop: ESTIMATED_SLOP, ends: { start: 'peg', end: 'peg' }, heightMm: 0,
+    slop: BRIO_SLOP, ends: { start: 'peg', end: 'peg' }, heightMm: 0,
     gaugeWidthMm: GAUGE_WIDTH_MM, plankWidthMm: PLANK_WIDTH_MM,
     plankThicknessMm: PLANK_THICKNESS_MM, grooveWidthMm: GROOVE_WIDTH_MM,
   },
@@ -140,7 +144,7 @@ export const BRIO_PARTS: readonly Part[] = [
     id: 'C2', brand: 'BRIO', kind: 'straight', name: 'Mini straight, two sockets',
     partNumber: '33333', lengthMm: 54,
     dimensions: BRIO_PUBLISHED,
-    slop: ESTIMATED_SLOP, ends: { start: 'socket', end: 'socket' }, heightMm: 0,
+    slop: BRIO_SLOP, ends: { start: 'socket', end: 'socket' }, heightMm: 0,
     gaugeWidthMm: GAUGE_WIDTH_MM, plankWidthMm: PLANK_WIDTH_MM,
     plankThicknessMm: PLANK_THICKNESS_MM, grooveWidthMm: GROOVE_WIDTH_MM,
   },
@@ -163,7 +167,7 @@ export const BRIO_PARTS: readonly Part[] = [
     id: 'B', brand: 'BRIO', kind: 'straight', name: 'Medium straight, two pegs',
     lengthMm: 144,
     dimensions: BRIO_PUBLISHED,
-    slop: ESTIMATED_SLOP, ends: { start: 'peg', end: 'peg' }, heightMm: 0,
+    slop: BRIO_SLOP, ends: { start: 'peg', end: 'peg' }, heightMm: 0,
     gaugeWidthMm: GAUGE_WIDTH_MM, plankWidthMm: PLANK_WIDTH_MM,
     plankThicknessMm: PLANK_THICKNESS_MM, grooveWidthMm: GROOVE_WIDTH_MM,
   },
@@ -171,7 +175,7 @@ export const BRIO_PARTS: readonly Part[] = [
     id: 'C', brand: 'BRIO', kind: 'straight', name: 'Medium straight, two sockets',
     lengthMm: 144,
     dimensions: BRIO_PUBLISHED,
-    slop: ESTIMATED_SLOP, ends: { start: 'socket', end: 'socket' }, heightMm: 0,
+    slop: BRIO_SLOP, ends: { start: 'socket', end: 'socket' }, heightMm: 0,
     gaugeWidthMm: GAUGE_WIDTH_MM, plankWidthMm: PLANK_WIDTH_MM,
     plankThicknessMm: PLANK_THICKNESS_MM, grooveWidthMm: GROOVE_WIDTH_MM,
   },
@@ -179,7 +183,7 @@ export const BRIO_PARTS: readonly Part[] = [
     id: 'B1', brand: 'BRIO', kind: 'straight', name: 'Short straight, two pegs',
     lengthMm: 108,
     dimensions: BRIO_PUBLISHED,
-    slop: ESTIMATED_SLOP, ends: { start: 'peg', end: 'peg' }, heightMm: 0,
+    slop: BRIO_SLOP, ends: { start: 'peg', end: 'peg' }, heightMm: 0,
     gaugeWidthMm: GAUGE_WIDTH_MM, plankWidthMm: PLANK_WIDTH_MM,
     plankThicknessMm: PLANK_THICKNESS_MM, grooveWidthMm: GROOVE_WIDTH_MM,
   },
@@ -187,7 +191,7 @@ export const BRIO_PARTS: readonly Part[] = [
     id: 'C1', brand: 'BRIO', kind: 'straight', name: 'Short straight, two sockets',
     lengthMm: 108,
     dimensions: BRIO_PUBLISHED,
-    slop: ESTIMATED_SLOP, ends: { start: 'socket', end: 'socket' }, heightMm: 0,
+    slop: BRIO_SLOP, ends: { start: 'socket', end: 'socket' }, heightMm: 0,
     gaugeWidthMm: GAUGE_WIDTH_MM, plankWidthMm: PLANK_WIDTH_MM,
     plankThicknessMm: PLANK_THICKNESS_MM, grooveWidthMm: GROOVE_WIDTH_MM,
   },
@@ -196,7 +200,7 @@ export const BRIO_PARTS: readonly Part[] = [
     id: 'E', brand: 'BRIO', kind: 'curve', name: 'Large curve',
     partNumber: '33342', innerRadiusMm: 182, arcSteps: 2,
     dimensions: BRIO_PUBLISHED,
-    slop: ESTIMATED_SLOP, ends: STANDARD_ENDS, heightMm: 0,
+    slop: BRIO_SLOP, ends: STANDARD_ENDS, heightMm: 0,
     gaugeWidthMm: GAUGE_WIDTH_MM, plankWidthMm: PLANK_WIDTH_MM,
     plankThicknessMm: PLANK_THICKNESS_MM, grooveWidthMm: GROOVE_WIDTH_MM,
   },
@@ -204,7 +208,7 @@ export const BRIO_PARTS: readonly Part[] = [
     id: 'E1', brand: 'BRIO', kind: 'curve', name: 'Short curve',
     partNumber: '33337', innerRadiusMm: 90, arcSteps: 2,
     dimensions: BRIO_PUBLISHED,
-    slop: ESTIMATED_SLOP, ends: STANDARD_ENDS, heightMm: 0,
+    slop: BRIO_SLOP, ends: STANDARD_ENDS, heightMm: 0,
     gaugeWidthMm: GAUGE_WIDTH_MM, plankWidthMm: PLANK_WIDTH_MM,
     plankThicknessMm: PLANK_THICKNESS_MM, grooveWidthMm: GROOVE_WIDTH_MM,
   },
@@ -237,7 +241,7 @@ export function getPart(id: string): Part {
  * track corpus.
  */
 export const VEHICLE = {
-  heightMm: 44,
+  heightMm: clearance(MEASUREMENTS).trainMm,
   maxGradePercent: 30,
   calibrationStatus: 'estimated' as const,
 };

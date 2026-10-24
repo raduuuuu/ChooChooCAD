@@ -801,6 +801,14 @@ Those questions still gate a PUBLIC remote and any deploy.
 counsel question gates both.
 ## P1 — Tolerances, the calibration afternoon, and everything gated on it
 
+> **READY TO MEASURE 2026-10-24.** The path from the floor to the engine is
+> built: `docs/calibration-sheet.html` to print, `engine/data/measurements.ts`
+> to copy it into, `engine/data/calibration.ts` deriving the give and the
+> train height from it (marked measured only where read), and `bun run
+> calibration` reading every answer against CALIBRATION.md's contingency table,
+> with the Q1 loop checked against the engine's verdict. What is left is the
+> afternoon itself.
+
 **What:** The physical measurement afternoon described in `CALIBRATION.md`, and
 every decision that depends on its numbers: the per-joint slop budgets, plank
 width, plank thickness, the ramp rise, vehicle height, the 216mm datum, and the
