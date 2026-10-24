@@ -17,6 +17,8 @@
  */
 
 import type { DimensionSource, Part } from '../src/parts/schema.js';
+import { clearance, jointSlop } from './calibration.js';
+import { MEASUREMENTS } from './measurements.js';
 
 const RAMP_SOURCE: DimensionSource = {
   status: 'unverified',
@@ -29,7 +31,7 @@ export const RAMP_SEEDS: readonly Part[] = [
     id: 'N', brand: 'BRIO', kind: 'straight', name: 'Ramp',
     partNumber: '33332', lengthMm: 216, rise: 1,
     dimensions: RAMP_SOURCE,
-    slop: { axialMm: 0.8, angularDeg: 1.5, calibrationStatus: 'estimated' },
+    slop: jointSlop(MEASUREMENTS),
     ends: { start: 'socket', end: 'peg' }, heightMm: 0,
     gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12, grooveWidthMm: 6,
   },
@@ -55,7 +57,7 @@ export const RAMP_SEEDS: readonly Part[] = [
       ...RAMP_SOURCE,
       source: 'woodenrailway.info/track/brio-track-guide: N1 is an N track with two male connectors; CALIBRATION.md Q4 (run or slope, unmeasured)',
     },
-    slop: { axialMm: 0.8, angularDeg: 1.5, calibrationStatus: 'estimated' },
+    slop: jointSlop(MEASUREMENTS),
     ends: { start: 'peg', end: 'peg' }, heightMm: 0,
     gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12, grooveWidthMm: 6,
   },
@@ -66,11 +68,7 @@ export const RAMP_SEEDS: readonly Part[] = [
  * (decision L3): ramp rise minus plank thickness minus the tallest train.
  * The rise and the plank are published: "Raises or lowers the track by 64mm"
  * and "40mm wide and 12mm high" (woodenrailway.info/track/brio-track-guide).
- * The train's height is the estimate, `VEHICLE.heightMm` in brio.ts, and the
- * note names it as the one guess in the figure.
+ * The train's height is the estimate, and the note names it as the one guess
+ * in the figure until Q5 of `measurements.ts` is filled in (`trainMeasured`).
  */
-export const CLEARANCE = {
-  riseMm: 64,
-  plankMm: 12,
-  trainMm: 44,
-} as const;
+export const CLEARANCE = clearance(MEASUREMENTS);

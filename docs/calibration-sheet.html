@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calibration sheet</title>
+<!--
+  The printable half of CALIBRATION.md. Print it, take it to the floor, then
+  copy each box into engine/data/measurements.ts: the grey key under every
+  box is the field it goes in. Why each question matters is in CALIBRATION.md;
+  this page only says what to do.
+-->
+<style>
+  :root { --ink: #1a1a1a; --mute: #666; --line: #999; --paper: #fff; }
+  * { box-sizing: border-box; }
+  body { margin: 0 auto; max-width: 190mm; padding: 10mm 8mm; background: var(--paper); color: var(--ink);
+         font: 10.5pt/1.35 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 15pt; margin: 0 0 2mm; }
+  .head { display: flex; gap: 6mm; margin-bottom: 4mm; }
+  h2 { font-size: 11pt; margin: 4mm 0 1.5mm; border-bottom: 1px solid var(--ink); padding-bottom: 0.5mm; }
+  p { margin: 0 0 1.5mm; }
+  .do { color: var(--mute); }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 0.8mm 0; vertical-align: bottom; }
+  td.box { width: 38mm; border-bottom: 1px solid var(--line); text-align: right; color: var(--mute); }
+  td.unit { width: 12mm; padding-left: 1.5mm; }
+  code { font: 8pt ui-monospace, Menlo, monospace; color: var(--mute); }
+  .field { display: block; }
+  .pick { width: 38mm; text-align: right; letter-spacing: 0.5mm; white-space: nowrap; }
+  .grid td.box { width: 22mm; }
+  .fill { flex: 1; border-bottom: 1px solid var(--line); min-height: 6mm; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8mm; }
+  @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } body { padding: 16px; } }
+  @media print { body { padding: 0; } h2 { break-after: avoid; } }
+</style>
+</head>
+<body>
+<h1>BRIO calibration sheet</h1>
+<div class="head">
+  <span>Date <code>measuredOn</code></span><span class="fill"></span>
+  <span>Tools <code>method</code></span><span class="fill"></span>
+</div>
+<p class="do">Leave a box empty if you did not measure it. A caliper is ideal; a steel rule and a phone photo answer Q1, Q3 and Q4. Only Q2's bend wants care.</p>
+
+<h2>Q1 · Does the 72mm-gap loop seat?</h2>
+<p class="do">Build a closed loop in this order: 4 large curves (E), the long straight (D, 216), 4 large curves (E), the medium straight (A, 144).</p>
+<table>
+  <tr><td>Closes with every joint seated?<code class="field">q1.closes</code></td><td class="pick">YES / NO</td><td class="unit"></td></tr>
+  <tr><td>If it closes, how does it feel?<code class="field">q1.feel</code></td><td class="pick">STRAINED / COMFORTABLE</td><td class="unit"></td></tr>
+  <tr><td>If not, the leftover gap<code class="field">q1.leftoverGapMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+  <tr><td>A train runs round without derailing?<code class="field">q1.trainRuns</code></td><td class="pick">YES / NO</td><td class="unit"></td></tr>
+</table>
+
+<h2>Q2 · How much does one joint give?</h2>
+<p class="do">Join two straights. Do not force anything to the point of damage.</p>
+<table>
+  <tr><td>Pull apart: gap between the end faces at the limit<code class="field">q2.pullApartMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+  <tr><td>Push together: 0 if the faces touch, else the gap at the hard stop<code class="field">q2.pushStopMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+  <tr><td>Bend flat on the floor, angle at the limit<code class="field">q2.bendDeg</code></td><td class="box"></td><td class="unit">deg</td></tr>
+  <tr><td>Or: the far end's sideways travel<code class="field">q2.bendSidewaysMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+  <tr><td>&hellip; over this length (the piece's length)<code class="field">q2.bendOverMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+</table>
+
+<div class="grid">
+<div>
+<h2>Q3 · The 216mm straight (D)</h2>
+<table>
+  <tr><td>End face to end face, peg included<code class="field">q3.overallMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+  <tr><td>Base of the peg to the far face<code class="field">q3.withoutPegMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+  <tr><td>Peg neck diameter<code class="field">q3.pegNeckDiameterMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+  <tr><td>Socket throat width<code class="field">q3.socketThroatWidthMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+</table>
+</div>
+<div>
+<h2>Q4 · The ramp (N)</h2>
+<table>
+  <tr><td>Run: flat on the floor, end to end<code class="field">q4.runMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+  <tr><td>Along the sloping surface<code class="field">q4.slopeMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+</table>
+<h2>Q5 · Under a bridge</h2>
+<table>
+  <tr><td>Tallest vehicle you own, wheels to roof<code class="field">q5.vehicleHeightMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+  <tr><td>Ramp rise (published 64)<code class="field">q5.riseMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+  <tr><td>Plank thickness (published 12)<code class="field">q5.plankThicknessMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+</table>
+</div>
+</div>
+
+<h2>Q6 · A switch, if you have one</h2>
+<p class="do">Measure along the centreline, between the two grooves, from the heel (the single end).</p>
+<table>
+  <tr><td>Heel to the straight road's end<code class="field">q6.throughMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+  <tr><td>Heel to the diverging road's end, in a straight line<code class="field">q6.chordMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+  <tr><td>That end's distance off the straight road's line<code class="field">q6.offsetMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+</table>
+
+<h2>Afterwards</h2>
+<p>Copy the boxes into <code>engine/data/measurements.ts</code>, then run <code>bun run calibration</code> to see what each answer changes, and <code>bun run test</code>.</p>
+</body>
+</html>
