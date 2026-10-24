@@ -900,6 +900,15 @@ which is P1 because it is user-visible today.
 
 ## P2 — Offer only polarity-compatible free ends in the editor
 
+**DONE (2026-10-24).** With an end selected, the editor refuses a join that can
+never be built: two pegs, or ends on different levels (only a ramp joins
+levels). Two sockets are NOT refused: since the adapter work they join through
+a male-male adapter. The refused ends are dimmed on the canvas with the reason
+in their name and hover title, the layout list names the reason, and clicking
+one makes no joint and says why. One rule, `joinRefusal` in layoutModel.ts;
+the verdict-level checks stay as the backstop for stored layouts. Specs:
+app/src/joinRefusal.test.ts.
+
 **What:** When one free end is armed, grey out or ignore the free ends that
 cannot physically mate with it, so the editor stops inviting a join it will
 then refuse. Keep the verdict-level check as a backstop for layouts restored

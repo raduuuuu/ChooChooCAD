@@ -17,6 +17,8 @@
  * allocation does.
  */
 
+import { JOIN_REFUSED_SHORT } from './joinWords.js';
+import type { JoinRefusal } from './layoutModel.js';
 import { memo, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { Segment } from '../../engine/src/geom/fk.js';
 import { renderBounds, type GraphRender } from '../../engine/src/graph/render.js';
@@ -260,6 +262,8 @@ export interface TrackCanvasProps {
   readonly cursor?: PortRef | null;
   /** The free end currently armed for a weld, if any. */
   readonly armed?: PortRef | null;
+  /** Free ends the armed one can't join, keyed `pieceId#port`, with why. */
+  readonly unjoinable?: ReadonlyMap<string, JoinRefusal>;
   /** Clicking a free end. This is the whole editing interaction (D5). */
   readonly onPortClick?: (ref: PortRef) => void;
   /** Every joint, resolved to the canvas by `weldTargets` (task U5). */
@@ -323,6 +327,7 @@ export function TrackCanvas({
   thirdLevels = [],
   cursor = null,
   armed = null,
+  unjoinable,
   onPortClick,
   welds = [],
   onWeldClick,
@@ -1074,7 +1079,9 @@ export function TrackCanvas({
              * drawn by the `.port-cursor-ring` circle below and announced in
              * the accessible name; it needs no class.
              */
-            const portClass = `port${isArmed ? ' is-armed' : ''}`;
+            // Can't join the armed end: dimmed, and the reason is in the name and on hover.
+            const refused = unjoinable?.get(`${p.pieceId}#${p.port}`);
+            const portClass = `port${isArmed ? ' is-armed' : ''}${refused ? ' is-unjoinable' : ''}`;
             return (
               <g
                 key={`${p.pieceId}#${p.port}`}
@@ -1125,7 +1132,8 @@ export function TrackCanvas({
                     : isCursor
                       ? 'Next piece attaches here, free '
                       : 'Free ') +
-                  `${p.polarity} end`
+                  `${p.polarity} end` +
+                  (refused ? `, can't join the selected end: ${JOIN_REFUSED_SHORT[refused]}` : '')
                 }
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -1134,6 +1142,7 @@ export function TrackCanvas({
                   }
                 }}
               >
+                {refused && <title>{`Can't join the selected end: ${JOIN_REFUSED_SHORT[refused]}`}</title>}
                 <circle cx={p.x} cy={p.y} r={26} className="port-hit" />
                 {/*
                   * ARMED IS A RING, NOT A BIGGER BLOB (task W3, decision D5).

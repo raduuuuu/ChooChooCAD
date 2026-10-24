@@ -70,7 +70,7 @@ import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
 import { CANVAS_SEGMENT_CEILING, TrackCanvas } from './TrackCanvas.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
 import { VerdictLine, VerdictScope } from './VerdictLine.js';
-import { ghostFit, otherLevelEndNear, shiftMm, snapRunMove } from './layoutModel.js';
+import { ghostFit, joinRefusal, otherLevelEndNear, shiftMm, snapRunMove, type JoinRefusal } from './layoutModel.js';
 import { ghostKeys } from './ghostKeys.js';
 import { InventoryPanel } from './Inventory.js';
 import { TablePanel } from './TablePanel.js';
@@ -844,6 +844,22 @@ export function App() {
    * already drawn (overlap.ts).
    */
   const sites = useMemo(() => connectorSites(graph, ports, placement), [graph, ports, placement]);
+  /*
+   * THE FREE ENDS THE ARMED ONE CAN'T JOIN (TODO "Offer only
+   * polarity-compatible free ends"): dimmed on the canvas and named in the
+   * list, so the editor stops inviting a join it would refuse. Keyed
+   * `pieceId#port`, as the canvas keys its ends.
+   */
+  const unjoinable = useMemo(() => {
+    const out = new Map<string, JoinRefusal>();
+    if (!armed) return out;
+    for (const p of sites.placed) {
+      if (!p.free) continue;
+      const why = joinRefusal(sites, armed, p);
+      if (why) out.set(`${p.pieceId}#${p.port}`, why);
+    }
+    return out;
+  }, [armed, sites]);
   const ghostView = useMemo(() => {
     if (!ghost) return null;
     const part = resolve(ghost.partId);
@@ -1145,6 +1161,7 @@ export function App() {
           resolve={resolve}
           cursor={cursor}
           armed={armed}
+          unjoinable={unjoinable}
           onPortClick={clickPort}
           welds={welds}
           onWeldClick={breakJoint}
@@ -1425,6 +1442,7 @@ export function App() {
           onBreak={breakJoint}
           onRemove={removePiece}
           armed={armed}
+          unjoinable={unjoinable}
           cursor={cursor}
         />
 

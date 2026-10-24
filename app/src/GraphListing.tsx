@@ -50,6 +50,8 @@
  * find on the table.
  */
 
+import { JOIN_REFUSED_SHORT } from './joinWords.js';
+import type { JoinRefusal } from './layoutModel.js';
 import type { Graph, Piece, Port, PortRef } from '../../engine/src/graph/model.js';
 import { levelOf, portPolarity } from '../../engine/src/graph/model.js';
 import { placeAll, portFrame } from '../../engine/src/graph/frames.js';
@@ -130,11 +132,14 @@ export function GraphListing({
   onBreak,
   onRemove,
   armed = null,
+  unjoinable,
   cursor = null,
 }: {
   graph: Graph;
   resolve: (id: string) => Part;
   ports: (piece: Piece) => readonly Port[];
+  /** Free ends the selected one can't join, keyed `pieceId#port`, with why. */
+  unjoinable?: ReadonlyMap<string, JoinRefusal>;
   /** Select a free end, or join it to the selected one (task U7b). Omit for read-only. */
   onPortClick?: (ref: PortRef) => void;
   /** Break a joint (task U7b). Omit for read-only. */
@@ -276,7 +281,9 @@ export function GraphListing({
                       : same(cursor, ref)
                         ? 'Free. The next piece attaches here'
                         : 'Free';
-                  const state = leveled ? `${levelWords(levelAt(ref))}. ${plain}` : plain;
+                  const refused = other ? undefined : unjoinable?.get(`${piece.pieceId}#${port}`);
+                  const said = refused ? `${plain}. Can't join the selected end: ${JOIN_REFUSED_SHORT[refused]}` : plain;
+                  const state = leveled ? `${levelWords(levelAt(ref))}. ${said}` : said;
                   /*
                    * OPERABLE ONLY WHERE THERE IS SOMETHING TO DO (U7b): a free
                    * end is a real button, which selects it or joins it to the

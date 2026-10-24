@@ -18,7 +18,7 @@
 
 import { add, fromInt, mulZetaPow, scale, sub, toXY, zetaPow, type Cyc } from '../../engine/src/geom/cyclotomic.js';
 import { removePiece, removeWeld } from '../../engine/src/graph/edit.js';
-import { connectorSites, landingOf } from '../../engine/src/graph/feasible.js';
+import { connectorSites, landingOf, type ConnectorSites } from '../../engine/src/graph/feasible.js';
 import { findPlankOverlaps } from '../../engine/src/graph/overlap.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
 import type { Segment } from '../../engine/src/geom/fk.js';
@@ -603,6 +603,29 @@ export function weldEnds(graph: Graph, a: PortRef, b: PortRef): Graph {
   if (a.pieceId === b.pieceId && a.port === b.port) return graph;
   if (!isFree(graph, a) || !isFree(graph, b)) return graph;
   return { ...graph, welds: [...graph.welds, { a, b }] };
+}
+
+/**
+ * WHY TWO FREE ENDS CANNOT BE JOINED, or null when they can (TODO "Offer only
+ * polarity-compatible free ends in the editor"). The editor used to make any
+ * join it was asked for and only the verdict said it could never be built.
+ *
+ * Two pegs never join: no adapter takes two pegs without adding length.
+ * Two sockets DO join, through a male-male adapter, so they are not refused.
+ * Ends on different levels sit 64mm apart in height; only a ramp joins them.
+ * An end and itself is not a join at all (it disarms), so it is never refused.
+ */
+export type JoinRefusal = 'pegs' | 'levels';
+
+export function joinRefusal(sites: ConnectorSites, a: PortRef, b: PortRef): JoinRefusal | null {
+  if (a.pieceId === b.pieceId && a.port === b.port) return null;
+  const find = (r: PortRef) => sites.placed.find((p) => p.pieceId === r.pieceId && p.port === r.port);
+  const pa = find(a);
+  const pb = find(b);
+  if (!pa || !pb) return null;
+  if (pa.polarity === 'peg' && pb.polarity === 'peg') return 'pegs';
+  if (pa.level !== pb.level) return 'levels';
+  return null;
 }
 
 /** Delete a piece and everything that pointed at it (T11). */

@@ -190,6 +190,8 @@
    * no contrast in the preview depends on this number.
    */
   --ghost-opacity: 0.5;
+  /* A free end the selected one can't join (app.css `.port.is-unjoinable`). */
+  --unjoinable-opacity: 0.3;
 
   /*
    * Verdict colours. The ONLY place colour carries meaning.
