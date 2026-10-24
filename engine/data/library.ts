@@ -389,13 +389,16 @@ export function loadSubmissions(): readonly Submission[] {
   return loadSubmissionsResult().value;
 }
 
-export function saveSubmissions(subs: readonly Submission[]): void {
+/** Whether the browser stored them. The caller says so when it did not (see saveNotice.ts). */
+export function saveSubmissions(subs: readonly Submission[]): boolean {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(subs));
+    return true;
   } catch {
     // Private browsing and full quotas both throw. Losing persistence is not
     // worth losing the session over, but unlike the chain this IS data the user
-    // cannot trivially recreate, so the caller should surface a failure.
+    // cannot trivially recreate, so the caller surfaces the failure.
+    return false;
   }
 }
 

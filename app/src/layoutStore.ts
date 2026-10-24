@@ -559,7 +559,8 @@ export function partialLoadNotice(pieces: number, droppedAnchors: number): strin
   );
 }
 
-export function saveGraph(graph: Graph): void {
+/** Whether the browser stored it. The caller says so when it did not (see saveNotice.ts). */
+export function saveGraph(graph: Graph): boolean {
   try {
     const payload: StoredGraph = {
       pieces: graph.pieces.map((p) => ({ pieceId: p.pieceId, partId: p.partId, turn: p.turn })),
@@ -571,9 +572,11 @@ export function saveGraph(graph: Graph): void {
       ]),
     };
     localStorage.setItem(GRAPH_STORAGE_KEY, JSON.stringify(payload));
+    return true;
   } catch {
     // Private browsing and full quotas both throw. Losing persistence is not
-    // worth losing the session over.
+    // worth losing the session over, but the user is told (saveNotice.ts).
+    return false;
   }
 }
 

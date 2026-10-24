@@ -1834,6 +1834,17 @@ be below what someone with a big floor actually builds.
 
 ## P1 — The three save functions swallow every failure, including the one the code says must be surfaced (filed by /ship, 2026-10-14)
 
+**SAVE HALF DONE (2026-10-24).** All four saves (`saveGraph`, `saveTable`,
+`saveInventory`, `saveSubmissions`) now return whether storage took the write.
+App.tsx keeps one flag per store and shows a dismissable notice naming what was
+not stored: "Not saved: this browser refused to store your layout. It stays on
+screen, but is lost when you close or reload this tab. …". An empty layout or
+parts list that fails to save loses nothing, so the notice waits for the first
+piece; a later save that succeeds takes its store off the notice. Specs:
+app/src/saveFailure.dom.test.tsx. **Still open:** the rescue copy's share of
+the quota (the "Compounding" paragraph below). Evicting it would delete bytes
+the user may need, so it wants a decision, not a keystroke.
+
 **What:** `saveGraph`, `saveInventory` and `saveSubmissions` each wrap
 `localStorage.setItem` in an empty `catch`. Private browsing and a full quota
 both throw. The app then silently stops persisting anything, for the rest of

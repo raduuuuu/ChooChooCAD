@@ -31,7 +31,7 @@
  *     (R21). There is no per-joint ratio and no per-joint glyph.
  */
 
-import { Fragment, useEffect, useMemo, useRef, useState , type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState , type ReactNode } from 'react';
 import {
   droppedSubmissionsNotice,
   loadSubmissionsResult,
@@ -64,6 +64,7 @@ import {
   type EditorState,
 } from './editorReducer.js';
 import { loadGraph, partialLoadNotice, saveGraph, savesSuppressed } from './layoutStore.js';
+import { saveFailureNotice, type SavedStore } from './saveNotice.js';
 import { viewOf } from './verdictView.js';
 import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
 import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
@@ -388,10 +389,31 @@ export function App() {
   const [tableOpen, setTableOpen] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
 
+  /*
+   * The stores whose last save the browser refused (saveNotice.ts). Each save
+   * sets or clears only its own flag, and leaves the set unchanged when its
+   * flag already says the same, so a save that keeps failing renders nothing.
+   * An empty layout or parts list that fails to save loses nothing, so in
+   * private browsing the notice waits for the first piece.
+   */
+  const [unsaved, setUnsaved] = useState<ReadonlySet<SavedStore>>(() => new Set());
+  const saved = useCallback((store: SavedStore, ok: boolean) => {
+    setUnsaved((prev) => {
+      if (prev.has(store) === !ok) return prev;
+      const next = new Set(prev);
+      if (ok) next.delete(store);
+      else next.add(store);
+      return next;
+    });
+  }, []);
+  const unsavedNotice = saveFailureNotice(unsaved);
+  // Dismissing hides THIS sentence; another store failing changes it, and it shows again.
+  const [unsavedDismissed, setUnsavedDismissed] = useState<string | undefined>(undefined);
+
   useEffect(() => {
     if (submissionsSaveBlocked) return;
-    saveSubmissions(submissions);
-  }, [submissions, submissionsSaveBlocked]);
+    saved('submissions', saveSubmissions(submissions) || submissions.length === 0);
+  }, [submissions, submissionsSaveBlocked, saved]);
 
   /*
    * On a whole-layout refusal an unguarded save wrote `EMPTY_GRAPH` over an
@@ -401,18 +423,18 @@ export function App() {
    */
   useEffect(() => {
     if (graphSaveBlocked) return;
-    saveGraph(graph);
-  }, [graph, graphSaveBlocked]);
+    saved('layout', saveGraph(graph) || graph.pieces.length === 0);
+  }, [graph, graphSaveBlocked, saved]);
 
   useEffect(() => {
     if (inventorySaveBlocked) return;
-    saveInventory(inventory);
-  }, [inventory, inventorySaveBlocked]);
+    saved('inventory', saveInventory(inventory));
+  }, [inventory, inventorySaveBlocked, saved]);
 
   useEffect(() => {
     if (tableSaveBlocked) return;
-    saveTable(table);
-  }, [table, tableSaveBlocked]);
+    saved('table', saveTable(table));
+  }, [table, tableSaveBlocked, saved]);
 
   const ports = useMemo(
     () => (piece: GPiece): readonly Port[] => portsOf(resolve(piece.partId), piece.turn),
@@ -1208,6 +1230,17 @@ export function App() {
           }
         />
       </main>
+
+      {unsavedNotice !== undefined && unsavedDismissed !== unsavedNotice && (
+        <div className="notice" role="status" aria-live="polite" aria-atomic="false">
+          <div>
+            <p className="notice-line">{unsavedNotice}</p>
+          </div>
+          <button className="notice-close" onClick={() => setUnsavedDismissed(unsavedNotice)}>
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {layoutNotice !== undefined && !layoutDismissed && (
         <div className="notice" role="status" aria-live="polite" aria-atomic="false">

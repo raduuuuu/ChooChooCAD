@@ -226,11 +226,14 @@ export function loadTable(): LoadResult<Table> {
   }
 }
 
-export function saveTable(table: Table): void {
+/** Whether the browser stored it; see saveInventory. */
+export function saveTable(table: Table): boolean {
   try {
     if (table === null) localStorage.removeItem(STORAGE_KEY);
     else localStorage.setItem(STORAGE_KEY, JSON.stringify({ widthMm: table.widthMm, depthMm: table.depthMm }));
+    return true;
   } catch {
     // Private browsing and full quotas both throw; see saveInventory.
+    return false;
   }
 }
