@@ -1109,12 +1109,13 @@ export function App() {
                 // The picked piece's button takes a touch drag (see usePaletteDrag).
                 data-picked={ghost?.partId === part.id ? '' : undefined}
                 title="Double-click to place directly"
-                aria-label={
-                  `Add ${part.name}` +
-                  (isRamp(part) ? '. Climbs one level.' : '') +
-                  (unverified ? '. Unverified size.' : '') +
-                  (unowned ? '. More than you own.' : '')
-                }
+                aria-label={[
+                  // The name, then each note as its own sentence.
+                  `Add ${part.name}${isRamp(part) || unverified || unowned ? '.' : ''}`,
+                  ...(isRamp(part) ? ['Climbs one level.'] : []),
+                  ...(unverified ? ['Unverified size.'] : []),
+                  ...(unowned ? ['More than you own.'] : []),
+                ].join(' ')}
               >
                 <span className="piece-id num">{shortCode(part)}</span>
                 <span className="piece-name">{part.name}</span>

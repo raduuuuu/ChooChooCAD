@@ -131,7 +131,7 @@ describe('a joint across levels names both in the list (11A, D3)', () => {
 describe('a placement that raises its run says so (R2)', () => {
   /*
    * MUTATION PROOF, run: the re-level clause dropped: `expected 'Added piece
-   * 2, Ascending track (N), j…' to contain 'The run it joined is now
+   * 2, Ramp (N), joined to th…' to contain 'The run it joined is now
    * raised.'`.
    */
   it('a ramp laid descending from a floor end', () => {

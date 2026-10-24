@@ -756,6 +756,36 @@ export function TrackCanvas({
     segments.map((seg, i) =>
       seg.pieceId === undefined || hiddenRun?.has(seg.pieceId) ? null : shadowOf(seg, `shadow-${i}`),
     );
+  /*
+   * THE PIECE BEING PLACED (decision 10A). Its wood at --ghost-opacity,
+   * its edge opaque and SOLID (dashed is the cursor's), ink when it fits
+   * and --fail when it would not. Ink only: never a target, so a click
+   * through it reaches the free end underneath (eng S4).
+   *
+   * A FLOOR PREVIEW GOES UNDER RAISED TRACK (owner, 2026-10-24): drawn between
+   * the floor and raised passes, so a straight laid under a bridge reads as
+   * passing under it, as it will once placed. Raised or ramp: on top.
+   */
+  const ghostOnFloor = ghost !== null && ghost.render.segments.every((seg) => (seg.level ?? 0) === 0 && !seg.rise);
+  const ghostLayer = ghost && (
+    <g className={`ghost${ghost.red ? ' is-red' : ''}`} pointerEvents="none">
+      {/*
+        * Its shadow if it would be raised, or a ramp's taper (design
+        * review 3A): the preview looks like what Place makes. Solid,
+        * outside the translucent wood, so no contrast rests on the
+        * opacity.
+        */}
+      {ghost.render.segments.map((seg, i) => shadowOf(seg, `ghost-shadow-${i}`))}
+      <g className="ghost-wood">
+        <TrackLayers segments={ghost.render.segments} resolve={resolve} maxLayers={maxLayers} keyPrefix="ghost-" />
+      </g>
+      {ghost.render.segments.flatMap((seg, i) =>
+        plankEdges(seg, resolve(seg.partId).plankWidthMm / 2).map((d, side) => (
+          <path key={`ghost-edge-${i}-${side}`} d={d} className="ghost-edge" />
+        )),
+      )}
+    </g>
+  );
   const raisedHere = segments.some((seg) => (seg.level ?? 0) >= 1 || Boolean(seg.rise));
   const levelLayer = (raised: boolean) => (
     <>
@@ -1191,6 +1221,7 @@ export function TrackCanvas({
           />
         )}
         {levelLayer(false)}
+        {ghostOnFloor && ghostLayer}
         {levelLayer(true)}
         {/*
           * THE GAP, DRAWN (task W2, decision D4).
@@ -1300,31 +1331,7 @@ export function TrackCanvas({
           <RedMark key={`clash-${i}`} className="clash-mark" x={x} y={y} r={28} d="M -14 -14 L 14 14 M -14 14 L 14 -14" />
         ))}
         {selectedLabel}
-        {/*
-          * THE PIECE BEING PLACED (decision 10A). Its wood at --ghost-opacity,
-          * its edge opaque and SOLID (dashed is the cursor's), ink when it fits
-          * and --fail when it would not. Ink only: never a target, so a click
-          * through it reaches the free end underneath (eng S4).
-          */}
-        {ghost && (
-          <g className={`ghost${ghost.red ? ' is-red' : ''}`} pointerEvents="none">
-            {/*
-              * Its shadow if it would be raised, or a ramp's taper (design
-              * review 3A): the preview looks like what Place makes. Solid,
-              * outside the translucent wood, so no contrast rests on the
-              * opacity.
-              */}
-            {ghost.render.segments.map((seg, i) => shadowOf(seg, `ghost-shadow-${i}`))}
-            <g className="ghost-wood">
-              <TrackLayers segments={ghost.render.segments} resolve={resolve} maxLayers={maxLayers} keyPrefix="ghost-" />
-            </g>
-            {ghost.render.segments.flatMap((seg, i) =>
-              plankEdges(seg, resolve(seg.partId).plankWidthMm / 2).map((d, side) => (
-                <path key={`ghost-edge-${i}-${side}`} d={d} className="ghost-edge" />
-              )),
-            )}
-          </g>
-        )}
+        {ghost && !ghostOnFloor && ghostLayer}
       </g>
     </svg>
     {/* HTML, not SVG text, so it is never flipped or scaled with the drawing. */}

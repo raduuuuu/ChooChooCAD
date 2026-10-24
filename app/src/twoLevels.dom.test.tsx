@@ -198,7 +198,7 @@ describe('after raised track, a ramp comes down instead of opening red (owner, 2
   it('the preview comes down, and Flip turns it over', async () => {
     const user = mount([{ id: 'd', part: 'D', x: 0, y: 0, heading: 0, level: 1 }]);
     await user.click(screen.getByRole('button', { name: /end of piece 1/i }));
-    await user.click(button(/^Add Ascending track\./));
+    await user.click(button(/^Add Ramp\./));
     const group = screen.getByRole('group', { name: /Placing/ });
     expect(within(group).getByRole('status').textContent).toMatch(/^O Comes down to the floor\./);
     expect(within(group).queryByRole('button', { name: 'Turn over: climb (F)' })).not.toBeNull();
@@ -210,15 +210,19 @@ describe('a ramp: chevron, palette, strip and list', () => {
    * MUTATION PROOFS, run:
    * - the chevron map removed from the canvas: `expected +0 to be 1`.
    * - `partsByBrand` back to library order: `expected 'Add Middle straight'
-   *   to be 'Add Ascending track'`.
+   *   to be 'Add Ramp'`.
+   * - the ramp's note back to "Climbs one level.." (a doubled stop): `expected
+   *   'Add Ramp. Climbs one level.. Unverifi…' to be 'Add Ramp. Climbs one
+   *   level. Unverifie…'`.
    */
   it('a placed ramp draws one chevron; the palette lists it after D', () => {
     mount([{ id: 'r', part: 'N', x: 0, y: 0, heading: 0 }]);
     expect(count('.canvas path.rise-chevron, svg[aria-label="Track layout"] path.rise-chevron')).toBe(1);
     const names = screen.getAllByRole('button', { name: /^Add / }).map((b) => b.getAttribute('aria-label')!);
     const d = names.findIndex((n) => n.startsWith('Add Long straight'));
-    expect(names[d + 1]!.split('.')[0]).toBe('Add Ascending track');
-    expect(names[d + 1]).toContain('Climbs one level.');
+    expect(names[d + 1]!.split('.')[0]).toBe('Add Ramp');
+    // One full stop per sentence (it once read "Climbs one level..").
+    expect(names[d + 1]).toBe('Add Ramp. Climbs one level. Unverified size.');
   });
 
   /*
@@ -229,7 +233,7 @@ describe('a ramp: chevron, palette, strip and list', () => {
   it('the strip says which way it goes', async () => {
     const user = mount([{ id: 's', part: 'A', x: 0, y: 0, heading: 0 }]);
     await user.click(screen.getByRole('button', { name: /end of piece 1/i }));
-    await user.click(button(/^Add Ascending track/));
+    await user.click(button(/^Add Ramp\./));
     const status = within(screen.getByRole('group', { name: /Placing/ })).getByRole('status').textContent!;
     expect(status).toMatch(/^O Climbs from the floor to the raised level\./);
   });
