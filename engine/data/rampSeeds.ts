@@ -26,7 +26,7 @@ const RAMP_SOURCE: DimensionSource = {
 
 export const RAMP_SEEDS: readonly Part[] = [
   {
-    id: 'N', brand: 'BRIO', kind: 'straight', name: 'Ascending track',
+    id: 'N', brand: 'BRIO', kind: 'straight', name: 'Ramp',
     partNumber: '33332', lengthMm: 216, rise: 1,
     dimensions: RAMP_SOURCE,
     slop: { axialMm: 0.8, angularDeg: 1.5, calibrationStatus: 'estimated' },
@@ -49,7 +49,7 @@ export const RAMP_SEEDS: readonly Part[] = [
    * differ.
    */
   {
-    id: 'N1', brand: 'BRIO', kind: 'straight', name: 'Ascending track, two pegs',
+    id: 'N1', brand: 'BRIO', kind: 'straight', name: 'Ramp, two pegs',
     lengthMm: 216, rise: 1,
     dimensions: {
       ...RAMP_SOURCE,
