@@ -310,7 +310,7 @@ describe('the gap the canvas draws is the gap the solver measured', () => {
   const loop = (ids: string[]): Graph =>
     graphFromChain({ placements: ids.map((partId) => ({ partId, turn: 'left' as const })), closed: true });
   const marksOf = (g: Graph) => {
-    const result = solveGraph(g, ports, (id: string): Part => resolve(id), slop(g));
+    const result = solveGraph(g, ports, (id: string): Part => resolve(id), slop(g), placeAll(g, ports));
     const drawn = renderGraph(g, ports, resolve, placeAll(g, ports));
     return { result, drawn, marks: gapMarks(result.residuals, g.welds, drawn.ports) };
   };

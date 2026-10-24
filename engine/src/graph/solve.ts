@@ -21,7 +21,7 @@ import { analyseCycles, type CycleReport } from './cycles.js';
 import { classifyWelds, connectorSites, findVertexClashes, type AdapterJoint, type VertexClash, type WeldPolarityViolation } from './feasible.js';
 import { findBridges, findPlankOverlaps, type PlankOverlap } from './overlap.js';
 import { renderGraph } from './render.js';
-import { findLevelFaults, placeAll, residuals, type LevelMismatch, type PortsOf, type ThirdLevel, type WeldResidual } from './frames.js';
+import { findLevelFaults, residuals, type LevelMismatch, type Placement, type PortsOf, type ThirdLevel, type WeldResidual } from './frames.js';
 import type { Forest } from './forest.js';
 import type { Graph } from './model.js';
 import { pieceRepair, type PieceRepair, type RepairLibrary } from './repair.js';
@@ -162,10 +162,15 @@ export function solveGraph(
   ports: PortsOf,
   resolve: (id: string) => Part,
   slop: (pieceId: string) => number,
+  /**
+   * Where every piece is: `placeAll(graph, ports)`, from the caller. Taken,
+   * not derived, so the verdict and the drawing read ONE placement and a clash
+   * mark lands where the drawing drew the clash (brio-TODOS.md P1).
+   */
+  placement: Placement,
   /** Parts a repair may suggest, and how brands join. Omit for no suggestion. */
   library?: RepairLibrary,
 ): GraphResult {
-  const placement = placeAll(graph, ports);
   const rs = residuals(graph, ports, placement);
   const rank = placement.forest.closing.length;
 

@@ -118,6 +118,7 @@ export function reproText(input: ReproInput): string {
 
 import { BUILT_IN, resolveLibrary, makeResolver } from './engine/data/library.js';
 import { solveGraph } from './engine/src/graph/solve.js';
+import { placeAll } from './engine/src/graph/frames.js';
 import { portsOf } from './engine/src/graph/model.js';
 import { solveLayout } from './engine/src/solver/result.js';
 import { layoutTrust } from './engine/src/joints/trust.js';
@@ -180,7 +181,7 @@ if (graph) {
   // exactly the oversized layouts where that matters most.
   const slopById = new Map((g as { pieces: { pieceId: string; partId: string }[] }).pieces.map((x) => [x.pieceId, resolve(x.partId).slop.axialMm]));
   const slop = (pieceId: string) => slopById.get(pieceId) ?? 0;
-  console.log('verdict', solveGraph(g, ports as never, resolve, slop));
+  console.log('verdict', solveGraph(g, ports as never, resolve, slop, placeAll(g, ports as never)));
   console.log('trust', layoutTrust({ placements: (g as { pieces: never[] }).pieces, closed: false } as never, resolve, brandFit));
 } else if (Array.isArray(chain) && chain.length > 0) {
   // No graph stored, but an old pre-graph chain was. Solve that instead of

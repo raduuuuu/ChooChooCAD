@@ -278,6 +278,7 @@ describe('both engines reach the same verdict', () => {
       ports,
       (id: string): Part => resolve(id),
       (pieceId) => slop(pieceId, layout),
+      placeAll(g, ports),
     );
     if (!r.ok) return { kind: r.reason };
     if (r.clashes.length > 0) return { kind: 'IMPOSSIBLE' };
@@ -338,7 +339,7 @@ describe('what only the graph engine can say, which is the boundary of the compa
     return resolve(piece.partId).slop.axialMm;
   };
   const solve = (g: Graph, slop = slopOf(g)) =>
-    solveGraph(g, ports, (id: string): Part => resolve(id), slop);
+    solveGraph(g, ports, (id: string): Part => resolve(id), slop, placeAll(g, ports));
 
   /** A straight run of `ids`, open at both ends. */
   const chain = (ids: string[], closed: boolean): Layout => ({

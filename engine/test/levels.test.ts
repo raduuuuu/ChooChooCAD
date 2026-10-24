@@ -266,7 +266,7 @@ describe('repair never adds or removes a ramp (D4)', () => {
    */
   it('offers the flat straight', () => {
     const g = loop([['N', 'left', 0], ...E4(), ['D', 'left', 0], ['N', 'left', 1], ...E4(), ['D', 'left', 0], ['D', 'left', 0]]);
-    const result = solveGraph(g, ports, resolve, () => 0.8, {
+    const result = solveGraph(g, ports, resolve, () => 0.8, placeAll(g, ports), {
       parts: BUILT_IN,
       brandFit: () => ({ fit: 'joins' }) as never,
     });
@@ -382,7 +382,7 @@ describe('coming down on N1 needs no adapter (N1, two pegs)', () => {
       { a: { pieceId: 'r', port: 0 }, b: { pieceId: 'b', port: 0 } },
     ],
   });
-  const solve = (g: Graph) => solveGraph(g, ports, resolve, () => 0.8);
+  const solve = (g: Graph) => solveGraph(g, ports, resolve, () => 0.8, placeAll(g, ports));
 
   it('N1: no polarity fault, no adapter, and the track before it is raised', () => {
     const r = solve(down('N1'));
@@ -415,7 +415,7 @@ describe('a ramp flipped over comes down (owner, 2026-10-23: "flip in 3d")', () 
    */
   it('a stadium up one N and down another, flipped: exact, no fault, no adapter', () => {
     const g = loop([...E4(), ['N', 'left', 0], ...E4(), ['N', 'right', 0]]);
-    const r = solveGraph(g, ports, resolve, () => 0.8);
+    const r = solveGraph(g, ports, resolve, () => 0.8, placeAll(g, ports));
     if (!r.ok) throw new Error('expected a solved loop');
     expect(r.closesExactly).toBe(true);
     expect(r.levelMismatches).toEqual([]);
