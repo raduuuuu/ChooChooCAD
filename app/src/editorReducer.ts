@@ -36,6 +36,7 @@ import {
   defaultFit,
   deletePiece,
   isFree,
+  joinRefusal,
   fitOptions,
   frameAt,
   ghostFit,
@@ -617,6 +618,13 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
         return { ...state, armed: null };
       }
       if (armed) {
+        /*
+         * A JOIN THAT CAN NEVER BE BUILT IS NOT MADE: two pegs, or ends on
+         * different levels. The end stays armed and nothing changes but the
+         * object, so the refusal is still said (announce.ts) -- the same object
+         * back would mean nothing happened at all.
+         */
+        if (joinRefusal(connectorSites(state.graph, ports, placeAll(state.graph, ports)), armed, ref)) return { ...state };
         const graph = weldEnds(state.graph, armed, ref);
         /*
          * The weld consumes both ends, so a cursor on either is stale and

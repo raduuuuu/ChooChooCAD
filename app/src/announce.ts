@@ -24,6 +24,10 @@ import type { EditorAction, EditorState } from './editorReducer.js';
 import { lastStep, nextStep } from './editorReducer.js';
 import { endName, laidFrom, pieceName } from './GraphListing.js';
 import { afterKey, ghostKeys, keyHelp } from './ghostKeys.js';
+import { connectorSites } from '../../engine/src/graph/feasible.js';
+import { joinRefusal } from './layoutModel.js';
+import { JOIN_REFUSED } from './joinWords.js';
+
 
 const same = (a: PortRef | null, b: PortRef | null): boolean =>
   a !== null && b !== null && a.pieceId === b.pieceId && a.port === b.port;
@@ -180,6 +184,11 @@ export function describeAction(
       return `Moved the run. It joined the track it landed on${using}.`;
     }
     case 'clickPort': {
+      // Refused: same graph, same armed end, a different end clicked (editorReducer).
+      if (prev.armed && next.graph === prev.graph && same(prev.armed, next.armed) && !same(prev.armed, action.ref)) {
+        const why = joinRefusal(connectorSites(prev.graph, portsOfPiece, placeAll(prev.graph, portsOfPiece)), prev.armed, action.ref);
+        if (why) return `Can't join ${where(prev.graph, prev.armed)} to ${where(prev.graph, action.ref)}: ${JOIN_REFUSED[why]}.`;
+      }
       if (next.graph.welds.length > prev.graph.welds.length && prev.armed) {
         const made = next.graph.welds[next.graph.welds.length - 1]!;
         return `Joined ${where(prev.graph, prev.armed)} to ${where(prev.graph, action.ref)}${withAdapter(next.graph, made)}.`;

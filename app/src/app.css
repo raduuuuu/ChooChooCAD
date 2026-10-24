@@ -1091,6 +1091,13 @@
 }
 .port:hover .port-dot { stroke: var(--ink); }
 /*
+ * AN END THE SELECTED ONE CAN'T JOIN (TODO "Offer only polarity-compatible
+ * free ends"): two pegs, or the other level. Dimmed, never hidden, so the
+ * layout still reads whole; the reason is in its name and its hover title, so
+ * the dimming is not the only channel. Clicking it still says why.
+ */
+.port.is-unjoinable { cursor: not-allowed; opacity: var(--unjoinable-opacity); }
+/*
  * PEG IS FILLED, SOCKET IS HOLLOW. The base `.port-dot` above is already the
  * hollow one, so a socket needs no rule.
  *
