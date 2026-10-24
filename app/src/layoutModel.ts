@@ -22,7 +22,7 @@ import { connectorSites, landingOf, type ConnectorSites } from '../../engine/src
 import { findPlankOverlaps } from '../../engine/src/graph/overlap.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
 import type { Segment } from '../../engine/src/geom/fk.js';
-import { findLevelFaults, placeAll, portFrame, type PortsOf } from '../../engine/src/graph/frames.js';
+import { findLevelFaults, placeAll, portFrame, type Placement, type PortsOf } from '../../engine/src/graph/frames.js';
 import {
   compose,
   frameForPortAt,
@@ -97,8 +97,7 @@ export const RUN_SPACING_MM = 216;
  * of an exact lattice vector, so the anchor itself stays exact and the
  * engine never sees a rounded number.
  */
-export function nextRunAnchor(graph: Graph, ports: PortsOf): Frame {
-  const place = placeAll(graph, ports);
+export function nextRunAnchor(graph: Graph, ports: PortsOf, place: Placement = placeAll(graph, ports)): Frame {
   let maxY = 0;
   let minY = 0;
   for (const piece of graph.pieces) {
@@ -318,6 +317,12 @@ export type FitConflict =
 export interface FitGeometry {
   readonly resolve: (id: string) => Part;
   readonly segments?: readonly Segment[];
+  /**
+   * The placement App already made, and the graph it is of. The reducer
+   * reuses it when handed that same graph instead of placing it again; any
+   * other graph is placed afresh (`placementOf` in editorReducer.ts).
+   */
+  readonly placed?: { readonly graph: Graph; readonly placement: Placement };
 }
 
 /**

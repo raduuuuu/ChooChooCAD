@@ -26,7 +26,7 @@
 
 import type { Cyc } from '../../engine/src/geom/cyclotomic.js';
 import { IDENTITY, norm16, type Frame, type Graph, type Piece as GPiece, type PortRef } from '../../engine/src/graph/model.js';
-import { placeAll, type PortsOf } from '../../engine/src/graph/frames.js';
+import { placeAll, type Placement, type PortsOf } from '../../engine/src/graph/frames.js';
 import type { Turn } from '../../engine/src/parts/schema.js';
 import {
   EMPTY_GRAPH,
@@ -414,10 +414,11 @@ function ghostAt(graph: Graph, ports: PortsOf, partId: string, at: PortRef, turn
  * cursor; with no cursor, standing free at the origin on an empty floor or
  * beside the track when every end is joined.
  */
-function newGhost(state: EditorState, partId: string, ports: PortsOf): Ghost {
+function newGhost(state: EditorState, partId: string, ports: PortsOf, geometry?: FitGeometry): Ghost {
   const at = stillFree(state.graph, state.cursor);
   if (at) return ghostAt(state.graph, ports, partId, at, null);
-  const frame = state.graph.pieces.length === 0 ? IDENTITY : nextRunAnchor(state.graph, ports);
+  const frame =
+    state.graph.pieces.length === 0 ? IDENTITY : nextRunAnchor(state.graph, ports, placementOf(state.graph, ports, geometry));
   return { partId, at: null, frame, turn: 'left', port: 0 };
 }
 
@@ -463,6 +464,17 @@ export function reduce(
   return edited === (next.edited === true) ? next : { ...next, edited };
 }
 
+/**
+ * Where every piece of `graph` is. App's own placement when it is of this very
+ * graph, which it is for every action but the second of two batched into one
+ * render; otherwise placed here. State is never changed in place, so the same
+ * graph object always has the same placement.
+ */
+function placementOf(graph: Graph, ports: PortsOf, geometry?: FitGeometry): Placement {
+  const known = geometry?.placed;
+  return known && known.graph === graph ? known.placement : placeAll(graph, ports);
+}
+
 function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry?: FitGeometry): EditorState {
   switch (action.kind) {
     case 'add': {
@@ -479,6 +491,11 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
         state.cursor,
         ports,
         at ? defaultFit(state.graph, ports, at, action.partId) : undefined,
+        // A piece that starts a run goes beside the track, measured on the
+        // placement App already made rather than a fresh one.
+        at || state.graph.pieces.length === 0
+          ? undefined
+          : nextRunAnchor(state.graph, ports, placementOf(state.graph, ports, geometry)),
       );
       /*
        * Now a DIRECT placement (decision 9A: a double-click on the palette, or
@@ -497,7 +514,7 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
 
     case 'pick': {
       if (state.ghost?.partId === action.partId) return state;
-      return { ...state, ghost: newGhost(state, action.partId, ports), selected: null, armed: null };
+      return { ...state, ghost: newGhost(state, action.partId, ports, geometry), selected: null, armed: null };
     }
 
     case 'rotateGhost':
@@ -552,7 +569,7 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
       const g = state.ghost;
       if (!g) return state;
       const heading = g.at
-        ? frameAt(state.graph, ports, placeAll(state.graph, ports), g.at, g.partId, { port: g.port, turn: g.turn }).heading
+        ? frameAt(state.graph, ports, placementOf(state.graph, ports, geometry), g.at, g.partId, { port: g.port, turn: g.turn }).heading
         : g.frame!.heading;
       return { ...state, ghost: { ...g, at: null, port: 0, frame: { pos: action.pos, heading } } };
     }
@@ -560,7 +577,7 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
     case 'dropGhost': {
       const g = state.ghost;
       if (!g) return state;
-      const placement = placeAll(state.graph, ports);
+      const placement = placementOf(state.graph, ports, geometry);
       const fit = ghostFit(state.graph, ports, g, placement, connectorSites(state.graph, ports, placement), geometry);
       if (fit.conflicts.length === 0) return step(state, { kind: 'placeGhost' }, ports);
       // A drop never puts down a red piece (6A), and that includes one lying
@@ -624,7 +641,7 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
          * object, so the refusal is still said (announce.ts) -- the same object
          * back would mean nothing happened at all.
          */
-        if (joinRefusal(connectorSites(state.graph, ports, placeAll(state.graph, ports)), armed, ref)) return { ...state };
+        if (joinRefusal(connectorSites(state.graph, ports, placementOf(state.graph, ports, geometry)), armed, ref)) return { ...state };
         const graph = weldEnds(state.graph, armed, ref);
         /*
          * The weld consumes both ends, so a cursor on either is stale and
