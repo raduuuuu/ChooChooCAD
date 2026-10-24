@@ -1578,6 +1578,14 @@ divergence it exists for.
 
 ## P1 — `solveGraph` computes a second placement instead of accepting the one App.tsx already made (filed by /ship, 2026-10-14)
 
+**`solveGraph` HALF DONE (2026-10-24).** `solveGraph(graph, ports, resolve,
+slop, placement, library?)` takes the placement as a required argument and
+places nothing itself; App.tsx hands it the same `placement` memo the canvas
+draws from, so a clash mark is in the drawing's frame by construction. Spec:
+engine/test/solvePlacement.test.ts. **Still open:** the `nextRunAnchor` half
+below, and `solveGraph`'s own `renderGraph` call, which repeats App's `render`
+memo (the segments could be handed in the same way).
+
 **What:** `App.tsx` builds `placement = placeAll(graph, ports)` and passes it to
 `renderGraph`. `solveGraph` does not take it — `solve.ts:90` calls
 `placeAll(graph, ports)` itself. So the canvas draws from placement A and the

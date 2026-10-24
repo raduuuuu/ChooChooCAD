@@ -861,7 +861,7 @@ describe('a dense sharing graph is bounded by work, not by subset count', () => 
     // but it is still quadratic in COINCIDENT ports and that is its own filed
     // P0 -- sizing this fixture by the sentence keeps the two apart.
     const g = bundle(15, 40);
-    const r = solveGraph(g, ports, (id) => base(id), () => 0.8);
+    const r = solveGraph(g, ports, (id) => base(id), () => 0.8, placeAll(g, ports));
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.rank).toBeLessThanOrEqual(CYCLE_RANK_CEILING);
@@ -905,7 +905,7 @@ describe('a dense sharing graph is bounded by work, not by subset count', () => 
       ['a dense bundle at the ceiling', bundle(21, 2)],
     ];
     for (const [name, g] of shapes) {
-      const r = solveGraph(g, ports, (id) => base(id), () => 0.8);
+      const r = solveGraph(g, ports, (id) => base(id), () => 0.8, placeAll(g, ports));
       const reason = r.ok ? undefined : r.reason;
       expect(reason, name).not.toBe('NUMERIC');
     }
@@ -918,7 +918,8 @@ describe('a dense sharing graph is bounded by work, not by subset count', () => 
       a: { pieceId: 'p', port: 1 },
       b: { pieceId: 'p', port: 0 },
     }));
-    const r = solveGraph({ pieces, welds, anchors: new Map() }, ports, (id) => base(id), () => 0.8);
+    const g = { pieces, welds, anchors: new Map() };
+    const r = solveGraph(g, ports, (id) => base(id), () => 0.8, placeAll(g, ports));
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.reason).toBe('TOO_MANY_LOOPS');

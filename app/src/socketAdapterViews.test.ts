@@ -23,6 +23,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { BUILT_IN, loadSubmissionsResult, makeResolver, SUBMISSIONS_STORAGE_KEY } from '../../engine/data/library.js';
 import { add, fromInt, scale, zetaPow, type Cyc } from '../../engine/src/geom/cyclotomic.js';
+import { placeAll } from '../../engine/src/graph/frames.js';
 import { classifyWelds } from '../../engine/src/graph/feasible.js';
 import { portsOf, type Frame, type Graph, type Piece, type Port } from '../../engine/src/graph/model.js';
 import { solveGraph } from '../../engine/src/graph/solve.js';
@@ -39,7 +40,7 @@ import { viewOf } from './verdictView.js';
 
 const resolve = makeResolver(BUILT_IN);
 const ports = (piece: Piece): readonly Port[] => portsOf(resolve(piece.partId), piece.turn);
-const solve = (g: Graph) => solveGraph(g, ports, resolve, (id) => resolve(g.pieces.find((p) => p.pieceId === id)!.partId).slop.axialMm);
+const solve = (g: Graph) => solveGraph(g, ports, resolve, (id) => resolve(g.pieces.find((p) => p.pieceId === id)!.partId).slop.axialMm, placeAll(g, ports));
 const at = (x: number, y: number, heading: number): Frame => ({
   pos: add(fromInt(x), scale(zetaPow(4), y)) as Cyc,
   heading,

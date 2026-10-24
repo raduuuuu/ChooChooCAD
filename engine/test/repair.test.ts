@@ -29,6 +29,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../data/library.js';
 import { brandFit } from '../data/thirdParty.js';
+import { placeAll } from '../src/graph/frames.js';
 import { graphFromChain } from '../src/graph/fromChain.js';
 import { portsOf, type Graph, type Piece } from '../src/graph/model.js';
 import { solveGraph } from '../src/graph/solve.js';
@@ -42,7 +43,7 @@ const slop = (g: Graph) => (id: string) =>
 const loop = (ids: readonly string[], turn: Turn = 'left'): Graph =>
   graphFromChain({ placements: ids.map((partId) => ({ partId, turn })), closed: true });
 
-const solve = (g: Graph) => solveGraph(g, ports, resolve, slop(g), { parts: BUILT_IN, brandFit });
+const solve = (g: Graph) => solveGraph(g, ports, resolve, slop(g), placeAll(g, ports), { parts: BUILT_IN, brandFit });
 
 /** The solved branch, asserting the layout reached the verdict this is about. */
 const exceeds = (g: Graph) => {
@@ -200,8 +201,10 @@ describe('the gap in pieces', () => {
     const parts = [...BUILT_IN, C1];
     const res = makeResolver(parts);
     const portsC = (p: Piece) => portsOf(res(p.partId), p.turn);
-    const solveIds = (ids: readonly string[]) =>
-      solveGraph(loop(ids), portsC, res, () => 0.8, { parts, brandFit });
+    const solveIds = (ids: readonly string[]) => {
+      const g = loop(ids);
+      return solveGraph(g, portsC, res, () => 0.8, placeAll(g, portsC), { parts, brandFit });
+    };
     const closes = (ids: readonly string[]) => {
       const r = solveIds(ids);
       return r.ok && r.closesExactly;
@@ -240,7 +243,7 @@ describe('the gap in pieces', () => {
 
   it('says nothing when the caller gives no library', () => {
     const g = loop([...E4, 'D', ...E4, 'A']);
-    const r = solveGraph(g, ports, resolve, slop(g));
+    const r = solveGraph(g, ports, resolve, slop(g), placeAll(g, ports));
     expect(r.ok && r.repair).toBeNull();
   });
 });

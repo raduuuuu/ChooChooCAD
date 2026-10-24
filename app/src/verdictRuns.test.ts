@@ -24,6 +24,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../../engine/data/library.js';
 import { fromInt } from '../../engine/src/geom/cyclotomic.js';
+import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Graph, type Piece } from '../../engine/src/graph/model.js';
 import { solveGraph } from '../../engine/src/graph/solve.js';
 import { VerdictLine } from './VerdictLine.js';
@@ -46,7 +47,7 @@ const layout = (...runs: ReturnType<typeof run>[]): Graph => ({
   welds: runs.flatMap((r) => r.welds),
   anchors: new Map(runs.map((r, i) => [r.pieces[0]!.pieceId, { pos: fromInt(900 * i), heading: 0 }])),
 });
-const solve = (g: Graph) => solveGraph(g, ports, resolve, () => 1);
+const solve = (g: Graph) => solveGraph(g, ports, resolve, () => 1, placeAll(g, ports));
 const said = (g: Graph) => renderToStaticMarkup(createElement(VerdictLine, { view: viewOf(solve(g)) })).replace(/<[^>]+>/g, '');
 
 describe('the engine counts the runs', () => {

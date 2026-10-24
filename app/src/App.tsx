@@ -442,23 +442,12 @@ export function App() {
   );
 
   /*
-   * One placement per edit, shared by the DRAWING. Not yet by the verdict.
+   * One placement per edit, shared by the drawing AND the verdict.
    *
-   * This comment used to claim both were computed once here and passed down,
-   * and that was false: `solveGraph` calls `placeAll(graph, ports)` itself
-   * (`solve.ts`), so the canvas draws from this placement and the verdict
-   * -- including `findVertexClashes`, whose `at` coordinates `TrackCanvas`
-   * puts markers at -- is computed from a second one.
-   *
-   * They agree today only because `placeAll` is pure and deterministic.
-   * Nothing enforces it, and `placeAll` takes an `anchors` third parameter
-   * defaulting to `graph.anchors`: the moment any caller passes explicit
-   * anchors to one and not the other, the clash markers land somewhere the
-   * drawing never drew. It also does the forest and placement work twice per
-   * edit. The fix is for `solveGraph` to ACCEPT a placement rather than
-   * derive one, which makes the original claim true by construction; filed as
-   * a P1 rather than changed here, because it is an engine signature change
-   * and this ship is already carrying nine fixes.
+   * `solveGraph` takes it as an argument rather than calling `placeAll`
+   * itself, so the clash marks it reports (`findVertexClashes`' `at`) are in
+   * the frame the canvas drew, by construction rather than because `placeAll`
+   * happens to be deterministic. It used to place the layout a second time.
    */
   const placement = useMemo(() => placeAll(graph, ports), [graph, ports]);
   const render = useMemo(
@@ -520,11 +509,11 @@ export function App() {
     () =>
       graph.pieces.length === 0
         ? null
-        : solveGraph(graph, ports, resolve, (pieceId: string) => slopById.get(pieceId) ?? 0, {
+        : solveGraph(graph, ports, resolve, (pieceId: string) => slopById.get(pieceId) ?? 0, placement, {
             parts: library,
             brandFit,
           }),
-    [graph, ports, resolve, slopById, library],
+    [graph, ports, resolve, slopById, placement, library],
   );
 
   /*

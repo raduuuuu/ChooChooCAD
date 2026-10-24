@@ -31,6 +31,7 @@ import {
 } from '../data/library.js';
 import { DIMENSION_TRUST, trustRank, type Part } from '../src/parts/schema.js';
 import { layoutTrust } from '../src/joints/trust.js';
+import { placeAll } from '../src/graph/frames.js';
 import { graphFromChain } from '../src/graph/fromChain.js';
 import { solveGraph } from '../src/graph/solve.js';
 import { portsOf } from '../src/graph/model.js';
@@ -458,7 +459,7 @@ describe('a stored row cannot inflate the give into a softer verdict', () => {
       const piece = g.pieces.find((x) => x.pieceId === pieceId)!;
       return resolve(piece.partId).slop.axialMm;
     };
-    return solveGraph(g, ports as never, resolve, slopOf) as unknown as {
+    return solveGraph(g, ports as never, resolve, slopOf, placeAll(g, ports as never)) as unknown as {
       gapMm: number;
       totalGiveMm: number;
       withinBound: boolean;

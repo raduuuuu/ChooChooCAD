@@ -155,7 +155,8 @@ describe('the heel is an ordinary connector', () => {
    * the heel joint's give.
    */
   it('donates give like any joint, so a loop through it counts every weld', () => {
-    const r = solveGraph(loopThroughHeel(), ports, resolve, slopOf);
+    const g = loopThroughHeel();
+    const r = solveGraph(g, ports, resolve, slopOf, placeAll(g, ports));
     expect(r.ok).toBe(true);
     if (!r.ok) throw new Error('unreachable');
     const perWeld = A1.slop.axialMm;
