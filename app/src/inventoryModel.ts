@@ -237,12 +237,15 @@ export function loadInventory(knownPartIds: ReadonlySet<string>): LoadResult<Inv
   }
 }
 
-export function saveInventory(inventory: Inventory): void {
+/** Whether the browser stored it. The caller says so when it did not (see saveNotice.ts). */
+export function saveInventory(inventory: Inventory): boolean {
   try {
     if (inventory === null) localStorage.removeItem(STORAGE_KEY);
     else localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory));
+    return true;
   } catch {
     // Private browsing and full quotas both throw. Losing persistence is not
-    // worth losing the session over.
+    // worth losing the session over, but the user is told (saveNotice.ts).
+    return false;
   }
 }
