@@ -2227,6 +2227,11 @@ tests a claim about the product rather than a restatement of the code.
 
 ## P2 — `droppedAnchors` counts entries, and a valid anchor can lose to a bad one (filed 2026-10-15)
 
+**DONE (2026-10-27).** The loader collects the ids with an unreadable entry in
+a set, and only those with no readable entry anywhere become orphans; the
+count is those pieces plus the entries too broken to name one. Pinned in
+`layoutStore.test.ts` ("one piece named twice…", "…keeps the good one…").
+
 **What:** two small defects in the same loop, both pre-existing and both
 surfaced by the review of the orphan-lane fix.
 
@@ -2248,6 +2253,15 @@ provisional lane for any id `anchorMap` already holds a valid frame for.
 **Depends on / blocked by:** nothing.
 
 ## P2 — `captureAnchors` honours a stale anchor on any demoted root, not just orphans (filed 2026-10-15)
+
+**OVERTAKEN (closed 2026-10-27).** Fixed on 2026-10-22 by the codex review of
+the editing plan: `captureAnchors` now takes the measured frame for every
+root and no longer keeps an existing anchor, so a demoted root's leftover
+anchor is never read again. Pinned by `editorReducer.test.ts` "break, rejoin
+by the other end, break: the rejoined half stays where the join put it". Undo
+restores whole graph values, so it never promotes a stale anchor either. Two
+comments that still described the old behaviour (`layoutStore.ts`,
+`editorReducer.ts`) were corrected.
 
 **What:** the orphan-lane fix closed one case of a general problem.
 `weldEnds` appends a weld without touching anchors, so merging two components

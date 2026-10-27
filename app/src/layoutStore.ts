@@ -244,11 +244,14 @@ function clearOfEveryFootprint(
      * A NON-ROOT ORPHAN'S ANCHOR IS DELETED, NOT LEFT.
      *
      * The first version of this said the provisional anchor was "inert:
-     * `placeAll` reads the root's", and left it. Something does read it.
-     * `captureAnchors` (`graph/edit.ts:37`) keeps an existing anchor in
+     * `placeAll` reads the root's", and left it. Something did read it.
+     * `captureAnchors` (`graph/edit.ts`) then kept an existing anchor in
      * preference to the frame a piece was actually at, so the moment a weld
-     * break or a delete makes that piece a component root, the stale lane
-     * wins and the component teleports onto whatever is already there.
+     * break or a delete made that piece a component root, the stale lane
+     * won and the component teleported onto whatever was already there.
+     * `captureAnchors` now takes the measured frame for every root (codex
+     * review, 2026-10-22), so this deletion is no longer the only guard; it
+     * stays because a dead anchor in the stored blob helps nobody.
      *
      * MEASURED: a survivor anchored at lane 1 plus a two-piece run whose
      * second piece has an unreadable anchor loads clean with 0 clashes, and
@@ -449,7 +452,8 @@ export function loadGraph(
      * consequence is a component drawn somewhere it never was.
      */
     const anchorMap = new Map<string, Frame>();
-    let droppedAnchors = 0;
+    /** Entries too broken to name a piece: each one is some piece's position. */
+    let nameless = 0;
     /*
      * Pieces whose anchor was unreadable. They are re-anchored AFTER the loop,
      * to a lane beyond every surviving anchor, rather than left to fall to the
@@ -468,12 +472,12 @@ export function loadGraph(
      * The offset is an integer multiple of zeta^4, so it is an exact lattice
      * point: closure stays exact in Z[zeta16] and no epsilon enters here.
      */
-    const orphans: string[] = [];
+    const unreadable = new Set<string>();
     for (const entry of anchors ?? []) {
       if (!Array.isArray(entry) || entry.length !== 2) {
         // No id to re-anchor: the entry itself is unreadable. Counted, because
         // some piece has lost its position and we cannot say which.
-        droppedAnchors++;
+        nameless++;
         continue;
       }
       const [id, frame] = entry as [unknown, unknown];
@@ -482,8 +486,7 @@ export function loadGraph(
       // to misplace. Not counted.
       if (typeof id !== 'string' || !ids.has(id)) continue;
       if (typeof frame !== 'object' || frame === null) {
-        droppedAnchors++;
-        orphans.push(id);
+        unreadable.add(id);
         continue;
       }
       const { pos, heading, level } = frame as Record<string, unknown>;
@@ -491,22 +494,28 @@ export function loadGraph(
       // is not an anchor this engine wrote, so it is dropped rather than
       // rounded or truncated into place. Both checks live in `isCyc`.
       if (!isCyc(pos)) {
-        droppedAnchors++;
-        orphans.push(id);
+        unreadable.add(id);
         continue;
       }
       if (!isHeading(heading)) {
-        droppedAnchors++;
-        orphans.push(id);
+        unreadable.add(id);
         continue;
       }
       if (!isAnchorLevel(level)) {
-        droppedAnchors++;
-        orphans.push(id);
+        unreadable.add(id);
         continue;
       }
       anchorMap.set(id, frameOf(pos, heading, level ?? 0));
     }
+    /*
+     * PIECES, NOT ENTRIES, and a readable position wins (filed 2026-10-15).
+     * The stored anchors are an array from an untrusted blob and may name a
+     * piece twice. Counting entries told the user "2 had unreadable
+     * positions" about one piece, and a piece with one bad entry and one good
+     * one was re-laned anyway, throwing away a position that was right there.
+     */
+    const orphans = [...unreadable].filter((id) => !anchorMap.has(id));
+    const droppedAnchors = nameless + orphans.length;
 
     /*
      * NOT WRAPPED IN A try/catch, and that is the considered choice.

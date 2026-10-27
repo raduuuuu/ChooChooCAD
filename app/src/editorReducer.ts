@@ -181,10 +181,11 @@ export interface EditorState {
  *
  * Each step carries a GRAPH VALUE, not a description of what changed
  * (finding E3). A `{ break, a, b }` record would undo by re-welding, and
- * `weldEnds` is not the inverse of `removeWeld`: the break re-captures
- * anchors through `captureAnchors`, which never rewrites an anchor already
- * written, so a re-weld leaves the freed component's new anchor behind and a
- * later break reuses it at a stale frame. Restoring the value is exact by
+ * `weldEnds` is not the inverse of `removeWeld`: the break writes an anchor
+ * for the freed component through `captureAnchors`, and a re-weld leaves it
+ * behind, so the graph after undo would not be the graph before the break
+ * (when this was written, `captureAnchors` also kept that stale anchor on a
+ * later break; it no longer does). Restoring the value is exact by
  * construction, and `Graph` is immutable and structurally shared, so fifty
  * snapshots cost a few pointers each.
  *
