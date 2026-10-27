@@ -63,6 +63,19 @@ export interface GraphLoadResult {
   readonly droppedAnchors: number;
   /** True when the raw blob was copied to `GRAPH_RESCUE_KEY`. */
   readonly rescued: boolean;
+  /**
+   * True only when the layout key held bytes this load did not keep whole AND
+   * they could not be copied aside, so the next save would destroy the only
+   * copy. This, not `!rescued`, is what holds the graph save until Dismiss.
+   *
+   * `!rescued` was the gate and it said too much (filed by /ship 2026-10-14).
+   * On the legacy path the layout key is EMPTY: the old bytes live under the
+   * chain key, which `saveGraph` never writes. A full quota made the rescue
+   * fail, so a user upgrading from the chain format built a track and nothing
+   * was saved, to protect bytes no save could reach. The clean loads also
+   * reported `rescued: false` and were safe only because they carry no notice.
+   */
+  readonly uncopied: boolean;
 }
 
 interface StoredGraph {
@@ -301,12 +314,10 @@ export function loadGraph(
     raw = localStorage.getItem(GRAPH_STORAGE_KEY);
 
     /** A whole-layout refusal: rescue the bytes, then report. */
-    const refuse = (discarded: string): GraphLoadResult => ({
-      value: EMPTY_GRAPH,
-      discarded,
-      droppedAnchors: 0,
-      rescued: raw === null ? false : rescue(raw),
-    });
+    const refuse = (discarded: string): GraphLoadResult => {
+      const rescued = raw === null ? false : rescue(raw);
+      return { value: EMPTY_GRAPH, discarded, droppedAnchors: 0, rescued, uncopied: raw !== null && !rescued };
+    };
 
     if (!raw) {
       // An older chain blob cannot be carried over: it has no welds and no
@@ -320,9 +331,12 @@ export function loadGraph(
             'so it could not be carried over. The canvas started empty.',
           droppedAnchors: 0,
           rescued: rescue(legacy),
+          // The chain key is never written by `saveGraph`, so a failed copy
+          // leaves the old bytes exactly where they were.
+          uncopied: false,
         };
       }
-      return { value: EMPTY_GRAPH, droppedAnchors: 0, rescued: false };
+      return { value: EMPTY_GRAPH, droppedAnchors: 0, rescued: false, uncopied: false };
     }
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== 'object' || parsed === null) return refuse(DISCARDED);
@@ -529,17 +543,22 @@ export function loadGraph(
      */
     clearOfEveryFootprint(out, outWelds, anchorMap, orphans, ports);
 
+    const rescued = droppedAnchors > 0 ? rescue(raw) : false;
     return {
       value: { pieces: out, welds: outWelds, anchors: anchorMap },
       droppedAnchors,
-      rescued: droppedAnchors > 0 ? rescue(raw) : false,
+      rescued,
+      // A clean load loses nothing: saving it back writes what was read.
+      uncopied: droppedAnchors > 0 && !rescued,
     };
   } catch {
+    const rescued = raw === null ? false : rescue(raw);
     return {
       value: EMPTY_GRAPH,
       discarded: DISCARDED,
       droppedAnchors: 0,
-      rescued: raw === null ? false : rescue(raw),
+      rescued,
+      uncopied: raw !== null && !rescued,
     };
   }
 }

@@ -217,6 +217,61 @@ describe('E1: the refused bytes are rescued', () => {
   });
 });
 
+describe('`uncopied`: the save is held only for live bytes that have no copy', () => {
+  /** A store whose rescue write fails, as a full quota or private browsing makes it. */
+  const fullQuota = (seed: Record<string, string>) =>
+    withStore(seed, (store) => {
+      const ls = (globalThis as { localStorage: { setItem: (k: string, v: string) => void } }).localStorage;
+      ls.setItem = (k, v) => {
+        if (k === GRAPH_RESCUE_KEY) throw new Error('QuotaExceededError');
+        store.set(k, v);
+      };
+      return loadGraph(KNOWN, ports);
+    });
+  /** One refused by a check, one by the parser: two different return paths. */
+  const refused = blob({ pieces: [{ pieceId: 'a', partId: 'NOPE' }], welds: [] });
+  const unparseable = { [GRAPH_STORAGE_KEY]: '{not json' };
+  const partial = blob({
+    pieces: [{ pieceId: 'a', partId: 'E' }],
+    welds: [],
+    anchors: [['a', { pos: [1, 0, 0, 0, 0, 0, 0, 0], heading: 400 }]],
+  });
+
+  /*
+   * MUTATION PROOF, run: the legacy path back to the old gate
+   * (`uncopied: !rescue(legacy)`): fails with `expected true to be false //
+   * Object.is equality`, the filed bug, a full quota holding the save of a
+   * user upgrading from the chain format.
+   */
+  it('an old chain blob is never at risk, because no save writes the chain key', () => {
+    const r = fullQuota({ [CHAIN_STORAGE_KEY]: '[{"partId":"E"}]' });
+    expect(r.rescued).toBe(false);
+    expect(r.discarded).toContain('older format');
+    expect(r.uncopied).toBe(false);
+  });
+
+  /*
+   * MUTATION PROOFS, run:
+   * - `refuse` reporting `uncopied: false`: fails with `expected false to be
+   *   true // Object.is equality`.
+   * - the parse failure's `catch` reporting `uncopied: false`: same failure.
+   * - the partial load reporting `uncopied: false`: same failure.
+   */
+  it('refused, unreadable or partly lost bytes with no copy hold the save', () => {
+    expect(fullQuota(refused).uncopied).toBe(true);
+    expect(fullQuota(unparseable).uncopied).toBe(true);
+    expect(fullQuota(partial).uncopied).toBe(true);
+  });
+
+  it('a copy made, a clean load, or nothing stored never holds it', () => {
+    expect(load(refused).uncopied).toBe(false);
+    expect(load(unparseable).uncopied).toBe(false);
+    expect(load(partial).uncopied).toBe(false);
+    expect(fullQuota({ [GRAPH_STORAGE_KEY]: storedRun() }).uncopied).toBe(false);
+    expect(fullQuota({}).uncopied).toBe(false);
+  });
+});
+
 describe('E2: a dropped anchor keeps the layout and never manufactures a clash', () => {
   /** Two separate runs. The second is anchored, which is what keeps them apart. */
   const twoRuns = (secondAnchor: unknown) => ({
