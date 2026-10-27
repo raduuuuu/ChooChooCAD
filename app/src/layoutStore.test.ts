@@ -731,6 +731,48 @@ describe('E9: the anchor-rejection matrix', () => {
     expect(r.droppedAnchors).toBe(2);
     expect(r.value.pieces).toHaveLength(2);
   });
+
+  /*
+   * PIECES, NOT ENTRIES (filed 2026-10-15). The anchors are an array out of an
+   * untrusted blob and may name a piece twice.
+   *
+   * MUTATION PROOF, run: `unreadable` kept as a list that remembers every
+   * entry instead of a set: fails with `expected 2 to be 1 // Object.is
+   * equality`.
+   */
+  it('one piece named twice with bad positions is one loss', () => {
+    const r = load(
+      blob({
+        pieces: [{ pieceId: 'a', partId: 'E', turn: 'left' }],
+        welds: [],
+        anchors: [
+          ['a', { pos: 'rubbish', heading: 0 }],
+          ['a', { pos: [1, 0, 0, 0, 0, 0, 0, 0], heading: 99 }],
+        ],
+      }),
+    );
+    expect(r.droppedAnchors).toBe(1);
+  });
+
+  /*
+   * A READABLE POSITION WINS over a bad entry for the same piece, in either
+   * order. It used to be taken into the anchors and then re-laned anyway.
+   *
+   * MUTATION PROOF, run: `orphans` taking every `unreadable` id (the
+   * `!anchorMap.has(id)` filter dropped): fails with `expected 1 to be +0 //
+   * Object.is equality`, the good position thrown away for a lane.
+   */
+  it('a piece with one good position and one bad keeps the good one, and nothing is reported lost', () => {
+    const good = ['a', { pos: [0, 0, 0, 0, 432, 0, 0, 0], heading: 0 }];
+    const bad = ['a', { pos: 'rubbish', heading: 0 }];
+    for (const anchors of [[good, bad], [bad, good]]) {
+      const r = load(
+        blob({ pieces: [{ pieceId: 'a', partId: 'E', turn: 'left' }], welds: [], anchors }),
+      );
+      expect(r.droppedAnchors).toBe(0);
+      expect(r.value.anchors?.get('a')?.pos.join(',')).toBe('0,0,0,0,432,0,0,0');
+    }
+  });
 });
 
 /**
