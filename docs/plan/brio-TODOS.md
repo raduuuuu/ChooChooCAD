@@ -242,6 +242,16 @@ worth building stands, as do G1 and G2.
 **Priority:** P2
 **Depends on:** K2 arbitrary topology, K3 levels and bridges, T18 assembly order
 
+> **Prerequisites met (2026-10-27).** K2 and K3 shipped (graph engine with
+> switches; two levels with ramps and bridges). The assembly order is
+> `assemblyOrder(graph, segments)` in `engine/src/graph/assembly.ts`: floor,
+> then ramps, then raised track, each band walked along its welds so every step
+> clips onto a piece already down, with the pieces it joins named per step.
+> Under-before-over is pinned against `findBridges` in
+> `engine/test/assembly.test.ts`. Not yet consumed by any UI: build mode and
+> the printable sheet are its first readers. Supports are not modelled, so it
+> places no piers.
+
 ---
 
 ## P2 — Animated train playback and the completion arc
