@@ -363,7 +363,7 @@ export function App() {
     // Decided by the reducer from its RESULT: only an action that changed the
     // graph acknowledges the graph notice (see `EditorState.edited`).
     userHasActed: editor.edited === true,
-    noRescueCopy: !graphLoad.rescued,
+    noRescueCopy: graphLoad.uncopied,
   });
 
   /*

@@ -2151,6 +2151,14 @@ task body); the engine half depends on what the measurement actually yields.
 
 ## P1 — `loadGraph` reports a rescue for bytes that were never at risk, on the legacy-chain path (filed by /ship, 2026-10-14)
 
+**DONE (2026-10-27).** `loadGraph` returns `uncopied`: true only when the layout
+key held bytes the load did not keep whole AND the copy aside failed. The graph
+gate reads it in place of `!rescued`. The legacy path reports false (no save
+writes the chain key), and so do the clean and empty loads, by construction now
+rather than by the notice being absent. Pinned in `layoutStore.test.ts`
+(every return path, under a full quota) and `suppression.dom.test.tsx` (an
+old-format load whose copy failed saves on the first edit).
+
 **What:** `loadGraph`'s legacy-blob path returns `rescued: rescue(legacy)`
 while `raw` is null, i.e. `GRAPH_STORAGE_KEY` held nothing. `App.tsx` turns
 that into `noRescueCopy: !graphLoad.rescued`, which gates the graph save.

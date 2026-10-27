@@ -32,7 +32,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SUBMISSIONS_STORAGE_KEY } from '../../engine/data/library.js';
 import { place } from '../test/place.js';
 import { App } from './App.js';
-import { GRAPH_RESCUE_KEY, GRAPH_STORAGE_KEY, INVENTORY_STORAGE_KEY } from './storageKeys.js';
+import { CHAIN_STORAGE_KEY, GRAPH_RESCUE_KEY, GRAPH_STORAGE_KEY, INVENTORY_STORAGE_KEY } from './storageKeys.js';
 
 /*
  * All three blobs load with a loss, so all three stores open with a notice
@@ -189,7 +189,7 @@ describe('an action releases the save of the store it touched, and no other', ()
    * the rescue key (a full quota, private browsing), the live key is the only
    * copy, so an edit is not enough to release the save; only Dismiss is.
    *
-   * MUTATION PROOF, run: delete `noRescueCopy: !graphLoad.rescued,` from the
+   * MUTATION PROOF, run: delete `noRescueCopy: graphLoad.uncopied,` from the
    * graph gate. Fails with `expected '{"pieces":[{"pieceId":"a","partId":"E…'
    * to be '{"pieces":[{"pieceId":"a","partId":"E…'`: the edit overwrote the
    * only copy of the refused layout.
@@ -210,5 +210,41 @@ describe('an action releases the save of the store it touched, and no other', ()
     await place(user, button(/^Add Large curve\b/));
 
     expect(stored().graph).toBe(GRAPH);
+  });
+
+  /*
+   * AND ONLY THEN. A user upgrading from the old chain format with a full
+   * quota: the rescue write fails, but the old bytes sit under the chain key,
+   * which no save touches, so the first edit must save (filed by /ship
+   * 2026-10-14; the gate read `!rescued` and held every save behind a banner
+   * that only said the canvas started empty).
+   *
+   * MUTATION PROOF, run: the gate back to `noRescueCopy: !graphLoad.rescued,`:
+   * fails with `expected null not to be null`, the track built and never
+   * saved.
+   */
+  it('a graph edit saves after an old-format load whose copy failed', async () => {
+    const setItem = Storage.prototype.setItem;
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+      this: Storage,
+      key: string,
+      value: string,
+    ) {
+      if (key === GRAPH_RESCUE_KEY) throw new Error('QuotaExceededError');
+      setItem.call(this, key, value);
+    });
+    localStorage.setItem(CHAIN_STORAGE_KEY, '[{"partId":"E"}]');
+    const user = userEvent.setup();
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+    expect(screen.getByText(/older format/)).toBeTruthy();
+    expect(localStorage.getItem(GRAPH_STORAGE_KEY)).toBeNull();
+    await place(user, button(/^Add Large curve\b/));
+
+    expect(localStorage.getItem(GRAPH_STORAGE_KEY)).not.toBeNull();
+    expect(localStorage.getItem(CHAIN_STORAGE_KEY)).toBe('[{"partId":"E"}]');
   });
 });
