@@ -29,12 +29,21 @@
  *    (same author). IKEA's own reviews agree: "the pegs and holes are smaller
  *    and does not fit the Brio".
  *
- * WHY THERE ARE NO CURVES HERE. A curve needs a radius and nobody states one for
- * either brand. All that is reported is the ANGLE: Lillabo curves are "8 pieces
- * completing a full circle", so 45 degrees, with small curves at the same radius
- * and half the angle; Playtive is described as having 90-degree curves. Angles
- * are expressible on the 22.5-degree lattice, radii are unknown, so adding a
- * curve would mean inventing the one number that matters. Straights only.
+ * IKEA CURVES, AND WHY THERE ARE STILL NONE FOR PLAYTIVE. A curve needs a
+ * radius and nobody PUBLISHES one for either brand. Until 2026-10-29 this file
+ * held straights only for that reason. One reproduction now gives a radius
+ * for Lillabo: MakerWorld 2181560 by Vamuss, whose description says the
+ * pieces were modelled "zu 100% den IKEA Lillabo Schienen (gekauft 2025)
+ * nachempfunden", copied from Lillabo track bought in 2025, rather than
+ * drawn as a compromise between IKEA and BRIO. Read off its 3MF meshes the
+ * way `switchSeeds.ts` reads switches, its curves come out at a centreline
+ * radius of 202.1 to 202.6mm in three angles, 22.5, 45 and 90 degrees. That
+ * is BRIO E's 202 to within the scatter, and the lattice holds integers
+ * only, so the seeds use 202 (inner 182). The rounding moves the far end of a
+ * 45-degree curve by about 0.4mm, half the estimated joint slop. Playtive
+ * still has no curve: the Lidl reproductions found (MakerWorld 1045052) come
+ * in 10-degree steps, which the 22.5-degree lattice cannot hold, and their
+ * two arc fits disagree by 15mm, so they are not a radius anyone could cite.
  *
  * One thing that is NOT a problem, contrary to an earlier worry: both brands are
  * metric and every figure below is a whole number of millimetres, so all of them
@@ -43,11 +52,11 @@
  *
  * HOW THESE GET FIXED. Not by more searching; there is nothing to find. A user
  * who owns the track measures it and submits the figure, which overrides the
- * seed. That is also the only route to a third-party CURVE, since a radius is
- * the one number no source states.
+ * seed. That is also the only route to a Playtive curve, and the only way the
+ * Lillabo radius stops resting on one reproduction.
  */
 
-import type { BrandFit, Brand, DimensionSource, Part, PartEnds } from '../src/parts/schema.js';
+import type { BrandFit, Brand, CurvePart, DimensionSource, Part, PartEnds, StraightPart } from '../src/parts/schema.js';
 
 /** Same slop placeholder as BRIO. Nobody has measured these joints either. */
 const UNMEASURED_SLOP = {
@@ -62,9 +71,30 @@ const IKEA_UNVERIFIED: DimensionSource = {
   status: 'unverified',
   source: '3D-print reproductions (MakerWorld, Printables, the torwanbukaj OpenSCAD generator)',
   note:
-    'IKEA publishes no piece dimensions. Upgrade to community-measured only when ' +
+    'IKEA publishes no piece dimensions. The 150 is a customizer default, not a copy of ' +
+    'a real piece: the Lillabo reproduction in IKEA_REPRODUCTION has a 145 and no 150. ' +
+    'Upgrade to community-measured only when ' +
     'someone states a measured figure for a specific piece, or to published if ' +
     'IKEA ever lists one.',
+};
+
+/**
+ * The Lillabo reproduction, measured off its 3MF on 2026-10-29.
+ *
+ * Better than `IKEA_UNVERIFIED` because its author says it copies bought
+ * track rather than splitting the difference with BRIO, and still
+ * `unverified`, because a copy of a part is not a measurement of it.
+ */
+const IKEA_REPRODUCTION: DimensionSource = {
+  status: 'unverified',
+  source:
+    'MakerWorld 2181560 "IKEA Lillabo 100% kompatible Schienen" by Vamuss, modelled on ' +
+    'Lillabo track bought in 2025, measured off the 3MF meshes on 2026-10-29',
+  note:
+    'A 3D-print reproduction, not a measurement of real track. Straights read 50.0, ' +
+    '100.0, 145.0, 205.0 and 240.0mm end face to end face. Curves read a centreline ' +
+    'radius of 202.1 to 202.6mm and are modelled at 202, the nearest integer. ' +
+    'Upgrade when someone measures real Lillabo track.',
 };
 
 const PLAYTIVE_UNVERIFIED: DimensionSource = {
@@ -92,8 +122,31 @@ export const IKEA_CONNECTOR = {
   source: 'torwanbukaj/ikea-brio-others-compatible-train-tracks-generator, author measurements',
 } as const;
 
+/** Profile read off the same meshes: 40 wide, 12 thick, as on BRIO. Grooves unmeasured. */
+const LILLABO_PROFILE = { heightMm: 0, gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12 } as const;
+
+const lillaboStraight = (lengthMm: number): StraightPart => ({
+  id: `IKEA-${lengthMm}`, brand: 'IKEA', kind: 'straight', name: 'Lillabo straight',
+  lengthMm,
+  dimensions: IKEA_REPRODUCTION, slop: UNMEASURED_SLOP, ends: STANDARD_ENDS, ...LILLABO_PROFILE,
+});
+
+const lillaboCurve = (code: string, arcSteps: number, name: string): CurvePart => ({
+  id: `IKEA-${code}`, brand: 'IKEA', kind: 'curve', name,
+  innerRadiusMm: 182, arcSteps,
+  dimensions: IKEA_REPRODUCTION, slop: UNMEASURED_SLOP, ends: STANDARD_ENDS, ...LILLABO_PROFILE,
+});
+
+const LILLABO_STRAIGHTS: readonly StraightPart[] = [50, 100, 145, 205, 240].map(lillaboStraight);
+
+const LILLABO_CURVES: readonly CurvePart[] = [
+  lillaboCurve('C22', 1, 'Lillabo curve, 22.5°'),
+  lillaboCurve('C45', 2, 'Lillabo curve, 45°'),
+  lillaboCurve('C90', 4, 'Lillabo curve, 90°'),
+];
+
 /**
- * SEEDS, not a catalogue. Straights only, brand-prefixed ids.
+ * SEEDS, not a catalogue. Brand-prefixed ids. Playtive is straights only.
  *
  * These exist so that someone who owns IKEA or Playtive track finds a row to
  * CORRECT rather than a blank form. Every one is `unverified`, and a user
@@ -111,6 +164,8 @@ export const THIRD_PARTY_SEEDS: readonly Part[] = [
     // IKEA's own reviews say the connectors differ, so the profile may too.
     gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12,
   },
+  ...LILLABO_STRAIGHTS,
+  ...LILLABO_CURVES,
   {
     id: 'PLAYTIVE-30', brand: 'PLAYTIVE', kind: 'straight', name: 'Playtive straight, short',
     lengthMm: 30,
