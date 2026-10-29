@@ -748,13 +748,51 @@ describe('multi-brand catalogue provenance', () => {
     }
   });
 
-  it('no third-party CURVE exists, because no radius is published for one', () => {
-    // Angles are known for both brands and are on the 22.5-degree lattice, but
-    // no source states a radius. Adding a curve would mean inventing the one
-    // number that decides the geometry.
-    for (const p of BUILT_IN) {
-      if (p.brand !== 'BRIO') expect(p.kind, p.id).toBe('straight');
+  /*
+   * A THIRD-PARTY CURVE ONLY WHERE A REPRODUCTION GIVES THE RADIUS. Until
+   * 2026-10-29 no third-party curve existed, because no source states a
+   * radius for IKEA or Playtive. The Lillabo reproduction in
+   * `IKEA_REPRODUCTION` gives one off its meshes, so IKEA has curves and
+   * Playtive still does not. This pins both halves: a curve may only rest on
+   * that reproduction, and the numbers it was modelled from are the ones read
+   * off the 3MF, not the catalogue's own.
+   *
+   * MUTATION PROOF, run: model the Lillabo curves at `innerRadiusMm: 192`.
+   * Fails with `IKEA-C22 far end: expected 3.8 to be less than 1`.
+   */
+  it('a third-party curve exists only where a reproduction measured its radius', () => {
+    const curves = BUILT_IN.filter((p) => p.brand !== 'BRIO' && p.kind === 'curve');
+    expect(curves.map((p) => p.id).sort()).toEqual(['IKEA-C22', 'IKEA-C45', 'IKEA-C90']);
+    for (const p of curves) {
+      expect(isUnverified(p), p.id).toBe(true);
+      expect(p.dimensions.source, p.id).toContain('MakerWorld 2181560');
     }
+    expect(BUILT_IN.some((p) => p.brand === 'PLAYTIVE' && p.kind !== 'straight')).toBe(false);
+
+    // Far end of each reproduction curve, read off its mesh on 2026-10-29:
+    // along the entry heading, and across it, millimetres.
+    const MEASURED: Record<string, readonly [number, number]> = {
+      'IKEA-C22': [77.4, 15.4],
+      'IKEA-C45': [143.2, 59.3],
+      'IKEA-C90': [202.4, 202.6],
+    };
+    for (const p of curves) {
+      const [x, y] = toXY(displacement(p, 0, 'left'));
+      const [mx, my] = MEASURED[p.id]!;
+      expect(Math.round(Math.hypot(x - mx, y - my) * 10) / 10, `${p.id} far end`).toBeLessThan(1);
+    }
+  });
+
+  /*
+   * MUTATION PROOF, run: build the straights from `[50, 100, 146, 205, 240]`.
+   * Fails with `expected [ 50, 100, 146, 205, 240 ] to deeply equal [ 50,
+   * 100, 145, 205, 240 ]`.
+   */
+  it('the Lillabo straights are the lengths read off the reproduction', () => {
+    const lengths = BUILT_IN.filter(
+      (p) => p.brand === 'IKEA' && p.kind === 'straight' && p.dimensions.source.includes('MakerWorld 2181560'),
+    ).map((p) => (p as Extract<Part, { kind: 'straight' }>).lengthMm);
+    expect(lengths).toEqual([50, 100, 145, 205, 240]);
   });
 
   it('brand fit records that BRIO and IKEA do not join', () => {

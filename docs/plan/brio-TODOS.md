@@ -11,6 +11,21 @@ from its low end to its high end (owner's choice of the cast shadow over pier
 marks and a heavier outline, which rule 11 reserves for selection). Recorded in
 DESIGN.md rule 11; `--track-shadow` measured 3.03:1 on `--floor`.
 
+## P1 — Every BRIO piece from MakerWorld (owner, 2026-10-29)
+
+Plan and measurements: `docs/plan/2026-10-29-makerworld-pieces.md`. Scope
+chosen by the owner: phased, all BRIO types.
+
+- PR 1, DONE in this branch: the Lillabo set (five straights, curves of 22.5,
+  45 and 90 degrees) from the Vamuss reproduction.
+- NEXT: one general multi-road part kind (ports at exact poses, each with its
+  own polarity, plus straight or arc roads between them), then data PRs for
+  H/H1/H2, I/J, O/P, T/X, EE, F1/G1, F/G and the Lillabo crossing and Ys.
+- Then a one-port kind for the R/S buffer stops.
+- T and X are exact at a 108 centreline (three reproductions agree), so
+  `BRIO_PIECE_TABLE`'s `approximate-radius` for them is to be corrected in
+  that PR.
+
 ## P3 — Point mouse users to the list for ends hidden under a bridge
 
 **DONE (2026-10-24).** When a free floor end's centre lies on raised wood, the
