@@ -506,6 +506,23 @@
  */
 .verdict-empty { color: var(--empty); }
 
+/*
+ * The app's name, the first line of the rail. Quiet on purpose: it names the
+ * tool for a screenshot or a first visit and then gets out of the way, so it
+ * sits in ink at the size of the labels around it, with no header bar.
+ */
+.app-name {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink);
+}
+.app-name-mark { flex: none; }
+.app-name-title { font-weight: 600; }
+.app-name-tag { color: var(--ink-soft); }
+
 /* 3rd in hierarchy: the palette. */
 .palette {
   padding: var(--s3) var(--s4) var(--s4);
