@@ -69,6 +69,8 @@ import { viewOf } from './verdictView.js';
 import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
 import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
 import { CANVAS_SEGMENT_CEILING, TrackCanvas } from './TrackCanvas.js';
+import { PartPreview } from './PartPreview.js';
+import { previews } from './previewGeometry.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
 import { VerdictLine, VerdictScope } from './VerdictLine.js';
 import { ghostFit, joinRefusal, otherLevelEndNear, shiftMm, snapRunMove, type JoinRefusal } from './layoutModel.js';
@@ -190,6 +192,8 @@ export function App() {
       : undefined);
   const library = useMemo(() => resolveLibrary(submissions), [submissions]);
   const resolve = useMemo(() => makeResolver(library), [library]);
+  // Each card's drawing, rebuilt when the library is (eng D1: a correction keeps the id).
+  const partPreviews = useMemo(() => previews(library), [library]);
   const libraryIds = useMemo(() => new Set(library.map((p) => p.id)), [library]);
   // Switches, crossings and buffer stops: the correction form makes two-ended parts only.
   const notTwoEndedIds = useMemo(
@@ -1140,7 +1144,8 @@ export function App() {
                 disabled={overLimit}
                 // The picked piece's button takes a touch drag (see usePaletteDrag).
                 data-picked={ghost?.partId === part.id ? '' : undefined}
-                title="Double-click to place directly"
+                // The full code and name, which the card may cut short (11A, eng D5).
+                title={`${shortCode(part)} ${part.name}. Double-click to place directly`}
                 aria-label={[
                   // The name, then each note as its own sentence.
                   `Add ${part.name}${isRamp(part) || unverified || unowned ? '.' : ''}`,
@@ -1149,17 +1154,11 @@ export function App() {
                   ...(unowned ? ['More than you own.'] : []),
                 ].join(' ')}
               >
+                {/* The part's drawing, first in the row (1A); a ramp's chevron is in it (9A). */}
+                <PartPreview preview={partPreviews.get(part.id) ?? null} />
                 <span className="piece-id num">{shortCode(part)}</span>
                 <span className="piece-name">{part.name}</span>
-                <span className="piece-dim num">
-                  {paletteSize(part)}
-                  {isRamp(part) && (
-                    /* The canvas's rise chevron, in ink (design 12A, rule 1); the name says it in words. */
-                    <svg className="rise-chevron-icon" viewBox="-8 -10 16 20" aria-hidden="true">
-                      <path className="rise-chevron" d="M -6 -9 L 6 0 L -6 9" transform="rotate(-90)" />
-                    </svg>
-                  )}
-                </span>
+                <span className="piece-dim num">{paletteSize(part)}</span>
               </button>
               {counts[part.id] ? <span className="piece-count num">{counts[part.id]}</span> : null}
             </div>

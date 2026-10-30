@@ -140,6 +140,12 @@ nothing else uses:
   its far end, 6mm deep, in the wood's millimetres. Ends are circles and
   seams hairlines, so nothing else on the canvas is a filled bar; round
   buffers were tried and read as port dots.
+- **A part card's drawing is the canvas in miniature, in ink** (part
+  previews, 2026-10-30): one schematic track width, a peg a filled disc and a
+  socket a ring as on the canvas's free ends, a buffer's beam, a ramp's
+  chevron. No beech and no grooves: the palette gets no colour (rule 1). The
+  drawing follows the card's text colour, so a greyed card has a greyed
+  drawing.
 - **Strokes keep their device size** (`vector-effect: non-scaling-stroke`),
   because the canvas fits the whole layout into a fixed box and a stroke in
   millimetres thins to nothing on a big board.
