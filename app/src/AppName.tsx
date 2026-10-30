@@ -14,7 +14,7 @@ export function AppName() {
     <p className="app-name">
       <svg className="app-name-mark" width="18" height="18" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
         <defs>
-          <mask id="app-name-socket">
+          <mask id="app-name-socket" maskUnits="userSpaceOnUse" x="0" y="0" width="200" height="200">
             <rect width="200" height="200" fill="white" />
             <line x1="157.34" y1="140.15" x2="146" y2="156.5" stroke="black" strokeWidth="12" />
             <circle cx="146" cy="156.5" r="13" fill="black" />

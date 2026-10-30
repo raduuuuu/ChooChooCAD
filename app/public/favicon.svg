@@ -5,7 +5,7 @@
     fits, cut through the plank. Colours from app/src/tokens.css.
   -->
   <defs>
-    <mask id="socket">
+    <mask id="socket" maskUnits="userSpaceOnUse" x="0" y="0" width="200" height="200">
       <rect width="200" height="200" fill="white"/>
       <line x1="157.34" y1="140.15" x2="147" y2="154.9" stroke="black" stroke-width="10"/>
       <circle cx="147" cy="154.9" r="10.5" fill="black"/>
