@@ -142,9 +142,14 @@ describe('the bound: a gap cannot exceed the give', () => {
     if (!eight.ok || !sixteen.ok) return;
     expect(eight.joints).toHaveLength(8);
     expect(sixteen.joints).toHaveLength(16);
-    // 0.8mm one-sided per joint, from ESTIMATED_SLOP.
-    expect(eight.totalGiveMm).toBeCloseTo(6.4, 9);
-    expect(sixteen.totalGiveMm).toBeCloseTo(12.8, 9);
+    // 2mm one-sided per joint, MEASURED (CALIBRATION.md Q2, 2026-10-30:
+    // two straights pulled apart 2mm at the limit, pushed back to touching).
+    // It replaced the 0.8mm ESTIMATED_SLOP this used to pin.
+    //
+    // MUTATION PROOF, run: `pullApartMm: 1` in measurements.ts fails with
+    // `expected 8 to be close to 16, received difference is 8`.
+    expect(eight.totalGiveMm).toBeCloseTo(16, 9);
+    expect(sixteen.totalGiveMm).toBeCloseTo(32, 9);
   });
 
   /*
@@ -179,7 +184,7 @@ describe('the bound: a gap cannot exceed the give', () => {
    * NOT EXCLUSIVE, AND THAT WAS MEASURED RATHER THAN ASSUMED. Two specs in
    * this describe go red with it: 'total give is the sum over joints' and
    * 'documents that the band is narrow for SMALL layouts', both because they
-   * pin a FIGURE (6.4mm, under 10mm) for a fixed layout. That is the reason
+   * pin a FIGURE (16mm, 20mm) for a fixed layout. That is the reason
    * this spec is still worth its line. Those two are repaired by editing the
    * expected number, which a reasonable editor landing CALIBRATION.md Q2 would
    * do without ever reading `trust.ts`; this one cannot be repaired that way,
@@ -228,10 +233,17 @@ describe('the bound: a gap cannot exceed the give', () => {
   /**
    * Honest limitation, asserted so it cannot drift unnoticed.
    *
-   * With the current guessed give of 0.8mm per joint, a ten-joint layout offers
-   * 8mm in total, while real gaps on this lattice arrive in part-length steps:
-   * 54mm, 72mm, 216mm. So for SMALL layouts the hedged middle band is nearly
-   * empty and almost everything is either exact or a definite no.
+   * With the measured axial give of 2mm per joint (CALIBRATION.md Q2,
+   * 2026-10-30), a ten-joint layout offers 20mm in total, while real gaps on
+   * this lattice arrive in part-length steps: 54mm, 72mm, 216mm. So for SMALL
+   * layouts the hedged middle band is nearly empty and almost everything is
+   * either exact or past the give.
+   *
+   * THIS LOOP IS THE FLOOR'S COUNTER-EXAMPLE. It is CALIBRATION.md Q1, and on
+   * the floor it closes with every joint seated and a train runs round it, so
+   * an axial-only total is the wrong model for it. The bend model
+   * (docs/designs/joint-bend.md) replaces this bound; until it lands this
+   * spec pins what the axial total says, not what the track does.
    *
    * It is the opposite at scale, because give accumulates with joint count
    * while the gap does not: a 641-piece layout with a 54mm gap has 512mm of
@@ -242,12 +254,14 @@ describe('the bound: a gap cannot exceed the give', () => {
    * it, which the geometry does not guarantee. The verdict copy says "may well
    * seat", never "will".
    */
-  it('documents that the band is narrow for SMALL layouts under the guessed give', () => {
+  it('documents that the band is narrow for SMALL layouts under the measured axial give', () => {
     const r = solveLayout(loop([...rep('E', 4), 'D', ...rep('E', 4), 'A']));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.totalGiveMm).toBeLessThan(10);
-    expect(r.gapMm / r.totalGiveMm).toBeGreaterThan(5);
+    // MUTATION PROOF, run: `pullApartMm: 3` in measurements.ts fails with
+    // `expected 30 to be 20`.
+    expect(r.totalGiveMm).toBe(20);
+    expect(r.gapMm / r.totalGiveMm).toBeGreaterThan(3);
   });
 
   it('rejects a heading mismatch outright: give cannot rotate the track', () => {

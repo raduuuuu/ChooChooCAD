@@ -19,22 +19,25 @@ import type { Measurements } from './calibration.js';
 
 export const MEASUREMENTS: Measurements = {
   /** 'YYYY-MM-DD'. Required as soon as any number below is filled in. */
-  measuredOn: null,
+  measuredOn: '2026-10-30',
   /** How, in a few words: "digital caliper, steel rule", "phone photo over a rule". */
-  method: null,
+  method:
+    'read off the filled-in CALIBRATION.md; instrument not recorded. Q1 corrected by the owner ' +
+    'the same day: the sheet\'s train NO meant it did not derail, and the 4mm under "if not" is void ' +
+    'because the loop closed. The Q2 bend box ("4 mm over 0 mm") was not measured.',
 
   /** Q1: E E E E D E E E E A, the loop the engine says misses by 72mm. */
   q1: {
-    closes: null, //            true / false: closes with every joint seated
-    feel: null, //              'strained' / 'comfortable', if it closes
+    closes: true, //            true / false: closes with every joint seated
+    feel: 'strained', //        'strained' / 'comfortable', if it closes
     leftoverGapMm: null, //     if it does not close
-    trainRuns: null, //         true / false: a train goes round without derailing
+    trainRuns: true, //         true / false: a train goes round without derailing
   },
 
   /** Q2: two straights, one joint. */
   q2: {
-    pullApartMm: null, //       face-to-face gap at the limit of comfortable pull
-    pushStopMm: null, //        0 if it closes to touching; else the gap at the hard stop
+    pullApartMm: 2, //          face-to-face gap at the limit of comfortable pull
+    pushStopMm: 0, //           0 if it closes to touching; else the gap at the hard stop
     bendDeg: null, //           in-plane bend at the limit, if read as an angle
     bendSidewaysMm: null, //    OR: the far end's sideways travel ...
     bendOverMm: null, //        ... over this length (the piece's length)
@@ -42,21 +45,21 @@ export const MEASUREMENTS: Measurements = {
 
   /** Q3: the 216mm straight, D (#33341). */
   q3: {
-    overallMm: null, //         end face to end face, peg included
-    withoutPegMm: null, //      base of the peg to the opposite end face
-    pegNeckDiameterMm: null,
-    socketThroatWidthMm: null,
+    overallMm: 233, //          end face to end face, peg included
+    withoutPegMm: 216, //       base of the peg to the opposite end face
+    pegNeckDiameterMm: 5,
+    socketThroatWidthMm: 8,
   },
 
   /** Q4: the ramp, N (#33332). */
   q4: {
-    runMm: null, //             flat on the floor, end to end
-    slopeMm: null, //           along the sloping surface
+    runMm: 225, //              flat on the floor, end to end
+    slopeMm: 230, //            along the sloping surface
   },
 
   /** Q5: the bridge subtraction. */
   q5: {
-    vehicleHeightMm: null, //   the tallest vehicle you own, wheels to roof
+    vehicleHeightMm: 55, //     the tallest vehicle you own, wheels to roof
     riseMm: null, //            ramp rise, if you re-measure it (published: 64)
     plankThicknessMm: null, //  if you re-measure it (published: 12)
   },

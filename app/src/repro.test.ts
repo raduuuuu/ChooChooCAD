@@ -331,7 +331,10 @@ describe('the generated repro runs', () => {
      * that only eight real joints produce.
      */
     expect(out).toContain('rank: 1');
-    expect(out).toMatch(/totalGiveMm: 6\.[0-9]/);
+    // Eight joints at the measured 2mm each (CALIBRATION.md Q2). MUTATION
+    // PROOF, run: `pullApartMm: 1` in measurements.ts fails with `expected
+    // 'inventory {\n  E: 8,\n}\nrefused byte…' to match /totalGiveMm: 16[,\s]/`.
+    expect(out).toMatch(/totalGiveMm: 16[,\s]/);
     expect(out).toContain('closesExactly: true');
     expect(out).not.toContain('no layout was stored');
   });

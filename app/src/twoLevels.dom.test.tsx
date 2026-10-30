@@ -117,12 +117,18 @@ describe('a bridge on the canvas', () => {
    * MUTATION PROOF, run: `RaisedNote` dropped from `notesFor`: fails with
    * `expected 'Grid: 10 cm?Not a loop yet. 2 separat…' to contain 'Raised
    * track: supports are not checke…'`.
+   *
+   * The clearance is the MEASURED -3mm (CALIBRATION.md Q5, 2026-10-30); a
+   * warning for a train that does not fit is a TODO in docs/plan/brio-TODOS.md.
+   * MUTATION PROOF, run: `vehicleHeightMm: 44` in measurements.ts fails with
+   * `expected 'Grid: 10 cm · Shadow: raised?Not a lo…' to match /crosses other
+   * track at\s*1\s*place; c…/`.
    */
-  it('the note says supports are not checked and gives the estimated clearance', () => {
+  it('the note says supports are not checked and gives the measured clearance', () => {
     mount(BRIDGE);
     const text = document.body.textContent!;
     expect(text).toContain('Raised track: supports are not checked.');
-    expect(text).toMatch(/crosses other track at\s*1\s*place; clearance is about\s*8\s*mm/);
+    expect(text).toMatch(/crosses other track at\s*1\s*place; clearance is about\s*-3\s*mm/);
   });
 });
 
