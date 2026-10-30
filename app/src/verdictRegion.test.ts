@@ -31,6 +31,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { createElement } from 'react';
+import { bendWords } from '../../engine/src/joints/bendWords.js';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { BUILT_IN, makeResolver } from '../../engine/data/library.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
@@ -61,17 +62,26 @@ type Tone = 'empty' | 'unknown' | 'fail' | 'tight' | 'pass';
 const EXPECTED: Record<VerdictKind, { tone: Tone; mark: string | null; lead: RegExp }> = {
   NOTHING: { tone: 'empty', mark: null, lead: /^Nothing to check yet\./ },
   NO_CYCLE: { tone: 'unknown', mark: '?', lead: /^Not a loop yet\./ },
-  HEADING_MISMATCH: { tone: 'unknown', mark: '?', lead: /^The track does not come back/ },
+  BEND_UNCHECKED: { tone: 'unknown', mark: '?', lead: /^Could not check the bend:/ },
   TOO_MANY_LOOPS: { tone: 'unknown', mark: '?', lead: /^Too many loops/ },
   TOO_BIG_TO_CHECK: { tone: 'unknown', mark: '?', lead: /^Too much track here to check/ },
   NUMERIC: { tone: 'unknown', mark: '?', lead: /^Could not check/ },
   IMPOSSIBLE: { tone: 'fail', mark: 'X', lead: /^Can’t be built\./ },
   EXACT: { tone: 'pass', mark: 'O', lead: /^This works\./ },
   NEEDS_GIVE: { tone: 'tight', mark: '/\\', lead: /^Tight\./ },
-  EXCEEDS: { tone: 'fail', mark: 'X', lead: /^Exceeds the modelled give\./ },
+  EXCEEDS: { tone: 'fail', mark: 'X', lead: /^Beyond the tested bend:/ },
 };
 
 const KINDS = Object.keys(EXPECTED) as VerdictKind[];
+
+/** Bend words for a plausible all-BRIO run, from the engine's own builder (D7). */
+const wordsFor = (status: 'closes' | 'beyond', lambda: number) =>
+  bendWords(
+    { pieces: ['p1'], status, lambda, stretchMm: 1, leftoverMm: 0, turnedSteps: 0, standalone: [lambda], why: null, work: 0, movesMm: 3, others: [], brio: true, atLeast: false },
+    { deg: 2.7, status: 'inferred', source: 'test', marginDeg: 0 },
+    status === 'beyond' ? 1 : 0,
+    1,
+  );
 
 /** A view of `kind` with plausible figures, so every branch has something to print. */
 const view = (kind: VerdictKind): VerdictView => ({
@@ -79,7 +89,7 @@ const view = (kind: VerdictKind): VerdictView => ({
   detail: kind === 'NOTHING' ? '' : 'detail text',
   gapMm: 12,
   gapKnown: kind === 'EXACT' || kind === 'NEEDS_GIVE' || kind === 'EXCEEDS',
-  giveMm: 8,
+  bend: kind === 'NEEDS_GIVE' ? wordsFor('closes', 0.8) : kind === 'EXCEEDS' ? wordsFor('beyond', 1.6) : null,
   rank: 1,
   failingLoops: kind === 'EXCEEDS' ? 1 : 0,
   overlapCount: 0,
@@ -97,12 +107,14 @@ const view = (kind: VerdictKind): VerdictView => ({
   pieces: null,
 });
 
-/** All five trust kinds, two of them serious. */
+/**
+ * All four trust kinds, three of them serious. There were five until the
+ * give notes retired (design review 8A).
+ */
 const FIVE: readonly TrustIssue[] = [
-  { kind: 'estimated-give', detail: 'give is estimated' },
   { kind: 'single-source', detail: 'one person measured this' },
   { kind: 'unverified-size', detail: 'nobody measured this' },
-  { kind: 'axial-only-give', detail: 'pull-apart slack only' },
+  { kind: 'modelled-switch', detail: 'this switch is modelled' },
   { kind: 'brands-do-not-join', detail: 'these brands do not join' },
 ];
 
@@ -214,11 +226,11 @@ describe('the live region holds the sentence and nothing else', () => {
   });
 
   /*
-   * Five trust issues, the most this register can hold. The two serious ones
-   * are the two shown; the rest become a count.
+   * Four trust issues, three of them serious. Two serious ones are shown;
+   * the rest become a count.
    *
    * MUTATION PROOF, run: raise `TRUST_INLINE_LIMIT` to 3. Fails with
-   * `expected [ [ …(3), index: 341, …(2) ], …(2) ] to have a length of 2 but
+   * `expected [ [ …(3), index: 393, …(2) ], …(2) ] to have a length of 2 but
    * got 3`.
    */
   it('shows the two serious notes and counts the rest', () => {
@@ -226,7 +238,7 @@ describe('the live region holds the sentence and nothing else', () => {
     const items = [...html.matchAll(/<li( class="is-serious")?>(.*?)<\/li>/g)];
     expect(items).toHaveLength(2);
     expect(items.every((m) => m[1] !== undefined)).toBe(true);
-    expect(html).toMatch(/and <span class="num">3<\/span> more notes about this layout\./);
+    expect(html).toMatch(/and <span class="num">2<\/span> more notes about this layout\./);
   });
 });
 
@@ -259,38 +271,29 @@ describe('a layout with a switch', () => {
   });
 
   /*
-   * MUTATION PROOF, run: pass `true` for `basis` on the IMPOSSIBLE branch's
-   * `notesFor` call. Fails with `IMPOSSIBLE: expected '<div class="verdict
-   * verdict-fail" rol…' not to contain 'verdict-basis'`.
+   * THE BASIS IS THE CATALOGUE, ON THE EXACT VERDICT ONLY (design review 8A).
+   * It used to add "joint give estimated/measured" on the three verdicts that
+   * compared a gap with a give total; the total is gone, and a verdict that
+   * needs bend carries the limits note instead (design 5A), in its own class.
+   *
+   * MUTATION PROOF, run: pass `true` for `basis` on the NEEDS_GIVE branch's
+   * `notesFor` call. Fails with `NEEDS_GIVE: expected '<div class="verdict
+   * verdict-tight" ro…' not to contain 'verdict-basis'`.
    */
-  it('states the basis on the three verdicts that compare a gap with give, and only those', () => {
-    const withBasis: VerdictKind[] = ['EXACT', 'NEEDS_GIVE', 'EXCEEDS'];
+  it('states the catalogue basis on EXACT only; bend verdicts carry the limits note', () => {
     for (const kind of KINDS) {
       const html = render(kind, trustL);
-      if (withBasis.includes(kind)) {
-        expect(html, kind).toContain(
-          '<p class="verdict-basis">Exact to the catalogue; joint give estimated.</p>',
-        );
+      if (kind === 'EXACT') {
+        expect(html, kind).toContain('<p class="verdict-basis">Exact to the catalogue.</p>');
         expect(region(html).inner, kind).not.toContain('verdict-basis');
       } else {
         expect(html, kind).not.toContain('verdict-basis');
       }
+      if (kind === 'NEEDS_GIVE' || kind === 'EXCEEDS') {
+        expect(html, kind).toContain('<p class="verdict-limits">A built loop needed BRIO joints to bend 2.7°.</p>');
+        expect(region(html).inner, kind).not.toContain('verdict-limits');
+      }
     }
-  });
-
-  /*
-   * MEASURED ONLY WHEN THE REGISTER SAYS SO. With no estimated-give note the
-   * give was measured; with no register at all nothing was established, and
-   * the clause is withheld rather than defaulting to "measured".
-   *
-   * MUTATION PROOF, run: delete the `trust.length === 0` guard in `Basis`.
-   * Fails with `expected '<div class="verdict verdict-pass" rol…' not to
-   * contain 'verdict-basis'`.
-   */
-  it('says measured only when the register ran and found no estimated give', () => {
-    const axialOnly = trustL.filter((t) => t.kind === 'axial-only-give');
-    expect(render('EXACT', axialOnly)).toContain('joint give measured.');
-    expect(render('EXACT', [])).not.toContain('verdict-basis');
   });
 });
 

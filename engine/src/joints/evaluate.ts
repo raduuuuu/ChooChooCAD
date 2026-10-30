@@ -16,6 +16,8 @@
 import type { ConnectorClash, PolarityViolation } from '../feasible.js';
 import type { CalibrationStatus } from '../parts/schema.js';
 import type { SolveResult } from '../solver/result.js';
+import { bendWords } from './bendWords.js';
+import { bendLimit } from '../../data/bendLimit.js';
 
 export type LayoutVerdict =
   /**
@@ -37,8 +39,8 @@ export interface LayoutEvaluation {
   readonly verdict: LayoutVerdict;
   /** Residual magnitude, millimetres. Zero when EXACT. */
   readonly gapMm: number;
-  /** Total one-sided axial give across all joints, millimetres. */
-  readonly totalGiveMm: number;
+  /** The worst joint's bend as a share of its limit; null when not solved. */
+  readonly lambda: number | null;
   readonly jointCount: number;
   /** Coincident non-adjacent connectors. Empty unless the verdict is IMPOSSIBLE. */
   readonly clashes: readonly ConnectorClash[];
@@ -53,7 +55,7 @@ export function unknownLayout(why: string, calibrationStatus: CalibrationStatus)
   return {
     verdict: 'UNKNOWN',
     gapMm: 0,
-    totalGiveMm: 0,
+    lambda: null,
     jointCount: 0,
     clashes: [],
     polarityViolations: [],
@@ -73,8 +75,8 @@ export function evaluateLayout(
   // Should be unreachable: result.ts asserts finiteness at its boundary. Kept
   // because a comparison against a non-number silently yields false, which
   // would render as healthy.
-  if (!Number.isFinite(result.gapMm) || !Number.isFinite(result.totalGiveMm)) {
-    return unknownLayout('non-finite gap or give', calibrationStatus);
+  if (!Number.isFinite(result.gapMm) || (result.bend.lambda !== null && !Number.isFinite(result.bend.lambda))) {
+    return unknownLayout('non-finite gap or bend', calibrationStatus);
   }
 
   const reasons: string[] = [];
@@ -110,19 +112,13 @@ export function evaluateLayout(
   } else if (result.closesExactly) {
     verdict = 'EXACT';
     reasons.push('closes exactly; no give needed at any joint');
-  } else if (result.withinBound) {
-    verdict = 'NEEDS_GIVE';
-    reasons.push(
-      `needs ${result.gapMm.toFixed(0)}mm absorbed across ${jointCount} joints, ` +
-        `which have ${result.totalGiveMm.toFixed(0)}mm between them`,
-    );
-    reasons.push('within the total give, so it may well seat; this is not a guarantee');
   } else {
-    verdict = 'EXCEEDS';
-    reasons.push(
-      `needs ${result.gapMm.toFixed(0)}mm absorbed but the joints give only ` +
-        `${result.totalGiveMm.toFixed(0)}mm in total`,
-    );
+    // The same words the verdict line renders, built once (eng review D7).
+    verdict = result.withinBound ? 'NEEDS_GIVE' : 'EXCEEDS';
+    const words = bendWords(result.bend, bendLimit(), result.withinBound ? 0 : 1, 1);
+    reasons.push(words.line);
+    if (words.turned) reasons.push(words.turned);
+    for (const l of words.limits) reasons.push(l.text);
   }
 
   if (calibrationStatus !== 'measured') {
@@ -132,7 +128,7 @@ export function evaluateLayout(
   return {
     verdict,
     gapMm: result.gapMm,
-    totalGiveMm: result.totalGiveMm,
+    lambda: result.bend.lambda,
     jointCount,
     clashes: result.clashes,
     polarityViolations: result.polarityViolations,

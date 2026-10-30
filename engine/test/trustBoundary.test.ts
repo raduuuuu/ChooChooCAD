@@ -30,12 +30,10 @@ import {
   type Submission,
 } from '../data/library.js';
 import { DIMENSION_TRUST, trustRank, type Part } from '../src/parts/schema.js';
-import { layoutTrust } from '../src/joints/trust.js';
 import { placeAll } from '../src/graph/frames.js';
 import { graphFromChain } from '../src/graph/fromChain.js';
 import { solveGraph } from '../src/graph/solve.js';
 import { portsOf } from '../src/graph/model.js';
-import { brandFit } from '../data/thirdParty.js';
 import { makeResolver } from '../data/library.js';
 import { SUBMISSIONS_STORAGE_KEY } from '../data/library.js';
 
@@ -310,9 +308,8 @@ describe('loadSubmissions drops rows the engine would crash on', () => {
 /**
  * The slop a stored submission may claim (finding B2).
  *
- * Value: protects=the `estimated-give` caveat cannot be switched off by a
- * stored blob, and a give figure cannot be inflated until every layout
- * "might fit"
+ * Value: protects=a stored blob cannot promote its slop to 'measured', and a
+ * give figure cannot be inflated until every layout "might fit"
  * Value: fails_when=`looksLikePart` stops checking `slop.calibrationStatus`,
  * or drops either slop ceiling
  * Value: why_new=`calibrationStatus` was not validated at all, and `axialMm`
@@ -322,20 +319,19 @@ describe('loadSubmissions drops rows the engine would crash on', () => {
  * 0.9mm instead of 0.8mm is indistinguishable from a real measurement and
  * this cannot tell them apart
  *
- * THIS REPRODUCES A MEASURED FAILURE. Before the fix, `layoutTrust` on the
- * published straight D reported `['estimated-give']`; after one stored row
- * claiming `calibrationStatus: 'measured'` and `axialMm: 999` was accepted,
- * it reported no give caveat at all. `trust.ts`'s own comment on that rule
- * says it "must stay true in EVERY verdict state".
+ * THIS REPRODUCED A MEASURED FAILURE. Before the fix, one stored row claiming
+ * `calibrationStatus: 'measured'` and `axialMm: 999` was accepted and silenced
+ * the 'estimated-give' caveat. That caveat was retired on 2026-10-30 (design
+ * review 8A: where each joint's figure comes from is now the verdict's limits
+ * note), so the guard is pinned where it acts: in what storage hands back.
  */
 describe('a stored submission cannot claim its give was measured', () => {
   const realD = BUILT_IN.find((p) => p.id === 'D')!;
-  const layout = { placements: [{ partId: 'D' }], closed: false } as never;
-  const kindsFor = (parts: readonly Part[]) =>
-    layoutTrust(layout, makeResolver(parts), brandFit).map((i) => i.kind);
 
-  it('the published library says the give is estimated (control)', () => {
-    expect(kindsFor(BUILT_IN)).toContain('estimated-give');
+  it('the published library does not claim a measured bend (control)', () => {
+    // Stretch is measured; the part's own bend figure is not, so the budget
+    // as a whole stays 'estimated' (calibration.ts `jointSlop`).
+    expect(realD.slop.calibrationStatus).toBe('estimated');
   });
 
   /*
@@ -347,8 +343,8 @@ describe('a stored submission cannot claim its give was measured', () => {
    * forced, so rule 4's invariant holds by construction.
    *
    * MUTATION PROOF, run: remove the `calibrationStatus: 'estimated'` coercion
-   * from `loadSubmissionsResult` and this fails -- the stored 'measured'
-   * survives and `estimated-give` vanishes from the register.
+   * from `loadSubmissionsResult` and this fails with `expected 'measured' to
+   * be 'estimated'`.
    */
   it('a row claiming measured give is kept, coerced, and still caveated', () => {
     const forged = submissionWith({
@@ -366,7 +362,6 @@ describe('a stored submission cannot claim its give was measured', () => {
     expect(kept[0]!.part.slop.axialMm).toBe(0.9);
     // But the claim did not.
     expect(kept[0]!.part.slop.calibrationStatus).toBe('estimated');
-    expect(kindsFor(resolveLibrary(kept))).toContain('estimated-give');
   });
 
   it('a legitimate estimated row is untouched, so this is not a blanket rewrite', () => {
@@ -439,7 +434,8 @@ describe('a stored submission cannot claim its give was measured', () => {
  *
  * MEASURED at the old ceiling: eight large curves plus one straight, a 216mm
  * gap and no clashes, went from `withinBound: false` (EXCEEDS) with the real
- * 7.2mm of give to `withinBound: true` (NEEDS_GIVE) with 450mm.
+ * 7.2mm of give to `withinBound: true` (NEEDS_GIVE) with 450mm. The give is
+ * per-joint stretch in the bend model now, and the ceiling still bounds it.
  */
 describe('a stored row cannot inflate the give into a softer verdict', () => {
   const ring = () => {
@@ -461,8 +457,8 @@ describe('a stored row cannot inflate the give into a softer verdict', () => {
     };
     return solveGraph(g, ports as never, resolve, slopOf, placeAll(g, ports as never)) as unknown as {
       gapMm: number;
-      totalGiveMm: number;
       withinBound: boolean;
+      lead: { status: string; lambda: number | null; stretchMm: number };
     };
   };
 
@@ -516,8 +512,9 @@ describe('a stored row cannot inflate the give into a softer verdict', () => {
     const kept = keptWith({ axialMm: 50, angularDeg: 1.5, calibrationStatus: 'published' });
     expect(kept).toHaveLength(0);
     const v = verdictFor(resolveLibrary(kept));
-    // The harm, pinned directly: 50mm x 9 joints would be 450mm of give.
-    expect(v.totalGiveMm).toBeLessThan(50);
+    // The harm, pinned directly: 50mm of stretch at each of 9 joints would
+    // let the 216mm gap close. Refused, no joint stretches past the real 2mm.
+    expect(v.lead.stretchMm).toBeLessThanOrEqual(2);
     expect(v.withinBound).toBe(false);
   });
 
@@ -530,8 +527,9 @@ describe('a stored row cannot inflate the give into a softer verdict', () => {
     const kept = keptWith({ axialMm: 5, angularDeg: 5, calibrationStatus: 'published' });
     expect(kept).toHaveLength(2);
     const v = verdictFor(resolveLibrary(kept));
-    // 5mm x 9 joints = 45mm, nowhere near the 216mm gap.
-    expect(v.totalGiveMm).toBeCloseTo(45, 6);
+    // 5mm of stretch at each joint, and still well beyond the bend.
+    expect(v.lead.stretchMm).toBeLessThanOrEqual(5);
+    expect(v.lead.status).toBe('beyond');
     expect(v.withinBound).toBe(false);
   });
 });

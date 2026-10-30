@@ -87,7 +87,7 @@ export function checkMeasurements(m: Measurements): void {
 const deg = (rad: number): number => (rad * 180) / Math.PI;
 
 /** The in-plane bend at the limit, in degrees, however it was read; null if not read. */
-function bendDeg(m: Measurements): number | null {
+export function measuredBendDeg(m: Measurements): number | null {
   const { bendDeg: d, bendSidewaysMm: s, bendOverMm: over } = m.q2;
   if (d !== null) return d;
   if (s !== null && over !== null) return deg(Math.atan2(s, over));
@@ -97,16 +97,15 @@ function bendDeg(m: Measurements): number | null {
 /**
  * One joint's give, for every BRIO part.
  *
- * Axial is the whole travel, pull-apart limit minus push-together stop, taken
- * deliberately as the UPPER bound. `totalGiveMm` backs a necessary condition
- * ("the gap exceeds the give, so this will not fit"), which is only true if
- * the give is not understated, and where the nominal joint sits inside that
- * travel is Q3's datum question, still open. A missing stop counts as 0, the
- * larger travel, for the same reason.
+ * Axial is the whole travel, pull-apart limit minus push-together stop: the
+ * stretch the bend model lets a joint use (0 up to this, one-sided). A
+ * missing stop counts as 0. The angular figure here is the PART's; BRIO
+ * joints take their bend limit from `bendLimit.ts`, which prefers this
+ * reading when Q2's bend was measured.
  */
 export function jointSlop(m: Measurements): SlopBudget {
   const axial = m.q2.pullApartMm === null ? null : m.q2.pullApartMm - (m.q2.pushStopMm ?? 0);
-  const angular = bendDeg(m);
+  const angular = measuredBendDeg(m);
   return {
     axialMm: axial ?? ESTIMATES.axialMm,
     angularDeg: angular ?? ESTIMATES.angularDeg,
@@ -151,14 +150,14 @@ export function findings(m: Measurements): string[] {
           : `${reading} Inside the 1 to 3mm band the plan expected.`,
     );
     if ((m.q2.pushStopMm ?? 0) > 0) {
-      out.push('Q2: the joint has a hard stop short of touching, so the real budget is one-sided; the engine models it as symmetric.');
+      out.push('Q2: the joint has a hard stop short of touching; the engine credits only the travel between the stop and the pull-apart limit.');
     }
   }
-  const bend = bendDeg(m);
+  const bend = measuredBendDeg(m);
   if (bend !== null) {
     out.push(
       `Q2: the bend limit is ${Math.round(bend * 100) / 100} degrees, against the ${ESTIMATES.angularDeg} estimate. ` +
-        'The engine reads no angular give today (CALIBRATION.md, opening section), so this number changes no verdict yet.',
+        'It is the BRIO bend limit every verdict uses (engine/data/bendLimit.ts), ahead of the one inferred from Q1.',
     );
   }
 

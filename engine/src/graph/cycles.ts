@@ -9,29 +9,29 @@
  * 1. Rank comes from the forest, not from a formula. `closing.length` IS the
  *    rank by construction, so it cannot drift from the thing it describes.
  *
- * 2. GIVE IS NEVER POOLED. Each cycle is checked against the give of ITS OWN
- *    welds. Slack in one loop cannot pay for a gap in another, because the
- *    pieces are not shared: pushing a joint in the left loop to absorb 2mm
- *    does nothing for the right loop's joints. The architecture review
- *    measured 9 distinct gaps around 10 pieces per cycle where pooling flips
- *    the verdict from "will not fit" to "might", which is a false pass on a
- *    layout somebody then tries to build.
+ * 2. GIVE IS NEVER POOLED. A joint's give is spent once, however many loops
+ *    pass through it. The architecture review measured 9 distinct gaps
+ *    around 10 pieces per cycle where pooling flips the verdict to a false
+ *    pass. The bend model (`bendRun.ts`) keeps the rule by solving a run's
+ *    loops together with one bend and one stretch per weld; this file no
+ *    longer weighs give at all. It finds the loops and their exact gaps.
  *
  * WHY ONLY ALIGNED CYCLES GET A COMBINED GAP. Weld defects compose in SE(2),
  * where a rotation followed by a translation is not the same as the reverse,
  * so the gaps of two cycles do not simply add when either carries a rotation
  * error. They do add, exactly, when every closing weld is rotation-aligned,
- * because pure translations commute. That is not a restriction in practice:
- * a layout that comes back pointing the wrong way already fails on rotation,
- * and no amount of joint give fixes a rotation. So when any closing weld is
- * misaligned this reports that fact and does not rank gaps it cannot add.
+ * because pure translations commute. When any closing weld is misaligned the
+ * gaps here are left unknown (NaN). That no longer refuses the layout: a loop
+ * that comes back turned is one whose joints must turn it back, and the bend
+ * model walks each loop from its own pieces, rotation included (eng review
+ * D4). This used to say no amount of joint give fixes a rotation; the floor
+ * showed ten joints turning about 2.7 degrees each and carrying a train.
  */
 
 import { type Cyc, ZERO, add, magnitude, scale } from '../geom/cyclotomic.js';
 import type { Forest } from './forest.js';
 import { type Placement, type WeldResidual } from './frames.js';
-import type { Graph, Port } from './model.js';
-import { weldGiveMm } from './model.js';
+import type { Graph } from './model.js';
 
 /**
  * How many fundamentals a subset mask can carry.
@@ -92,11 +92,16 @@ export interface CycleReport {
   readonly pieces: readonly string[];
   /** Exact closure error. Zero means this loop closes. */
   readonly gap: Cyc;
+  /** Millimetres; NaN when a closing weld is rotated (see the header). */
   readonly gapMm: number;
-  /** Give from THIS cycle's welds only. Never pooled with another's. */
-  readonly giveMm: number;
-  /** The necessary condition: a false here means it definitely does not fit. */
-  readonly withinGive: boolean;
+  /**
+   * This loop's own bend, solved alone, as a share of its joints' limits.
+   * Filled by `solveGraph` only for loops in a run that does not close; null
+   * otherwise, and null when it could not be solved. A diagnostic that ranks
+   * `worst` and triggers the one-straight repair (eng review D3); it never
+   * decides a verdict.
+   */
+  readonly standaloneLambda: number | null;
 }
 
 export interface CycleSpace {
@@ -115,12 +120,9 @@ export interface CycleSpace {
   /** True when some closing weld is rotated, so gaps cannot be combined. */
   readonly rotationBroken: boolean;
   readonly cycles: readonly CycleReport[];
-  /** The cycle furthest over its own give. Null when there are none. */
+  /** The cycle with the largest gap, before `solveGraph` re-ranks by bend. Null when there are none. */
   readonly worst: CycleReport | null;
 }
-
-type PortsOf = (pieceId: string) => readonly Port[];
-type SlopOf = (pieceId: string) => number;
 
 /** Tree edges from a piece up to its component root, nearest first. */
 function pathToRoot(forest: Forest, pieceId: string): number[] {
@@ -139,7 +141,7 @@ function pathToRoot(forest: Forest, pieceId: string): number[] {
  * between its two endpoints. Built by cancelling the shared tail of the two
  * root paths, which is the lowest common ancestor without computing one.
  */
-function fundamentalCycle(graph: Graph, forest: Forest, closingWeld: number): number[] {
+export function fundamentalCycle(graph: Graph, forest: Forest, closingWeld: number): number[] {
   const weld = graph.welds[closingWeld]!;
   const up = pathToRoot(forest, weld.a.pieceId);
   const down = pathToRoot(forest, weld.b.pieceId);
@@ -458,8 +460,6 @@ export function analyseCycles(
   graph: Graph,
   placement: Placement,
   residuals: readonly WeldResidual[],
-  ports: PortsOf,
-  slop: SlopOf,
 ): CycleSpace {
   const forest = placement.forest;
   const rank = forest.closing.length;
@@ -476,17 +476,6 @@ export function analyseCycles(
   const rotationBroken = residuals.some((r) => r.headingSteps !== 0);
   const residualByWeld = new Map(residuals.map((r) => [r.weld, r]));
   const fundamentals = forest.closing.map((w) => fundamentalCycle(graph, forest, w));
-
-  const giveOfWeld = (index: number): number => {
-    const w = graph.welds[index]!;
-    // Guarded for the same reason as `placeAll`: a bad index should name the
-    // piece and the port, not fail as a property read on undefined.
-    const pa = ports(w.a.pieceId)[w.a.port];
-    const pb = ports(w.b.pieceId)[w.b.port];
-    if (!pa) throw new Error(`piece ${w.a.pieceId} has no port ${w.a.port}`);
-    if (!pb) throw new Error(`piece ${w.b.pieceId} has no port ${w.b.port}`);
-    return weldGiveMm(slop(w.a.pieceId), slop(w.b.pieceId));
-  };
 
   const neighbours = sharingGraph(graph, fundamentals);
 
@@ -521,15 +510,13 @@ export function analyseCycles(
         gap = add(gap, traced.forward.get(e) ? r.gap : scale(r.gap, -1));
       }
     }
-    const giveMm = edges.reduce((sum, e) => sum + giveOfWeld(e), 0);
     const gapMm = rotationBroken ? Number.NaN : magnitude(gap);
     cycles.push({
       welds: edges,
       pieces: traced.pieces,
       gap,
       gapMm,
-      giveMm,
-      withinGive: !rotationBroken && gapMm <= giveMm,
+      standaloneLambda: null,
     });
   });
 
@@ -547,18 +534,16 @@ export function analyseCycles(
     return { rank, truncated: 'work', rotationBroken, cycles: [], worst: null };
   }
 
-  // Worst = furthest over its OWN give. Ties go to the larger gap, so the
-  // reported cycle is stable rather than whichever the enumeration hit first.
+  // Worst = the largest gap for now; `solveGraph` re-ranks by bend. Ties go
+  // to the lowest weld, so the pick never depends on enumeration order.
   const worst =
     cycles.length === 0
       ? null
       : cycles.reduce((a, b) => {
-          const da = a.gapMm - a.giveMm;
-          const db = b.gapMm - b.giveMm;
-          if (Number.isNaN(da)) return b;
-          if (Number.isNaN(db)) return a;
-          if (db !== da) return db > da ? b : a;
-          return b.gapMm > a.gapMm ? b : a;
+          const ga = Number.isNaN(a.gapMm) ? -1 : a.gapMm;
+          const gb = Number.isNaN(b.gapMm) ? -1 : b.gapMm;
+          if (gb !== ga) return gb > ga ? b : a;
+          return Math.min(...b.welds) < Math.min(...a.welds) ? b : a;
         });
 
   return { rank, truncated: false, rotationBroken, cycles, worst };

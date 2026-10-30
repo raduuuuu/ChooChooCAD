@@ -29,7 +29,9 @@
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../data/library.js';
 import { brandFit } from '../data/thirdParty.js';
-import { placeAll } from '../src/graph/frames.js';
+import { placeAll, residuals } from '../src/graph/frames.js';
+import { analyseCycles } from '../src/graph/cycles.js';
+import { pieceRepair } from '../src/graph/repair.js';
 import { graphFromChain } from '../src/graph/fromChain.js';
 import { portsOf, type Graph, type Piece } from '../src/graph/model.js';
 import { solveGraph } from '../src/graph/solve.js';
@@ -45,12 +47,23 @@ const loop = (ids: readonly string[], turn: Turn = 'left'): Graph =>
 
 const solve = (g: Graph) => solveGraph(g, ports, resolve, slop(g), placeAll(g, ports), { parts: BUILT_IN, brandFit });
 
-/** The solved branch, asserting the layout reached the verdict this is about. */
+/*
+ * THE REPAIR'S GEOMETRY, apart from the bend that triggers it.
+ *
+ * `pieceRepair` speaks only for loops that read "beyond" (eng review D3), and
+ * whether a loop does depends on the bend limit, which is inferred from the
+ * floor and will move. These specs are about the other half, which never
+ * moves: whether one straight closes a loop EXACTLY. So each loop with a gap
+ * is marked beyond here, and the repair's geometry is tested on its own; the
+ * wiring through solveGraph is pinned once, below, on a loop that really is
+ * beyond.
+ */
 const exceeds = (g: Graph) => {
-  const r = solve(g);
-  if (!r.ok) throw new Error(`expected a solved layout, got ${r.reason}`);
-  expect(r.withinBound).toBe(false);
-  return r;
+  const place = placeAll(g, ports);
+  const rs = residuals(g, ports, place);
+  const space = analyseCycles(g, place, rs);
+  const cycles = space.cycles.map((c) => ({ ...c, standaloneLambda: c.gapMm === 0 ? 0 : 2 }));
+  return { residuals: rs, cycles, repair: pieceRepair(g, ports, place, rs, cycles, resolve, { parts: BUILT_IN, brandFit }) };
 };
 
 const E4 = ['E', 'E', 'E', 'E'];
@@ -162,7 +175,7 @@ describe('the gap in pieces', () => {
       anchors: new Map([['qp0', { pos: [2000, 0, 0, 0, 0, 0, 0, 0] as never, heading: 0 }]]),
     };
     const r = exceeds(two);
-    expect(r.cycles.filter((c) => !c.withinGive)).toHaveLength(2);
+    expect(r.cycles.filter((c) => (c.standaloneLambda ?? 0) > 1)).toHaveLength(2);
     expect(r.repair).toBeNull();
   });
 
@@ -239,6 +252,28 @@ describe('the gap in pieces', () => {
     // The sample must actually exercise the claim, or this proves nothing.
     expect(named).toBeGreaterThan(2);
     expect(wrong).toEqual([]);
+    // 6000 loops, each solved for its bend: about 2s here, past vitest's 5s
+    // default on the CI runner.
+  }, 60_000);
+
+  /*
+   * THE WIRING. A Q1-shaped loop on SHORT curves (E1) has the same 72mm gap
+   * but a much shorter lever, so its joints would have to turn about 4.6
+   * degrees: beyond the tested bend, and the one loop that is, so solveGraph
+   * names the straight.
+   *
+   * MUTATION PROOF, run: `failing.length !== 1` guard in pieceRepair changed
+   * to `failing.length !== 2` fails with `expected null not to be null`.
+   */
+  it('solveGraph names the straight for a loop beyond the bend', () => {
+    const E1x4 = ['E1', 'E1', 'E1', 'E1'];
+    const g = loop([...E1x4, 'D', ...E1x4, 'A']);
+    const r = solve(g);
+    if (!r.ok) throw new Error(`expected a solved layout, got ${r.reason}`);
+    expect(r.withinBound).toBe(false);
+    expect(r.lead?.status).toBe('beyond');
+    expect(r.repair).not.toBeNull();
+    expect(r.repair!.part.id).toBe('A3');
   });
 
   it('says nothing when the caller gives no library', () => {

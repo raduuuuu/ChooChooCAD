@@ -440,16 +440,18 @@ describe('what only the graph engine can say, which is the boundary of the compa
   it('a non-finite give is a refusal, never a gap verdict carrying NaN', () => {
     /*
      * A part whose slop figure came out non-finite -- a submitted measurement
-     * is the live route to one. The circle still closes exactly, so this is
-     * the dangerous shape: every geometric figure is right and only the give
-     * is unusable. MUTATION (run): dropping the `Number.isFinite` sweep
-     * returns ok:true with EXACT, so a layout judged against a give of NaN
-     * reads as a definite yes.
+     * is the live route to one. The loop is the Q1 near miss, so it NEEDS
+     * give: every geometric figure is right and only the give is unusable.
+     * (An exact circle needs none and is rightly EXACT whatever the slop.)
+     *
+     * MUTATION PROOF, run: drop the finiteness check at the top of
+     * `solveBend` and this fails with `expected true to be false`: a layout
+     * judged against a stretch of NaN reads as a verdict.
      */
-    const g = graphFromChain(chain(Array(8).fill('E'), true));
+    const g = graphFromChain(chain([...Array(4).fill('E'), 'D', ...Array(4).fill('E'), 'A'], true));
     const r = solve(g, () => Number.NaN);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('unreachable');
-    expect(r.reason).toBe('NUMERIC');
+    expect(r.reason).toBe('BEND_UNCHECKED');
   });
 });

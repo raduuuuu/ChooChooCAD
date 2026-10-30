@@ -335,23 +335,6 @@ export function portPolarity(part: Part, portIndex: number): Polarity {
   return portIndex === 0 ? part.ends.start : part.ends.end;
 }
 
-/**
- * Give at a weld, millimetres.
- *
- * Every weld is a peg in a socket, a switch's heel included (see `PortKind`),
- * or two sockets on a male-male adapter, which is two peg-in-socket fits. Give
- * is counted ONCE for either (owner ruling R4, 2026-10-23: doubling an
- * unmeasured estimate could pass a loop that will not close), so every weld
- * donates the same give. A heel used to donate nothing, which
- * understated the give of any loop closed through one and could turn a layout
- * that builds into a definite refusal.
- */
-export function weldGiveMm(slopA: number, slopB: number): number {
-  // Max, not min: the bound is a NECESSARY condition, so give must be an
-  // upper estimate or a layout that cannot be built could still pass.
-  return Math.max(slopA, slopB);
-}
-
 /** Compose: where a local pose lands once its piece's frame is placed. */
 export function compose(frame: Frame, local: Frame): Frame {
   return frameOf(

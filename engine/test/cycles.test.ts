@@ -46,11 +46,9 @@ import type { Layout } from '../src/parts/schema.js';
 const base = makeResolver(BUILT_IN);
 const ports = (piece: Piece): readonly Port[] => portsOf(base(piece.partId), piece.turn);
 
-function analyse(g: Graph, slopMm = 0.8) {
-  const byId = new Map(g.pieces.map((p) => [p.pieceId, p]));
-  const portsById = (id: string) => ports(byId.get(id)!);
+function analyse(g: Graph) {
   const place = placeAll(g, ports);
-  return analyseCycles(g, place, residuals(g, ports, place), portsById, () => slopMm);
+  return analyseCycles(g, place, residuals(g, ports, place));
 }
 
 /**
@@ -60,13 +58,11 @@ function analyse(g: Graph, slopMm = 0.8) {
  * is its own filed P1. Timing them together made the bound a measurement of
  * two unrelated things and flaked 2 runs in 8.
  */
-function timeAnalyse(g: Graph, slopMm = 0.8) {
-  const byId = new Map(g.pieces.map((p) => [p.pieceId, p]));
-  const portsById = (id: string) => ports(byId.get(id)!);
+function timeAnalyse(g: Graph) {
   const place = placeAll(g, ports);
   const rs = residuals(g, ports, place);
   const t0 = performance.now();
-  const space = analyseCycles(g, place, rs, portsById, () => slopMm);
+  const space = analyseCycles(g, place, rs);
   return { space, ms: performance.now() - t0 };
 }
 
@@ -100,10 +96,11 @@ describe('rank', () => {
     expect(analyse(g).rank).toBe(g.welds.length - g.pieces.length + cc);
   });
 
-  it('the exact circle closes and needs no give', () => {
+  it('the exact circle closes', () => {
     const a = analyse(graphFromChain(chain(Array(8).fill('E'), true)));
     expect(a.worst!.gapMm).toBe(0);
-    expect(a.worst!.withinGive).toBe(true);
+    // Bend is solved later, by solveGraph, and only where a run does not close.
+    expect(a.worst!.standaloneLambda).toBeNull();
   });
 });
 
@@ -142,45 +139,20 @@ describe('T6: give is never pooled across cycles', () => {
   });
 
   /*
-   * THE TEST THAT EARNS THE RULE.
-   *
-   * One loop closes exactly and so has its whole give unspent. The other is
-   * 72mm short against about 7mm of give. Pooled, the spare give from eight
-   * untouched joints would be offered to the broken loop; it still would not
-   * cover 72mm, so the pooling has to be caught by the SHAPE of the answer,
-   * not by the number. Each cycle carries its own give and its own gap, and
-   * no reported cycle has the broken gap paired with the intact loop's give.
+   * THE RULE MOVED, IT DID NOT GO. A joint's give is spent once however many
+   * loops pass through it; the bend model now enforces that by solving a
+   * run's loops together with one variable per weld, and the case that earns
+   * it (two loops each fine alone, too much together through a shared joint)
+   * is pinned in bend.test.ts. Here: each loop keeps its own exact gap, and
+   * the worst is a broken loop, never an average of the two.
    */
-  it('a slack loop never pays for a tight one', () => {
+  it('each loop keeps its own gap, and the worst is a broken one', () => {
     const g = twoLoops([...Array(4).fill('E'), 'D', ...Array(4).fill('E'), 'A']);
     const a = analyse(g);
     expect(a.rank).toBe(2);
-
-    const exact = a.cycles.filter((c) => c.gapMm === 0);
-    const broken = a.cycles.filter((c) => c.gapMm > 0);
-    expect(exact.length).toBeGreaterThan(0);
-    expect(broken.length).toBeGreaterThan(0);
-
-    /*
-     * Each cycle's give is EXACTLY its own welds, stated as an equation
-     * rather than an inequality.
-     *
-     * The first version asserted `giveMm < totalWelds * 0.8`, and when I
-     * mutated the code to pool give it failed only by floating-point noise:
-     * 14.400000000000004 against 14.4. An assertion that a defect clears by
-     * 4e-15 is not an assertion. This one is off by more than 6mm.
-     */
-    for (const c of broken) {
-      expect(c.giveMm).toBeCloseTo(c.welds.length * 0.8, 9);
-      expect(c.giveMm).toBeLessThan(g.welds.length * 0.8 - 1);
-      expect(c.withinGive).toBe(false);
-    }
-    for (const c of exact) {
-      expect(c.giveMm).toBeCloseTo(c.welds.length * 0.8, 9);
-    }
-    // The worst cycle is a broken one, not an average of the two.
-    expect(a.worst!.gapMm).toBeGreaterThan(0);
-    expect(a.worst!.withinGive).toBe(false);
+    expect(a.cycles.filter((c) => c.gapMm === 0).length).toBeGreaterThan(0);
+    expect(a.cycles.filter((c) => c.gapMm > 0).length).toBeGreaterThan(0);
+    expect(a.worst!.gapMm).toBeCloseTo(72, 9);
   });
 
   /*
@@ -197,7 +169,6 @@ describe('T6: give is never pooled across cycles', () => {
     const after = analyse(withExtra);
     expect(after.rank).toBe(before.rank);
     expect(after.worst!.gapMm).toBe(before.worst!.gapMm);
-    expect(after.worst!.giveMm).toBe(before.worst!.giveMm);
   });
 });
 
@@ -238,7 +209,9 @@ describe('rotation', () => {
     // Seven E curves closed: 7 x 45 = 315 degrees, so the heading is wrong.
     const a = analyse(graphFromChain(chain(Array(7).fill('E'), true)));
     expect(a.rotationBroken).toBe(true);
-    expect(a.worst!.withinGive).toBe(false);
+    // Its gap cannot be combined across rotated welds, so it is unknown here;
+    // the bend model weighs the turn instead (eng review D4, bendRun.ts).
+    expect(Number.isNaN(a.worst!.gapMm)).toBe(true);
   });
 });
 

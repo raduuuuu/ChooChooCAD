@@ -387,7 +387,9 @@
   color: var(--ink);
   max-width: 76ch;
 }
-.verdict-basis {
+/* The basis clause, and the bend's limits and overlap notes (design 2A, 5A, 11A): the same quiet register. */
+.verdict-basis,
+.verdict-limits {
   margin: var(--s1) 0 0;
   font-size: 14px;
   line-height: 1.5;

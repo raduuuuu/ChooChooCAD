@@ -13,17 +13,25 @@
  *
  *   1. Impossible geometry beats everything, including an exact closure.
  *      Sixteen large curves close perfectly and run the same circle twice.
- *   2. Rotation beats give. No amount of joint slop fixes a loop that comes
- *      back pointing the wrong way.
- *   3. A gap is only compared against the give of ITS OWN loop.
+ *   2. The worst run leads (design 3A): a run beyond the joints' bend
+ *      outranks one that closes, and a run the model could not check is
+ *      never hidden behind a pass.
+ *   3. A joint's give is spent once, however many loops use it (the bend
+ *      model solves a run's loops together; docs/designs/joint-bend.md).
+ *
+ * Rotation no longer beats give. A loop that comes back turned is one whose
+ * joints must turn it back, and the bend model weighs that like any other
+ * miss (eng review D4).
  */
 
 import type { GraphResult } from '../../engine/src/graph/solve.js';
+import { bendWords, type BendWords } from '../../engine/src/joints/bendWords.js';
+import { bendLimit } from '../../engine/data/bendLimit.js';
 
 export type VerdictKind =
   | 'NOTHING'
   | 'NO_CYCLE'
-  | 'HEADING_MISMATCH'
+  | 'BEND_UNCHECKED'
   | 'TOO_MANY_LOOPS'
   | 'TOO_BIG_TO_CHECK'
   | 'NUMERIC'
@@ -45,17 +53,20 @@ export interface VerdictView {
    */
   readonly gapMm: number;
   /**
-   * True when `gapMm` and `giveMm` came from a real measurement.
+   * True when `gapMm` came from a real measurement.
    *
    * False on every refusal, because `EMPTY` fills them with zero. The engine
    * decides closure from exact residuals; a refusal never got that far.
    */
   readonly gapKnown: boolean;
-  /** That same loop's OWN give. Never a total across loops. */
-  readonly giveMm: number;
+  /**
+   * What the bend model says about the run that leads, built once in the
+   * engine (eng review D7). Null on refusals and when nothing loops.
+   */
+  readonly bend: BendWords | null;
   /** Independent loops in the layout: E - V + CC. */
   readonly rank: number;
-  /** How many of them do not fit. Zero when the layout works. */
+  /** How many looped runs need more bend than their joints are credited with. */
   readonly failingLoops: number;
   readonly clashCount: number;
   /** Places where one plank runs over another, ends nowhere near (overlap.ts). */
@@ -101,7 +112,7 @@ const EMPTY: VerdictView = {
   kind: 'NOTHING',
   detail: '',
   gapMm: 0,
-  giveMm: 0,
+  bend: null,
   rank: 0,
   failingLoops: 0,
   clashCount: 0,
@@ -176,9 +187,12 @@ export function viewOf(result: GraphResult | null): VerdictView {
     // Measured: this is the solved branch, so the engine traced the cycles.
     gapKnown: true,
     gapMm: result.gapMm,
-    giveMm: result.totalGiveMm,
+    bend:
+      result.lead === null
+        ? null
+        : bendWords(result.lead, bendLimit(), result.bend.filter((b) => b.status === 'beyond').length, result.bend.length),
     rank: result.rank,
-    failingLoops: result.cycles.filter((c) => !c.withinGive).length,
+    failingLoops: result.bend.filter((b) => b.status === 'beyond').length,
     clashCount: result.clashes.length,
     overlapCount: result.overlaps.length,
     polarityCount: result.polarityViolations.length,

@@ -3,10 +3,11 @@
  *
  * Value: protects=viewOf's two precedences: IMPOSSIBLE beats EXACT and beats the
  * NO_CYCLE branch, EXACT needs closesExactly, NEEDS_GIVE/EXCEEDS are one
- * disjoint withinBound choice, and gapMm/giveMm come from the worst LOOP
+ * disjoint withinBound choice, gapMm comes from the worst LOOP and the bend
+ * words from the leading run
  * Value: fails_when=the clash check moves below the closesExactly check, the
  * failure branch stops reporting clashes, polarity stops promoting to
- * IMPOSSIBLE, or giveMm starts summing across loops instead of naming one
+ * IMPOSSIBLE, or the beyond count stops counting runs
  * Value: why_new=no test imported verdictView.ts at all; the module that decides
  * what the user reads had zero coverage, and .gstack/pregate.json declared it
  * with an empty lane
@@ -28,9 +29,9 @@
  * `engine/src/graph/solve.ts`, which decides `result.reason` before `viewOf`
  * ever sees it, in this order: NO_CYCLE, then TOO_MANY_LOOPS or
  * TOO_BIG_TO_CHECK by the truncation cause, then NUMERIC for a rank with no
- * traced cycles, then HEADING_MISMATCH, then NUMERIC again for a non-finite
- * figure. NUMERIC therefore sits both before and after HEADING_MISMATCH,
- * which is why naming the order matters more than counting the kinds.
+ * traced cycles, then BEND_UNCHECKED when the bend model could not settle a
+ * run and no other run is beyond (design 3A). A non-finite figure now lands
+ * in BEND_UNCHECKED too, because the bend solver refuses it (design 5A).
  * `viewOf` passes the reason straight through, so these tests feed it one and
  * assert the passthrough, never a ranking between them.
  *
@@ -45,6 +46,7 @@
 import { describe, expect, it } from 'vitest';
 import { ACTION_FOR_FAILURE, FAILURE_COPY, isFailure } from './verdictAction.js';
 import type { CycleReport } from '../../engine/src/graph/cycles.js';
+import type { RunBend } from '../../engine/src/graph/bendRun.js';
 import type { VertexClash, WeldPolarityViolation } from '../../engine/src/graph/feasible.js';
 import type { GraphResult } from '../../engine/src/graph/solve.js';
 import { viewOf, type VerdictKind } from './verdictView.js';
@@ -58,8 +60,7 @@ const cycle = (over: Partial<CycleReport> = {}): CycleReport => ({
   pieces: ['p1', 'p2'],
   gap: [...ZERO_CYC] as unknown as CycleReport['gap'],
   gapMm: 0,
-  giveMm: 1.5,
-  withinGive: true,
+  standaloneLambda: null,
   ...over,
 });
 
@@ -82,7 +83,8 @@ function solved(over: Partial<Extract<GraphResult, { ok: true }>> = {}): GraphRe
     ok: true,
     closesExactly: true,
     gapMm: 0,
-    totalGiveMm: 1.5,
+    bend: [],
+    lead: null,
     withinBound: true,
     rank: 1,
     cycles: [worst],
@@ -130,7 +132,7 @@ describe('nothing placed', () => {
     expect(v).toMatchObject({
       detail: '',
       gapMm: 0,
-      giveMm: 0,
+      bend: null,
       rank: 0,
       failingLoops: 0,
       clashCount: 0,
@@ -165,7 +167,7 @@ describe('precedence 1: impossible geometry beats everything', () => {
   });
 
   it('it beats a NEEDS_GIVE layout as well, not just an exact one', () => {
-    const tight = cycle({ gapMm: 1.0, withinGive: true });
+    const tight = cycle({ gapMm: 1.0 });
     const v = viewOf(
       solved({ closesExactly: false, withinBound: true, gapMm: 1.0, worst: tight, cycles: [tight], clashes: [clash()] }),
     );
@@ -210,7 +212,7 @@ describe('the five failure kinds are passed THROUGH, never ranked here', () => {
     'NO_CYCLE',
     'TOO_MANY_LOOPS',
     'TOO_BIG_TO_CHECK',
-    'HEADING_MISMATCH',
+    'BEND_UNCHECKED',
     'NUMERIC',
   ] as const;
 
@@ -231,7 +233,7 @@ describe('the five failure kinds are passed THROUGH, never ranked here', () => {
   });
 
   it('a failed solve at a NON-zero rank still carries its own rank', () => {
-    const v = viewOf(refused({ reason: 'HEADING_MISMATCH', rank: 2 }));
+    const v = viewOf(refused({ reason: 'BEND_UNCHECKED', rank: 2 }));
     expect(v.rank).toBe(2);
   });
 });
@@ -250,7 +252,7 @@ describe('precedence 2: EXACT needs closesExactly, and nothing else does', () =>
    * since it shows this one line gates three kinds rather than one.
    */
   it('a layout that does NOT close exactly is never EXACT', () => {
-    const tight = cycle({ gapMm: 0.8, withinGive: true });
+    const tight = cycle({ gapMm: 0.8 });
     const v = viewOf(solved({ closesExactly: false, withinBound: true, worst: tight, cycles: [tight] }));
     expect(v.kind).not.toBe('EXACT');
     expect(v.kind).toBe('NEEDS_GIVE');
@@ -258,8 +260,8 @@ describe('precedence 2: EXACT needs closesExactly, and nothing else does', () =>
 });
 
 describe('precedence 3: NEEDS_GIVE and EXCEEDS are ONE disjoint choice, not a rank', () => {
-  const tight = cycle({ gapMm: 1.0, withinGive: true });
-  const over = cycle({ gapMm: 9.0, withinGive: false });
+  const tight = cycle({ gapMm: 1.0 });
+  const over = cycle({ gapMm: 9.0 });
 
   it('withinBound true gives NEEDS_GIVE', () => {
     const v = viewOf(solved({ closesExactly: false, withinBound: true, gapMm: 1.0, worst: tight, cycles: [tight] }));
@@ -283,48 +285,68 @@ describe('precedence 3: NEEDS_GIVE and EXCEEDS are ONE disjoint choice, not a ra
 
 describe('the figures name ONE loop, never a total', () => {
   /*
-   * The third rule in this file's docblock, and the invariant the whole
-   * cyclotomic design rests on: give is never pooled across cycles. Two loops
-   * each individually fine is fine; one bad loop fails the layout however good
-   * the rest is.
+   * THE RUN THAT LEADS SPEAKS (design 3A), and the gap is the worst loop's.
    *
-   * MUTATION PROOF, run: `viewOf` reads `result.totalGiveMm`, which `solve.ts`
-   * has already derived from the worst cycle (`space.worst?.giveMm ?? 0`) -- it
-   * does not reach into `worst` itself, and saying otherwise would misdescribe
-   * the seam. Replace that read with a sum over `cycles` and this case alone
-   * fails, reporting 3.0 instead of 1.5. Verified.
+   * The give total these specs used to pin is retired (design review 8A); the
+   * bend words come from `result.lead`, the run the engine already ranked
+   * worst, and failingLoops counts runs beyond the bend.
+   *
+   * MUTATION PROOF, run: `viewOf` counting `result.bend.length` instead of the
+   * runs whose status is 'beyond' fails with `expected 3 to be 2`.
    */
-  it('gapMm and giveMm come from the worst loop, not summed across loops', () => {
-    const good = cycle({ gapMm: 0.1, giveMm: 1.5, withinGive: true });
-    const bad = cycle({ welds: [2, 3], gapMm: 7.0, giveMm: 1.5, withinGive: false });
+  const run = (status: 'exact' | 'closes' | 'beyond', lambda: number): RunBend => ({
+    pieces: ['p1'],
+    status,
+    lambda,
+    stretchMm: 0,
+    leftoverMm: 0,
+    turnedSteps: 0,
+    standalone: [lambda],
+    why: null,
+    work: 0,
+    movesMm: 1,
+    others: [],
+    brio: true,
+    atLeast: false,
+  });
+
+  it('gapMm comes from the worst loop, and the words from the leading run', () => {
+    const good = cycle({ gapMm: 0.1 });
+    const bad = cycle({ welds: [2, 3], gapMm: 7.0 });
+    const lead = run('beyond', 1.5);
     const v = viewOf(
       solved({
         closesExactly: false,
         withinBound: false,
         gapMm: 7.0,
-        totalGiveMm: 1.5,
+        bend: [run('closes', 0.5), lead],
+        lead,
         rank: 2,
         cycles: [good, bad],
         worst: bad,
       }),
     );
     expect(v.gapMm).toBe(7.0);
-    expect(v.giveMm).toBe(1.5); // bad's own give, not 3.0 and not 4.5
+    expect(v.bend?.tier).toBe('beyond');
     expect(v.rank).toBe(2);
   });
 
-  it('failingLoops counts only the loops that do not fit', () => {
-    const good = cycle({ withinGive: true });
-    const bad1 = cycle({ welds: [2], withinGive: false });
-    const bad2 = cycle({ welds: [3], withinGive: false });
+  it('failingLoops counts only the runs beyond the bend', () => {
+    const lead = run('beyond', 2);
     const v = viewOf(
-      solved({ closesExactly: false, withinBound: false, rank: 3, cycles: [good, bad1, bad2], worst: bad1 }),
+      solved({
+        closesExactly: false,
+        withinBound: false,
+        rank: 3,
+        bend: [run('closes', 0.4), lead, run('beyond', 1.2)],
+        lead,
+      }),
     );
     expect(v.failingLoops).toBe(2);
   });
 
   it('jointCount is the worst loop\'s weld count, which is what the gap spreads across', () => {
-    const wide = cycle({ welds: [0, 1, 2, 3, 4], withinGive: true });
+    const wide = cycle({ welds: [0, 1, 2, 3, 4] });
     const v = viewOf(solved({ closesExactly: false, withinBound: true, cycles: [wide], worst: wide }));
     expect(v.jointCount).toBe(5);
   });
@@ -340,14 +362,14 @@ describe('completeness', () => {
   it('every VerdictKind is reachable from viewOf', () => {
     // Not a tone assertion: this file returns a KIND and knows nothing about
     // CSS. X2b owns grey-is-not-green over ten kinds and five tones.
-    const tight = cycle({ gapMm: 1.0, withinGive: true });
-    const over = cycle({ gapMm: 9.0, withinGive: false });
+    const tight = cycle({ gapMm: 1.0 });
+    const over = cycle({ gapMm: 9.0 });
     const reached = new Set<VerdictKind>([
       viewOf(null).kind,
       viewOf(refused({ reason: 'NO_CYCLE' })).kind,
       viewOf(refused({ reason: 'TOO_MANY_LOOPS' })).kind,
       viewOf(refused({ reason: 'TOO_BIG_TO_CHECK' })).kind,
-      viewOf(refused({ reason: 'HEADING_MISMATCH' })).kind,
+      viewOf(refused({ reason: 'BEND_UNCHECKED' })).kind,
       viewOf(refused({ reason: 'NUMERIC' })).kind,
       viewOf(refused({ clashes: [clash()] })).kind,
       viewOf(solved({ closesExactly: true })).kind,
@@ -372,7 +394,7 @@ describe('completeness', () => {
     const ALL: Record<VerdictKind, true> = {
       NOTHING: true,
       NO_CYCLE: true,
-      HEADING_MISMATCH: true,
+      BEND_UNCHECKED: true,
       TOO_MANY_LOOPS: true,
       TOO_BIG_TO_CHECK: true,
       NUMERIC: true,
@@ -417,7 +439,7 @@ describe('the failure register', () => {
   const ALL_KINDS: Record<VerdictKind, true> = {
     NOTHING: true,
     NO_CYCLE: true,
-    HEADING_MISMATCH: true,
+    BEND_UNCHECKED: true,
     TOO_MANY_LOOPS: true,
     TOO_BIG_TO_CHECK: true,
     NUMERIC: true,
@@ -501,7 +523,7 @@ describe('the failure register', () => {
  * Value: why_new=`EMPTY` fills `gapMm` with 0 on every refusal, and
  * `VerdictLine` rendered " The loop does close; that does not help." whenever
  * `rank > 0 && gapMm === 0`. Measured through `viewOf` at rank 7 with one
- * clash: TOO_MANY_LOOPS, TOO_BIG_TO_CHECK, NUMERIC and HEADING_MISMATCH all
+ * clash: TOO_MANY_LOOPS, TOO_BIG_TO_CHECK, NUMERIC and BEND_UNCHECKED all
  * rendered it -- the last while the engine had just determined the track does
  * NOT come back aligned. The existing `rank > 0` guard was added after a user
  * reported the same sentence over a layout with no loop; it fixed the rank-0
@@ -521,7 +543,7 @@ describe('gapKnown separates a measured gap from a filler', () => {
       'NO_CYCLE',
       'TOO_MANY_LOOPS',
       'TOO_BIG_TO_CHECK',
-      'HEADING_MISMATCH',
+      'BEND_UNCHECKED',
       'NUMERIC',
     ] as const) {
       const v = viewOf(refused({ reason, rank: 7 }));
@@ -550,7 +572,7 @@ describe('gapKnown separates a measured gap from a filler', () => {
    * which is the `EMPTY`-spread mutation above.
    */
   it('is true on the solved path, where the engine traced the cycles', () => {
-    const tight = cycle({ gapMm: 1.0, withinGive: true });
+    const tight = cycle({ gapMm: 1.0 });
     for (const v of [
       viewOf(solved({ closesExactly: true })),
       viewOf(solved({ closesExactly: false, withinBound: true, worst: tight, cycles: [tight] })),
@@ -576,7 +598,7 @@ describe('gapKnown separates a measured gap from a filler', () => {
 describe('the gap in pieces', () => {
   const A3 = getPart('A3') as StraightPart;
   const repair = { direction: 'short' as const, part: A3, partNumber: null };
-  const failing = cycle({ gapMm: 72, giveMm: 8, withinGive: false });
+  const failing = cycle({ gapMm: 72 });
 
   it('is carried on EXCEEDS, by name and length', () => {
     const v = viewOf(

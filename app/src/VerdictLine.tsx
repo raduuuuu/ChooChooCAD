@@ -24,6 +24,7 @@
 import { Children, cloneElement, createContext, isValidElement, useContext, type ReactNode } from 'react';
 import type { TrustIssue } from '../../engine/src/joints/trust.js';
 import type { VerdictView } from './verdictView.js';
+import type { BendWords } from '../../engine/src/joints/bendWords.js';
 import { CLEARANCE } from '../../engine/data/rampSeeds.js';
 import {
   ACTION_FOR_FAILURE,
@@ -207,15 +208,54 @@ function notesFor(
   adapters = 0,
   unmarked = 0,
   raised: { readonly bridges: number } | null = null,
+  bend: BendWords | null = null,
 ) {
-  if (trust.length === 0 && !action && adapters === 0 && !raised) return undefined;
+  if (trust.length === 0 && !action && adapters === 0 && !raised && !bend) return undefined;
   return (
     <>
-      {basis && <Basis trust={trust} />}
+      {bend && <BendNotes words={bend} />}
+      {basis && <Basis />}
       {adapters > 0 && <AdapterNote n={adapters} unmarked={unmarked} />}
       {raised && <RaisedNote bridges={raised.bridges} />}
       <Trust trust={trust} />
       <Action action={action} />
+    </>
+  );
+}
+
+/**
+ * THE BEND HEADLINE, from the engine's parts (eng review D7). Joined, the
+ * parts are exactly `BendWords.line`; numbers go in the number face (DESIGN.md
+ * rule 4). The turned clause and the run count follow in the same live line
+ * (design 2A, 9A, 3A).
+ */
+function BendLine({ words }: { words: BendWords | null }) {
+  if (!words) return null;
+  return (
+    <>
+      {words.segments.map((x, i) => (typeof x === 'string' ? x : <span key={i} className="num">{x.num}</span>))}
+      {words.turned && <> {words.turned}</>}
+      {words.runs && <> {words.runs}</>}
+    </>
+  );
+}
+
+/**
+ * WHERE THE LIMITS COME FROM, first in the notes and outside the trust cap
+ * (design 2A, 5A): BRIO's limit with its provenance, then each other brand's
+ * estimate by part id, then the overlap note for a run that needs bend
+ * (11A), which says the drawing is unbent whether or not anything overlaps.
+ */
+function BendNotes({ words }: { words: BendWords }) {
+  if (words.limits.length === 0 && !words.overlapNote) return null;
+  return (
+    <>
+      {words.limits.map((l) => (
+        <p key={l.who} className="verdict-limits">
+          {l.text}
+        </p>
+      ))}
+      {words.overlapNote && <p className="verdict-limits">{words.overlapNote}</p>}
     </>
   );
 }
@@ -316,19 +356,13 @@ export function adapterNote(n: number): string {
  *
  * Every disclosure below it lowers confidence. This clause says what the
  * answer IS grounded in: the closure arithmetic is exact against the
- * catalogue's figures, and the give it is compared with is estimated. The
- * day joint give is measured (X3), the second half says so and nothing else
- * has to change.
- *
- * Only on the verdicts that compare a gap with give, and only when the trust
- * register actually ran. With no trust list there is nothing to say the give
- * was measured, and "measured" from an absent list would be the overclaim
- * this clause exists to avoid.
+ * catalogue's figures. It used to add "joint give estimated/measured"; that
+ * compared a give TOTAL that is gone, and on a verdict that needs bend the
+ * limits note now says where each joint's figure comes from (design 5A, 8A).
+ * So this stays on the exact verdict only, where no give is needed.
  */
-function Basis({ trust }: { trust: readonly TrustIssue[] }) {
-  if (trust.length === 0) return null;
-  const give = trust.some((t) => t.kind === 'estimated-give') ? 'estimated' : 'measured';
-  return <p className="verdict-basis">Exact to the catalogue; joint give {give}.</p>;
+function Basis() {
+  return <p className="verdict-basis">Exact to the catalogue.</p>;
 }
 
 /**
@@ -490,24 +524,6 @@ export function VerdictLine({
     );
   }
 
-  /*
-   * HOW MANY LOOPS FAILED, said only when there is more than one.
-   *
-   * A layout can now hold several independent loops, and give is never
-   * pooled between them, so "the gap" is one loop's gap and not the
-   * layout's. Saying "1 of 3 loops" keeps the number honest about what it
-   * describes. On a single-loop layout the phrase would be noise, so it is
-   * omitted rather than padded to a constant shape.
-   */
-  const loopNote =
-    e.rank > 1 ? (
-      <span className="verdict-detail">
-        {' '}
-        <span className="num">{e.failingLoops}</span> of{' '}
-        <span className="num">{e.rank}</span> loops.
-      </span>
-    ) : null;
-
   // The trust register rides with EVERY verdict, including EXACT. An exact
   // closure over unmeasured sizes is the case that most needs saying.
   switch (e.kind) {
@@ -525,6 +541,8 @@ export function VerdictLine({
             e.adapterCount,
             adaptersUnmarked,
             raisedOf(e),
+            // A run that needs bend carries the overlap note (design 11A).
+            e.bend && e.bend.tier !== 'exact' ? e.bend : null,
           )}
         >
           <Mark glyph="X" />
@@ -562,7 +580,15 @@ export function VerdictLine({
                 * of pieces, which is also what the canvas marks. Flat track
                 * only crosses on a crossing piece or a bridge.
                 */}
-              Can&rsquo;t be built. <span className="num">{e.overlapCount}</span>{' '}
+              {/*
+                * Design 11A: overlaps are found on the DRAWN shape, which is
+                * unbent. When the run needs bend the built track sits up to a
+                * few mm from the drawing, so the headline says where the
+                * overlap was found instead of "can't be built"; the notes give
+                * the distance. Exact runs keep the plain claim.
+                */}
+              {e.bend && e.bend.tier !== 'exact' ? 'Track overlaps in the drawn shape.' : <>Can&rsquo;t be built.</>}{' '}
+              <span className="num">{e.overlapCount}</span>{' '}
               {e.overlapCount === 1
                 ? 'place has track running over other track. Track can only cross on a crossing piece, or raised on ramps over the other track.'
                 : 'places have track running over other track. Track can only cross on a crossing piece, or raised on ramps over the other track.'}
@@ -662,7 +688,7 @@ export function VerdictLine({
       return (
         <Verdict
           tone="tight"
-          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], true, e.adapterCount, adaptersUnmarked, raisedOf(e))}
+          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], false, e.adapterCount, adaptersUnmarked, raisedOf(e), e.bend)}
         >
           <Mark glyph={'/\\'} />
           <span className="verdict-text">
@@ -676,10 +702,7 @@ export function VerdictLine({
               * modelled give", "Can't be built", "Could not check"); this one
               * opened with a measurement and left the reader to infer it.
               */}
-            Tight. Needs <span className="num">{e.gapMm.toFixed(0)}mm</span> absorbed across{' '}
-            <span className="num">{e.jointCount}</span> joints, which give{' '}
-            <span className="num">{e.giveMm.toFixed(0)}mm</span> between them. That
-            means the gap could fit inside the total give, not that it will.
+            <BendLine words={e.bend} />
             <LoopAt at={e.loopAt} />
             <OpenRuns n={e.openRuns} />
           </span>
@@ -715,45 +738,20 @@ export function VerdictLine({
          */
         <Verdict
           tone="fail"
-          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], true, e.adapterCount, adaptersUnmarked, raisedOf(e))}
+          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], false, e.adapterCount, adaptersUnmarked, raisedOf(e), e.bend)}
         >
           <Mark glyph="X" />
           <span className="verdict-text">
             {/*
-              * "Won't fit." WAS THE ONE PLACE THIS PRODUCT CLAIMED MORE THAN
-              * IT CHECKED, and DESIGN.md rule 3 already forbade it.
-              *
-              * Rule 3: "never claim more than was checked. The middle verdict
-              * is deliberately hedged, because the engine knows a gap fits
-              * inside the joints' total give and does not know that the give
-              * can be distributed to absorb it." NEEDS_GIVE was hedged for
-              * that reason. EXCEEDS was not, and it is the verdict that needs
-              * it most, because it is the only DEFINITE claim the engine makes.
-              *
-              * `solver/residual.ts:36-42` states the condition: the definite
-              * claim is sound "only if the give figure is an upper bound on
-              * the give really available", and understating give "would turn
-              * the one definite verdict this engine makes into a false one,
-              * which is the worst failure mode here". Nothing establishes that
-              * upper bound. `residual.ts:110` takes `Math.max` of two per-part
-              * summaries, which avoids the smaller estimate without proving a
-              * real peg and socket cannot exceed both, and the angular budget
-              * is written onto every joint and summed nowhere.
-              *
-              * So the headline now states what the arithmetic actually
-              * established -- the gap is past the modelled allowance -- and
-              * stops asserting what it did not, that the track will not go
-              * together. Both millimetre figures stay: they are the useful
-              * part and they were never in doubt. The word "modelled" carries
-              * the scope, and the trust register says what the model leaves
-              * out.
+              * "BEYOND THE TESTED BEND", NOT "WON'T FIT" (design 1A). The
+              * limit is a LOWER bound on what joints do: the Q1 loop showed
+              * real joints bending at least that far and carrying a train
+              * (`engine/data/bendLimit.ts`). Past it the model has stopped
+              * vouching, which is all this says; the hedge in the same line
+              * says building it is the test. DESIGN.md rule 3.
               */}
-            Exceeds the modelled give. Needs{' '}
-            <span className="num">{e.gapMm.toFixed(0)}mm</span> absorbed, and the
-            joints are modelled to give{' '}
-            <span className="num">{e.giveMm.toFixed(0)}mm</span> in total.
+            <BendLine words={e.bend} />
             <LoopAt at={e.loopAt} />
-            {loopNote}
             {/*
               * THE GAP IN PIECES (task X6), only when `repair.ts` proved it
               * exactly. It sits AFTER the measurement rather than replacing
@@ -772,7 +770,7 @@ export function VerdictLine({
                     , part <span className="num">{e.pieces.partNumber}</span>
                   </>
                 )}
-                ) {e.pieces.direction === 'short' ? 'short' : 'too long'}.
+                ) {e.pieces.direction === 'short' ? 'short: add it and the loop closes exactly.' : 'too long: take it out and the loop closes exactly.'}
               </>
             )}
             <OpenRuns n={e.openRuns} />

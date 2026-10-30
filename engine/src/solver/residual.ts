@@ -1,5 +1,5 @@
 /**
- * Exact closure residual, and the per-joint give the bound needs.
+ * Exact closure residual, and each joint's two sides.
  *
  * This is the whole engine now. The residual of a fixed topology is an exact
  * algebraic constant computed in integer arithmetic: nothing iterates and
@@ -10,10 +10,13 @@
  * angular lever arm) for a minimax LP that allocated slop joint by joint. That
  * LP owned every measured defect in the project and was deleted at decision
  * R21: it produced a precise-looking TIGHT/FAIL split out of tolerances the
- * part data itself labels `estimated`. What replaced it is a necessary
- * condition, computed in `result.ts`: the gap cannot exceed the give.
+ * part data itself labels `estimated`. A necessary condition replaced it (the
+ * gap cannot exceed the summed axial give), and that was retired in turn when
+ * the floor showed a loop closing a gap three times its axial give: the bend
+ * model (`graph/bend.ts`, docs/designs/joint-bend.md) now decides, from
+ * measured stretch and a bend limit inferred from that loop.
  *
- * So a joint here carries only what it has: where it is, and how much it gives.
+ * So a joint here carries only what it has: where it is, and its two sides.
  */
 
 import { type Cyc, isZero, sub, toXY } from '../geom/cyclotomic.js';
@@ -25,26 +28,13 @@ import type { Layout, Part } from '../parts/schema.js';
  * nothing here says how this joint influences the closure, because nothing
  * computes that. See R21.
  *
- * A JOINT HAS TWO SIDES (fix C3, finding F1)
+ * A JOINT HAS TWO SIDES (fix C3, finding F1), and the WEAKER one governs.
  *
- * This used to read the budget from `placements[j-1]` alone, which is one half
- * of a two-sided thing. A joint is a peg from one piece in a socket from
- * another, and neither piece's recorded `slop` is the pair's give: each is a
- * per-part summary. With two numbers and no pair data, the sound combination is
- * the LARGER of the two, and the reason is the contract rather than the physics.
- *
- * `totalGiveMm` backs a NECESSARY condition: "gap exceeds give, therefore this
- * definitely will not fit." That is a definite claim, and it is only sound if
- * the give figure is an upper bound on the give really available. Taking the
- * smaller side would understate give and turn the one definite verdict this
- * engine makes into a false one, which is the worst failure mode here. Taking
- * the larger side can only ever weaken the bound toward "might fit", which the
- * verdict already says out loud.
- *
- * Today every BRIO part shares one ESTIMATED_SLOP, so min and max are the same
- * number and this changes no output. It is fixed now because the moment the
- * catalogue carries differing budgets, or calibration produces real per-end
- * pair data, a one-sided read is a wrong answer rather than a tidy one.
+ * This used to take the larger side, because the verdict was a necessary
+ * condition ("the gap exceeds the give, so it will not fit") that needed give
+ * as an upper bound. The verdict now claims closure ("closes with bend"), so
+ * the smaller side governs: a joint is only as loose as its tighter half
+ * (eng review D10). The bend model applies the same rule in `bendRun.ts`.
  */
 export interface Joint {
   readonly index: number;
@@ -55,15 +45,9 @@ export interface Joint {
    * the pair is inspectable and the choice above is testable from outside.
    */
   readonly between: readonly [string, string];
-  /** One-sided axial give at this joint, millimetres. Taken from the pair. */
+  /** Pull-apart stretch at this joint, millimetres: the weaker of the pair. Reported; the bend model reads parts directly. */
   readonly axialMaxMm: number;
-  /**
-   * One-sided angular give at this joint, degrees. Taken from the pair.
-   *
-   * WRITTEN AND NEVER READ by any give calculation: `totalGiveMm` sums
-   * `axialMaxMm` alone. Kept rather than deleted because deleting it would
-   * erase the evidence that the question exists; see `totalGiveMm`'s docblock.
-   */
+  /** Bend at this joint, degrees: the weaker of the pair's own figures. Reported only; BRIO joints use the bend limit. */
   readonly angularMaxDeg: number;
 }
 
@@ -113,8 +97,8 @@ export function computeResidual(layout: Layout, resolve: (id: string) => Part): 
         index: j - 1,
         at: [px, py],
         between: [incomingId, outgoingId],
-        axialMaxMm: Math.max(incoming.slop.axialMm, outgoing.slop.axialMm),
-        angularMaxDeg: Math.max(incoming.slop.angularDeg, outgoing.slop.angularDeg),
+        axialMaxMm: Math.min(incoming.slop.axialMm, outgoing.slop.axialMm),
+        angularMaxDeg: Math.min(incoming.slop.angularDeg, outgoing.slop.angularDeg),
       });
     }
   }
@@ -128,34 +112,4 @@ export function computeResidual(layout: Layout, resolve: (id: string) => Part): 
     joints,
     poses,
   };
-}
-
-/**
- * The bound: total one-sided AXIAL give available across every joint.
- *
- * Order-independent by construction, because addition is. The gauge dependence
- * that made the old solver flip a verdict between FAIL and TIGHT depending on
- * which piece was listed first cannot occur here.
- *
- * AXIAL ONLY, STATED HERE BECAUSE THE NAME DOES NOT SAY SO. This sums
- * `axialMaxMm`. `angularMaxDeg` sits on every `Joint` passed in and is NOT
- * read: not here, and nowhere else that computes give. The minimax LP deleted
- * at decision R21 did model the angular budget; dropping that solver left the
- * field in the schema and the term out of this sum.
- *
- * SO THIS FIGURE IS NOT ESTABLISHED AS AN UPPER BOUND, which is the condition
- * the docblock above makes the engine's one definite verdict depend on. Two
- * reasons, not one. A real term is missing. And the per-joint figure is
- * `Math.max` of two per-part summaries, which avoids the smaller estimate
- * without proving a real peg and socket cannot exceed both, so even a measured
- * axial number would not close it on its own.
- *
- * That is why the verdict copy says a gap exceeds the MODELLED give rather than
- * that the track will not fit: the comparison this function supports is against
- * a model, not against the world. Filed as P1 in `docs/plan/brio-TODOS.md`.
- * Closing it needs the measurement (`CALIBRATION.md` Q2) AND an aggregation
- * rule that yields a maximum rather than a mean, not just a number.
- */
-export function totalGiveMm(joints: readonly Joint[]): number {
-  return joints.reduce((sum, j) => sum + j.axialMaxMm, 0);
 }

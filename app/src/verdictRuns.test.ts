@@ -93,9 +93,9 @@ describe('what the verdict says', () => {
    * MUTATION PROOFS, run:
    * - `LoopAt` rendering nothing: fails with `expected 'XExceeds the modelled
    *   give. Needs 54m…' to contain 'In the loop through piece 9.'`.
-   * - the turned-loop detail back to the old sentence: fails with `expected
-   *   '?The track does not come back pointin…' to contain 'pointing the right
-   *   way. In the loop t…'`.
+   * - the turned clause dropped from `BendLine`: fails with `expected
+   *   'XBeyond the tested bend: needs up to …' to contain 'It comes back turned
+   *   45°.'`.
    */
   it('a gap names its loop when there are several', () => {
     // The second circle has a mini straight halfway round, so it opens by 54mm.
@@ -104,9 +104,16 @@ describe('what the verdict says', () => {
     );
   });
 
-  it('a loop that comes back turned is named once, not said twice', () => {
+  /*
+   * A LOOP THAT COMES BACK TURNED is weighed by the bend now (eng review D4),
+   * and the verdict says the turn once, as an angle (design 9A), with the run
+   * count when there is more than one (3A) and the loop it is in.
+   */
+  it('a loop that comes back turned says the angle once, and which run', () => {
     const out = said(layout(run('a', CIRCLE, true), run('b', CIRCLE.slice(1), true)));
-    expect(out).toContain('pointing the right way. In the loop through piece 9.');
-    expect(said(layout(run('b', CIRCLE.slice(1), true)))).not.toMatch(/pointing the way it started/);
+    expect(out).toContain('It comes back turned 45°.');
+    expect(out).toContain('In 1 of 2 track runs.');
+    expect(out).toContain('In the loop through piece 9.');
+    expect(out.match(/turned/g)).toHaveLength(1);
   });
 });
