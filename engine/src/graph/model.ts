@@ -266,9 +266,11 @@ export function roadsOf(part: Part, turn: Turn = 'left'): readonly PlacedRoad[] 
     }];
   }
   if (turn === 'left') return part.roads;
-  return part.roads.map((r) =>
-    r.shape.kind === 'arc' ? { ...r, shape: { ...r.shape, side: r.shape.side === 'left' ? 'right' : 'left' } } : r,
-  );
+  return part.roads.map((r) => {
+    if (r.shape.kind === 'arc') return { ...r, shape: { ...r.shape, side: r.shape.side === 'left' ? 'right' : 'left' } };
+    if (r.shape.kind === 's-bend') return { ...r, shape: { ...r.shape, offsetMm: -r.shape.offsetMm } };
+    return r;
+  });
 }
 
 /**
@@ -283,6 +285,12 @@ export function roadEnd(start: Frame, shape: RoadShape, plankWidthMm: number): F
   const h = start.heading + 8;
   if (shape.kind === 'straight') {
     return { pos: add(start.pos, scale(zetaPow(h), shape.lengthMm)), heading: norm16(h) };
+  }
+  if (shape.kind === 's-bend') {
+    // Along, then across (a quarter turn to the left), facing the same way.
+    const along = scale(zetaPow(h), shape.lengthMm);
+    const across = scale(zetaPow(h + 4), shape.offsetMm);
+    return { pos: add(start.pos, add(along, across)), heading: norm16(h) };
   }
   const r = centrelineRadiusMm({ innerRadiusMm: shape.innerRadiusMm, plankWidthMm });
   const s = shape.arcSteps;

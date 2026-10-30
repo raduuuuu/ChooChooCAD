@@ -33,7 +33,10 @@ const at = (x: number, y: number, heading: number): Frame => ({
 
 describe('every road lands exactly on the end it names (D9)', () => {
   it('the catalogue has every multi-road piece found on the grid', () => {
-    expect(MULTI.map((p) => p.id)).toEqual(['L', 'M', 'O1', 'P1', 'H', 'H1', 'H2', 'I', 'J', 'O', 'P', 'T', 'X', 'EE']);
+    expect(MULTI.map((p) => p.id)).toEqual([
+      'L', 'M', 'O1', 'P1', 'H', 'H1', 'H2', 'I', 'J', 'O', 'P', 'T', 'X', 'EE', 'F', 'G', 'F1', 'G1',
+      'IKEA-SW', 'IKEA-SW-P', 'IKEA-X145',
+    ]);
   });
 
   /*
@@ -248,5 +251,68 @@ describe('the pile-up rule counts roads', () => {
   it('a straight lying on one road of a switch is still a pile-up', () => {
     const g: Graph = { pieces: [{ pieceId: 'l', partId: 'L' }, { pieceId: 'a', partId: 'A' }], welds: [] };
     expect(clashesOf(g).map((c) => c.at.map(Math.round))).toEqual([[0, 0], [144, 0]]);
+  });
+});
+
+/*
+ * S-BENDS (owner, 2026-10-30: "Smooth S, approximate"). The ends are exact
+ * lattice points, pinned by the road walk above; the shape between is drawn
+ * as two equal float arcs, and these specs hold the drawing to its own
+ * geometry: it starts and ends where the road does, facing the way it does,
+ * and each arc really has the radius and the turn it claims.
+ */
+describe('an S-bend road', () => {
+  const ports = (piece: Piece) => portsOf(builtIn(piece.partId), piece.turn);
+  const drawn = (partId: string, turn: 'left' | 'right' = 'left') => {
+    const g: Graph = { pieces: [{ pieceId: 'p', partId, turn }], welds: [] };
+    return renderGraph(g, ports, builtIn, placeAll(g, ports)).segments;
+  };
+
+  /*
+   * MUTATION PROOFS, run:
+   * - the angle without its factor of 2 (`const t = Math.atan(...)`): fails
+   *   with `F1 arc 1 chord: expected 75.58438992278762 to be close to
+   *   72.86908866969222`.
+   * - both arcs bending the same way (`const back = out`): fails with `F1
+   *   sweeps: expected [ 'left', 'left' ] to deeply equal [ 'left', 'right' ]`.
+   * - the mirror leaving the offset alone (`roadsOf`): fails with `F road
+   *   0-1 right: expected false to be true` in the road walk, and here with
+   *   `F1 sweeps: expected [ 'left', 'right' ] to deeply equal [ 'right',
+   *   'left' ]`.
+   */
+  it("is two equal arcs, out and back, from the road's start to its exact end", () => {
+    for (const [id, turn] of [['F1', 'left'], ['F1', 'right'], ['F', 'left'], ['G', 'left']] as const) {
+      const segs = drawn(id, turn).filter((x) => x.kind === 'curve');
+      expect(segs.length % 2, id).toBe(0);
+      for (let i = 0; i < segs.length; i += 2) {
+        const [a, b] = [segs[i]!, segs[i + 1]!];
+        const label = `${id} ${turn} pair ${i / 2}`;
+        expect(a.to, label).toEqual(b.from);
+        expect(a.centrelineRadiusMm, label).toBeCloseTo(b.centrelineRadiusMm!, 9);
+        if (id === 'F1') expect([a.sweep, b.sweep], 'F1 sweeps').toEqual(turn === 'left' ? ['left', 'right'] : ['right', 'left']);
+        // Back to the heading it started with.
+        expect(Math.cos(b.to.h - a.from.h), label).toBeCloseTo(1, 9);
+        // Each arc's chord is what its radius and turn say it is.
+        for (const [arc, n] of [[a, 1], [b, 2]] as const) {
+          const chord = Math.hypot(arc.to.x - arc.from.x, arc.to.y - arc.from.y);
+          const turned = Math.abs(arc.to.h - arc.from.h);
+          expect(chord, `${id} arc ${n} chord`).toBeCloseTo(2 * arc.centrelineRadiusMm! * Math.sin(turned / 2), 9);
+        }
+      }
+    }
+  });
+
+  it('F1 draws its straight road straight, and its parallel road ending 46 over', () => {
+    const segs = drawn('F1');
+    expect(segs.map((x) => x.kind)).toEqual(['straight', 'curve', 'curve']);
+    expect([Math.round(segs[2]!.to.x), Math.round(segs[2]!.to.y)]).toEqual([144, 46]);
+  });
+
+  it('F rounds its half millimetres to ends still 47 apart, and says so', () => {
+    const f = builtIn('F');
+    if (f.kind !== 'multi-road') throw new Error('F is not a multi-road piece');
+    const ys = portsOf(f).slice(1).map((p) => toXY(p.at.pos)[1]);
+    expect(Math.abs(ys[0]! - ys[1]!)).toBeCloseTo(47, 9);
+    for (const id of ['F', 'G', 'IKEA-X145']) expect(builtIn(id).dimensions.note, id).toMatch(/ROUNDED/);
   });
 });

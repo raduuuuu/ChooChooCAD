@@ -369,7 +369,20 @@ export type RoadShape =
       readonly arcSteps: number;
       /** Which way it bends walked from `from`, with the piece `turn: 'left'`. */
       readonly side: Turn;
-    };
+    }
+  /**
+   * An S-BEND: the road ends facing the way it started, moved `offsetMm`
+   * across (positive to the left, walked from `from`, piece `turn: 'left'`)
+   * after `lengthMm` along. Parallel switches (F1, G1) and the F/G fork have
+   * these, and no pair of 22.5-degree arcs makes one.
+   *
+   * THE ENDS ARE EXACT: both lengths are whole millimetres, so the far end is
+   * a lattice point and every verdict stays exact. THE SHAPE BETWEEN IS NOT:
+   * it is drawn, and overlap-checked, as two equal arcs bending out and back,
+   * worked out in floats (owner, 2026-10-30: "Smooth S, approximate"). Each
+   * part with one says so.
+   */
+  | { readonly kind: 's-bend'; readonly lengthMm: number; readonly offsetMm: number };
 
 /** A road: track a train can run along, between two ends of the piece. */
 export interface Road {

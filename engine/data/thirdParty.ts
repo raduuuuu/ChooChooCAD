@@ -56,7 +56,10 @@
  * Lillabo radius stops resting on one reproduction.
  */
 
-import type { BrandFit, Brand, CurvePart, DimensionSource, Part, PartEnds, StraightPart } from '../src/parts/schema.js';
+import type { Cyc } from '../src/geom/cyclotomic.js';
+import type {
+  BrandFit, Brand, CurvePart, DimensionSource, MultiRoadPart, Part, PartEnds, Polarity, StraightPart,
+} from '../src/parts/schema.js';
 
 /** Same slop placeholder as BRIO. Nobody has measured these joints either. */
 const UNMEASURED_SLOP = {
@@ -146,6 +149,74 @@ const LILLABO_CURVES: readonly CurvePart[] = [
 ];
 
 /**
+ * THE LILLABO SWITCH AND CROSSING, from the same Vamuss set.
+ *
+ * The two "y" files (`y-fmm`, `y-mff`) are an ordinary switch read from the
+ * other end: with their shared end taken as the heel, one road is a 145
+ * straight and the other a 45-degree curve at the 202 centreline, both
+ * exact, which is why the end reader first took them for Ys. `fmm` has a
+ * socket heel and pegs, `mff` the reverse. The `-tt` files add a quarter
+ * circle of about 84mm that matches no Lillabo piece, and are left out.
+ *
+ * The crossing's roads are two 145 straights, so the second one crosses at
+ * 72.5, half a millimetre off the grid. ROUNDED (owner, 2026-10-30): its
+ * ends sit at (72, -72) and (72, 73), still 145 apart, the road 0.5mm off
+ * the middle of the first, and 0.5mm along it.
+ */
+const LILLABO_SWITCH_SOURCE: DimensionSource = {
+  ...IKEA_REPRODUCTION,
+  note:
+    'The y-fmm and y-mff files, reframed from their shared end: straight end at 145.1, ' +
+    'curved end on the 202 centreline, both to 0.2mm. Exact on the grid.',
+};
+const LILLABO_CROSSING_SOURCE: DimensionSource = {
+  ...IKEA_REPRODUCTION,
+  note:
+    'Cross-145: two 145 roads, the second crossing at (72.4 to 72.5, +/-72.5). ROUNDED to ' +
+    'the grid: its ends at (72, -72) and (72, 73), 0.5mm off the true middle each way.',
+};
+const other = (p: Polarity): Polarity => (p === 'peg' ? 'socket' : 'peg');
+const xy = (x: number, y: number): Cyc => [x, 0, 0, 0, y, 0, 0, 0];
+
+const lillaboSwitch = (heel: Polarity): MultiRoadPart => ({
+  id: heel === 'socket' ? 'IKEA-SW' : 'IKEA-SW-P',
+  brand: 'IKEA', kind: 'multi-road',
+  name: heel === 'socket' ? 'Lillabo switch' : 'Lillabo switch, peg heel',
+  ports: [
+    { at: { pos: xy(0, 0), heading: 8 }, polarity: heel, name: 'heel', kind: 'heel' },
+    { at: { pos: xy(145, 0), heading: 0 }, polarity: other(heel), name: 'straight road' },
+    { at: { pos: [0, 0, 0, 0, 202, 0, -202, 0], heading: 2 }, polarity: other(heel), name: 'curved road' },
+  ],
+  roads: [
+    { from: 0, to: 1, shape: { kind: 'straight', lengthMm: 145 } },
+    { from: 0, to: 2, shape: { kind: 'arc', innerRadiusMm: 182, arcSteps: 2, side: 'left' } },
+  ],
+  sizeLabel: 'r202',
+  flip: { label: 'Branch to the other side', verb: 'branch it to the other side', after: 'Now branches to the other side.' },
+  dimensions: LILLABO_SWITCH_SOURCE, slop: UNMEASURED_SLOP, ...LILLABO_PROFILE,
+});
+
+const LILLABO_MULTI_ROAD: readonly MultiRoadPart[] = [
+  lillaboSwitch('socket'),
+  lillaboSwitch('peg'),
+  {
+    id: 'IKEA-X145', brand: 'IKEA', kind: 'multi-road', name: 'Lillabo crossing',
+    ports: [
+      { at: { pos: xy(0, 0), heading: 8 }, polarity: 'socket', name: "first road's near end" },
+      { at: { pos: xy(145, 0), heading: 0 }, polarity: 'peg', name: "first road's far end" },
+      { at: { pos: xy(72, -72), heading: 12 }, polarity: 'peg', name: "second road's near end" },
+      { at: { pos: xy(72, 73), heading: 4 }, polarity: 'socket', name: "second road's far end" },
+    ],
+    roads: [
+      { from: 0, to: 1, shape: { kind: 'straight', lengthMm: 145 } },
+      { from: 2, to: 3, shape: { kind: 'straight', lengthMm: 145 } },
+    ],
+    sizeLabel: '145×145',
+    dimensions: LILLABO_CROSSING_SOURCE, slop: UNMEASURED_SLOP, ...LILLABO_PROFILE,
+  },
+];
+
+/**
  * SEEDS, not a catalogue. Brand-prefixed ids. Playtive is straights only.
  *
  * These exist so that someone who owns IKEA or Playtive track finds a row to
@@ -166,6 +237,7 @@ export const THIRD_PARTY_SEEDS: readonly Part[] = [
   },
   ...LILLABO_STRAIGHTS,
   ...LILLABO_CURVES,
+  ...LILLABO_MULTI_ROAD,
   {
     id: 'PLAYTIVE-30', brand: 'PLAYTIVE', kind: 'straight', name: 'Playtive straight, short',
     lengthMm: 30,
