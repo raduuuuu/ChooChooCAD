@@ -73,7 +73,7 @@ function viaGraph(layout: Layout) {
  * Ramps get their own seeded enumeration in levels.test.ts.
  */
 const BRIO = BUILT_IN.filter(
-  (p) => p.brand === 'BRIO' && p.kind !== 'multi-road' && !(p.kind === 'straight' && p.rise),
+  (p) => p.brand === 'BRIO' && (p.kind === 'straight' || p.kind === 'curve') && !(p.kind === 'straight' && p.rise),
 ).map((p) => p.id);
 
 /** Deterministic, so a failure is reproducible from the seed alone. */

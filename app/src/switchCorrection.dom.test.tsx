@@ -38,7 +38,7 @@ const verdict = () =>
 
 describe('correcting a switch from the submission form', () => {
   /*
-   * MUTATION PROOF, run: in `SubmitPart.tsx`, set `const correctsMultiRoad =
+   * MUTATION PROOF, run: in `SubmitPart.tsx`, set `const correctsOtherEnds =
    * false`. Fails with `expected false to be true`: the button is live. With
    * the library guard still in place the app does not crash, which is why
    * that guard has its own spec in `engine/test/analytic.test.ts`. Before
@@ -60,7 +60,7 @@ describe('correcting a switch from the submission form', () => {
 
     const add = button('Add to the library') as HTMLButtonElement;
     expect(add.disabled).toBe(true);
-    expect(screen.getByText(/has more than two ends, like a switch or a\s+crossing/)).toBeTruthy();
+    expect(screen.getByText(/does not have two ends: it is a switch, a\s+crossing or a buffer stop/)).toBeTruthy();
     await user.click(add);
     expect(localStorage.getItem(SUBMISSIONS_STORAGE_KEY)).toBe('[]');
     expect(verdict()?.textContent).toMatch(/2 pieces/);

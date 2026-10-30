@@ -16,7 +16,7 @@
  * rigidly related on screen for the same reason they do in the arithmetic.
  */
 
-import { toXY } from '../geom/cyclotomic.js';
+import { add, scale, toXY, zetaPow } from '../geom/cyclotomic.js';
 import type { FPose, Segment } from '../geom/fk.js';
 import { portFrame, type Placement, type PortsOf } from './frames.js';
 import { levelOf, norm16, portPolarity, roadsOf, type Frame, type Graph } from './model.js';
@@ -115,6 +115,23 @@ export function renderGraph(
      * facing the other way: on a road from port 0 that is the piece's own
      * frame, exactly as before.
      */
+    /*
+     * A BUFFER STOP has no road, but it is wood on the table: its body runs
+     * back from its one end, drawn and overlap-checked as a straight of its
+     * length. The far point is not an end, so nothing can join there.
+     */
+    if (part.kind === 'buffer') {
+      const end = portFrame(placement, ports, piece, 0);
+      const along = norm16(end.heading + 8);
+      segments.push({
+        kind: 'straight',
+        from: pose({ pos: end.pos, heading: along }),
+        to: pose({ pos: add(end.pos, scale(zetaPow(along), part.lengthMm)), heading: along }),
+        partId: piece.partId,
+        pieceId: piece.pieceId,
+        ...levels,
+      });
+    }
     for (const road of roadsOf(part, piece.turn)) {
       const start = portFrame(placement, ports, piece, road.from);
       const from = pose({ pos: start.pos, heading: norm16(start.heading + 8) });

@@ -219,12 +219,18 @@ describe('a rendered end knows whether it is a peg or a socket', () => {
            * data is one level less circular and catches that swap.
            */
           const expected =
-            part.kind === 'multi-road' ? part.ports[i]!.polarity : i === 0 ? part.ends.start : part.ends.end;
+            part.kind === 'multi-road'
+              ? part.ports[i]!.polarity
+              : part.kind === 'buffer'
+                ? part.end
+                : i === 0 ? part.ends.start : part.ends.end;
           expect(rendered.polarity, `${part.id} port ${i}`).toBe(expected);
         });
         // The sweep reaches real heels (L, M, O1, P1) and the H crossing, so
         // a multi-road piece's ends are checked here like any other.
-        expect(r.ports, part.id).toHaveLength(part.kind === 'multi-road' ? part.ports.length : 2);
+        expect(r.ports, part.id).toHaveLength(
+          part.kind === 'multi-road' ? part.ports.length : part.kind === 'buffer' ? 1 : 2,
+        );
       }
     }
   });

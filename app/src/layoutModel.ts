@@ -292,6 +292,8 @@ export function rotateCycle(options: readonly Fit[], turn: Turn, flips = true): 
 export function hasFlip(part: Part): boolean {
   if (part.kind === 'curve') return true;
   if (part.kind === 'multi-road') return part.flip !== undefined;
+  // A buffer stop has one end on its axis: turned over, it is the same.
+  if (part.kind === 'buffer') return false;
   return part.rise !== undefined;
 }
 
