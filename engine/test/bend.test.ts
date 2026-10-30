@@ -198,7 +198,9 @@ describe('the solver against an independent method (eng review D5)', () => {
       const want = oracle(run);
       expect(Math.abs(o.firstLinearLambda - want) / want, `${ids.join(' ')}: ${o.firstLinearLambda} vs ${want}`).toBeLessThan(0.01);
     }
-  });
+    // The oracle bisects a dense projection: under 2s here, near vitest's 5s
+    // default on the CI runner.
+  }, 60_000);
 });
 
 describe('a joint is spent once, however many loops use it (cycles.ts rule 2)', () => {

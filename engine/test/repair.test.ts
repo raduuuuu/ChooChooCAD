@@ -252,7 +252,9 @@ describe('the gap in pieces', () => {
     // The sample must actually exercise the claim, or this proves nothing.
     expect(named).toBeGreaterThan(2);
     expect(wrong).toEqual([]);
-  });
+    // 6000 loops, each solved for its bend: about 2s here, past vitest's 5s
+    // default on the CI runner.
+  }, 60_000);
 
   /*
    * THE WIRING. A Q1-shaped loop on SHORT curves (E1) has the same 72mm gap
