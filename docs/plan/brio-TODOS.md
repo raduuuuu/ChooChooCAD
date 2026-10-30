@@ -18,13 +18,43 @@ chosen by the owner: phased, all BRIO types.
 
 - PR 1, DONE in this branch: the Lillabo set (five straights, curves of 22.5,
   45 and 90 degrees) from the Vamuss reproduction.
-- NEXT: one general multi-road part kind (ports at exact poses, each with its
-  own polarity, plus straight or arc roads between them), then data PRs for
-  H/H1/H2, I/J, O/P, T/X, EE, F1/G1, F/G and the Lillabo crossing and Ys.
+- NEXT (eng-reviewed 2026-10-30, D2-D14 in the plan doc): PR A, one
+  multi-road part type that replaces `SwitchPart` (ports at exact poses with
+  their own polarity and names, plus straight or arc roads checked exactly
+  against them) and the H crossing; PR B, H1, H2, I, J, O, P, T, X and EE.
+  F1/G1, F/G and the Lillabo multi-road pieces moved to the off-grid P2 below.
 - Then a one-port kind for the R/S buffer stops.
 - T and X are exact at a 108 centreline (three reproductions agree), so
   `BRIO_PIECE_TABLE`'s `approximate-radius` for them is to be corrected in
   that PR.
+
+## P2 — Multi-road pieces that sit off the whole-millimetre grid (filed by /plan-eng-review 2026-10-30)
+
+**What:** Decide how to model, and then add, the measured multi-road pieces
+that the exact lattice cannot hold: BRIO F1/G1 (a 144 straight plus a branch
+ending parallel 46mm over: the branch is an S-bend, and no pair of 22.5 degree
+arcs reaches 46 over in 144), BRIO F/G (a fork to two tracks 47mm apart, so
+each end sits 23.5 off the heel's line), and the Lillabo crossing (145 x 145,
+so the second road's ends are at x = 72.5) plus the two Lillabo "Y" files,
+whose readings do not match a Y of two 45 degree curves (`y-fmm.step`: a road
+ending at (40.6, 43.3) heading 135; `y-fmm-tt.step`: a road ending at (83.9,
+83.9) heading 90, about r84).
+
+**Why:** Deferred by eng review decisions D2 and D13
+(`docs/plan/2026-10-29-makerworld-pieces.md`): the multi-road type ships with
+straight and arc roads only, all exact.
+
+**Pros:** Four more BRIO pieces and Lillabo's multi-road set.
+
+**Cons:** Needs either a drawn-only road shape with an approximate footprint
+(touching render, overlap, trackPath and tableModel) or a stated rounding of
+half millimetres; both introduce the engine's first inexact geometry.
+
+**Context:** Measurements are in the plan doc's table and in the MakerWorld
+3MF files (Isaxon 3121622 for F/G, AU3D 892305 for F1/G1, Vamuss 2181560 for
+Lillabo). Re-measure the Lillabo Ys first.
+
+**Depends on / blocked by:** the multi-road type (PR A of the plan).
 
 ## P3 — Point mouse users to the list for ends hidden under a bridge
 
