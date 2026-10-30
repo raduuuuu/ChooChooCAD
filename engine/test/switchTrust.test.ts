@@ -36,7 +36,21 @@ describe('the modelled-switch disclosure', () => {
    */
   it('is emitted, in the plan\'s words, for a layout holding one switch', () => {
     const t = trustOf(['L', 'E', 'E']).find((x) => x.kind === 'modelled-switch');
-    expect(t?.detail).toBe("This switch's geometry is modelled, not measured.");
+    expect(t?.detail).toBe("This piece's geometry is modelled, not measured.");
+  });
+
+  /*
+   * EVERY MULTI-ROAD PIECE, not only switches (eng review D7). A crossing is
+   * straight roads between listed ends, as much the engine's model as a
+   * switch is.
+   *
+   * MUTATION PROOF, run: key the note on `p.kind === 'multi-road' &&
+   * p.ports.length === 3`. Fails with `expected undefined to be 'This piece\'s
+   * geometry is modelled, not measured.'`.
+   */
+  it('is emitted for a layout whose only multi-road piece is the H crossing', () => {
+    const t = trustOf(['H', 'A']).find((x) => x.kind === 'modelled-switch');
+    expect(t?.detail).toBe("This piece's geometry is modelled, not measured.");
   });
 
   /*
@@ -65,7 +79,7 @@ describe('the modelled-switch disclosure', () => {
    */
   it('speaks in the plural for more than one switch, even two of the same part', () => {
     const t = trustOf(['L', 'L']).find((x) => x.kind === 'modelled-switch');
-    expect(t?.detail).toBe("These switches' geometry is modelled, not measured.");
+    expect(t?.detail).toBe("These pieces' geometry is modelled, not measured.");
   });
 
   it('is absent from a layout with no switch', () => {

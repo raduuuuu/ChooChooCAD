@@ -22,7 +22,7 @@
  */
 
 import { type Cyc, ZERO, add, mulZetaPow, scale, sub, zetaPow } from './cyclotomic.js';
-import { centrelineRadiusMm, type Layout, type Part, type Turn } from '../parts/schema.js';
+import { centrelineRadiusMm, type CurvePart, type Layout, type Part, type StraightPart, type Turn } from '../parts/schema.js';
 
 export interface Pose {
   readonly pos: Cyc;
@@ -33,29 +33,30 @@ export interface Pose {
 export const ORIGIN: Pose = { pos: ZERO, heading: 0 };
 
 /*
- * The chain engine REFUSES a switch rather than guessing.
+ * The chain engine REFUSES a multi-road piece rather than guessing.
  *
- * Widening `PartKind` opened a silent path here: this function tests for
- * 'straight' and treats everything else as a curve, and `SwitchPart` happens
- * to carry `arcSteps` and an inner radius, so a switch would have been walked
- * as its diverging road with no error anywhere. A wrong answer that typechecks
- * is the exact defect class this project keeps finding, so it throws.
+ * Widening `PartKind` opened a silent path here once: this function tests for
+ * 'straight' and treated everything else as a curve, and the old switch kind
+ * happened to carry `arcSteps` and an inner radius, so a switch would have
+ * been walked as its diverging road with no error anywhere. A wrong answer
+ * that typechecks is the exact defect class this project keeps finding, so it
+ * throws, and the assertion narrows the type so the rest cannot forget.
  *
  * A chain cannot express a branch at all, so nothing legitimate reaches here
- * with a switch; the graph engine in src/graph is where three-ported pieces
+ * with a switch or a crossing; the graph engine in src/graph is where they
  * belong. This dies when the chain engine does, after T7's harness.
  */
-function refuseMultiPort(part: Part): void {
-  if (part.kind === 'switch') {
+export function refuseMultiRoad(part: Part): asserts part is StraightPart | CurvePart {
+  if (part.kind === 'multi-road') {
     throw new Error(
-      `${part.id} is a switch: a chain cannot express a branch. Use the graph engine.`,
+      `${part.id} has ${part.ports.length} ends: a chain cannot express a branch. Use the graph engine.`,
     );
   }
 }
 
 /** Exact displacement contributed by one part placed at the given heading. */
 export function displacement(part: Part, heading: number, turn: Turn = 'left'): Cyc {
-  refuseMultiPort(part);
+  refuseMultiRoad(part);
   if (part.kind === 'straight') {
     return scale(zetaPow(heading), part.lengthMm);
   }
@@ -70,7 +71,7 @@ export function displacement(part: Part, heading: number, turn: Turn = 'left'): 
 
 /** Heading after traversing one part. */
 export function headingAfter(part: Part, heading: number, turn: Turn = 'left'): number {
-  refuseMultiPort(part);
+  refuseMultiRoad(part);
   if (part.kind === 'straight') return heading;
   return turn === 'left' ? heading + part.arcSteps : heading - part.arcSteps;
 }

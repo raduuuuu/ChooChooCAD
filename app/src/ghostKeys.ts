@@ -55,8 +55,9 @@ export function ghostKeys(
   const canFlip = options === null || options.some((o) => o.turn !== ghost.turn);
   let flip: KeyWords | null = null;
   if (part.kind === 'curve') flip = { label: 'Bend the other way', verb: 'bend it the other way', enabled: canFlip };
-  else if (part.kind === 'switch')
-    flip = { label: 'Branch to the other side', verb: 'branch it to the other side', enabled: canFlip };
+  // A multi-road piece says in its data what F does, or has no F (eng review D8).
+  else if (part.kind === 'multi-road')
+    flip = part.flip ? { label: part.flip.label, verb: part.flip.verb, enabled: canFlip } : null;
   else if (isRamp(part)) {
     flip =
       options === null
@@ -87,7 +88,7 @@ export function afterKey(kind: 'rotateGhost' | 'flipGhost', part: Part, ghost: P
     return `Now joins the track by its ${endName(part, ghost.port, ghost.turn)}.${ramp}`;
   }
   if (part.kind === 'curve') return 'Now bends the other way.';
-  if (part.kind === 'switch') return 'Now branches to the other side.';
+  if (part.kind === 'multi-road') return part.flip?.after ?? 'It looks the same turned over.';
   // F still reaches a plain straight from the keyboard; it reads the same either way up.
   if (!isRamp(part)) return 'A straight looks the same turned over.';
   return `Turned over.${ramp}`;

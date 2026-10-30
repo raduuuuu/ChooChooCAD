@@ -171,11 +171,15 @@ export function addPiece(
   }
 
   /*
-   * The far end to continue from: port 1 when the piece went on by its start,
-   * and its start (a switch's heel) when it went on turned round.
+   * The far end to continue from: the other end of the road the piece went
+   * on by. On a two-ended piece that is port 1 from its start and its start
+   * from its end; a multi-road piece says which (`Port.onward`, eng review
+   * D14), so a crossing joined by its third end carries on at its fourth,
+   * not round the corner at its first.
    */
+  const onward = ports(piece)[joinBy]?.onward;
   const select: PortRef | null =
-    portCount > 1 ? { pieceId, port: joinBy === 0 ? 1 : 0 } : null;
+    portCount > 1 ? { pieceId, port: onward ?? (joinBy === 0 ? 1 : 0) } : null;
   return { graph: { pieces, welds, anchors }, select };
 }
 
@@ -229,10 +233,15 @@ export function fitOptions(
     if (attaching === meeting && meeting === 'peg') return;
     const adapter = attaching === meeting;
     const frame = frameForPortAt(own[fit.port]!.at, targetFrame);
-    // Where every end of the piece lands, as a set: the same set is the same
-    // piece. Prefixed with the adapter flag, so the two kinds never merge.
+    // Where every end of the piece lands, and whether it is a peg or a
+    // socket there, as a set: the same set is the same piece. The polarity is
+    // there for the crossing (eng review D11): turned a quarter, it lands its
+    // ends on the same four spots with the pegs elsewhere, which joins the
+    // next track differently. Two-ended parts are unaffected, since their
+    // ends' polarities follow from the attaching end, which the adapter flag
+    // already splits on. Prefixed with that flag, so the two kinds never merge.
     const key = (adapter ? 'adapter|' : '') + own
-      .map((p) => JSON.stringify(compose(frame, p.at)))
+      .map((p) => `${p.polarity}@${JSON.stringify(compose(frame, p.at))}`)
       .sort()
       .join('|');
     if (seen.has(key)) return;

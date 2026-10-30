@@ -62,14 +62,17 @@ describe('switch seeds', () => {
   });
 
   /*
-   * MUTATION PROOF, run: give M `ends: SOCKET_HEEL`. Fails with
-   * `M heel: expected 'socket' to be 'peg'`.
+   * MUTATION PROOF, run: build M with heel 'socket' in switchSeeds.ts. Fails
+   * with `M heel: expected 'socket' to be 'peg'`.
    */
   it('keep the measured polarity: the roads are the opposite of the heel', () => {
     for (const m of MEASURED) {
       const p = getPart(m.id);
-      expect(p.ends.start, `${m.id} heel`).toBe(m.heel);
-      expect(p.ends.end, `${m.id} roads`).toBe(m.heel === 'peg' ? 'socket' : 'peg');
+      if (p.kind !== 'multi-road') throw new Error(`${m.id} is not a multi-road piece`);
+      expect(p.ports[0]!.polarity, `${m.id} heel`).toBe(m.heel);
+      for (const road of [1, 2]) {
+        expect(p.ports[road]!.polarity, `${m.id} road ${road}`).toBe(m.heel === 'peg' ? 'socket' : 'peg');
+      }
     }
   });
 

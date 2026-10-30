@@ -32,8 +32,8 @@
  * 16, so a weld either closes or it does not and no epsilon appears anywhere.
  */
 
-import { type Cyc, ZERO, add, mulZetaPow, scale, sub, zetaPow } from '../geom/cyclotomic.js';
-import { centrelineRadiusMm, type Part, type Polarity, type Turn } from '../parts/schema.js';
+import { type Cyc, ZERO, add, conj, mulZetaPow, scale, sub, zetaPow } from '../geom/cyclotomic.js';
+import { centrelineRadiusMm, type Part, type Polarity, type RoadShape, type Turn } from '../parts/schema.js';
 
 /** A pose in a piece's local frame, or in world space. Both are exact. */
 export interface Frame {
@@ -117,6 +117,14 @@ export interface Port {
    * `addPiece`).
    */
   readonly polarity: Polarity;
+  /**
+   * On a multi-road piece, the end you come out at going on through this one:
+   * the other end of the FIRST listed road that has this end (eng review
+   * D14). The editor builds on from there, so laying track through a
+   * crossing carries straight on. Absent on a two-ended part, where it is
+   * simply the other end.
+   */
+  readonly onward?: number;
 }
 
 /** A placed piece: an instance of a part, with its own identity. */
@@ -178,9 +186,25 @@ export interface Graph {
  * without anything downstream changing.
  */
 export function portsOf(part: Part, turn: Turn = 'left'): readonly Port[] {
-  // Port 0 is the HEEL on a switch and an ordinary end everywhere else. On a
-  // two-ported part the distinction is invisible, which is why it can be set
-  // here once rather than threaded through the walk.
+  /*
+   * A MULTI-ROAD PIECE lists its ends (eng review D9), written for the piece
+   * placed 'left'. Placed 'right' it is the mirror image, end by end: the
+   * same numbering, each pose reflected across the piece's own x axis. That
+   * is how a curve turns the other way too (`arcEnd` below), so a switch
+   * placed 'right' lands its ends exactly where the old switch kind did
+   * (switchRegression.test.ts).
+   */
+  if (part.kind === 'multi-road') {
+    return part.ports.map((e, i) => {
+      const road = part.roads.find((r) => r.from === i || r.to === i);
+      return {
+        kind: e.kind ?? 'end',
+        at: turn === 'right' ? mirrored(e.at) : { pos: e.at.pos, heading: norm16(e.at.heading) },
+        polarity: e.polarity,
+        ...(road ? { onward: road.from === i ? road.to : road.from } : {}),
+      };
+    });
+  }
   /*
    * A RAMP FLIPPED OVER (turn 'right'). BRIO track is double-sided, which is
    * how one curve turns either way: `turn` already means "this face up". An
@@ -193,7 +217,7 @@ export function portsOf(part: Part, turn: Turn = 'left'): readonly Port[] {
   const rise = part.kind === 'straight' ? (part.rise ?? 0) : 0;
   const flippedRamp = rise !== 0 && turn === 'right';
   const entry: Port = {
-    kind: part.kind === 'switch' ? 'heel' : 'end',
+    kind: 'end',
     at: flippedRamp ? frameOf(ENTRY.pos, ENTRY.heading, rise) : ENTRY,
     polarity: part.ends.start,
   };
@@ -202,29 +226,67 @@ export function portsOf(part: Part, turn: Turn = 'left'): readonly Port[] {
     // A ramp's high end sits `rise` levels above its low end; compose adds it.
     return [entry, { kind: 'end', at: frameOf(straightEnd(part.lengthMm), 0, flippedRamp ? 0 : rise), polarity: far }];
   }
-  if (part.kind === 'curve') {
-    return [
-      entry,
-      { kind: 'end', at: arcEnd(centrelineRadiusMm(part), part.arcSteps, turn), polarity: far },
-    ];
-  }
-  /*
-   * A SWITCH. Three ports, and nothing else in this file had to change.
-   *
-   * Port 0 is the heel, where the two routes meet. Port 1 is the straight
-   * road, port 2 the diverging one. Both are measured from the same local
-   * frame, so the switch is rigid for exactly the reason the crossing is:
-   * there is one frame, not two routes that have to be kept in step.
-   *
-   * `turn` picks which side the switch diverges to, the same way it mirrors
-   * a curve, so a left-hand and a right-hand switch are one part placed two
-   * ways rather than two catalogue entries.
-   */
   return [
     entry,
-    { kind: 'end', at: { pos: straightEnd(part.throughLengthMm), heading: 0 }, polarity: far },
     { kind: 'end', at: arcEnd(centrelineRadiusMm(part), part.arcSteps, turn), polarity: far },
   ];
+}
+
+/** A local pose reflected across the piece's x axis: the piece the other way up. */
+function mirrored(at: { readonly pos: Cyc; readonly heading: number }): Frame {
+  return { pos: conj(at.pos), heading: norm16(-at.heading) };
+}
+
+/**
+ * The roads of a placed part, in its local frame, each as the two ends it
+ * joins and how it runs between them. A two-ended part is one road, end 0 to
+ * end 1. A multi-road piece placed 'right' has every arc bending the other
+ * way, the same mirror `portsOf` applies to its ends.
+ *
+ * Read by the renderer (one segment per road), the pile-up rule (two roads on
+ * top of each other) and the editor (which end to build on from).
+ */
+export interface PlacedRoad {
+  readonly from: number;
+  readonly to: number;
+  readonly shape: RoadShape;
+}
+
+export function roadsOf(part: Part, turn: Turn = 'left'): readonly PlacedRoad[] {
+  if (part.kind === 'straight') return [{ from: 0, to: 1, shape: { kind: 'straight', lengthMm: part.lengthMm } }];
+  if (part.kind === 'curve') {
+    return [{
+      from: 0,
+      to: 1,
+      shape: { kind: 'arc', innerRadiusMm: part.innerRadiusMm, arcSteps: part.arcSteps, side: turn },
+    }];
+  }
+  if (turn === 'left') return part.roads;
+  return part.roads.map((r) =>
+    r.shape.kind === 'arc' ? { ...r, shape: { ...r.shape, side: r.shape.side === 'left' ? 'right' : 'left' } } : r,
+  );
+}
+
+/**
+ * Where a road ends, walked exactly from the end it starts at. The start
+ * end's heading points OUT of the piece, so travel is the opposite way.
+ * `plankWidthMm` turns an arc's inner radius into its centreline.
+ *
+ * The check behind eng review D9: for every built-in multi-road piece this
+ * must EQUAL the road's `to` end, coefficient for coefficient.
+ */
+export function roadEnd(start: Frame, shape: RoadShape, plankWidthMm: number): Frame {
+  const h = start.heading + 8;
+  if (shape.kind === 'straight') {
+    return { pos: add(start.pos, scale(zetaPow(h), shape.lengthMm)), heading: norm16(h) };
+  }
+  const r = centrelineRadiusMm({ innerRadiusMm: shape.innerRadiusMm, plankWidthMm });
+  const s = shape.arcSteps;
+  const d =
+    shape.side === 'left'
+      ? scale(sub(zetaPow(4 + h), zetaPow(4 + h + s)), r)
+      : scale(sub(zetaPow(4 + h - s), zetaPow(4 + h)), r);
+  return { pos: add(start.pos, d), heading: norm16(shape.side === 'left' ? h + s : h - s) };
 }
 
 const ENTRY: Frame = { pos: ZERO, heading: 8 };
@@ -250,17 +312,13 @@ function arcEnd(r: number, s: number, turn: Turn): Frame {
 /**
  * The polarity of one port.
  *
- * `PartEnds` has two fields because a part used to have two ends. Port 0 is
- * the start; every other port takes the part's `end` polarity.
- *
- * For a switch, port 0 is the heel and both roads take `end`: the two roads
- * leaving the heel terminate the same way. Every switch reproduction measured
- * for `switchSeeds.ts` has that shape (pegs on both roads with a socket heel,
- * or the reverse), but nobody has published it for real BRIO track, so it is
- * an observation from reproductions rather than a cited fact. A switch whose
- * roads differ would need per-port polarity.
+ * A two-ended part keeps `PartEnds`: port 0 is the start, port 1 the end. A
+ * multi-road piece writes each end's own peg or socket, because some pieces
+ * mix them: the H1 crossing has one road socket to socket and the other peg
+ * to peg, and the T switch's straight and curved roads end differently.
  */
 export function portPolarity(part: Part, portIndex: number): Polarity {
+  if (part.kind === 'multi-road') return part.ports[portIndex]!.polarity;
   return portIndex === 0 ? part.ends.start : part.ends.end;
 }
 

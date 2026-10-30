@@ -40,7 +40,8 @@ const PROFILE_DEFAULTS = { gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm:
 export interface SubmitPartProps {
   readonly existingIds: ReadonlySet<string>;
   /** Ids of switches, which this form cannot correct: it has no third end. */
-  readonly switchIds: ReadonlySet<string>;
+  /** Ids of pieces with more than two ends, which this form cannot correct. */
+  readonly multiRoadIds: ReadonlySet<string>;
   readonly onSubmit: (s: Submission) => void;
   readonly onCancel: () => void;
 }
@@ -53,7 +54,7 @@ function parseMm(raw: string): number | null {
   return n;
 }
 
-export function SubmitPart({ existingIds, switchIds, onSubmit, onCancel }: SubmitPartProps) {
+export function SubmitPart({ existingIds, multiRoadIds, onSubmit, onCancel }: SubmitPartProps) {
   const [brand, setBrand] = useState<Brand>('IKEA');
   const [name, setName] = useState('');
   const [kind, setKind] = useState<'straight' | 'curve'>('straight');
@@ -77,10 +78,10 @@ export function SubmitPart({ existingIds, switchIds, onSubmit, onCancel }: Submi
     ? correcting
     : `${brand}-${name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '-').slice(0, 20) || 'PART'}`;
   const idCollides = correcting === '' && existingIds.has(id);
-  const correctsSwitch = switchIds.has(correcting);
+  const correctsMultiRoad = multiRoadIds.has(correcting);
   // Not a part id, ever: the inventory keeps its adapter count under one (eng review E2).
   const reserved = id.startsWith(RESERVED_ID_PREFIX);
-  const blocked = idCollides || correctsSwitch || reserved;
+  const blocked = idCollides || correctsMultiRoad || reserved;
 
   const submit = () => {
     if (!ready || blocked) return;
@@ -202,11 +203,11 @@ export function SubmitPart({ existingIds, switchIds, onSubmit, onCancel }: Submi
         </p>
       )}
 
-      {correctsSwitch && (
+      {correctsMultiRoad && (
         <p className="submit-err">
-          <span className="num">{correcting}</span> is a switch. This form measures straights
-          and curves, so it cannot correct one: a switch has a third end that a layout may
-          already be using.
+          <span className="num">{correcting}</span> has more than two ends, like a switch or a
+          crossing. This form measures straights and curves, so it cannot correct one: a
+          layout may already be using its other ends.
         </p>
       )}
 

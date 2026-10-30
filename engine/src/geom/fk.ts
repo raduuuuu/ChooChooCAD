@@ -15,6 +15,7 @@
  */
 
 import { centrelineRadiusMm, type Layout, type Part } from '../parts/schema.js';
+import { refuseMultiRoad } from './pose.js';
 
 export interface Slop {
   axialMm: number;
@@ -81,12 +82,10 @@ export function walkFloat(
     const turn = placement.turn ?? 'left';
     const from: FPose = { x, y, h };
 
-    if (part.kind === 'switch') {
-      // See pose.ts: a chain cannot express a branch, and silently drawing a
-      // switch as its diverging road would be a wrong picture of a layout the
-      // solver never checked.
-      throw new Error(`${part.id} is a switch: use the graph engine to draw it`);
-    }
+    // See pose.ts: a chain cannot express a branch, and silently drawing a
+    // switch as its diverging road would be a wrong picture of a layout the
+    // solver never checked.
+    refuseMultiRoad(part);
     if (part.kind === 'straight') {
       x += part.lengthMm * Math.cos(h);
       y += part.lengthMm * Math.sin(h);
