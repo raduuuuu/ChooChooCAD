@@ -48,6 +48,7 @@ import { connectorSites } from '../../engine/src/graph/feasible.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
 import { levelOf, portsOf, type Piece as GPiece, type Port, type PortRef } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
+import { bendRender, bentShifts } from '../../engine/src/graph/bendPose.js';
 import { badJointMarks, gapMarks, seamLines, weldTargets } from './trackPath.js';
 import { useEditorKeys } from './useEditorKeys.js';
 import { usePaletteDrag, type CanvasProbe } from './usePaletteDrag.js';
@@ -468,19 +469,6 @@ export function App() {
     [graph, ports, resolve, placement],
   );
 
-  /*
-   * THE TABLE, CENTRED ON THE TRACK (backlog E4). Measured on the plank
-   * edges, not the centreline, so "fits" is never said of wood that hangs
-   * over; see tableModel.ts. Memoised so the canvas's framing only moves
-   * when the track or the table does.
-   */
-  const tableView = useMemo(() => {
-    if (table === null) return null;
-    const extent = trackExtent(render.segments, (id) => resolve(id).plankWidthMm / 2);
-    if (extent === null) return null;
-    const fit = tableFit(extent, table);
-    return { outline: fit.outline, fits: fit.fits, note: fitSentence(fit, table) };
-  }, [render, resolve, table]);
 
   /*
    * ONE MAP, NOT A SCAN PER CALL. This passed a callback that did
@@ -528,6 +516,33 @@ export function App() {
           }, render.segments),
     [graph, ports, resolve, slopById, placement, library, render],
   );
+
+  /*
+   * THE TRACK AS IT SITS ON THE FLOOR (bendPose.ts). A run that closes by
+   * bending its joints is drawn bent, closed, rather than at its catalogue
+   * angles with the gap the joints take up: the picture says what the verdict
+   * says. Everything the canvas draws reads this; the verdict, the editing
+   * and the ghost's fit stay on the exact `render`.
+   */
+  const shifts = useMemo(
+    () => (result && result.ok ? bentShifts(graph, placement, ports, result.bend) : new Map<string, never>()),
+    [result, graph, placement, ports],
+  );
+  const drawn = useMemo(() => bendRender(render, shifts), [render, shifts]);
+
+  /*
+   * THE TABLE, CENTRED ON THE TRACK (backlog E4). Measured on the plank
+   * edges, not the centreline, so "fits" is never said of wood that hangs
+   * over; see tableModel.ts. Memoised so the canvas's framing only moves
+   * when the track or the table does.
+   */
+  const tableView = useMemo(() => {
+    if (table === null) return null;
+    const extent = trackExtent(drawn.segments, (id) => resolve(id).plankWidthMm / 2);
+    if (extent === null) return null;
+    const fit = tableFit(extent, table);
+    return { outline: fit.outline, fits: fit.fits, note: fitSentence(fit, table) };
+  }, [drawn, resolve, table]);
 
   /*
    * Ends piled up AND planks crossing, drawn with one marker: both are "track
@@ -683,12 +698,20 @@ export function App() {
   const verdictView = useMemo(() => viewOf(result), [result]);
 
   // Every joint, where the canvas draws it, so a click can break it (U5).
-  const welds = useMemo(() => weldTargets(graph.welds, render.ports), [graph, render]);
+  const welds = useMemo(() => weldTargets(graph.welds, drawn.ports), [graph, drawn]);
 
   // Which welds the canvas annotates: see `gapMarks` in trackPath.ts.
   const gaps = useMemo(
-    () => (result ? gapMarks(result.residuals, graph.welds, render.ports) : []),
-    [result, render, graph],
+    // A loop drawn bent has no gap to mark: its joints take it up.
+    () =>
+      result
+        ? gapMarks(
+            result.residuals.filter((r) => !shifts.has(graph.welds[r.weld]?.a.pieceId ?? '')),
+            graph.welds,
+            drawn.ports,
+          )
+        : [],
+    [result, drawn, graph, shifts],
   );
 
   /*
@@ -729,10 +752,10 @@ export function App() {
     return badJointMarks(
       result.polarityViolations.map((v) => v.weld),
       graph.welds,
-      render.ports,
+      drawn.ports,
       clashMarks.map((c) => c.at),
     );
-  }, [result, render, graph, clashMarks]);
+  }, [result, drawn, graph, clashMarks]);
   const badJoints = refusedMarks.marks;
 
   /*
@@ -745,7 +768,7 @@ export function App() {
   const adapterMarks = useMemo(() => {
     if (!result) return [];
     if (render.segments.length > CANVAS_SEGMENT_CEILING) return [];
-    const byPort = new Map(render.ports.map((p) => [`${p.pieceId}#${p.port}`, p]));
+    const byPort = new Map(drawn.ports.map((p) => [`${p.pieceId}#${p.port}`, p]));
     const red = [...badJoints, ...clashMarks.map((c) => c.at)];
     return result.adapterJoints.flatMap((j) => {
       const w = graph.welds[j.weld];
@@ -755,7 +778,7 @@ export function App() {
       if (red.some(([x, y]) => Math.hypot(x - a.x, y - a.y) < 1e-6)) return [];
       return [[a.x, a.y] as const];
     });
-  }, [result, render, graph, badJoints, clashMarks]);
+  }, [result, drawn, graph, badJoints, clashMarks]);
 
   /*
    * THE LEVEL FAULTS' MARKS (design 6A, eng re-run D4): one per joint that
@@ -791,11 +814,11 @@ export function App() {
     const refused = new Set(result ? result.polarityViolations.map((v) => v.weld) : []);
     return seamLines(
       graph.welds,
-      render.ports,
+      drawn.ports,
       (pieceId) => resolve(partOf.get(pieceId)!).plankWidthMm,
       refused,
     );
-  }, [result, render, graph, resolve]);
+  }, [result, drawn, graph, resolve]);
 
   /*
    * THE SELECTION, SPELLED OUT (decisions 2A and E5): the piece's name and
@@ -891,7 +914,11 @@ export function App() {
     });
     const alone = { pieces: [piece], welds: [], anchors: new Map([[piece.pieceId, frame]]) };
     const own = placeAll(alone, ports);
-    const ghostRender = renderGraph(alone, ports, resolve, own);
+    // On a free end of a run drawn bent, the preview moves with that run.
+    const atShift = ghost.at ? shifts.get(ghost.at.pieceId) : undefined;
+    const ghostRender = atShift
+      ? bendRender(renderGraph(alone, ports, resolve, own), new Map([[piece.pieceId, atShift]]))
+      : renderGraph(alone, ports, resolve, own);
     const ends = ports(piece);
     let status: { glyph: 'O' | 'X' | '◇'; text: ReactNode };
     // Piece numbers in the number face (DESIGN.md rule 4; design review DR9).
@@ -965,7 +992,7 @@ export function App() {
       keys: ghostKeys(graph, ports, ghost, part),
       name: `${part.name} (${shortCode(part)})`,
     };
-  }, [ghost, graph, ports, placement, render, resolve, sites, pieceNumber]);
+  }, [ghost, graph, ports, placement, render, resolve, sites, pieceNumber, shifts]);
 
   /*
    * WHAT THE LAST DROP DID, when no piece is selected (design 5A, eng re-run
@@ -1173,7 +1200,7 @@ export function App() {
     <div className="shell">
       <main className="stage">
         <TrackCanvas
-          render={render}
+          render={drawn}
           resolve={resolve}
           cursor={cursor}
           armed={armed}

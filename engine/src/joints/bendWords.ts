@@ -53,7 +53,7 @@ export interface BendWords {
   readonly runs: string | null;
   /** Where the limits come from, BRIO first then other brands by part id (design 5A). */
   readonly limits: readonly LimitNote[];
-  /** For a run that needs bend: overlaps were checked on the drawn shape (design 11A). */
+  /** For a run that needs bend: overlaps were checked on the catalogue shape, not the bent one the canvas draws (design 11A). */
   readonly overlapNote: string | null;
 }
 
@@ -133,7 +133,7 @@ export function bendWords(lead: RunBend, limit: BendLimit, runsBeyond: number, l
   }
   const overlapNote =
     tier !== 'exact'
-      ? `Overlaps were checked on the drawn shape; bending moves pieces up to ${Math.max(1, Math.ceil(lead.movesMm - 1e-9))}mm.`
+      ? `Overlaps were checked on the catalogue shape, before bending; bending moves pieces up to ${Math.max(1, Math.ceil(lead.movesMm - 1e-9))}mm.`
       : null;
   return { tier, figure, line, segments, turned, runs, limits, overlapNote };
 }

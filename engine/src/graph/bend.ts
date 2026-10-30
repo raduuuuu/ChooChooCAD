@@ -141,8 +141,9 @@ export function walkEnd(loop: readonly BendStep[], turns: readonly number[], str
 
 /**
  * How far bending moves any joint from where the unbent walk puts it, mm. The
- * drawn shape is unbent, so this is how far the built track can sit from the
- * drawing (design 11A: "bending moves pieces up to N mm").
+ * overlap check runs on the unbent, catalogue shape, so this is how far the
+ * built track can sit from what was checked (design 11A: "bending moves
+ * pieces up to N mm").
  */
 export function bendMovesMm(loop: readonly BendStep[], turns: readonly number[], stretches: readonly number[]): number {
   let a: Move = [0, 0, 0];

@@ -69,6 +69,24 @@ export interface RunBend {
   readonly others: readonly OtherPart[];
   /** Whether the run holds any BRIO piece, for the BRIO limit note. Filled by `solveGraph`. */
   readonly brio: boolean;
+  /**
+   * Each loop joint's turn and stretch at the solution, keyed by weld index,
+   * so the canvas can draw the run the way it sits on the floor
+   * (`bendPose.ts`). Absent on the chain path, which has no welds, and on a
+   * run with no solution.
+   */
+  readonly jointBend?: ReadonlyMap<number, JointBend>;
+}
+
+/** One joint at the solution: radians, in the weld's own direction (a to b), and millimetres. */
+export interface JointBend {
+  readonly turn: number;
+  readonly stretch: number;
+}
+
+/** A run's walks, and which weld each joint is, in the walks' joint order. */
+export interface BuiltRun extends BendRun {
+  readonly welds: readonly number[];
 }
 
 export interface OtherPart {
@@ -156,7 +174,7 @@ export function buildRun(
   cycles: readonly (readonly number[])[],
   portsOf: (pieceId: string) => readonly Port[],
   side: (pieceId: string) => JointSide,
-): BendRun | null {
+): BuiltRun | null {
   const onLoop = [...new Set(cycles.flat())];
   const where = new Map<number, Frame>();
   for (const w of onLoop) {
@@ -184,7 +202,7 @@ export function buildRun(
     walks.push(walk);
   }
   walks.sort((a, b) => Math.min(...a.map((s) => s.joint)) - Math.min(...b.map((s) => s.joint)));
-  return { joints, loops: walks };
+  return { joints, loops: walks, welds: onLoop };
 }
 
 /** One cycle's own bend, solved alone: the diagnostic that ranks loops and triggers the repair (D3). */
@@ -221,7 +239,7 @@ export function statusOf(o: Extract<BendOutcome, { kind: 'solved' }>): Exclude<R
  * One run's verdict from its walks: the shared last step of the graph path
  * and the chain path (eng review D2), so both read the same rule.
  */
-export function solveRun(pieces: readonly string[], built: BendRun | null, turnedSteps: number, budget: BendBudget): RunBend {
+export function solveRun(pieces: readonly string[], built: BendRun | BuiltRun | null, turnedSteps: number, budget: BendBudget): RunBend {
   const none = { lambda: null, stretchMm: 0, leftoverMm: null, turnedSteps, standalone: [], movesMm: 0, others: [], brio: true, atLeast: false } as const;
   if (!built) return { ...none, pieces, status: 'unchecked', why: 'a loop could not be followed round', work: 0 };
   const o: BendOutcome = solveBend(built, budget.maxCells, budget.maxWork);
@@ -250,6 +268,7 @@ export function solveRun(pieces: readonly string[], built: BendRun | null, turne
     others: [],
     brio: true,
     atLeast: o.atLeast,
+    ...('welds' in built ? { jointBend: new Map(built.welds.map((w, i) => [w, { turn: o.turns[i]!, stretch: o.stretches[i]! }])) } : {}),
   };
 }
 
