@@ -66,6 +66,8 @@ export const LISTING_CEILING = 2000;
 export function endName(part: Part, port: number, turn?: Turn): string {
   // A multi-road piece names its own ends (eng review D8): "heel", "first road's far end".
   if (part.kind === 'multi-road') return part.ports[port]?.name ?? `end ${port + 1}`;
+  // A buffer stop's one end.
+  if (part.kind === 'buffer') return 'end';
   // A ramp's ends say which way it climbs (design 11A). Flipped over (turn
   // 'right'), its high end is port 0.
   if (part.kind === 'straight' && part.rise !== undefined) {

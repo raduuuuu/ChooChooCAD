@@ -27,6 +27,7 @@ import { brandFit } from '../data/thirdParty.js';
 import { layoutTrust } from '../src/joints/trust.js';
 import { BRIO_PIECE_TABLE } from '../data/sources.js';
 import { RAMP_SEEDS } from '../data/rampSeeds.js';
+import { BUFFER_SEEDS } from '../data/bufferSeeds.js';
 import { CROSSING_SEEDS, MULTI_ROAD_SEEDS, SWITCH_SEEDS } from '../data/switchSeeds.js';
 import { equals, isZero, scale, toXY } from '../src/geom/cyclotomic.js';
 import { displacement } from '../src/geom/pose.js';
@@ -681,7 +682,9 @@ describe('the BRIO piece registry is complete and honest', () => {
     // The ramps, switches and the crossing are seeds outside BRIO_PARTS,
     // unverified (rampSeeds.ts, switchSeeds.ts), and held all the same.
     const held = new Set(
-      [...BRIO_PARTS, ...RAMP_SEEDS, ...SWITCH_SEEDS, ...CROSSING_SEEDS, ...MULTI_ROAD_SEEDS].map((p) => p.id),
+      [...BRIO_PARTS, ...RAMP_SEEDS, ...SWITCH_SEEDS, ...CROSSING_SEEDS, ...MULTI_ROAD_SEEDS, ...BUFFER_SEEDS].map(
+        (p) => p.id,
+      ),
     );
     for (const r of BRIO_PIECE_TABLE) {
       if (r.blocker !== 'in-catalogue') continue;

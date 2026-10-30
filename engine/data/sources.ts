@@ -307,14 +307,13 @@ export const SWITCH_GEOMETRY_ABSENT = {
  *    otherwise based on, and H1 Cross is 116. Neither is a multiple of 18, so
  *    both break BRIO's own 18mm increment rule while staying exactly
  *    representable as integers.
- * 3. R and S Buffer Stops have ONE end. The schema's PartEnds assumes two, so a
- *    terminator needs a representation that does not exist yet.
+ * 3. R and S Buffer Stops have ONE end. `PartEnds` assumes two, so they got a
+ *    kind of their own, `buffer` (schema.ts, 2026-10-30).
  */
 export type PieceBlocker =
   | 'in-catalogue'
   | 'needs-graph'        // three or more ends, not yet added as a multi-road piece
-  | 'needs-elevation'    // has a rise
-  | 'needs-one-ended';   // a terminator
+  | 'needs-elevation';   // has a rise
 
 export const BRIO_PIECE_TABLE: ReadonlyArray<{
   readonly ids: string;
@@ -348,7 +347,7 @@ export const BRIO_PIECE_TABLE: ReadonlyArray<{
   { ids: 'O, P', name: 'Short Curved Switch', innerRadiusMm: 90, blocker: 'in-catalogue', note: 'The Y switch. Both held as unverified multi-road seeds.' },
   { ids: 'O1, P1', name: 'Short Curved Switch', lengthMm: 108, innerRadiusMm: 90, blocker: 'in-catalogue', note: 'Both held as unverified multi-road seeds (switchSeeds.ts).' },
   { ids: 'Q', name: 'Five-Point Switch', lengthMm: 144, innerRadiusMm: 182, blocker: 'needs-graph', note: 'Outer turns 45 degrees, inner turns 22.5.' },
-  { ids: 'R, S', name: 'Buffer Stops', lengthMm: 40, blocker: 'needs-one-ended', note: 'Terminates a track with a barrier. ONE end; PartEnds assumes two.' },
+  { ids: 'R, S', name: 'Buffer Stops', lengthMm: 40, blocker: 'in-catalogue', note: 'Terminates a track with a barrier. ONE end. Both held as unverified seeds (bufferSeeds.ts), R with a peg and S with a socket.' },
   { ids: 'T', name: 'T-Switch', lengthMm: 216, innerRadiusMm: 88, blocker: 'in-catalogue', note: 'Held as an unverified multi-road seed. Radius EXACT at 88 inner (108 centreline): not E1, but a whole millimetre, and three reproductions agree.' },
   { ids: 'U, V', name: 'Ramp Tracks', lengthMm: 54, blocker: 'in-catalogue', note: 'ADDABLE but not added: end pieces ramped so cars can drive onto the track. Flat on the rail side, so arguably two-ended. Needs a decision on whether a car ramp is track at all.' },
   { ids: 'X', name: 'Star Switch', lengthMm: 216, innerRadiusMm: 88, blocker: 'in-catalogue', note: 'Four directions at 90 degrees. Held as an unverified multi-road seed; radius EXACT like T.' },

@@ -197,6 +197,8 @@ export function portsOf(part: Part, turn: Turn = 'left'): readonly Port[] {
    * placed 'right' lands its ends exactly where the old switch kind did
    * (switchRegression.test.ts).
    */
+  // A buffer stop has its one end at the entry, like every other part's first.
+  if (part.kind === 'buffer') return [{ kind: 'end', at: ENTRY, polarity: part.end }];
   if (part.kind === 'multi-road') {
     return part.ports.map((e, i) => ({
       kind: e.kind ?? 'end',
@@ -253,6 +255,8 @@ export interface PlacedRoad {
 }
 
 export function roadsOf(part: Part, turn: Turn = 'left'): readonly PlacedRoad[] {
+  // A train cannot run through a buffer stop: one end, no road.
+  if (part.kind === 'buffer') return [];
   if (part.kind === 'straight') return [{ from: 0, to: 1, shape: { kind: 'straight', lengthMm: part.lengthMm } }];
   if (part.kind === 'curve') {
     return [{
@@ -319,6 +323,7 @@ function arcEnd(r: number, s: number, turn: Turn): Frame {
  */
 export function portPolarity(part: Part, portIndex: number): Polarity {
   if (part.kind === 'multi-road') return part.ports[portIndex]!.polarity;
+  if (part.kind === 'buffer') return part.end;
   return portIndex === 0 ? part.ends.start : part.ends.end;
 }
 

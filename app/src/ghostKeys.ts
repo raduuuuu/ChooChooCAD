@@ -92,6 +92,7 @@ export function afterKey(kind: 'rotateGhost' | 'flipGhost', part: Part, ghost: P
   }
   if (part.kind === 'curve') return 'Now bends the other way.';
   if (part.kind === 'multi-road') return part.flip?.after ?? 'It looks the same turned over.';
+  if (part.kind === 'buffer') return 'A buffer stop looks the same turned over.';
   // F still reaches a plain straight from the keyboard; it reads the same either way up.
   if (!isRamp(part)) return 'A straight looks the same turned over.';
   return `Turned over.${ramp}`;

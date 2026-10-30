@@ -176,7 +176,7 @@ export interface SlopBudget {
  * A crossing's roads cross each other inside one piece. The overlap check
  * already skips pairs within one piece (overlap.ts), so that is not a clash.
  */
-export type PartKind = 'straight' | 'curve' | 'multi-road';
+export type PartKind = 'straight' | 'curve' | 'multi-road' | 'buffer';
 
 /**
  * Which half of a joint an end is. A joint mates a peg with a socket; peg to peg
@@ -418,7 +418,23 @@ export interface MultiRoadPart extends PartBase {
   readonly flip?: { readonly label: string; readonly verb: string; readonly after: string };
 }
 
-export type Part = StraightPart | CurvePart | MultiRoadPart;
+/**
+ * A BUFFER STOP: one end, and a short body behind it that ends a track.
+ *
+ * The first part with ONE end (BRIO R and S). It has no road, because a
+ * train cannot run through it, but its body is real wood on the table, so it
+ * is drawn and checked for overlap like a straight of `lengthMm` running back
+ * from its end. R has a peg, S a socket.
+ */
+export interface BufferPart extends PartBase {
+  readonly kind: 'buffer';
+  /** The body behind the end, millimetres. Drawing and overlap only. */
+  readonly lengthMm: number;
+  /** Peg or socket, at the one end. */
+  readonly end: Polarity;
+}
+
+export type Part = StraightPart | CurvePart | MultiRoadPart | BufferPart;
 
 /** True for every piece with more than two ends. The one place that asks. */
 export function isMultiRoad(part: Part): part is MultiRoadPart {

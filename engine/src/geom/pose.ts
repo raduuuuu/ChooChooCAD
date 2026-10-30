@@ -52,6 +52,10 @@ export function refuseMultiRoad(part: Part): asserts part is StraightPart | Curv
       `${part.id} has ${part.ports.length} ends: a chain cannot express a branch. Use the graph engine.`,
     );
   }
+  // Nor a buffer stop: a chain piece has two ends, and this one has one.
+  if (part.kind === 'buffer') {
+    throw new Error(`${part.id} has 1 end: a chain cannot end in a buffer stop. Use the graph engine.`);
+  }
 }
 
 /** Exact displacement contributed by one part placed at the given heading. */

@@ -23,7 +23,8 @@ chosen by the owner: phased, all BRIO types.
   their own polarity and names, plus straight or arc roads checked exactly
   against them) and the H crossing; PR B, H1, H2, I, J, O, P, T, X and EE.
   F1/G1, F/G and the Lillabo multi-road pieces moved to the off-grid P2 below.
-- Then a one-port kind for the R/S buffer stops.
+- DONE: R and S buffer stops, as a one-ended `buffer` kind (unverified; body 40mm from the
+  piece table). Not done: a drawn barrier, so a buffer stop reads as a short plank.
 - DONE in PR B: T and X are exact at a 108 centreline (three reproductions
   agree), and `BRIO_PIECE_TABLE` no longer calls them approximate.
 

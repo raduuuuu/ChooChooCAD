@@ -66,7 +66,7 @@ import {
 import { loadGraph, partialLoadNotice, saveGraph, savesSuppressed } from './layoutStore.js';
 import { saveFailureNotice, type SavedStore } from './saveNotice.js';
 import { viewOf } from './verdictView.js';
-import { centrelineRadiusMm, isMultiRoad, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
+import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
 import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
 import { CANVAS_SEGMENT_CEILING, TrackCanvas } from './TrackCanvas.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
@@ -124,6 +124,7 @@ const BRAND_LABEL: Record<Brand, string> = {
 function paletteSize(part: Part): string {
   if (part.kind === 'straight') return `${part.lengthMm}mm`;
   if (part.kind === 'curve') return `r${centrelineRadiusMm(part)}`;
+  if (part.kind === 'buffer') return `${part.lengthMm}mm`;
   return part.sizeLabel;
 }
 const isRamp = (p: Part) => p.kind === 'straight' && p.rise !== undefined;
@@ -190,7 +191,11 @@ export function App() {
   const library = useMemo(() => resolveLibrary(submissions), [submissions]);
   const resolve = useMemo(() => makeResolver(library), [library]);
   const libraryIds = useMemo(() => new Set(library.map((p) => p.id)), [library]);
-  const multiRoadIds = useMemo(() => new Set(library.filter(isMultiRoad).map((p) => p.id)), [library]);
+  // Switches, crossings and buffer stops: the correction form makes two-ended parts only.
+  const notTwoEndedIds = useMemo(
+    () => new Set(library.filter((p) => portsOf(p).length !== 2).map((p) => p.id)),
+    [library],
+  );
 
   /*
    * Both loaders now report whether they threw stored data away, and those
@@ -1420,7 +1425,7 @@ export function App() {
         {submitOpen && (
           <SubmitPart
             existingIds={libraryIds}
-            multiRoadIds={multiRoadIds}
+            notTwoEndedIds={notTwoEndedIds}
             onSubmit={(sub) => {
               setSubmissionsActed(true);
               setSubmissions((prev) => [...prev, sub]);
