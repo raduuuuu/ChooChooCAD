@@ -129,6 +129,7 @@ export function renderGraph(
         to: pose({ pos: add(end.pos, scale(zetaPow(along), part.lengthMm)), heading: along }),
         partId: piece.partId,
         pieceId: piece.pieceId,
+        stop: true,
         ...levels,
       });
     }
