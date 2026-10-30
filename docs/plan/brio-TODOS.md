@@ -63,6 +63,30 @@ Lillabo). Re-measure the Lillabo Ys first.
 
 **Depends on / blocked by:** the multi-road type (PR A of the plan).
 
+## P3 — The picked part's card looks like every other card (filed by /plan-design-review 2026-10-30)
+
+**What:** Clicking a part puts a ghost on the canvas, but its card has no look of its own (`data-picked` only sets touch-action).
+**Why:** With a drawing on every card it will be less obvious which one you picked.
+**Pros:** The pick is visible where it was made. **Cons:** One more card state to test against the dotted (unverified) and dashed (unowned) borders.
+**Context:** Fix idea: a 2px ink border, matching the canvas's weight-means-importance rule, plus `aria-pressed`. Plan: docs/plan/2026-10-30-part-previews.md.
+**Depends on:** nothing.
+
+## P2 — Unverified cards spend the verdict red (filed by /plan-design-review 2026-10-30, from the Codex review)
+
+**What:** `.piece.is-unverified` draws its dotted border and asterisk in `--fail`, and the brand shelves' "unverified" word is `--fail` too.
+**Why:** DESIGN.md rule 1: the palette gets no colour; `--fail` means a layout cannot be built. Most new BRIO parts are unverified seeds, so the red now dominates the list.
+**Pros:** "This size is a guess" stops reading as "this layout fails". **Cons:** A visible change to a long-standing look.
+**Context:** Fix idea: the same dotted border and asterisk in `--ink`. Decide the shelf word with it.
+**Depends on:** nothing.
+
+## P3 — The app's name is not on screen (filed by /plan-design-review 2026-10-30, from the Codex review)
+
+**What:** "ChooChooCAD" appears only in the tab title (app/index.html).
+**Why:** Screenshots and first visits show a track tool without saying which one.
+**Pros:** Identity at no cost to the canvas. **Cons:** Takes a line from the 320px rail.
+**Context:** Fix idea: a quiet "ChooChooCAD · wooden railway layouts" line at the top of the rail, no header bar.
+**Depends on:** nothing.
+
 ## P3 — Point mouse users to the list for ends hidden under a bridge
 
 **DONE (2026-10-24).** When a free floor end's centre lies on raised wood, the
