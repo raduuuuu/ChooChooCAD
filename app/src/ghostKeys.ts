@@ -15,7 +15,7 @@ import type { PortsOf } from '../../engine/src/graph/frames.js';
 import { levelOf, portsOf, type Graph } from '../../engine/src/graph/model.js';
 import type { Part } from '../../engine/src/parts/schema.js';
 import { endName } from './GraphListing.js';
-import { fitOptions, rotateCycle, type PendingPiece } from './layoutModel.js';
+import { fitOptions, hasFlip, rotateCycle, type PendingPiece } from './layoutModel.js';
 
 /** One key's effect: a button label and the same thing as a verb phrase. */
 export interface KeyWords {
@@ -43,12 +43,15 @@ export function ghostKeys(
   part: Part,
 ): { readonly rotate: KeyWords; readonly flip: KeyWords | null } {
   const options = ghost.at ? fitOptions(graph, ports, ghost.at, ghost.partId).options : null;
-  const cycle = options ? rotateCycle(options, ghost.turn).length : 0;
+  const cycle = options ? rotateCycle(options, ghost.turn, hasFlip(part)).length : 0;
 
   const rotate: KeyWords =
     options === null
       ? { label: 'Turn 1/16', verb: 'turn it a sixteenth', enabled: true }
-      : (cycle > 2 || (cycle < 2 && portsOf(part).length > 2))
+      // A piece with more than two ends always steps to its NEXT way: a
+      // crossing's two ways at a peg end use the same end, so "other end"
+      // would be wrong there.
+      : (cycle > 2 || portsOf(part).length > 2)
         ? { label: 'Next end on', verb: 'put its next end on', enabled: cycle > 1 }
         : { label: 'Other end on', verb: 'put its other end on', enabled: cycle > 1 };
 

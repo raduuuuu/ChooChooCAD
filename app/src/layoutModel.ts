@@ -268,12 +268,31 @@ export function fitOptions(
  * straight's adapter way was reachable only by an unadvertised F (Flip is
  * hidden for straights). Defined by ends, not by which way is current, so
  * every way in a cycle sees the same cycle and R always comes back round.
+ *
+ * A PIECE WITH NO F TAKES EVERY WAY (`flips` false). A crossing turned over
+ * is the same crossing turned a quarter, so it has no F, but at a peg end
+ * its two ways both go on by its first end and differ only in turn, with
+ * the other road's peg on the other side. Found by placing H in the browser:
+ * R was disabled and the second way could not be reached at all. For a plain
+ * straight this is the cycle it already had: its ways at one end lie the
+ * same either turn and merge, so the turns left are at different ends.
  */
-export function rotateCycle(options: readonly Fit[], turn: Turn): readonly Fit[] {
+export function rotateCycle(options: readonly Fit[], turn: Turn, flips = true): readonly Fit[] {
   const same = options.filter((o) => o.turn === turn);
-  const lone = options.filter((o) => o.turn !== turn && !same.some((s) => s.port === o.port));
+  const lone = options.filter((o) => o.turn !== turn && (!flips || !same.some((s) => s.port === o.port)));
   const cycle = [...same, ...lone];
   return [...cycle.filter((o) => !o.adapter), ...cycle.filter((o) => o.adapter)];
+}
+
+/**
+ * Whether F does anything for a part: a curve bends the other way, a ramp
+ * turns over, a multi-road piece says in its data (`flip`). A plain straight
+ * lies the same either way up, and so does a symmetric crossing.
+ */
+export function hasFlip(part: Part): boolean {
+  if (part.kind === 'curve') return true;
+  if (part.kind === 'multi-road') return part.flip !== undefined;
+  return part.rise !== undefined;
 }
 
 /**
