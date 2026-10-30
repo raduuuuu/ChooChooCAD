@@ -50,10 +50,16 @@ E = large curve r182 (#33342), D = 216mm straight (#33341), A = 144mm straight (
 The engine says this has an exact residual of **72mm** (216 − 144) that the
 joints must absorb between them: 7.2mm per joint across 10 joints.
 
-- [ ] Does it close with every joint seated? ............ YES / NO
-- [ ] If yes, does it feel strained, or comfortable? ..... STRAINED / COMFORTABLE
-- [ ] If no, roughly how big is the leftover gap? ........ ______ mm
-- [ ] Does a train run round it without derailing? ....... YES / NO
+- [ ] Does it close with every joint seated? YES............ YES / NO
+- [ ] If yes, does it feel strained, or comfortable? Strained..... STRAINED / COMFORTABLE
+- [ ] If no, roughly how big is the leftover gap? 4mm ........ ______ mm
+- [ ] Does a train run round it without derailing? NO....... YES / NO
+
+> **Corrected by the owner, 2026-10-30.** "Does a train run round it without
+> derailing? NO" above meant NO, it did not derail: the train runs. The "4mm"
+> written under "if no" is void, because the loop closed with every joint
+> seated. `engine/data/measurements.ts` holds the corrected readings
+> (`trainRuns: true`, `leftoverGapMm: null`) and is the authoritative record.
 
 **Why it matters:** this is the single data point that tells you whether the
 whole slop model is in the right ballpark. The engine currently reports this
@@ -65,12 +71,12 @@ tight and every FAIL verdict the tool has ever given is suspect.
 Take two straights. Join them. Then, without forcing anything to the point of
 damage:
 
-- [ ] Pull apart. Gap at the limit of comfortable travel? .... ______ mm
+- [ ] Pull apart. Gap at the limit of comfortable travel? 2mm.... ______ mm
 - [ ] Push together. Does the gap close to zero, or is there
-      a hard stop with the pieces still apart? ............... ZERO / STOP AT ______ mm
+      a hard stop with the pieces still apart? Zero............... ZERO / STOP AT ______ mm
 - [ ] Bend in the plane of the floor. Angle at the limit? ..... ______ degrees
       (measure the far end's sideways travel over the piece's
-      length instead, if that is easier: ______ mm over ______ mm)
+      length instead, if that is easier: 4______ mm over 0______ mm)
 
 **Why it matters:** `schema.ts` defines `axialMm` as ONE-SIDED give, while the
 published "2 to 3mm" figure is almost certainly TOTAL. That factor of two is
@@ -85,14 +91,14 @@ sign). The LP this sentence used to name was deleted at R21.
 
 Take the 216mm straight (D, #33341).
 
-- [ ] Overall length, end face to end face .............. ______ mm
+- [ ] Overall length, end face to end face 233.............. ______ mm
 - [ ] Length from the base of the peg to the opposite
-      end face (i.e. excluding the protruding peg) ...... ______ mm
+      end face (i.e. excluding the protruding peg) 216..... ______ mm
 - [x] Peg (plug) head diameter ............................ **11.5 mm** PUBLISHED
-- [ ] Peg neck diameter .................................. ______ mm
+- [ ] Peg neck diameter 5 mm.................................. ______ mm
 - [x] Peg neck length ..................................... **7 mm** PUBLISHED
 - [x] Socket (nest) hole diameter .......................... **15-17 mm** PUBLISHED, a RANGE
-- [ ] Socket throat width ................................ ______ mm
+- [ ] Socket throat width 8mm ................................ ______ mm
 - [x] Socket throat depth ................................. **5 mm** PUBLISHED
 
 > **PARTLY ANSWERED 2026-10-09 from the primary source.** Verbatim: "The male
@@ -142,8 +148,8 @@ data itself that nobody has measured it. It is recorded, and it is a guess.
 Take the ascending track (N, #33332), which rises 64mm.
 
 - [ ] Horizontal distance covered, measured flat on the
-      floor from end to end (the RUN) ................... ______ mm
-- [ ] Length along the sloping surface itself (the PLANK)  ______ mm
+      floor from end to end (the RUN) .225.................. ______ mm
+- [ ] Length along the sloping surface itself (the PLANK)  230______ mm
 
 **Why it matters, and this one is load-bearing for the whole approach:** if 216
 is the plank length, the horizontal run is sqrt(216² − 64²) ≈ **206.34mm**,
@@ -177,7 +183,7 @@ fit through what is left.
       worked figure below already uses it. Re-measure it if you are checking
       the margin for real: a published figure and your own planks are not the
       same claim.)
-- [ ] Tallest vehicle you care about, wheels to roof ..... ______ mm
+- [ ] Tallest vehicle you care about, wheels to roof 55..... ______ mm
       (measure the tallest one you actually own, not the catalogue)
 
 Then compute:

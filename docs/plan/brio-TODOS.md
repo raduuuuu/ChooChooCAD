@@ -11,6 +11,34 @@ from its low end to its high end (owner's choice of the cast shadow over pier
 marks and a heavier outline, which rule 11 reserves for selection). Recorded in
 DESIGN.md rule 11; `--track-shadow` measured 3.03:1 on `--floor`.
 
+## P2 — A 55mm train may not fit under a one-level bridge (filed by /plan-eng-review 2026-10-30)
+
+**What:** The floor readings (CALIBRATION.md Q5) give 64mm rise - 12mm plank -
+55mm train = -3mm clearance. Push the 55mm train under a real bridge on its
+supports first: wheels ride in 3mm grooves, so the real gap may be a few mm
+larger than the formula. Then make the clearance note per-train, with a warning
+when a train will not pass.
+**Why:** Once the readings land, the bridge note reads "clearance is about -3mm"
+with no warning, so a user can plan a bridge their train cannot pass.
+**Pros:** Turns a measured problem into a clear warning. **Cons:** Needs train
+heights per user, not one number.
+**Context:** Left out of the joint-bend design by owner decision (docs/designs/joint-bend.md,
+Premise 3). `CLEARANCE` in engine/data/rampSeeds.ts; Q5 in `bun run calibration`.
+**Depends on:** the floor test.
+
+## P2 — The ramp measures 225mm on the floor, not 216 (filed by /plan-eng-review 2026-10-30)
+
+**What:** Re-measure the ramp N's run flat on the floor, end face to end face. If
+it is 225mm, set N's run to 225 and drop its unverified mark.
+**Why:** The 2026-10-30 readings give run 225mm and slope 230mm; the app uses 216,
+so every ramp is drawn 9mm short. The two readings disagree slightly (a 64mm rise
+over 225mm needs about 234mm of slope), which is why one re-measure comes first.
+**Pros:** One number; 225 is a whole millimetre, so exact closure survives ramps.
+**Cons:** None beyond the re-measure.
+**Context:** Left out of the joint-bend design by owner decision (Premise 3).
+`bun run calibration` prints the Q4 result. Part in engine/data/rampSeeds.ts.
+**Depends on:** the re-measure.
+
 ## P1 — Every BRIO piece from MakerWorld (owner, 2026-10-29)
 
 Plan and measurements: `docs/plan/2026-10-29-makerworld-pieces.md`. Scope

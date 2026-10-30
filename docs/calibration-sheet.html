@@ -31,6 +31,20 @@
   .fill { flex: 1; border-bottom: 1px solid var(--line); min-height: 6mm; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8mm; }
   @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } body { padding: 16px; } }
+  .followup { break-before: page; margin-top: 8mm; }
+  .dwg { display: block; width: 100%; height: auto; margin: 1mm 0 2mm; color: var(--ink); font: 3.4px system-ui, sans-serif; }
+  .dwg text { fill: var(--ink); }
+  .dwg .note, .dwg .ref { fill: var(--mute); font-size: 3px; }
+  .dwg .floor { stroke: var(--ink); stroke-width: 0.5; }
+  .dwg .part { fill: #eee; stroke: var(--ink); stroke-width: 0.4; }
+  .dwg .peg { fill: #eee; stroke: var(--ink); stroke-width: 0.4; }
+  .dwg .support { fill: none; stroke: var(--mute); stroke-width: 0.3; stroke-dasharray: 1 0.8; }
+  .dwg .train { fill: none; stroke: var(--mute); stroke-width: 0.4; }
+  .dwg .ext { stroke: var(--mute); stroke-width: 0.2; }
+  .dwg .dim { stroke: var(--ink); stroke-width: 0.3; }
+  .dwg .dimref { stroke: var(--mute); stroke-width: 0.2; }
+  .dwg .trackline { fill: none; stroke: var(--ink); stroke-width: 3; stroke-opacity: 0.18; }
+  .dwg .tick line { stroke: var(--ink); stroke-width: 0.5; }
   @media print { body { padding: 0; } h2 { break-after: avoid; } }
 </style>
 </head>
@@ -93,6 +107,82 @@
   <tr><td>Heel to the diverging road's end, in a straight line<code class="field">q6.chordMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
   <tr><td>That end's distance off the straight road's line<code class="field">q6.offsetMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
 </table>
+
+<div class="followup">
+<h1>Follow-up readings, 2026-10-30</h1>
+<p class="do">Three readings the first afternoon raised. Each drawing shows exactly where the tape goes. Measurements are in millimetres.</p>
+
+<h2>F1 · The ramp's run, once more (N)</h2>
+<p class="do">The first reading gave 225 flat and 230 along the slope; a 64mm rise over 225 would need about 234 of slope, so one of the two is off. Re-measure the RUN only.</p>
+<svg class="dwg" viewBox="0 0 180 62" role="img" aria-label="Side view of the ramp. Measure horizontally along the floor from the low end face to the high end face, not counting the peg.">
+  <line class="floor" x1="4" y1="44" x2="176" y2="44"/>
+  <path class="part" d="M 22 44 L 22 38 L 40 38 C 60 38 70 36 90 28 C 110 20 120 18 140 18 L 158 18 L 158 44 Z"/>
+  <path class="peg" d="M 158 26 L 163 26 L 163 24 A 3 3 0 1 1 163 32 L 163 30 L 158 30"/>
+  <line class="ext" x1="22" y1="44" x2="22" y2="54"/>
+  <line class="ext" x1="158" y1="44" x2="158" y2="54"/>
+  <line class="dim" x1="22" y1="51" x2="158" y2="51" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text x="90" y="49" text-anchor="middle">RUN = ?  (end face to end face, flat on the floor)</text>
+  <line class="ext" x1="22" y1="18" x2="140" y2="18" style="stroke-dasharray:1 1"/>
+  <line class="dimref" x1="12" y1="18" x2="12" y2="44" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text x="14" y="33" class="ref">rise 64 (do not measure)</text>
+  <text x="166" y="14" text-anchor="middle" class="note">peg: NOT counted</text>
+  <text x="22" y="60" text-anchor="middle" class="note">low end face</text>
+  <text x="158" y="60" text-anchor="middle" class="note">high end face</text>
+</svg>
+<p class="do">Stand the ramp on a flat floor. Put a square against each end face, down to the floor, and measure between the two squares along the floor. Do not follow the slope.</p>
+<table>
+  <tr><td>Run, end face to end face, peg not counted<code class="field">q4.runMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+</table>
+
+<h2>F2 · Does your tallest train pass under a bridge?</h2>
+<p class="do">Build one bridge the usual way: a ramp up, the raised track on its supports, a ramp down. Lay a straight underneath, across it.</p>
+<svg class="dwg" viewBox="0 0 180 70" role="img" aria-label="Side view of a bridge over a floor track. Measure the air gap straight up from the top of the lower track to the underside of the upper track, then push the train through.">
+  <line class="floor" x1="4" y1="60" x2="176" y2="60"/>
+  <rect class="part" x="10" y="54" width="160" height="6"/>
+  <rect class="part" x="10" y="16" width="160" height="6"/>
+  <rect class="support" x="14" y="22" width="8" height="32"/>
+  <rect class="support" x="158" y="22" width="8" height="32"/>
+  <path class="train" d="M 74 54 L 74 34 L 84 34 L 84 27 L 102 27 L 102 34 L 108 34 L 108 54 Z"/>
+  <circle class="train" cx="80" cy="54" r="2.5"/><circle class="train" cx="102" cy="54" r="2.5"/>
+  <line class="ext" x1="128" y1="22" x2="146" y2="22"/>
+  <line class="ext" x1="128" y1="54" x2="146" y2="54"/>
+  <line class="dim" x1="142" y1="22" x2="142" y2="54" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text x="139" y="40" text-anchor="end">AIR = ?</text>
+  <text x="90" y="12" text-anchor="middle" class="note">underside of the upper track</text>
+  <text x="90" y="68" text-anchor="middle" class="note">top surface of the lower track (not the groove bottom)</text>
+</svg>
+<p class="do">Measure the air straight up, beside the train. Then push your 55mm train through slowly by hand and watch the roof.</p>
+<table>
+  <tr><td>Air, top of the lower track to the underside of the upper track<code class="field">not in measurements.ts yet: tell Claude</code></td><td class="box"></td><td class="unit">mm</td></tr>
+  <tr><td>Pushed through by hand, the 55mm train<code class="field">not in measurements.ts yet: tell Claude</code></td><td class="pick">PASSES CLEAN / TOUCHES</td><td class="unit"></td></tr>
+</table>
+
+<h2>F3 · A tighter loop (Q1b)</h2>
+<p class="do">Q1 again with the 108 straight (A1) in place of the 144 (A). This loop is 108mm short, more than Q1's 72, so it asks every joint to bend further.</p>
+<svg class="dwg" viewBox="0 0 180 92" role="img" aria-label="Plan view of the loop: four large curves, the long straight D, four large curves, the short straight A1, joined in that order.">
+  <path class="trackline" d="M 52 10 L 128 10 A 38 38 0 0 1 128 86 L 72 86 M 72 86 L 56 86 A 38 38 0 0 1 52 10"/>
+  <g class="tick">
+    <line x1="52" y1="6" x2="52" y2="14"/><line x1="128" y1="6" x2="128" y2="14"/>
+    <line x1="152" y1="19" x2="157" y2="14"/><line x1="162" y1="48" x2="170" y2="48"/><line x1="152" y1="77" x2="157" y2="82"/>
+    <line x1="128" y1="82" x2="128" y2="90"/><line x1="72" y1="82" x2="72" y2="90"/>
+    <line x1="56" y1="82" x2="56" y2="90"/>
+    <line x1="28" y1="77" x2="23" y2="82"/><line x1="18" y1="48" x2="10" y2="48"/><line x1="28" y1="19" x2="23" y2="14"/>
+  </g>
+  <text x="90" y="7" text-anchor="middle">D · 216</text>
+  <text x="100" y="83" text-anchor="middle">A1 · 108</text>
+  <text x="170" y="30" class="note">E E</text><text x="170" y="70" class="note">E E</text>
+  <text x="2" y="30" class="note">E E</text><text x="2" y="70" class="note">E E</text>
+  <text x="64" y="80" text-anchor="middle" class="note">close here last</text>
+  <text x="90" y="50" text-anchor="middle" class="note">plan view, schematic, not to scale</text>
+</svg>
+<p class="do">Order: E, E, E, E, D, E, E, E, E, A1. Seat every joint fully; close the last joint between A1 and the first E. Then run a train round twice.</p>
+<table>
+  <tr><td>The last joint goes in with every joint seated<code class="field">not in measurements.ts yet: tell Claude</code></td><td class="pick">CLOSES / WON'T CLOSE</td><td class="unit"></td></tr>
+  <tr><td>If it won't close, the gap left at the last joint<code class="field">not in measurements.ts yet: tell Claude</code></td><td class="box"></td><td class="unit">mm</td></tr>
+  <tr><td>A train going round twice<code class="field">not in measurements.ts yet: tell Claude</code></td><td class="pick">RUNS CLEAN / DERAILS</td><td class="unit"></td></tr>
+</table>
+<svg width="0" height="0" aria-hidden="true" style="position:absolute"><defs><marker id="a" viewBox="0 0 6 6" refX="3" refY="3" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 6 3 L 0 6 Z" fill="currentColor"/></marker></defs></svg>
+</div>
 
 <h2>Afterwards</h2>
 <p>Copy the boxes into <code>engine/data/measurements.ts</code>, then run <code>bun run calibration</code> to see what each answer changes, and <code>bun run test</code>.</p>
