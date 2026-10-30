@@ -267,10 +267,10 @@ export const KNOWN_ABSENT = [
  * in the library as unverified SEEDS (`switchSeeds.ts`), which is the tier for
  * exactly that; the published row below is still blocked.
  *
- * CONSEQUENCE: the switch catalogue row is BLOCKED, not scheduled. `SwitchPart`
- * exists in the schema and `portsOf` returns its three ports, both proven by
- * `switches.test.ts` against a locally declared part. That part documents the
- * MODEL and claims nothing about real track. Measuring a real switch is the
+ * CONSEQUENCE: the switch catalogue row is BLOCKED, not scheduled. A switch
+ * is a multi-road piece in the schema and `portsOf` returns its three ports,
+ * both proven by `switches.test.ts` against a locally declared part. That part
+ * documents the MODEL and claims nothing about real track. Measuring a real switch is the
  * only way forward, and `CALIBRATION.md` Q6 says exactly what to measure.
  */
 export const SWITCH_GEOMETRY_ABSENT = {
@@ -310,7 +310,7 @@ export const SWITCH_GEOMETRY_ABSENT = {
  */
 export type PieceBlocker =
   | 'in-catalogue'
-  | 'needs-graph'        // three or more ends
+  | 'needs-graph'        // three or more ends, not yet added as a multi-road piece
   | 'needs-elevation'    // has a rise
   | 'needs-one-ended'    // a terminator
   | 'approximate-radius';
@@ -335,17 +335,17 @@ export const BRIO_PIECE_TABLE: ReadonlyArray<{
   { ids: 'F, G', name: 'Switch', lengthMm: 150, blocker: 'needs-graph', note: 'Linear length 150, NOT the 144 of its base A track, and not a multiple of 18.' },
   { ids: 'F1, G1', name: 'Parallel Switch', lengthMm: 144, blocker: 'needs-graph' },
   { ids: 'F2, G2', name: 'Triple Parallel Switch', lengthMm: 144, blocker: 'needs-graph' },
-  { ids: 'H', name: 'Cross', lengthMm: 108, blocker: 'needs-graph' },
+  { ids: 'H', name: 'Cross', lengthMm: 108, blocker: 'in-catalogue', note: 'Held as an unverified multi-road seed read off a reproduction (switchSeeds.ts).' },
   { ids: 'H1', name: 'Cross', lengthMm: 116, blocker: 'needs-graph', note: 'Actually 116 though the catalog chart implies 108. Not a multiple of 18.' },
   { ids: 'H2', name: 'Criss Cross', lengthMm: 144, blocker: 'needs-graph' },
   { ids: 'H3', name: 'Curved Crossing', innerRadiusMm: 182, blocker: 'needs-graph', note: 'Two E curves meeting in the middle.' },
   { ids: 'I, J', name: 'Curved Switch', lengthMm: 144, innerRadiusMm: 182, blocker: 'needs-graph', note: 'Three directions.' },
   { ids: 'K', name: 'Switching and Crossing', lengthMm: 216, blocker: 'needs-graph' },
   { ids: 'K1', name: 'Double Straight', lengthMm: 216, blocker: 'needs-graph', note: 'Two parallel straights in one piece: four ends.' },
-  { ids: 'L, L1, M, M1', name: 'Curved Switch', lengthMm: 144, innerRadiusMm: 182, blocker: 'needs-graph', note: 'The quintessential BRIO switch.' },
+  { ids: 'L, L1, M, M1', name: 'Curved Switch', lengthMm: 144, innerRadiusMm: 182, blocker: 'in-catalogue', note: 'The quintessential BRIO switch. L and M held as unverified multi-road seeds (switchSeeds.ts); L1 and M1 not found on MakerWorld.' },
   { ids: 'N, N1', name: 'Ascending', lengthMm: 216, blocker: 'in-catalogue', note: 'Raises or lowers the track by 64mm. Both held as unverified seeds (rampSeeds.ts, two-layer plan): N with one peg and one socket, N1 with two pegs. 216 taken as the run, CALIBRATION.md Q4.' },
   { ids: 'O, P', name: 'Short Curved Switch', innerRadiusMm: 90, blocker: 'needs-graph' },
-  { ids: 'O1, P1', name: 'Short Curved Switch', lengthMm: 108, innerRadiusMm: 90, blocker: 'needs-graph' },
+  { ids: 'O1, P1', name: 'Short Curved Switch', lengthMm: 108, innerRadiusMm: 90, blocker: 'in-catalogue', note: 'Both held as unverified multi-road seeds (switchSeeds.ts).' },
   { ids: 'Q', name: 'Five-Point Switch', lengthMm: 144, innerRadiusMm: 182, blocker: 'needs-graph', note: 'Outer turns 45 degrees, inner turns 22.5.' },
   { ids: 'R, S', name: 'Buffer Stops', lengthMm: 40, blocker: 'needs-one-ended', note: 'Terminates a track with a barrier. ONE end; PartEnds assumes two.' },
   { ids: 'T', name: 'T-Switch', lengthMm: 216, innerRadiusMm: 88, blocker: 'approximate-radius', note: 'Radius APPROXIMATE, within 2mm of E1. Cannot be exact.' },

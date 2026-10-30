@@ -3,10 +3,11 @@
  *
  * `Layout` was `{ placements: Placement[], closed: boolean }`: an ordered list.
  * Every element has exactly one predecessor and one successor, so a branch
- * point is not merely unimplemented, it is inexpressible. That is why
- * `PartKind` is still `'straight' | 'curve'` and why the catalogue was scoped
- * to two-ended parts: a switch in the palette would build a layout the engine
- * cannot represent. Eng review R22.
+ * point is not merely unimplemented, it is inexpressible. That is why the
+ * catalogue was once scoped to two-ended parts: a switch in the palette would
+ * have built a layout the engine could not represent (eng review R22). The
+ * graph made switches possible, and the multi-road kind (eng review D4,
+ * 2026-10-30) made crossings and every other many-ended piece data.
  *
  * WHAT REPLACES IT, and why it is ports rather than routes.
  *
@@ -183,10 +184,9 @@ export interface Graph {
  * The ports of a placed part, in its local frame.
  *
  * Port 0 is the entry by convention, sitting at the frame origin and facing
- * backwards; the frame's +x is the direction you travel on entering. Today
- * every part has exactly two ports because the catalogue is two-ended, and
- * this function is where a switch or a crossing will declare three or four
- * without anything downstream changing.
+ * backwards; the frame's +x is the direction you travel on entering. A
+ * straight or a curve has two; a multi-road piece lists three or more, and
+ * nothing downstream needed to change to take them.
  */
 export function portsOf(part: Part, turn: Turn = 'left'): readonly Port[] {
   /*

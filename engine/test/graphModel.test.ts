@@ -133,8 +133,17 @@ describe('a four-port crossing stays rigid', () => {
       polarity: 'peg',
     },
   ];
+  /*
+   * The ports above were written by hand before any crossing was in the
+   * catalogue. The H crossing is now (switchSeeds.ts), and its ends must sit
+   * exactly where this hand-written crossing put them, so the specs below run
+   * on the real part and this literal stays as a separate witness.
+   */
+  it('the catalogue H puts its ends where this crossing does', () => {
+    expect(portsOf(resolve('H')).map((p) => p.at)).toEqual(crossingPorts.map((p) => p.at));
+  });
   const withCrossing = (piece: Piece): readonly Port[] =>
-    piece.partId === 'CROSSING' ? crossingPorts : ports(piece);
+    ports(piece.partId === 'CROSSING' ? { ...piece, partId: 'H' } : piece);
 
   /*
    * The invariant is PAIRWISE, and getting that wrong was my first attempt.

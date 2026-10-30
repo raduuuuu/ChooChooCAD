@@ -27,6 +27,7 @@ import { brandFit } from '../data/thirdParty.js';
 import { layoutTrust } from '../src/joints/trust.js';
 import { BRIO_PIECE_TABLE } from '../data/sources.js';
 import { RAMP_SEEDS } from '../data/rampSeeds.js';
+import { CROSSING_SEEDS, SWITCH_SEEDS } from '../data/switchSeeds.js';
 import { equals, isZero, scale, toXY } from '../src/geom/cyclotomic.js';
 import { displacement } from '../src/geom/pose.js';
 import { computeResidual, totalGiveMm } from '../src/solver/residual.js';
@@ -677,8 +678,9 @@ describe('the BRIO piece registry is complete and honest', () => {
   it('every piece marked in-catalogue is actually in the catalogue', () => {
     // Guards the registry against drifting out of step with the data, which is
     // how a "complete" list quietly stops being one.
-    // The ramps are seeds outside BRIO_PARTS, unverified (rampSeeds.ts), and held all the same.
-    const held = new Set([...BRIO_PARTS, ...RAMP_SEEDS].map((p) => p.id));
+    // The ramps, switches and the crossing are seeds outside BRIO_PARTS,
+    // unverified (rampSeeds.ts, switchSeeds.ts), and held all the same.
+    const held = new Set([...BRIO_PARTS, ...RAMP_SEEDS, ...SWITCH_SEEDS, ...CROSSING_SEEDS].map((p) => p.id));
     for (const r of BRIO_PIECE_TABLE) {
       if (r.blocker !== 'in-catalogue') continue;
       const ids = r.ids.split(',').map((x) => x.trim());
