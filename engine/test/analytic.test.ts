@@ -27,7 +27,7 @@ import { brandFit } from '../data/thirdParty.js';
 import { layoutTrust } from '../src/joints/trust.js';
 import { BRIO_PIECE_TABLE } from '../data/sources.js';
 import { RAMP_SEEDS } from '../data/rampSeeds.js';
-import { CROSSING_SEEDS, SWITCH_SEEDS } from '../data/switchSeeds.js';
+import { CROSSING_SEEDS, MULTI_ROAD_SEEDS, SWITCH_SEEDS } from '../data/switchSeeds.js';
 import { equals, isZero, scale, toXY } from '../src/geom/cyclotomic.js';
 import { displacement } from '../src/geom/pose.js';
 import { computeResidual, totalGiveMm } from '../src/solver/residual.js';
@@ -680,7 +680,9 @@ describe('the BRIO piece registry is complete and honest', () => {
     // how a "complete" list quietly stops being one.
     // The ramps, switches and the crossing are seeds outside BRIO_PARTS,
     // unverified (rampSeeds.ts, switchSeeds.ts), and held all the same.
-    const held = new Set([...BRIO_PARTS, ...RAMP_SEEDS, ...SWITCH_SEEDS, ...CROSSING_SEEDS].map((p) => p.id));
+    const held = new Set(
+      [...BRIO_PARTS, ...RAMP_SEEDS, ...SWITCH_SEEDS, ...CROSSING_SEEDS, ...MULTI_ROAD_SEEDS].map((p) => p.id),
+    );
     for (const r of BRIO_PIECE_TABLE) {
       if (r.blocker !== 'in-catalogue') continue;
       const ids = r.ids.split(',').map((x) => x.trim());
@@ -691,12 +693,23 @@ describe('the BRIO piece registry is complete and honest', () => {
     }
   });
 
-  it('T and X are flagged approximate, which is why exact switches are impossible', () => {
-    const approx = BRIO_PIECE_TABLE.filter((r) => r.blocker === 'approximate-radius');
-    expect(approx.map((r) => r.ids).sort()).toEqual(['T', 'X']);
-    for (const r of approx) {
-      expect(r.innerRadiusMm).toBe(88);
-      expect(r.note).toMatch(/APPROXIMATE/);
+  /*
+   * T AND X ARE EXACT. They were flagged approximate on the source's footnote
+   * ("within 2mm of E1"), which says only that their radius is not E1's: 88
+   * is a whole millimetre, and three reproductions put the arc at a 108
+   * centreline. The rows and the parts must agree on that radius.
+   */
+  it('T and X are exact at 88 inner, in the table and in the catalogue', () => {
+    for (const id of ['T', 'X']) {
+      const row = BRIO_PIECE_TABLE.find((r) => r.ids === id)!;
+      expect(row.blocker, id).toBe('in-catalogue');
+      expect(row.innerRadiusMm, id).toBe(88);
+      expect(row.note, id).toMatch(/EXACT/);
+      const part = BUILT_IN.find((p) => p.id === id);
+      if (part?.kind !== 'multi-road') throw new Error(`${id} is not a multi-road piece`);
+      const arcs = part.roads.flatMap((r) => (r.shape.kind === 'arc' ? [r.shape.innerRadiusMm] : []));
+      expect(arcs.length, id).toBeGreaterThan(0);
+      for (const r of arcs) expect(r, id).toBe(88);
     }
   });
 

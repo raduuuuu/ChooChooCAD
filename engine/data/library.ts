@@ -39,7 +39,7 @@ import { DIMENSION_TRUST, trustRank, type DimensionStatus } from '../src/parts/s
 import { portsOf } from '../src/graph/model.js';
 import { BRIO_PARTS } from './brio.js';
 import { RAMP_SEEDS } from './rampSeeds.js';
-import { CROSSING_SEEDS, SWITCH_SEEDS } from './switchSeeds.js';
+import { CROSSING_SEEDS, MULTI_ROAD_SEEDS, SWITCH_SEEDS } from './switchSeeds.js';
 import { THIRD_PARTY_SEEDS } from './thirdParty.js';
 
 /**
@@ -47,7 +47,8 @@ import { THIRD_PARTY_SEEDS } from './thirdParty.js';
  * reproductions, and unverified third-party seeds.
  */
 export const BUILT_IN: readonly Part[] = [
-  ...BRIO_PARTS, ...RAMP_SEEDS, ...SWITCH_SEEDS, ...CROSSING_SEEDS, ...THIRD_PARTY_SEEDS,
+  ...BRIO_PARTS, ...RAMP_SEEDS, ...SWITCH_SEEDS, ...CROSSING_SEEDS, ...MULTI_ROAD_SEEDS,
+  ...THIRD_PARTY_SEEDS,
 ];
 
 /**
