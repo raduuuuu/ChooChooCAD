@@ -397,8 +397,8 @@ export function findVertexClashes(
     readonly welded: boolean;
     /** ONE piece has two or more free ends here, which is a clash on its own. */
     readonly selfPileUp: boolean;
-    /** Pieces with a FREE end here, when two or more of them meet. */
-    readonly freePieces: readonly string[];
+    /** Free ends here (`pieceId#port`), when two or more of them meet. */
+    readonly freeEnds: readonly string[];
   }> = [];
 
   for (const [key, idxs] of at) {
@@ -499,7 +499,7 @@ export function findVertexClashes(
       welded: freeReps.length < reps.length,
       // Only two or more free vertices here form a free-free pair, which is
       // what the pile-up rule counts.
-      freePieces:
+      freeEnds:
         /*
          * `>= 2` is REDUNDANT WITH THE PILE-UP RULE, not a threshold that
          * decides anything, and saying so is worth four lines because a
@@ -510,7 +510,7 @@ export function findVertexClashes(
          * them clashing, zero differences in the reported place set. It stays
          * because it skips building an array that cannot be used.
          */
-        freeReps.length >= 2 ? [...new Set(freeReps.map((i) => placed[i]!.pieceId))] : [],
+        freeReps.length >= 2 ? freeReps.map((i) => `${placed[i]!.pieceId}#${placed[i]!.port}`) : [],
     });
   }
 
@@ -552,24 +552,42 @@ export function findVertexClashes(
    * This is an endpoint test, not a body test. Pieces that cross mid-span
    * are found by `overlap.ts`, which exempts pairs already caught here.
    */
-  const placesOfPiece = new Map<string, string[]>();
-  for (const site of sites) {
-    for (const pieceId of site.freePieces) {
-      const list = placesOfPiece.get(pieceId);
-      if (list) list.push(site.key);
-      else placesOfPiece.set(pieceId, [site.key]);
+  /*
+   * COUNTED PER ROAD (eng review D12, 2026-10-30). It was per piece: a piece
+   * named every pair of places its free ends sat in. That is the same thing
+   * while a piece is one road, and wrong once it is several. Two double
+   * curves laid end to end share two places, inner track and outer, and two
+   * Y switches facing each other share both road ends, with nothing lying on
+   * anything. So a road names the pair of places its two free ends sit in,
+   * and a pair named by roads of two different pieces is a pile-up. A
+   * two-ended piece is one road, so its answer is the one it always was.
+   */
+  const pieceById = new Map(graph.pieces.map((p) => [p.pieceId, p]));
+  const siteOfEnd = new Map<string, string>();
+  for (const site of sites) for (const end of site.freeEnds) siteOfEnd.set(end, site.key);
+  const spansOfPiece = new Map<string, Set<string>>();
+  for (const [end, key] of siteOfEnd) {
+    const sep = end.lastIndexOf('#');
+    const pieceId = end.slice(0, sep);
+    const port = Number(end.slice(sep + 1));
+    const own = ports(pieceById.get(pieceId)!);
+    // A two-ended part's one road; a multi-road piece lists its own. A port
+    // list from a test fixture that names no roads is treated as one road
+    // joining every end, the rule as it was before.
+    const others = own[port]!.along ?? own.map((_, j) => j).filter((j) => j !== port);
+    for (const j of others) {
+      if (j <= port) continue;
+      const otherKey = siteOfEnd.get(`${pieceId}#${j}`);
+      if (otherKey === undefined || otherKey === key) continue;
+      const pairKey = key < otherKey ? `${key}~${otherKey}` : `${otherKey}~${key}`;
+      const spans = spansOfPiece.get(pieceId);
+      if (spans) spans.add(pairKey);
+      else spansOfPiece.set(pieceId, new Set([pairKey]));
     }
   }
   const spanCount = new Map<string, number>();
-  for (const keys of placesOfPiece.values()) {
-    // Two ports per piece on this catalogue, so at most one pair; written as
-    // a loop so a part with a third port cannot quietly fall through it.
-    const sorted = [...new Set(keys)].sort();
-    for (let i = 0; i < sorted.length; i++)
-      for (let j = i + 1; j < sorted.length; j++) {
-        const pairKey = `${sorted[i]!}~${sorted[j]!}`;
-        spanCount.set(pairKey, (spanCount.get(pairKey) ?? 0) + 1);
-      }
+  for (const spans of spansOfPiece.values()) {
+    for (const pairKey of spans) spanCount.set(pairKey, (spanCount.get(pairKey) ?? 0) + 1);
   }
   const piledUp = new Set<string>();
   for (const [pairKey, n] of spanCount) {

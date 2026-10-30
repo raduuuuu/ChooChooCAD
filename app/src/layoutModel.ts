@@ -173,11 +173,11 @@ export function addPiece(
   /*
    * The far end to continue from: the other end of the road the piece went
    * on by. On a two-ended piece that is port 1 from its start and its start
-   * from its end; a multi-road piece says which (`Port.onward`, eng review
+   * from its end; a multi-road piece says which (`Port.along`, eng review
    * D14), so a crossing joined by its third end carries on at its fourth,
    * not round the corner at its first.
    */
-  const onward = ports(piece)[joinBy]?.onward;
+  const onward = ports(piece)[joinBy]?.along?.[0];
   const select: PortRef | null =
     portCount > 1 ? { pieceId, port: onward ?? (joinBy === 0 ? 1 : 0) } : null;
   return { graph: { pieces, welds, anchors }, select };

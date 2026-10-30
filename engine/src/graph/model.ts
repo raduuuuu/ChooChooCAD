@@ -118,13 +118,16 @@ export interface Port {
    */
   readonly polarity: Polarity;
   /**
-   * On a multi-road piece, the end you come out at going on through this one:
-   * the other end of the FIRST listed road that has this end (eng review
-   * D14). The editor builds on from there, so laying track through a
-   * crossing carries straight on. Absent on a two-ended part, where it is
-   * simply the other end.
+   * On a multi-road piece, the ends a road joins this one to, in the order
+   * the roads are listed. ABSENT on a two-ended part, whose one road joins
+   * its two ends.
+   *
+   * Two readers. The editor builds on from the first (eng review D14), so
+   * laying track through a crossing carries straight on rather than round
+   * the corner. The pile-up rule asks whether two ROADS lie on top of each
+   * other (eng review D12), and a road is a pair of ends.
    */
-  readonly onward?: number;
+  readonly along?: readonly number[];
 }
 
 /** A placed piece: an instance of a part, with its own identity. */
@@ -195,15 +198,12 @@ export function portsOf(part: Part, turn: Turn = 'left'): readonly Port[] {
    * (switchRegression.test.ts).
    */
   if (part.kind === 'multi-road') {
-    return part.ports.map((e, i) => {
-      const road = part.roads.find((r) => r.from === i || r.to === i);
-      return {
-        kind: e.kind ?? 'end',
-        at: turn === 'right' ? mirrored(e.at) : { pos: e.at.pos, heading: norm16(e.at.heading) },
-        polarity: e.polarity,
-        ...(road ? { onward: road.from === i ? road.to : road.from } : {}),
-      };
-    });
+    return part.ports.map((e, i) => ({
+      kind: e.kind ?? 'end',
+      at: turn === 'right' ? mirrored(e.at) : { pos: e.at.pos, heading: norm16(e.at.heading) },
+      polarity: e.polarity,
+      along: part.roads.flatMap((r) => (r.from === i ? [r.to] : r.to === i ? [r.from] : [])),
+    }));
   }
   /*
    * A RAMP FLIPPED OVER (turn 'right'). BRIO track is double-sided, which is
