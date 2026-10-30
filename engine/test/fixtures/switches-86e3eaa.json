@@ -1,0 +1,714 @@
+{
+ "L left": {
+  "ports": [
+   {
+    "kind": "heel",
+    "pos": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "heading": 8,
+    "level": null,
+    "polarity": "socket",
+    "portPolarity": "socket"
+   },
+   {
+    "kind": "end",
+    "pos": [
+     144,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "heading": 0,
+    "level": null,
+    "polarity": "peg",
+    "portPolarity": "peg"
+   },
+   {
+    "kind": "end",
+    "pos": [
+     0,
+     0,
+     0,
+     0,
+     202,
+     0,
+     -202,
+     0
+    ],
+    "heading": 2,
+    "level": null,
+    "polarity": "peg",
+    "portPolarity": "peg"
+   }
+  ],
+  "segments": [
+   {
+    "kind": "straight",
+    "from": {
+     "x": 37.6536686473018,
+     "y": 18.477590650225736,
+     "h": 1.1780972450961724
+    },
+    "to": {
+     "x": 92.76008290787473,
+     "y": 151.51624333185103,
+     "h": 1.1780972450961724
+    },
+    "partId": "L",
+    "pieceId": "s"
+   },
+   {
+    "kind": "curve",
+    "from": {
+     "x": 37.6536686473018,
+     "y": 18.477590650225736,
+     "h": 1.1780972450961724
+    },
+    "to": {
+     "x": 37.6536686473018,
+     "y": 173.08169732572202,
+     "h": 1.9634954084936207
+    },
+    "centrelineRadiusMm": 202,
+    "sweep": "left",
+    "partId": "L",
+    "pieceId": "s"
+   }
+  ]
+ },
+ "L right": {
+  "ports": [
+   {
+    "kind": "heel",
+    "pos": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "heading": 8,
+    "level": null,
+    "polarity": "socket",
+    "portPolarity": "socket"
+   },
+   {
+    "kind": "end",
+    "pos": [
+     144,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "heading": 0,
+    "level": null,
+    "polarity": "peg",
+    "portPolarity": "peg"
+   },
+   {
+    "kind": "end",
+    "pos": [
+     0,
+     0,
+     202,
+     0,
+     -202,
+     0,
+     0,
+     0
+    ],
+    "heading": 14,
+    "level": null,
+    "polarity": "peg",
+    "portPolarity": "peg"
+   }
+  ],
+  "segments": [
+   {
+    "kind": "straight",
+    "from": {
+     "x": 37.6536686473018,
+     "y": 18.477590650225736,
+     "h": 1.1780972450961724
+    },
+    "to": {
+     "x": 92.76008290787473,
+     "y": 151.51624333185103,
+     "h": 1.1780972450961724
+    },
+    "partId": "L",
+    "pieceId": "s"
+   },
+   {
+    "kind": "curve",
+    "from": {
+     "x": 37.6536686473018,
+     "y": 18.477590650225736,
+     "h": 1.1780972450961724
+    },
+    "to": {
+     "x": 146.9752808768336,
+     "y": 127.79920287975747,
+     "h": 0.39269908169872414
+    },
+    "centrelineRadiusMm": 202,
+    "sweep": "right",
+    "partId": "L",
+    "pieceId": "s"
+   }
+  ]
+ },
+ "M left": {
+  "ports": [
+   {
+    "kind": "heel",
+    "pos": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "heading": 8,
+    "level": null,
+    "polarity": "peg",
+    "portPolarity": "peg"
+   },
+   {
+    "kind": "end",
+    "pos": [
+     144,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "heading": 0,
+    "level": null,
+    "polarity": "socket",
+    "portPolarity": "socket"
+   },
+   {
+    "kind": "end",
+    "pos": [
+     0,
+     0,
+     0,
+     0,
+     202,
+     0,
+     -202,
+     0
+    ],
+    "heading": 2,
+    "level": null,
+    "polarity": "socket",
+    "portPolarity": "socket"
+   }
+  ],
+  "segments": [
+   {
+    "kind": "straight",
+    "from": {
+     "x": 37.6536686473018,
+     "y": 18.477590650225736,
+     "h": 1.1780972450961724
+    },
+    "to": {
+     "x": 92.76008290787473,
+     "y": 151.51624333185103,
+     "h": 1.1780972450961724
+    },
+    "partId": "M",
+    "pieceId": "s"
+   },
+   {
+    "kind": "curve",
+    "from": {
+     "x": 37.6536686473018,
+     "y": 18.477590650225736,
+     "h": 1.1780972450961724
+    },
+    "to": {
+     "x": 37.6536686473018,
+     "y": 173.08169732572202,
+     "h": 1.9634954084936207
+    },
+    "centrelineRadiusMm": 202,
+    "sweep": "left",
+    "partId": "M",
+    "pieceId": "s"
+   }
+  ]
+ },
+ "M right": {
+  "ports": [
+   {
+    "kind": "heel",
+    "pos": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "heading": 8,
+    "level": null,
+    "polarity": "peg",
+    "portPolarity": "peg"
+   },
+   {
+    "kind": "end",
+    "pos": [
+     144,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "heading": 0,
+    "level": null,
+    "polarity": "socket",
+    "portPolarity": "socket"
+   },
+   {
+    "kind": "end",
+    "pos": [
+     0,
+     0,
+     202,
+     0,
+     -202,
+     0,
+     0,
+     0
+    ],
+    "heading": 14,
+    "level": null,
+    "polarity": "socket",
+    "portPolarity": "socket"
+   }
+  ],
+  "segments": [
+   {
+    "kind": "straight",
+    "from": {
+     "x": 37.6536686473018,
+     "y": 18.477590650225736,
+     "h": 1.1780972450961724
+    },
+    "to": {
+     "x": 92.76008290787473,
+     "y": 151.51624333185103,
+     "h": 1.1780972450961724
+    },
+    "partId": "M",
+    "pieceId": "s"
+   },
+   {
+    "kind": "curve",
+    "from": {
+     "x": 37.6536686473018,
+     "y": 18.477590650225736,
+     "h": 1.1780972450961724
+    },
+    "to": {
+     "x": 146.9752808768336,
+     "y": 127.79920287975747,
+     "h": 0.39269908169872414
+    },
+    "centrelineRadiusMm": 202,
+    "sweep": "right",
+    "partId": "M",
+    "pieceId": "s"
+   }
+  ]
+ },
+ "O1 left": {
+  "ports": [
+   {
+    "kind": "heel",
+    "pos": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "heading": 8,
+    "level": null,
+    "polarity": "socket",
+    "portPolarity": "socket"
+   },
+   {
+    "kind": "end",
+    "pos": [
+     108,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "heading": 0,
+    "level": null,
+    "polarity": "peg",
+    "portPolarity": "peg"
+   },
+   {
+    "kind": "end",
+    "pos": [
+     0,
+     0,
+     0,
+     0,
+     110,
+     0,
+     -110,
+     0
+    ],
+    "heading": 2,
+    "level": null,
+    "polarity": "peg",
+    "portPolarity": "peg"
+   }
+  ],
+  "segments": [
+   {
+    "kind": "straight",
+    "from": {
+     "x": 37.6536686473018,
+     "y": 18.477590650225736,
+     "h": 1.1780972450961724
+    },
+    "to": {
+     "x": 78.9834793427315,
+     "y": 118.2565801614447,
+     "h": 1.1780972450961724
+    },
+    "partId": "O1",
+    "pieceId": "s"
+   },
+   {
+    "kind": "curve",
+    "from": {
+     "x": 37.6536686473018,
+     "y": 18.477590650225736,
+     "h": 1.1780972450961724
+    },
+    "to": {
+     "x": 37.6536686473018,
+     "y": 102.6679457705455,
+     "h": 1.9634954084936207
+    },
+    "centrelineRadiusMm": 110,
+    "sweep": "left",
+    "partId": "O1",
+    "pieceId": "s"
+   }
+  ]
+ },
+ "O1 right": {
+  "ports": [
+   {
+    "kind": "heel",
+    "pos": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "heading": 8,
+    "level": null,
+    "polarity": "socket",
+    "portPolarity": "socket"
+   },
+   {
+    "kind": "end",
+    "pos": [
+     108,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "heading": 0,
+    "level": null,
+    "polarity": "peg",
+    "portPolarity": "peg"
+   },
+   {
+    "kind": "end",
+    "pos": [
+     0,
+     0,
+     110,
+     0,
+     -110,
+     0,
+     0,
+     0
+    ],
+    "heading": 14,
+    "level": null,
+    "polarity": "peg",
+    "portPolarity": "peg"
+   }
+  ],
+  "segments": [
+   {
+    "kind": "straight",
+    "from": {
+     "x": 37.6536686473018,
+     "y": 18.477590650225736,
+     "h": 1.1780972450961724
+    },
+    "to": {
+     "x": 78.9834793427315,
+     "y": 118.2565801614447,
+     "h": 1.1780972450961724
+    },
+    "partId": "O1",
+    "pieceId": "s"
+   },
+   {
+    "kind": "curve",
+    "from": {
+     "x": 37.6536686473018,
+     "y": 18.477590650225736,
+     "h": 1.1780972450961724
+    },
+    "to": {
+     "x": 97.18523966338347,
+     "y": 78.00916166630739,
+     "h": 0.39269908169872414
+    },
+    "centrelineRadiusMm": 110,
+    "sweep": "right",
+    "partId": "O1",
+    "pieceId": "s"
+   }
+  ]
+ },
+ "P1 left": {
+  "ports": [
+   {
+    "kind": "heel",
+    "pos": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "heading": 8,
+    "level": null,
+    "polarity": "peg",
+    "portPolarity": "peg"
+   },
+   {
+    "kind": "end",
+    "pos": [
+     108,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "heading": 0,
+    "level": null,
+    "polarity": "socket",
+    "portPolarity": "socket"
+   },
+   {
+    "kind": "end",
+    "pos": [
+     0,
+     0,
+     0,
+     0,
+     110,
+     0,
+     -110,
+     0
+    ],
+    "heading": 2,
+    "level": null,
+    "polarity": "socket",
+    "portPolarity": "socket"
+   }
+  ],
+  "segments": [
+   {
+    "kind": "straight",
+    "from": {
+     "x": 37.6536686473018,
+     "y": 18.477590650225736,
+     "h": 1.1780972450961724
+    },
+    "to": {
+     "x": 78.9834793427315,
+     "y": 118.2565801614447,
+     "h": 1.1780972450961724
+    },
+    "partId": "P1",
+    "pieceId": "s"
+   },
+   {
+    "kind": "curve",
+    "from": {
+     "x": 37.6536686473018,
+     "y": 18.477590650225736,
+     "h": 1.1780972450961724
+    },
+    "to": {
+     "x": 37.6536686473018,
+     "y": 102.6679457705455,
+     "h": 1.9634954084936207
+    },
+    "centrelineRadiusMm": 110,
+    "sweep": "left",
+    "partId": "P1",
+    "pieceId": "s"
+   }
+  ]
+ },
+ "P1 right": {
+  "ports": [
+   {
+    "kind": "heel",
+    "pos": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "heading": 8,
+    "level": null,
+    "polarity": "peg",
+    "portPolarity": "peg"
+   },
+   {
+    "kind": "end",
+    "pos": [
+     108,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "heading": 0,
+    "level": null,
+    "polarity": "socket",
+    "portPolarity": "socket"
+   },
+   {
+    "kind": "end",
+    "pos": [
+     0,
+     0,
+     110,
+     0,
+     -110,
+     0,
+     0,
+     0
+    ],
+    "heading": 14,
+    "level": null,
+    "polarity": "socket",
+    "portPolarity": "socket"
+   }
+  ],
+  "segments": [
+   {
+    "kind": "straight",
+    "from": {
+     "x": 37.6536686473018,
+     "y": 18.477590650225736,
+     "h": 1.1780972450961724
+    },
+    "to": {
+     "x": 78.9834793427315,
+     "y": 118.2565801614447,
+     "h": 1.1780972450961724
+    },
+    "partId": "P1",
+    "pieceId": "s"
+   },
+   {
+    "kind": "curve",
+    "from": {
+     "x": 37.6536686473018,
+     "y": 18.477590650225736,
+     "h": 1.1780972450961724
+    },
+    "to": {
+     "x": 97.18523966338347,
+     "y": 78.00916166630739,
+     "h": 0.39269908169872414
+    },
+    "centrelineRadiusMm": 110,
+    "sweep": "right",
+    "partId": "P1",
+    "pieceId": "s"
+   }
+  ]
+ }
+}
