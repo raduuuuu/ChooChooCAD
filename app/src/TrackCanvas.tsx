@@ -1369,6 +1369,28 @@ export function TrackCanvas({
             />
           );
         })}
+        {/*
+          * THE BUFFER BEAM: a solid ink block, 6mm deep, across the whole
+          * plank at a buffer stop's far end, so a stop does not read as a short
+          * plank. A shape no other mark uses (rule 11): ends are circles and
+          * seams hairlines. Round buffers were tried first and read as two
+          * port dots in the browser, so they went. Ink, not colour (rule 1);
+          * drawn in millimetres like the wood it caps; never a target.
+          */}
+        {segments.map((seg, i) => {
+          if (!seg.stop || (seg.pieceId !== undefined && hiddenRun?.has(seg.pieceId))) return null;
+          const deg = (Math.atan2(seg.to.y - seg.from.y, seg.to.x - seg.from.x) * 180) / Math.PI;
+          return (
+            <g
+              key={`stop-${i}`}
+              className="buffer-beam"
+              pointerEvents="none"
+              transform={`translate(${seg.to.x}, ${seg.to.y}) rotate(${deg})`}
+            >
+              <rect x={-6} y={-20} width={6} height={40} />
+            </g>
+          );
+        })}
         {dedupedClashes.map(([x, y], i) => (
           <RedMark key={`clash-${i}`} className="clash-mark" x={x} y={y} r={28} d="M -14 -14 L 14 14 M -14 14 L 14 -14" k={k} />
         ))}

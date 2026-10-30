@@ -53,6 +53,11 @@ export interface Segment {
   readonly rise?: number;
   /** A ramp flipped over: its HIGH end is `from`, the entry. Absent: high at `to`. */
   readonly highAtStart?: true;
+  /**
+   * A buffer stop's body: `from` is its one end, `to` the barrier. The canvas
+   * draws the buffer beam at `to`. Absent on every other segment.
+   */
+  readonly stop?: true;
 }
 
 export interface FkResult {

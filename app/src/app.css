@@ -1531,6 +1531,8 @@
 .raised-shadow { fill: none; stroke: var(--track-shadow); stroke-linecap: butt; pointer-events: none; }
 .raised-shadow.is-ramp { fill: var(--track-shadow); stroke: none; }
 .rise-chevron { fill: none; stroke: var(--ink); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+/* A buffer stop's beam (TrackCanvas): solid ink, like the chevron. */
+.buffer-beam rect { fill: var(--ink); stroke: none; }
 .verdict-raised { color: var(--ink); }
 .rise-chevron-icon { width: 0.9em; height: 0.9em; margin-left: 0.25em; vertical-align: -0.1em; overflow: visible; }
 /* The diamond glyph that keys the canvas mark, in the strip and the note: ink, like the mark. */
