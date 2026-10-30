@@ -581,6 +581,15 @@
  * click to place, so it earns its box. Nothing else on this screen gets one.
  */
 .piece { position: relative; display: flex; }
+/*
+ * FULL WIDTH, ONE COLUMN (eng D5, part previews). A card used to be as wide as
+ * its text and the cards wrapped in a row. With a drawing in every card, a
+ * long user code could then push a card's size out of sight or onto a second
+ * row; at the rail's full width, with the name the one column that shrinks,
+ * every card is one row whatever its code or name.
+ */
+.palette-row > .piece { flex: 1 1 100%; min-width: 0; }
+.palette-row > .piece > .piece-main { flex: 1 1 auto; min-width: 0; }
 .piece-main {
   display: grid;
   /*
@@ -602,9 +611,14 @@
    * across to a size; stacking the size under the name put it in neither
    * place.
    */
-  grid-template-columns: minmax(2.6ch, auto) 1fr auto;
+  /*
+   * DRAWING, CODE, NAME, SIZE (part previews, 1A). The drawing has a fixed
+   * column so the codes still line up; the code is capped at 10ch (eng D5) and
+   * the name is the one column that shrinks, both cut with an ellipsis (11A).
+   */
+  grid-template-columns: auto minmax(2.6ch, max-content) minmax(0, 1fr) auto;
   gap: 0 var(--s2);
-  align-items: baseline;
+  align-items: center;
   text-align: left;
   /*
    * 36px on a pointer, 44px on touch (see the coarse-pointer block below).
@@ -612,7 +626,12 @@
    * everywhere cost 72px of a 641px rail for no accessibility gain on a mouse.
    */
   min-height: 36px;
-  padding: var(--s2) var(--s3);
+  /*
+   * 7px, not --s2's 8 (eng D4): 36 = 1 + 7 + 20 + 7 + 1, so the 20px drawing
+   * fits the 36px row exactly. At 8 the row became 38px and the 52-card list
+   * about 100px longer.
+   */
+  padding: 7px var(--s3);
   background: var(--paper);
   border: 1px solid var(--rule);
   border-radius: 3px;
@@ -632,8 +651,29 @@
  * The floor existed as a 16px rule the code broke in eight places. Naming the
  * second floor makes the rule true instead of violated.
  */
-.piece-id { font-weight: 600; font-size: 15px; white-space: nowrap; }
-.piece-name { font-size: 14px; }
+.piece-id {
+  font-weight: 600; font-size: 15px; white-space: nowrap;
+  max-width: 10ch; overflow: hidden; text-overflow: ellipsis;
+}
+.piece-name { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+/*
+ * THE PART'S DRAWING (docs/plan/2026-10-30-part-previews.md). Ink only (rule
+ * 1), in currentColor so it follows the card's text: --ink, or --ink-soft on a
+ * card you own too few of (3A; --ink-soft is 5.21:1 on --paper, past the 3:1 a
+ * graphic owes). Never a target (10A).
+ */
+.part-preview { display: block; pointer-events: none; overflow: visible; }
+.part-preview-edge,
+.part-preview-plank { fill: none; stroke-linecap: butt; vector-effect: non-scaling-stroke; }
+/* One schematic track width (eng D3): 6px of paper inside a 9px ink edge. */
+.part-preview-edge { stroke: currentColor; stroke-width: 9; }
+.part-preview-plank { stroke: var(--paper); stroke-width: 6; }
+.part-preview-beam { fill: currentColor; }
+.part-preview-chevron { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
+/* The canvas's end marks (8A, rule 11): a peg filled, a socket a ring. */
+.part-preview-end.is-peg { fill: currentColor; }
+.part-preview-end.is-socket { fill: var(--paper); stroke: currentColor; stroke-width: 1; }
 .piece-dim { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
 .piece-mirror {
   min-width: 32px;
@@ -1055,6 +1095,8 @@
   .canvas-empty-action button,
   .piece-main,
   .toggle { min-height: 44px; }
+  /* 44 = 1 + 7 + 28 + 7 + 1: the drawing grows to 40×28 on touch (2A). */
+  .part-preview { width: 40px; height: 28px; }
 }
 
 /*
@@ -1534,7 +1576,6 @@
 /* A buffer stop's beam (TrackCanvas): solid ink, like the chevron. */
 .buffer-beam rect { fill: var(--ink); stroke: none; }
 .verdict-raised { color: var(--ink); }
-.rise-chevron-icon { width: 0.9em; height: 0.9em; margin-left: 0.25em; vertical-align: -0.1em; overflow: visible; }
 /* The diamond glyph that keys the canvas mark, in the strip and the note: ink, like the mark. */
 .adapter-glyph { color: var(--ink); font-weight: 600; }
 .mode-strip .primary {
