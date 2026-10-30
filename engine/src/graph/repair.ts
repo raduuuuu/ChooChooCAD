@@ -29,7 +29,8 @@
  *
  * THE GUARDS, each a reason the sentence would be false:
  *
- *   exactly one loop fails   two failing loops each needing a piece would
+ *   exactly one loop fails   (needs more bend than it is credited with)
+ *                            two failing loops each needing a piece would
  *                            otherwise read as one piece for the layout
  *   one closing weld         a combined loop's gap is a sum of residuals and
  *                            has no single b-to-a walk
@@ -43,6 +44,7 @@
  *                            track already there is a claim nobody checked
  */
 
+import { LAMBDA_SLACK } from './bend.js';
 import { equals, scale, zetaPow, type Cyc } from '../geom/cyclotomic.js';
 import type { BrandFitLookup } from '../joints/trust.js';
 import { trustRank, type Brand, type Part, type StraightPart } from '../parts/schema.js';
@@ -106,7 +108,10 @@ export function pieceRepair(
   resolve: (id: string) => Part,
   library: RepairLibrary,
 ): PieceRepair | null {
-  const failing = cycles.filter((c) => !c.withinGive);
+  // A loop "fails" when, solved alone, it needs more bend than its joints are
+  // credited with (eng review D3). The sentence still claims only what it
+  // proves: that one straight closes the loop EXACTLY (design 10A).
+  const failing = cycles.filter((c) => c.standaloneLambda !== null && c.standaloneLambda > 1 + LAMBDA_SLACK);
   if (failing.length !== 1) return null;
   const loop = failing[0]!;
 

@@ -13,20 +13,19 @@ import { CLEARANCE } from '../data/rampSeeds.js';
 import { ESTIMATES, findings, type Measurements } from '../data/calibration.js';
 import { MEASUREMENTS } from '../data/measurements.js';
 import { evaluateLayout, type LayoutEvaluation } from '../src/joints/evaluate.js';
+import { bendLimit, Q1_LOOP } from '../data/bendLimit.js';
 import { solveLayout } from '../src/solver/result.js';
 
-/** E E E E D E E E E A: the CALIBRATION.md Q1 loop, a 72mm residual. */
-const Q1_LOOP = ['E', 'E', 'E', 'E', 'D', 'E', 'E', 'E', 'E', 'A'];
-
-/** The engine's verdict on the Q1 loop, with the give in use now. */
-export function engineOnQ1(): Pick<LayoutEvaluation, 'verdict' | 'gapMm' | 'totalGiveMm'> {
+/** The engine's verdict on the Q1 loop (E E E E D E E E E A, a 72mm residual), with the bend in use now. */
+export function engineOnQ1(): Pick<LayoutEvaluation, 'verdict' | 'gapMm' | 'lambda'> {
   const r = solveLayout({ placements: Q1_LOOP.map((partId) => ({ partId, turn: 'left' as const })), closed: true });
   return evaluateLayout(r, BRIO_SLOP.calibrationStatus);
 }
 
 /** The engine's word on the Q1 loop beside the floor's. */
 export function q1Finding(m: Measurements, e = engineOnQ1()): string {
-  const engine = `the engine says ${e.verdict}: a ${Math.round(e.gapMm)}mm gap against ${Math.round(e.totalGiveMm * 100) / 100}mm of give`;
+  const bend = e.lambda === null ? 'no bend figure' : `${Math.round(e.lambda * bendLimit().deg * 100) / 100} degrees of bend at the worst joint`;
+  const engine = `the engine says ${e.verdict}: a ${Math.round(e.gapMm)}mm gap needing ${bend}`;
   const { closes, feel, leftoverGapMm } = m.q1;
   if (closes === null) return `Q1: not answered yet; ${engine}.`;
   if (!closes) {
@@ -36,17 +35,28 @@ export function q1Finding(m: Measurements, e = engineOnQ1()): string {
   if (e.verdict === 'EXCEEDS') {
     return (
       `Q1: it closes on the floor (${feel ?? 'feel not recorded'}) but ${engine}. ` +
-      'THE MOST IMPORTANT RESULT ON THE SHEET: the give is larger than the engine thinks, and its numbers are wrong in direction, not just imprecise.'
+      'THE MOST IMPORTANT RESULT ON THE SHEET: the engine refuses a loop that closes, so its bend limit is wrong in direction, not just imprecise.'
     );
   }
   return `Q1: it closes on the floor (${feel ?? 'feel not recorded'}); ${engine}. They agree.`;
 }
 
+/**
+ * The BRIO bend limit in use, where it came from, and, when it was inferred
+ * from Q1, how far the solver's refinement could have moved it above the true
+ * minimum (eng review D13).
+ */
+export function bendLine(): string {
+  const b = bendLimit();
+  const margin = b.status === 'inferred' ? `; refinement could overstate it by at most ${Math.round(b.marginDeg * 1000) / 1000} degrees` : '';
+  return `Bend limit: ${Math.round(b.deg * 1000) / 1000} degrees, ${b.status} (${b.source})${margin}.`;
+}
+
 export function report(m: Measurements): string[] {
-  const slopFrom = BRIO_SLOP.calibrationStatus === 'measured' ? `measured ${m.measuredOn}` : 'still the estimate';
   return [
-    `Joint give: ${BRIO_SLOP.axialMm}mm axial, ${Math.round(BRIO_SLOP.angularDeg * 100) / 100} degrees (${slopFrom}; estimate ${ESTIMATES.axialMm}mm, ${ESTIMATES.angularDeg} degrees).`,
+    `Joint stretch: ${BRIO_SLOP.axialMm}mm (${m.q2.pullApartMm === null ? 'still the estimate' : `measured ${m.measuredOn}`}; estimate ${ESTIMATES.axialMm}mm).`,
     `Train height: ${CLEARANCE.trainMm}mm (${CLEARANCE.trainMeasured ? 'measured' : 'still the estimate'}).`,
+    bendLine(),
     '',
     q1Finding(m),
     ...findings(m),

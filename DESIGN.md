@@ -52,7 +52,19 @@ does not know that the give can be distributed to absorb it.
 
 Numbers get `.num`: the mono face with tabular figures. Not for looks. A
 measurement column that reflows while you read it is a column you cannot
-compare down, and every number in this product is millimetres or a part count.
+compare down.
+
+Four units, and only four (amended 2026-10-30, design review 7A, when joint
+bend reached the verdict):
+
+- millimetres, for lengths, gaps, stretch and clearance;
+- part counts;
+- degrees, to one decimal, for bend and turn;
+- percent, as a whole number, for a joint's bend against its own limit.
+
+The unit sits inside `.num` with its figure, as `mm` always has. A figure is
+rounded the way that never understates it: a leftover of 0.51mm reads 0.6,
+not 0.5. Verdicts come from the unrounded value, never from what is shown.
 
 This is also why `font-display` is `optional` and never `swap`. Swap repaints
 those columns in a different face mid-load, which is the exact jitter tabular

@@ -18,6 +18,8 @@
  */
 
 import { analyseCycles, type CycleReport } from './cycles.js';
+import { BEND_BUDGET, bendRuns, cycleLambda, type JointSide, type OtherPart, type RunBend } from './bendRun.js';
+import { bendLimit } from '../../data/bendLimit.js';
 import { classifyWelds, connectorSites, findVertexClashes, type AdapterJoint, type VertexClash, type WeldPolarityViolation } from './feasible.js';
 import { findBridges, findPlankOverlaps, type PlankOverlap } from './overlap.js';
 import { renderGraph } from './render.js';
@@ -30,10 +32,19 @@ import type { Part } from '../parts/schema.js';
 
 export type GraphFailure =
   | 'NO_CYCLE'
-  | 'HEADING_MISMATCH'
   | 'TOO_MANY_LOOPS'
   | 'TOO_BIG_TO_CHECK'
+  /**
+   * The bend model ran and did not settle, or could not run (eng review D12):
+   * no verdict either way, said in grey. `detail` says why, in mm when the
+   * solve left the ends apart.
+   */
+  | 'BEND_UNCHECKED'
   | 'NUMERIC';
+
+/** Loops whose own bend is solved for ranking and repair; past this, none are (D3 needs exactly one anyway). */
+const LOOP_BEND_LIMIT = 32;
+
 
 /**
  * THE SEPARATE RUNS OF TRACK (TODO "Multiple independent components"). A
@@ -79,9 +90,16 @@ export type GraphResult =
       readonly closesExactly: boolean;
       /** The worst cycle's gap. Per-cycle figures are in `cycles`. */
       readonly gapMm: number;
-      /** The worst cycle's OWN give. Never a sum across loops. */
-      readonly totalGiveMm: number;
-      /** True only when EVERY cycle is within its own give. */
+      /**
+       * The bend each looped run needs, in run order. Every run is 'exact',
+       * 'closes' or 'beyond' here; a run the model could not check makes the
+       * whole result a BEND_UNCHECKED failure instead, unless another run is
+       * already beyond (design 3A: the worst run leads).
+       */
+      readonly bend: readonly RunBend[];
+      /** The run that speaks for the layout: beyond > closes > exact (design 3A). */
+      readonly lead: RunBend | null;
+      /** Every looped run closes, exactly or within the joints' bend. */
       readonly withinBound: boolean;
       readonly rank: number;
       readonly cycles: readonly CycleReport[];
@@ -241,7 +259,7 @@ export function solveGraph(
 
   const byId = new Map(graph.pieces.map((p) => [p.pieceId, p]));
   const portsById = (id: string) => ports(byId.get(id)!);
-  const space = analyseCycles(graph, placement, rs, portsById, slop);
+  const space = analyseCycles(graph, placement, rs);
 
   /*
    * TWO LIMITS, TWO ANSWERS. `truncated` names which one stopped the walk,
@@ -301,7 +319,7 @@ export function solveGraph(
    *
    * This was a false pass with nothing guarding it. `withinBound` below is
    * `space.cycles.every(...)`, which is vacuously TRUE on an empty array, and
-   * `gapMm`/`totalGiveMm` come from `space.worst?.… ?? 0`, so a report with
+   * `gapMm` came from `space.worst?.… ?? 0`, so a report with
    * rank 3 and no traced cycles rendered as EXACT: "This works. Closes
    * exactly, no give needed at any joint.", tone pass, green, over three
    * loops that were never examined.
@@ -334,24 +352,42 @@ export function solveGraph(
     };
   }
 
-  if (space.rotationBroken) {
-    /*
-     * WHICH LOOP, not the headline again. This said "the track does not come
-     * back pointing the way it started" under a headline saying the same, so
-     * the line read the one fact twice. With one loop there is nothing to add;
-     * with several, it names the one that comes back turned.
-     */
-    const { loops } = levels.runs;
-    const turned = loops.filter((l) => l.headingBroken);
+  /*
+   * THE BEND (docs/designs/joint-bend.md). Each piece's side of a joint: BRIO
+   * pieces are credited with the BRIO bend limit (measured, inferred from the
+   * Q1 loop, or estimated; `bendLimit`), other brands with their own figure,
+   * and every piece with its stretch from `slop`. A joint takes the weaker
+   * side (eng review D10). A missing bend figure is NaN, which the solver
+   * refuses rather than reading as fine (design 5A).
+   */
+  const sideOf = (pieceId: string): JointSide => {
+    const part = resolve(byId.get(pieceId)!.partId);
+    const deg = part.brand === 'BRIO' ? bendLimit().deg : part.slop.angularDeg;
+    return {
+      limitRad: typeof deg === 'number' && Number.isFinite(deg) && deg > 0 ? (deg * Math.PI) / 180 : Number.NaN,
+      stretchMm: slop(pieceId),
+    };
+  };
+  const bend = bendRuns(graph, placement, rs, portsById, sideOf, BEND_BUDGET).map((run) => {
+    const seen = new Map<string, OtherPart>();
+    let brio = false;
+    for (const id of run.pieces) {
+      const part = resolve(byId.get(id)!.partId);
+      if (part.brand === 'BRIO') brio = true;
+      if (part.brand === 'BRIO' || seen.has(part.id)) continue;
+      const deg = part.slop.angularDeg;
+      seen.set(part.id, { partId: part.id, name: part.name, limitDeg: typeof deg === 'number' && deg > 0 ? deg : Number.NaN });
+    }
+    const others = [...seen.values()].sort((a, b) => (a.partId < b.partId ? -1 : a.partId > b.partId ? 1 : 0));
+    return { ...run, others, brio };
+  });
+  const beyond = bend.filter((b) => b.status === 'beyond');
+  const unchecked = bend.find((b) => b.status === 'unchecked');
+  if (beyond.length === 0 && unchecked) {
     return {
       ok: false,
-      reason: 'HEADING_MISMATCH',
-      detail:
-        loops.length < 2
-          ? ''
-          : turned.length === 1
-            ? `In the loop through piece ${turned[0]!.firstPiece}.`
-            : `In ${turned.length} of ${loops.length} loops.`,
+      reason: 'BEND_UNCHECKED',
+      detail: unchecked.why ?? '',
       rank,
       clashes,
       overlaps,
@@ -362,36 +398,60 @@ export function solveGraph(
     };
   }
 
-  const gaps = space.cycles.map((c) => c.gapMm);
-  const gives = space.cycles.map((c) => c.giveMm);
-  if (![...gaps, ...gives].every((x) => Number.isFinite(x))) {
-    return {
-      ok: false,
-      reason: 'NUMERIC',
-      detail: 'a figure came out non-finite',
-      rank,
-      clashes,
-      overlaps,
-      polarityViolations,
-      adapterJoints,
-      ...levels,
-      residuals: rs,
-    };
-  }
+  // Each loop's own bend, only where a run does not close: it ranks `worst`
+  // and triggers the one-straight repair (eng review D3). A run that closes
+  // as a whole closes every loop in it, so nothing is spent there.
+  const beyondPieces = new Set(beyond.flatMap((b) => b.pieces));
+  const inBeyond = space.cycles.filter((c) => beyondPieces.has(c.pieces[0]!));
+  // These spend from what the runs left of the same budget (eng review D9).
+  let spent = bend.reduce((sum, b) => sum + b.work, 0);
+  const cycles = space.cycles.map((c) => {
+    if (inBeyond.length > LOOP_BEND_LIMIT || !beyondPieces.has(c.pieces[0]!)) return c;
+    const left = BEND_BUDGET.maxWork - spent;
+    if (left <= 0) return c;
+    const own = cycleLambda(graph, placement, c.welds, portsById, sideOf, { maxCells: BEND_BUDGET.maxCells, maxWork: left });
+    spent += own.work;
+    return { ...c, standaloneLambda: own.lambda };
+  });
+  // Worst = the loop that needs the most bend, then the largest gap, then the
+  // lowest weld: never the enumeration's order.
+  const worst =
+    cycles.length === 0
+      ? null
+      : cycles.reduce((a, b) => {
+          const la = a.standaloneLambda ?? -1;
+          const lb = b.standaloneLambda ?? -1;
+          if (lb !== la) return lb > la ? b : a;
+          const ga = Number.isNaN(a.gapMm) ? -1 : a.gapMm;
+          const gb = Number.isNaN(b.gapMm) ? -1 : b.gapMm;
+          if (gb !== ga) return gb > ga ? b : a;
+          return Math.min(...b.welds) < Math.min(...a.welds) ? b : a;
+        });
 
-  // EVERY cycle, not the worst one's verdict: two loops each individually
-  // fine is fine, and one bad loop fails the layout however good the rest.
-  const withinBound = space.cycles.every((c) => c.withinGive);
+  // The run that speaks for the layout (design 3A): beyond > closes > exact,
+  // then the larger lambda, then run order.
+  const rankOf = (b: RunBend): number => (b.status === 'beyond' ? 3 : b.status === 'unchecked' ? 2 : b.status === 'closes' ? 1 : 0);
+  const lead =
+    bend.length === 0
+      ? null
+      : bend.reduce((a, b) => {
+          if (rankOf(b) !== rankOf(a)) return rankOf(b) > rankOf(a) ? b : a;
+          return (b.lambda ?? 0) > (a.lambda ?? 0) ? b : a;
+        });
+  // EVERY run, not the lead's verdict: two runs each fine is fine, and one
+  // run beyond the bend is the layout's headline however good the rest.
+  const withinBound = bend.every((b) => b.status === 'exact' || b.status === 'closes');
 
   return {
     ok: true,
     closesExactly: rs.every((r) => r.closes),
-    gapMm: space.worst?.gapMm ?? 0,
-    totalGiveMm: space.worst?.giveMm ?? 0,
+    gapMm: worst !== null && Number.isFinite(worst.gapMm) ? worst.gapMm : 0,
+    bend,
+    lead,
     withinBound,
     rank,
-    cycles: space.cycles,
-    worst: space.worst,
+    cycles,
+    worst,
     clashes,
     overlaps,
     polarityViolations,
@@ -401,6 +461,6 @@ export function solveGraph(
     repair:
       withinBound || !library
         ? null
-        : pieceRepair(graph, ports, placement, rs, space.cycles, resolve, library),
+        : pieceRepair(graph, ports, placement, rs, cycles, resolve, library),
   };
 }

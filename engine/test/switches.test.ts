@@ -19,10 +19,11 @@ import { spanningForest } from '../src/graph/forest.js';
 import { placeAll, portFrame, residuals } from '../src/graph/frames.js';
 import { classifyWelds, findWeldPolarityViolations } from '../src/graph/feasible.js';
 import { solveGraph } from '../src/graph/solve.js';
+import { buildRun } from '../src/graph/bendRun.js';
+import { fundamentalCycle } from '../src/graph/cycles.js';
 import {
   portsOf,
   roadEnd,
-  weldGiveMm,
   type Frame,
   type Graph,
   type Piece,
@@ -168,20 +169,30 @@ describe('the heel is an ordinary connector', () => {
   });
 
   /*
-   * MUTATION PROOF, run: in cycles.ts `giveOfWeld`, return 0 when either port
-   * is a heel. Fails with `expected 5.6 to be close to 6.4`: the loop loses
-   * the heel joint's give.
+   * The heel is a joint like any other in the bend model: every weld on the
+   * loop, the heel's included, is one bend-and-stretch joint
+   * (docs/designs/joint-bend.md). This used to pin the heel's share of the
+   * axial give total, which is retired.
+   *
+   * MUTATION PROOF, run: in bendRun.ts `buildRun`, drop welds touching a heel
+   * from `onLoop` (filter out a weld when either end's port `kind` is 'heel')
+   * fails with `expected [ …(7) ] to have a length of 8 but got 7`.
    */
-  it('donates give like any joint, so a loop through it counts every weld', () => {
+  it('is a bend joint like any weld, so a loop through it has one at every weld', () => {
     const g = loopThroughHeel();
-    const r = solveGraph(g, ports, resolve, slopOf, placeAll(g, ports));
+    const place = placeAll(g, ports);
+    const byId = new Map(g.pieces.map((p) => [p.pieceId, p]));
+    const run = buildRun(
+      g,
+      place,
+      place.forest.closing.map((w) => fundamentalCycle(g, place.forest, w)),
+      (id) => ports(byId.get(id)!),
+      () => ({ limitRad: 0.05, stretchMm: 2 }),
+    );
+    expect(run).not.toBeNull();
+    expect(run!.joints).toHaveLength(8);
+    const r = solveGraph(g, ports, resolve, slopOf, place);
     expect(r.ok).toBe(true);
-    if (!r.ok) throw new Error('unreachable');
-    const perWeld = A1.slop.axialMm;
-    expect(r.totalGiveMm).toBeCloseTo(8 * perWeld, 9);
-    // The give rule itself: the larger of the two, because the bound is a
-    // necessary condition and give must be an upper estimate.
-    expect(weldGiveMm(0.8, 1.2)).toBe(1.2);
   });
 
   /*

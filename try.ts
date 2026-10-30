@@ -36,7 +36,7 @@ if (!r.ok) {
   console.log(`\nVERDICT           ${r.reason}: ${r.detail}`);
 } else {
   const e = evaluateLayout(r, 'estimated');
-  console.log(`total joint give  ${r.totalGiveMm.toFixed(2)} mm across ${r.joints.length} joints`);
+  console.log(`bend              ${r.bend.status}, lambda ${r.bend.lambda?.toFixed(3) ?? '-'} across ${r.joints.length} joints`);
   console.log(`within the bound  ${r.withinBound}`);
   console.log(`\nVERDICT           ${e.verdict}`);
   for (const why of e.reasons) console.log(`                  - ${why}`);

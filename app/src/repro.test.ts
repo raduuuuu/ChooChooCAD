@@ -327,14 +327,15 @@ describe('the generated repro runs', () => {
      * empty chain also reports ok true / closesExactly true, so that assertion
      * passed whether the repro solved the real graph or nothing at all. The
      * discriminators are the graph engine's own fields -- `rank` counts the
-     * independent loops and the chain engine never emits it -- and a give total
-     * that only eight real joints produce.
+     * independent loops and the chain engine never emits it -- and the
+     * leading run, which names the eight graph pieces it solved.
+     *
+     * MUTATION PROOF, run: the repro solving an empty graph (`{ ...g, pieces:
+     * [], welds: [] }` passed to `solveGraph`) fails with `expected
+     * 'inventory {\n  E: 8,\n}\nrefused byte…' to contain 'rank: 1'`.
      */
     expect(out).toContain('rank: 1');
-    // Eight joints at the measured 2mm each (CALIBRATION.md Q2). MUTATION
-    // PROOF, run: `pullApartMm: 1` in measurements.ts fails with `expected
-    // 'inventory {\n  E: 8,\n}\nrefused byte…' to match /totalGiveMm: 16[,\s]/`.
-    expect(out).toMatch(/totalGiveMm: 16[,\s]/);
+    expect(out).toMatch(/lead: \{\s*pieces: \[ "p0", "p1", "p2", "p3", "p4", "p5", "p6", "p7" \]/);
     expect(out).toContain('closesExactly: true');
     expect(out).not.toContain('no layout was stored');
   });

@@ -35,7 +35,7 @@ const view = (over: Partial<VerdictView>): VerdictView => ({
   detail: '',
   gapMm: 0,
   gapKnown: false,
-  giveMm: 0,
+  bend: null,
   rank: 1,
   failingLoops: 0,
   clashCount: 0,
@@ -76,11 +76,11 @@ describe('the level faults in the verdict (8A, D4)', () => {
 });
 
 describe('raised track on a verdict that works (3A, 4A)', () => {
+  // Every trust kind there is (four since the give notes retired, design 8A).
   const FIVE: readonly TrustIssue[] = [
-    { kind: 'estimated-give', detail: 'give is estimated' },
     { kind: 'single-source', detail: 'one person measured this' },
     { kind: 'unverified-size', detail: 'nobody measured this' },
-    { kind: 'axial-only-give', detail: 'pull-apart slack only' },
+    { kind: 'modelled-switch', detail: 'this switch is modelled' },
     { kind: 'brands-do-not-join', detail: 'these brands do not join' },
   ];
 

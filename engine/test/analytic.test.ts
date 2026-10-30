@@ -31,7 +31,7 @@ import { BUFFER_SEEDS } from '../data/bufferSeeds.js';
 import { CROSSING_SEEDS, MULTI_ROAD_SEEDS, SWITCH_SEEDS } from '../data/switchSeeds.js';
 import { equals, isZero, scale, toXY } from '../src/geom/cyclotomic.js';
 import { displacement } from '../src/geom/pose.js';
-import { computeResidual, totalGiveMm } from '../src/solver/residual.js';
+import { computeResidual } from '../src/solver/residual.js';
 import { findPolarityViolations } from '../src/feasible.js';
 import { solveLayout } from '../src/solver/result.js';
 import { evaluateLayout } from '../src/joints/evaluate.js';
@@ -116,7 +116,7 @@ describe('exact closures: residual is the zero element, not a small float', () =
     expect(res.headingMismatchSteps).toBe(0);
   });
 });
-describe('the bound: a gap cannot exceed the give', () => {
+describe('the bend: how far the joints must turn to close a loop', () => {
   it('an exact closure needs no give at all', () => {
     const r = solveLayout(loop(rep('E', 8)));
     expect(r.ok).toBe(true);
@@ -124,6 +124,7 @@ describe('the bound: a gap cannot exceed the give', () => {
     expect(r.closesExactly).toBe(true);
     expect(r.gapMm).toBeCloseTo(0, 9);
     expect(r.withinBound).toBe(true);
+    expect(r.bend.status).toBe('exact');
   });
 
   it('reads EXACT and surfaces that the give is estimated, never silently measured', () => {
@@ -135,140 +136,54 @@ describe('the bound: a gap cannot exceed the give', () => {
     expect(e.reasons.some((s) => s.includes('estimated'))).toBe(true);
   });
 
-  it('total give is the sum over joints, so it scales with piece count', () => {
-    const eight = solveLayout(loop(rep('E', 8)));
-    const sixteen = solveLayout(loop(rep('E', 16)));
-    expect(eight.ok && sixteen.ok).toBe(true);
-    if (!eight.ok || !sixteen.ok) return;
-    expect(eight.joints).toHaveLength(8);
-    expect(sixteen.joints).toHaveLength(16);
-    // 2mm one-sided per joint, MEASURED (CALIBRATION.md Q2, 2026-10-30:
-    // two straights pulled apart 2mm at the limit, pushed back to touching).
-    // It replaced the 0.8mm ESTIMATED_SLOP this used to pin.
-    //
-    // MUTATION PROOF, run: `pullApartMm: 1` in measurements.ts fails with
-    // `expected 8 to be close to 16, received difference is 8`.
-    expect(eight.totalGiveMm).toBeCloseTo(16, 9);
-    expect(sixteen.totalGiveMm).toBeCloseTo(32, 9);
-  });
-
   /*
-   * THE GIVE TOTAL IGNORES ROTATION, WHICH IS WHAT RULE 5 CLAIMS.
+   * THE FLOOR'S LOOP CLOSES, AND NOW THE ENGINE SAYS SO (CALIBRATION.md Q1,
+   * 2026-10-30). E E E E D E E E E A is 72mm short; on the floor every joint
+   * seated and a train ran round it. The axial-only bound refused it (20mm of
+   * stretch against 72mm). The bend model says it closes, needing about 2.7
+   * degrees at the worst joint, which is the limit itself because the limit
+   * is inferred from this very loop (engine/data/bendLimit.ts).
    *
-   * Value: protects=`totalGiveMm` counts axial slack ONLY, which is the premise
-   * that both the unconditional `axial-only-give` disclosure and the EXCEEDS
-   * headline's word "modelled" rest on
-   * Value: fails_when=a give calculation starts counting `angularMaxDeg`, at
-   * which point rule 5 is disclosing an omission the engine no longer makes --
-   * `trust.ts` says exactly that ("the rule stops being true only when the
-   * engine starts reading `angularMaxDeg`, and deleting it is then part of that
-   * change"), and this spec is what forces that deletion to happen in the same
-   * change rather than leaving a false caveat on screen
-   * Value: why_new=`angularMaxDeg` had ONE assertion in the whole repo, that it
-   * is finite ('never returns a non-finite number', below). Nothing pinned that
-   * it does not reach the total, so the premise of an unconditional
-   * user-facing disclosure was unprotected
-   * Value: seam=none. `totalGiveMm` takes a plain `Joint[]`, so the angular
-   * field is varied on the joints directly rather than through part data, where
-   * `looksLikePart`'s degree ceiling would clamp it first
-   * Value: no_claim=nothing about whether ignoring rotation is RIGHT, which
-   * needs CALIBRATION.md Q2's measurement, and nothing about the direction of
-   * the resulting error, which `trust.ts` deliberately refuses to state
-   *
-   * MUTATION PROOF, run: add the angular term to `totalGiveMm`'s reduce
-   * (`sum + j.axialMaxMm + j.angularMaxDeg`) and this fails with
-   * `expected 7.999999999999999 to be 23.000000000000004 // Object.is
-   * equality` -- the zero-factor pass, where the angular term vanishes and the
-   * total does not.
-   *
-   * NOT EXCLUSIVE, AND THAT WAS MEASURED RATHER THAN ASSUMED. Two specs in
-   * this describe go red with it: 'total give is the sum over joints' and
-   * 'documents that the band is narrow for SMALL layouts', both because they
-   * pin a FIGURE (16mm, 20mm) for a fixed layout. That is the reason
-   * this spec is still worth its line. Those two are repaired by editing the
-   * expected number, which a reasonable editor landing CALIBRATION.md Q2 would
-   * do without ever reading `trust.ts`; this one cannot be repaired that way,
-   * because the property it asserts is the omission rule 5 discloses. Its
-   * failure is the instruction to delete rule 5 in the same change.
+   * MUTATION PROOF, run: `trainRuns: false` in measurements.ts (the limit
+   * falls back to the 1.5-degree estimate) fails with `expected 'beyond' to
+   * be 'closes'`.
    */
-  it('the give total is insensitive to the angular budget rule 5 discloses', () => {
-    const r = solveLayout(loop([...rep('E', 4), 'D', ...rep('E', 4), 'A']));
-    expect(r.ok).toBe(true);
-    if (!r.ok) return;
-
-    // A number being DISCARDED, not a missing one: every joint carries a real
-    // non-zero angular budget, which is why the omission is worth disclosing.
-    expect(r.joints.length).toBeGreaterThan(0);
-    for (const j of r.joints) expect(j.angularMaxDeg).toBeGreaterThan(0);
-
-    const baseline = totalGiveMm(r.joints);
-    for (const factor of [0, 10, 1000]) {
-      const varied = r.joints.map((j) => ({
-        ...j,
-        angularMaxDeg: j.angularMaxDeg * factor,
-      }));
-      expect(totalGiveMm(varied)).toBe(baseline);
-    }
-    // And the total is the axial sum with nothing else folded into it.
-    expect(baseline).toBe(r.joints.reduce((sum, j) => sum + j.axialMaxMm, 0));
-  });
-
-  it('a 72mm gap exceeds the give and is a definite no', () => {
+  it('the 72mm Q1 loop closes within the bend, the way it did on the floor', () => {
     const r = solveLayout(loop([...rep('E', 4), 'D', ...rep('E', 4), 'A']));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.gapMm).toBeCloseTo(72, 9);
-    expect(r.withinBound).toBe(false);
-    expect(evaluateLayout(r, 'estimated').verdict).toBe('EXCEEDS');
+    expect(r.bend.status).toBe('closes');
+    expect(r.withinBound).toBe(true);
+    expect(r.bend.lambda!).toBeLessThanOrEqual(1.001);
+    expect(evaluateLayout(r, 'estimated').verdict).toBe('NEEDS_GIVE');
   });
 
-  it('a 504mm gap exceeds it by far', () => {
+  it('a 504mm gap is far beyond the bend', () => {
     const r = solveLayout(loop([...rep('E', 4), 'D', 'D', 'D', ...rep('E', 4), 'A']));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.gapMm).toBeCloseTo(504, 9); // 648 - 144
+    expect(r.bend.status).toBe('beyond');
     expect(r.withinBound).toBe(false);
   });
 
-  /**
-   * Honest limitation, asserted so it cannot drift unnoticed.
+  /*
+   * A LOOP THAT COMES BACK TURNED IS WEIGHED, NOT REFUSED (eng review D4).
+   * Seven large curves come back 45 degrees off; seven joints cannot turn
+   * that much at 2.7 degrees each, so it reads beyond, and the turn is
+   * reported for the verdict's "It comes back turned 45°." (design 9A).
    *
-   * With the measured axial give of 2mm per joint (CALIBRATION.md Q2,
-   * 2026-10-30), a ten-joint layout offers 20mm in total, while real gaps on
-   * this lattice arrive in part-length steps: 54mm, 72mm, 216mm. So for SMALL
-   * layouts the hedged middle band is nearly empty and almost everything is
-   * either exact or past the give.
-   *
-   * THIS LOOP IS THE FLOOR'S COUNTER-EXAMPLE. It is CALIBRATION.md Q1, and on
-   * the floor it closes with every joint seated and a train runs round it, so
-   * an axial-only total is the wrong model for it. The bend model
-   * (docs/designs/joint-bend.md) replaces this bound; until it lands this
-   * spec pins what the axial total says, not what the track does.
-   *
-   * It is the opposite at scale, because give accumulates with joint count
-   * while the gap does not: a 641-piece layout with a 54mm gap has 512mm of
-   * give and sits comfortably inside the bound. Measured, not assumed.
-   *
-   * That asymmetry is the honest shape of a NECESSARY condition. Being inside
-   * the bound says the gap could fit if any joint could absorb any share of
-   * it, which the geometry does not guarantee. The verdict copy says "may well
-   * seat", never "will".
+   * MUTATION PROOF, run: restoring the heading refusal in result.ts (`if
+   * (res.headingMismatchSteps !== 0) return { ok: false, reason: 'NUMERIC',
+   * ... }`) fails with `expected false to be true`.
    */
-  it('documents that the band is narrow for SMALL layouts under the measured axial give', () => {
-    const r = solveLayout(loop([...rep('E', 4), 'D', ...rep('E', 4), 'A']));
+  it('a loop that comes back turned is weighed by the bend, not refused', () => {
+    const r = solveLayout(loop(rep('E', 7))); // 315 degrees
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    // MUTATION PROOF, run: `pullApartMm: 3` in measurements.ts fails with
-    // `expected 30 to be 20`.
-    expect(r.totalGiveMm).toBe(20);
-    expect(r.gapMm / r.totalGiveMm).toBeGreaterThan(3);
-  });
-
-  it('rejects a heading mismatch outright: give cannot rotate the track', () => {
-    const r = solveLayout(loop(rep('E', 7))); // 315 degrees
-    expect(r.ok).toBe(false);
-    if (r.ok) return;
-    expect(r.reason).toBe('HEADING_MISMATCH');
+    expect(r.bend.status).toBe('beyond');
+    expect(r.bend.turnedSteps).toBe(2);
   });
 
   it('rejects an open chain', () => {
@@ -292,9 +207,9 @@ describe('bound contract', () => {
    * This is now asserted EXACTLY, at every cut point, with no tolerance. The
    * old minimax LP could only manage this to about 5e-3, and at 42 pieces the
    * spread reached 6.4e-2 and flipped the verdict between FAIL and TIGHT
-   * depending on which piece came first. The bound is a sum over joints, and
-   * addition does not care about order, so gauge dependence is impossible here
-   * rather than merely small.
+   * depending on which piece came first. The bend model's lambda is the
+   * unique optimum of the same linear program whatever the cut, and the
+   * refinement around it walks the same loop, so cuts agree to rounding.
    */
   it('is order-independent EXACTLY, at every cut point', () => {
     const base = [...rep('E', 4), 'D', ...rep('E', 4), 'A'];
@@ -308,7 +223,8 @@ describe('bound contract', () => {
       expect(r.ok).toBe(true);
       if (!r.ok) return;
       expect(r.gapMm).toBeCloseTo(first.gapMm, 9);
-      expect(r.totalGiveMm).toBe(first.totalGiveMm);
+      expect(r.bend.lambda!).toBeCloseTo(first.bend.lambda!, 6);
+      expect(r.bend.status).toBe(first.bend.status);
       expect(r.withinBound).toBe(first.withinBound);
       expect(evaluateLayout(r, 'estimated').verdict).toBe(
         evaluateLayout(first, 'estimated').verdict,
@@ -330,7 +246,7 @@ describe('bound contract', () => {
       expect(r.ok).toBe(true);
       if (!r.ok) continue;
       expect(Number.isFinite(r.gapMm)).toBe(true);
-      expect(Number.isFinite(r.totalGiveMm)).toBe(true);
+      expect(Number.isFinite(r.bend.lambda!)).toBe(true);
       for (const j of r.joints) {
         expect(Number.isFinite(j.axialMaxMm)).toBe(true);
         expect(Number.isFinite(j.angularMaxDeg)).toBe(true);
@@ -424,76 +340,19 @@ describe('the trust register: what the verdict is worth', () => {
     expect(layoutTrust(layoutOf([]), r, brandFit)).toHaveLength(0);
   });
 
-  it('a pure BRIO layout discloses the estimated give and the axial-only bound', () => {
-    // Everything else about it is published. This is the best case the product
-    // currently has, and it still is not silent -- about TWO different things.
-    //
-    // This spec read `toEqual(['estimated-give'])` until rule 5 landed. The
-    // old assertion was not wrong, it was incomplete: it pinned that the best
-    // case still discloses something, and silently also pinned that the
-    // axial-only omission was disclosed NOWHERE.
-    //
-    // `toEqual` RATHER THAN `arrayContaining`, AND THE ORDER IS LOAD-BEARING.
-    // Do not relax this to a containment check. `VerdictLine.tsx` sorts the
-    // register serious-first with a STABLE sort, so relative order among the
-    // non-serious kinds decides which one survives `TRUST_INLINE_LIMIT`.
-    // `axial-only-give` is emitted last here, which is why it is the first
-    // disclosure truncated on any layout carrying four issues. Emission order
-    // is therefore a real contract between this file and the renderer, and a
-    // containment check would drop it silently.
-    //
-    // MUTATION PROOF, run: deleting rule 5's `issues.push` fails this with
-    // `expected [ 'estimated-give' ] to deeply equal [ 'estimated-give',
-    // 'axial-only-give' ]`. That is also how this spec read before the rule.
-    expect(kinds(rep('E', 8))).toEqual(['estimated-give', 'axial-only-give']);
-  });
-
   /*
-   * THE X3 TRAP, which is the whole reason rule 5 is not part of rule 4.
+   * A PURE BRIO LAYOUT HAS NOTHING TO DISTRUST HERE NOW (design review 8A).
+   * It used to carry 'estimated-give' (the give total was a guess) and
+   * 'axial-only-give' (joint rotation was not modelled). The total is gone and
+   * rotation is modelled, so both would be false; where a joint's bend limit
+   * comes from is said once, in the verdict's limits note (bendWords.ts).
    *
-   * Rule 4 is gated on `calibrationStatus !== 'measured'`. Task X3 measures the
-   * joint give, which flips every part to 'measured' and correctly silences
-   * rule 4. Before rule 5 existed the axial-only caveat was silenced with it,
-   * so the single act of measuring the give would have DELETED the disclosure
-   * that the give is only half-modelled -- at the exact moment the figure
-   * started carrying the authority of a measurement.
-   *
-   * MUTATION PROOF, run: wrap rule 5's `issues.push` in
-   * `if (parts.some((p) => p.slop.calibrationStatus !== 'measured'))`, the
-   * same guard rule 4 uses, and this fails with
-   * `expected [] to include 'axial-only-give'`. The register is EMPTY under
-   * the mutation, which is the finding stated as plainly as it can be: eight
-   * published BRIO curves with a measured give would have had nothing at all
-   * said about them.
+   * MUTATION PROOF, run: restoring rule 5's `issues.push({ kind:
+   * 'axial-only-give', ... })` in trust.ts fails with `expected [
+   * 'axial-only-give' ] to deeply equal []`.
    */
-  it('a fully measured library still discloses that the bound is axial-only', () => {
-    const measuredGive = lib.map((part) => ({
-      ...part,
-      slop: { ...part.slop, calibrationStatus: 'measured' as const },
-    }));
-    const k = layoutTrust(layoutOf(rep('E', 8)), makeResolver(measuredGive), brandFit)
-      .map((t) => t.kind);
-    // Measuring the give retires rule 4, as it should.
-    expect(k).not.toContain('estimated-give');
-    // It does not retire what the give omits.
-    expect(k).toContain('axial-only-give');
-  });
-
-  it('the axial-only disclosure names rotation, not calibration', () => {
-    /*
-     * The two registers must not say the same thing in different words: rule 4
-     * is about how good the number is, rule 5 about what it counts. If rule 5
-     * ever starts talking about measurement it has collapsed back into rule 4
-     * and the X3 trap reopens with both rules still present.
-     *
-     * MUTATION PROOF, run: change rule 5's copy from "rotating is not
-     * modelled" to "play is not measured" and this fails with
-     * `expected 'The give total counts pull-apart slac...' to match /rotat/i`.
-     */
-    const axial = layoutTrust(layoutOf(rep('E', 8)), r, brandFit)
-      .find((t) => t.kind === 'axial-only-give')!;
-    expect(axial.detail).toMatch(/rotat/i);
-    expect(axial.detail).not.toMatch(/measure/i);
+  it('a pure BRIO layout discloses nothing: the limits note carries provenance', () => {
+    expect(kinds(rep('E', 8))).toEqual([]);
   });
 
   it('an unmeasured third-party part is disclosed as exact-about-an-estimate', () => {
@@ -1091,19 +950,27 @@ describe('coincident connectors are a definite refusal', () => {
  * the only way to see the difference, and they assert it BOTH WAYS ROUND: the
  * answer must not depend on which of the two pieces was listed first.
  */
-describe('joint budgets come from the mating pair', () => {
+describe('joint budgets come from the mating pair, and the weaker side governs', () => {
   const LOOSE = 2.0;
   const TIGHT = 0.5;
 
-  /** Eight E curves, but the piece at `looseAt` has a looser budget. */
-  const resolverWithOneLoosePiece = (looseId: string) => (id: string): Part => {
+  /*
+   * THE WEAKER SIDE GOVERNS (eng review D10). This read "the loose budget,
+   * not the tight one" while the verdict was a necessary condition that
+   * needed give as an upper bound. It now claims closure, so a joint is only
+   * as loose as its tighter half.
+   *
+   * MUTATION PROOF, run: `Math.max` back in residual.ts's `axialMaxMm` fails
+   * with `expected 2 to be close to 0.5, received difference is 1.5`.
+   */
+  const resolverWithOneTightPiece = (tightId: string) => (id: string): Part => {
     const base = getPart('E');
     return {
       ...base,
       id,
       slop: {
-        axialMm: id === looseId ? LOOSE : TIGHT,
-        angularDeg: id === looseId ? 4 : 1,
+        axialMm: id === tightId ? TIGHT : LOOSE,
+        angularDeg: id === tightId ? 1 : 4,
         calibrationStatus: 'estimated' as const,
       },
     };
@@ -1118,43 +985,34 @@ describe('joint budgets come from the mating pair', () => {
     closed: true,
   });
 
-  it('a joint touching the loose piece gets the loose budget, not the tight one', () => {
-    const layout = circleWithOneDistinct('LOOSE', 3);
-    const res = computeResidual(layout, resolverWithOneLoosePiece('LOOSE'));
+  it('a joint touching the tight piece gets the tight budget', () => {
+    const res = computeResidual(circleWithOneDistinct('TIGHT', 3), resolverWithOneTightPiece('TIGHT'));
     expect(res.joints).toHaveLength(8);
-
-    const touching = res.joints.filter((j) => j.between.includes('LOOSE'));
+    const touching = res.joints.filter((j) => j.between.includes('TIGHT'));
     // Piece 3 has a joint on each side of it, so exactly two joints touch it.
     expect(touching).toHaveLength(2);
-    for (const j of touching) expect(j.axialMaxMm).toBeCloseTo(LOOSE, 9);
-
-    const notTouching = res.joints.filter((j) => !j.between.includes('LOOSE'));
+    for (const j of touching) expect(j.axialMaxMm).toBeCloseTo(TIGHT, 9);
+    const notTouching = res.joints.filter((j) => !j.between.includes('TIGHT'));
     expect(notTouching).toHaveLength(6);
-    for (const j of notTouching) expect(j.axialMaxMm).toBeCloseTo(TIGHT, 9);
+    for (const j of notTouching) expect(j.axialMaxMm).toBeCloseTo(LOOSE, 9);
   });
 
   it('the pair-wise answer is the same whichever side comes first', () => {
-    // The same physical circle, with the loose piece in two different slots.
-    // A one-sided read gives one joint the loose budget; a pair-wise read gives
-    // two. Both placements must agree, because the joint is the same joint.
-    const a = computeResidual(circleWithOneDistinct('LOOSE', 0), resolverWithOneLoosePiece('LOOSE'));
-    const b = computeResidual(circleWithOneDistinct('LOOSE', 5), resolverWithOneLoosePiece('LOOSE'));
-    const giveA = a.joints.reduce((s, j) => s + j.axialMaxMm, 0);
-    const giveB = b.joints.reduce((s, j) => s + j.axialMaxMm, 0);
-    expect(giveA).toBeCloseTo(giveB, 9);
-    // 2 joints at LOOSE, 6 at TIGHT. A one-sided read would total 7*TIGHT+LOOSE.
-    expect(giveA).toBeCloseTo(2 * LOOSE + 6 * TIGHT, 9);
-    expect(giveA).not.toBeCloseTo(7 * TIGHT + LOOSE, 9);
+    const a = computeResidual(circleWithOneDistinct('TIGHT', 0), resolverWithOneTightPiece('TIGHT'));
+    const b = computeResidual(circleWithOneDistinct('TIGHT', 5), resolverWithOneTightPiece('TIGHT'));
+    const sumA = a.joints.reduce((s, j) => s + j.axialMaxMm, 0);
+    const sumB = b.joints.reduce((s, j) => s + j.axialMaxMm, 0);
+    expect(sumA).toBeCloseTo(sumB, 9);
+    // 2 joints at TIGHT, 6 at LOOSE. A one-sided read would give 7*LOOSE+TIGHT.
+    expect(sumA).toBeCloseTo(2 * TIGHT + 6 * LOOSE, 9);
   });
 
   it('the closing seam mates the last piece to the first, not to itself', () => {
-    // The loose piece is LAST. Its joints are the seam (last-to-first) and the
-    // one before it. A wrap-around bug would show up here and nowhere else.
-    const res = computeResidual(circleWithOneDistinct('LOOSE', 7), resolverWithOneLoosePiece('LOOSE'));
+    const res = computeResidual(circleWithOneDistinct('TIGHT', 7), resolverWithOneTightPiece('TIGHT'));
     const seam = res.joints[res.joints.length - 1]!;
-    expect(seam.between).toEqual(['LOOSE', 'E']);
-    expect(seam.axialMaxMm).toBeCloseTo(LOOSE, 9);
-    expect(res.joints.filter((j) => j.between.includes('LOOSE'))).toHaveLength(2);
+    expect(seam.between).toEqual(['TIGHT', 'E']);
+    expect(seam.axialMaxMm).toBeCloseTo(TIGHT, 9);
+    expect(res.joints.filter((j) => j.between.includes('TIGHT'))).toHaveLength(2);
   });
 });
 

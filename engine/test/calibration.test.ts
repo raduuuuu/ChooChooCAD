@@ -136,9 +136,10 @@ describe('Q1 against the engine', () => {
    * /MOST IMPORTANT/`.
    */
   it('closing on the floor while the engine says EXCEEDS is the headline', () => {
-    const no = { verdict: 'EXCEEDS', gapMm: 72, totalGiveMm: 8 } as const;
-    const maybe = { verdict: 'NEEDS_GIVE', gapMm: 72, totalGiveMm: 80 } as const;
-    expect(q1Finding(BLANK, no)).toBe('Q1: not answered yet; the engine says EXCEEDS: a 72mm gap against 8mm of give.');
+    // lambda 2 is twice the bend limit; the sentence states it in degrees.
+    const no = { verdict: 'EXCEEDS', gapMm: 72, lambda: 2 } as const;
+    const maybe = { verdict: 'NEEDS_GIVE', gapMm: 72, lambda: 1 } as const;
+    expect(q1Finding(BLANK, no)).toMatch(/^Q1: not answered yet; the engine says EXCEEDS: a 72mm gap needing [\d.]+ degrees of bend at the worst joint\.$/);
     expect(q1Finding(read({ q1: { closes: true, feel: 'comfortable' } }), no)).toMatch(/MOST IMPORTANT/);
     expect(q1Finding(read({ q1: { closes: true, feel: 'comfortable' } }), maybe)).toMatch(/They agree\.$/);
     expect(q1Finding(read({ q1: { closes: false, leftoverGapMm: 60 } }), no)).toMatch(/leaving about 60mm.*They agree/);

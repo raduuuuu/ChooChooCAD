@@ -43,8 +43,9 @@ export const ACTION_FOR_VERDICT: Record<OutcomeKind, string> = {
   IMPOSSIBLE:
     'Move one of the pieces that share a spot. Closing the loop will not fix this.',
   EXACT: 'Nothing to fix. Build it.',
+  // Design 8A: no "gap is real" claim about a total that no longer exists.
   NEEDS_GIVE:
-    'Seat each triangle firmly as you go. If the last piece fights you, the gap is real.',
+    'Seat each joint firmly as you go. The joints have to bend a little to close it.',
   /*
    * THE SECOND SENTENCE WAS DELETED, and it is the point of this entry.
    *
@@ -108,7 +109,7 @@ export const actionWhenOpenRuns = (n: number): string =>
  */
 type FailureKind = Extract<
   VerdictKind,
-  'NO_CYCLE' | 'HEADING_MISMATCH' | 'TOO_MANY_LOOPS' | 'TOO_BIG_TO_CHECK' | 'NUMERIC'
+  'NO_CYCLE' | 'BEND_UNCHECKED' | 'TOO_MANY_LOOPS' | 'TOO_BIG_TO_CHECK' | 'NUMERIC'
 >;
 
 /**
@@ -120,7 +121,8 @@ type FailureKind = Extract<
  */
 export const FAILURE_COPY: Record<FailureKind, string> = {
   NO_CYCLE: 'Not a loop yet.',
-  HEADING_MISMATCH: 'The track does not come back pointing the right way.',
+  // Design 1A: grey, and the detail says how far apart the ends still sit.
+  BEND_UNCHECKED: 'Could not check the bend:',
   TOO_MANY_LOOPS: 'Too many loops in this layout to rank them.',
   TOO_BIG_TO_CHECK: 'Too much track here to check every loop.',
   NUMERIC: 'Could not check this layout.',
@@ -147,8 +149,7 @@ export const ACTION_FOR_FAILURE: Record<FailureKind, string> = {
    * Remove last, Clear and the three presets.
    */
   TOO_BIG_TO_CHECK: 'Remove some track.',
-  HEADING_MISMATCH:
-    'The curves need to add up to a whole turn. Add one, remove one, or mirror one.',
+  BEND_UNCHECKED: 'Change a piece and check again, or build it and see.',
   /*
    * TWO CAUSES, so this cannot promise a pending check. `solve.ts` returns
    * NUMERIC both when a figure came out non-finite AND when rank says there
