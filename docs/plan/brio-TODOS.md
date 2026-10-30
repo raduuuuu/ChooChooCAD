@@ -18,15 +18,14 @@ chosen by the owner: phased, all BRIO types.
 
 - PR 1, DONE in this branch: the Lillabo set (five straights, curves of 22.5,
   45 and 90 degrees) from the Vamuss reproduction.
-- NEXT (eng-reviewed 2026-10-30, D2-D14 in the plan doc): PR A, one
-  multi-road part type that replaces `SwitchPart` (ports at exact poses with
+- DONE (eng-reviewed 2026-10-30, D2-D14 in the plan doc): PR A (#65), one
+  multi-road part type that replaced `SwitchPart` (ports at exact poses with
   their own polarity and names, plus straight or arc roads checked exactly
   against them) and the H crossing; PR B, H1, H2, I, J, O, P, T, X and EE.
   F1/G1, F/G and the Lillabo multi-road pieces moved to the off-grid P2 below.
 - Then a one-port kind for the R/S buffer stops.
-- T and X are exact at a 108 centreline (three reproductions agree), so
-  `BRIO_PIECE_TABLE`'s `approximate-radius` for them is to be corrected in
-  that PR.
+- DONE in PR B: T and X are exact at a 108 centreline (three reproductions
+  agree), and `BRIO_PIECE_TABLE` no longer calls them approximate.
 
 ## P2 — Multi-road pieces that sit off the whole-millimetre grid (filed by /plan-eng-review 2026-10-30)
 

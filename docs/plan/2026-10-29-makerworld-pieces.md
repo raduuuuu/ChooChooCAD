@@ -77,7 +77,7 @@ smaller change: a part with one port.
 | I, J | 144 straight plus an E arc (202) each side from one heel | I socket heel / pegs; J the reverse | Cactus 973 `switch_double_curved_i/j` |
 | O, P | Y: two E1 arcs (110), ±45° from one heel | O socket heel / pegs; P the reverse | Cactus 973 `switch_short_curved_o/p` |
 | T | 216 straight plus a 90° arc at a 108 centreline (inner 88) | AU3D: socket heel, peg on the straight, socket on the arc | AU3D 904802, RyeBread 526629, kolar.majkl 688457 agree |
-| X (star) | 216 straight plus 90° arcs at 108 each side | peg heel, socket on all three roads (Fantastic Plastic Person) | 795599 |
+| X (star) | 216 straight plus 90° arcs at 108 each side | peg heel, socket on the straight and one arc, peg on the other arc (Fantastic Plastic Person; corrected 2026-10-30 from the reading) | 795599 |
 | EE | two concentric 45° curves 46 apart, centrelines 202 and 248 | sockets in, pegs out | AU3D 887239 |
 | F1, G1 | 144 straight plus a branch ending parallel, 46 over | F1 socket heel / pegs; G1 the reverse | AU3D 892305 |
 | F, G | symmetric fork to two tracks 47 apart over 150 | F socket heel / pegs; G two sockets in, peg out | Isaxon 3121622 |

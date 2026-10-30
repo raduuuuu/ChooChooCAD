@@ -296,11 +296,13 @@ export const SWITCH_GEOMETRY_ABSENT = {
  *
  * Three facts in here are worth more than the list:
  *
- * 1. T and X radii are APPROXIMATE. The table footnote reads "Approximate. These
- *    radii are within 2mm of E1", and lists 88 against E1's 90. So those pieces
- *    genuinely cannot be represented exactly, which independently confirms the
- *    decision to accept approximate switches with a stated error was necessary
- *    rather than merely cautious.
+ * 1. T and X radii were read as APPROXIMATE, and that reading was wrong. The
+ *    table footnote says "Approximate. These radii are within 2mm of E1" and
+ *    lists 88 against E1's 90: the radius is not E1's, which is not the same
+ *    as not being exact. 88 is a whole millimetre, and three independent
+ *    reproductions put the arc at a 108 centreline (88 inner) to 0.1mm (AU3D
+ *    904802, RyeBread 526629, kolar.majkl 688457). Both are held exactly as
+ *    multi-road seeds (switchSeeds.ts, 2026-10-30).
  * 2. F and G Switch has a linear length of 150, not the 144 of the A track it is
  *    otherwise based on, and H1 Cross is 116. Neither is a multiple of 18, so
  *    both break BRIO's own 18mm increment rule while staying exactly
@@ -312,8 +314,7 @@ export type PieceBlocker =
   | 'in-catalogue'
   | 'needs-graph'        // three or more ends, not yet added as a multi-road piece
   | 'needs-elevation'    // has a rise
-  | 'needs-one-ended'    // a terminator
-  | 'approximate-radius';
+  | 'needs-one-ended';   // a terminator
 
 export const BRIO_PIECE_TABLE: ReadonlyArray<{
   readonly ids: string;
@@ -330,25 +331,25 @@ export const BRIO_PIECE_TABLE: ReadonlyArray<{
   { ids: 'D', name: 'Long Straight', lengthMm: 216, blocker: 'in-catalogue' },
   { ids: 'E', name: 'Large Curve', innerRadiusMm: 182, blocker: 'in-catalogue' },
   { ids: 'E1', name: 'Short Curve', innerRadiusMm: 90, blocker: 'in-catalogue' },
-  { ids: 'EE', name: 'Large Double Curve', innerRadiusMm: 182, blocker: 'needs-graph', note: 'Two parallel curves in one piece: four ends.' },
+  { ids: 'EE', name: 'Large Double Curve', innerRadiusMm: 182, blocker: 'in-catalogue', note: 'Two parallel curves in one piece: four ends. Held as an unverified multi-road seed.' },
   { ids: 'EE1', name: 'Short Double Curve', innerRadiusMm: 90, blocker: 'needs-graph', note: 'Four ends.' },
   { ids: 'F, G', name: 'Switch', lengthMm: 150, blocker: 'needs-graph', note: 'Linear length 150, NOT the 144 of its base A track, and not a multiple of 18.' },
   { ids: 'F1, G1', name: 'Parallel Switch', lengthMm: 144, blocker: 'needs-graph' },
   { ids: 'F2, G2', name: 'Triple Parallel Switch', lengthMm: 144, blocker: 'needs-graph' },
   { ids: 'H', name: 'Cross', lengthMm: 108, blocker: 'in-catalogue', note: 'Held as an unverified multi-road seed read off a reproduction (switchSeeds.ts).' },
-  { ids: 'H1', name: 'Cross', lengthMm: 116, blocker: 'needs-graph', note: 'Actually 116 though the catalog chart implies 108. Not a multiple of 18.' },
-  { ids: 'H2', name: 'Criss Cross', lengthMm: 144, blocker: 'needs-graph' },
+  { ids: 'H1', name: 'Cross', lengthMm: 116, blocker: 'in-catalogue', note: 'Actually 116 though the catalog chart implies 108. Not a multiple of 18. Held as an unverified multi-road seed.' },
+  { ids: 'H2', name: 'Criss Cross', lengthMm: 144, blocker: 'in-catalogue', note: 'Held as an unverified multi-road seed.' },
   { ids: 'H3', name: 'Curved Crossing', innerRadiusMm: 182, blocker: 'needs-graph', note: 'Two E curves meeting in the middle.' },
-  { ids: 'I, J', name: 'Curved Switch', lengthMm: 144, innerRadiusMm: 182, blocker: 'needs-graph', note: 'Three directions.' },
+  { ids: 'I, J', name: 'Curved Switch', lengthMm: 144, innerRadiusMm: 182, blocker: 'in-catalogue', note: 'Three directions. Both held as unverified multi-road seeds.' },
   { ids: 'K', name: 'Switching and Crossing', lengthMm: 216, blocker: 'needs-graph' },
   { ids: 'K1', name: 'Double Straight', lengthMm: 216, blocker: 'needs-graph', note: 'Two parallel straights in one piece: four ends.' },
   { ids: 'L, L1, M, M1', name: 'Curved Switch', lengthMm: 144, innerRadiusMm: 182, blocker: 'in-catalogue', note: 'The quintessential BRIO switch. L and M held as unverified multi-road seeds (switchSeeds.ts); L1 and M1 not found on MakerWorld.' },
   { ids: 'N, N1', name: 'Ascending', lengthMm: 216, blocker: 'in-catalogue', note: 'Raises or lowers the track by 64mm. Both held as unverified seeds (rampSeeds.ts, two-layer plan): N with one peg and one socket, N1 with two pegs. 216 taken as the run, CALIBRATION.md Q4.' },
-  { ids: 'O, P', name: 'Short Curved Switch', innerRadiusMm: 90, blocker: 'needs-graph' },
+  { ids: 'O, P', name: 'Short Curved Switch', innerRadiusMm: 90, blocker: 'in-catalogue', note: 'The Y switch. Both held as unverified multi-road seeds.' },
   { ids: 'O1, P1', name: 'Short Curved Switch', lengthMm: 108, innerRadiusMm: 90, blocker: 'in-catalogue', note: 'Both held as unverified multi-road seeds (switchSeeds.ts).' },
   { ids: 'Q', name: 'Five-Point Switch', lengthMm: 144, innerRadiusMm: 182, blocker: 'needs-graph', note: 'Outer turns 45 degrees, inner turns 22.5.' },
   { ids: 'R, S', name: 'Buffer Stops', lengthMm: 40, blocker: 'needs-one-ended', note: 'Terminates a track with a barrier. ONE end; PartEnds assumes two.' },
-  { ids: 'T', name: 'T-Switch', lengthMm: 216, innerRadiusMm: 88, blocker: 'approximate-radius', note: 'Radius APPROXIMATE, within 2mm of E1. Cannot be exact.' },
+  { ids: 'T', name: 'T-Switch', lengthMm: 216, innerRadiusMm: 88, blocker: 'in-catalogue', note: 'Held as an unverified multi-road seed. Radius EXACT at 88 inner (108 centreline): not E1, but a whole millimetre, and three reproductions agree.' },
   { ids: 'U, V', name: 'Ramp Tracks', lengthMm: 54, blocker: 'in-catalogue', note: 'ADDABLE but not added: end pieces ramped so cars can drive onto the track. Flat on the rail side, so arguably two-ended. Needs a decision on whether a car ramp is track at all.' },
-  { ids: 'X', name: 'Star Switch', lengthMm: 216, innerRadiusMm: 88, blocker: 'approximate-radius', note: 'Four directions at 90 degrees. Radius APPROXIMATE like T.' },
+  { ids: 'X', name: 'Star Switch', lengthMm: 216, innerRadiusMm: 88, blocker: 'in-catalogue', note: 'Four directions at 90 degrees. Held as an unverified multi-road seed; radius EXACT like T.' },
 ];

@@ -32,8 +32,8 @@ const at = (x: number, y: number, heading: number): Frame => ({
 });
 
 describe('every road lands exactly on the end it names (D9)', () => {
-  it('the catalogue has the four switches and the H crossing', () => {
-    expect(MULTI.map((p) => p.id)).toEqual(['L', 'M', 'O1', 'P1', 'H']);
+  it('the catalogue has every multi-road piece found on the grid', () => {
+    expect(MULTI.map((p) => p.id)).toEqual(['L', 'M', 'O1', 'P1', 'H', 'H1', 'H2', 'I', 'J', 'O', 'P', 'T', 'X', 'EE']);
   });
 
   /*
@@ -205,6 +205,44 @@ describe('the pile-up rule counts roads', () => {
       anchors: new Map([['q', at(0, 0, 0)]]),
     };
     expect(clashesOf(g)).toHaveLength(4);
+  });
+
+  /*
+   * The real pieces the rule was changed for (D12): two EE double curves
+   * laid end to end share inner and outer track ends, and an O Y switch
+   * facing a P shares both its road ends. Neither lies on the other.
+   *
+   * MUTATION PROOF, run: in feasible.ts take every other end of the piece
+   * instead of the road's. Fails with `EE: expected [ { …(3) }, { …(3) } ] to
+   * deeply equal []`.
+   */
+  it('two EE end to end, and an O facing a P, joints open, are not a pile-up', () => {
+    const ports = (piece: Piece) => portsOf(builtIn(piece.partId), piece.turn);
+    const clashes = (g: Graph) => solveGraph(g, ports, builtIn, () => 0.8, placeAll(g, ports)).clashes;
+    // The second EE starts where the first ends, turned 45 degrees.
+    const ee: Graph = {
+      pieces: [{ pieceId: 'a', partId: 'EE' }, { pieceId: 'b', partId: 'EE' }],
+      welds: [],
+      anchors: new Map([['b', { pos: [0, 0, 0, 0, 202, 0, -202, 0] as Cyc, heading: 2 }]]),
+    };
+    expect(clashes(ee), 'EE').toEqual([]);
+    // P turned half round with its heel at (155.6, 0), which is 110 * (zeta^2
+    // - zeta^6): its two road ends land on O's two road ends.
+    const yy: Graph = {
+      pieces: [{ pieceId: 'o', partId: 'O' }, { pieceId: 'p', partId: 'P' }],
+      welds: [],
+      anchors: new Map([['p', { pos: [0, 0, 110, 0, 0, 0, -110, 0] as Cyc, heading: 8 }]]),
+    };
+    expect(clashes(yy), 'O and P').toEqual([]);
+    // Not vacuous: both pairs really share two places.
+    const shared = (g: Graph) => {
+      const r = renderGraph(g, ports, builtIn, placeAll(g, ports));
+      const key = (p: { x: number; y: number }) => `${p.x.toFixed(6)},${p.y.toFixed(6)}`;
+      const a = new Set(r.ports.filter((p) => p.pieceId === g.pieces[0]!.pieceId).map(key));
+      return r.ports.filter((p) => p.pieceId === g.pieces[1]!.pieceId && a.has(key(p))).length;
+    };
+    expect(shared(ee), 'EE shared').toBe(2);
+    expect(shared(yy), 'O and P shared').toBe(2);
   });
 
   it('a straight lying on one road of a switch is still a pile-up', () => {
