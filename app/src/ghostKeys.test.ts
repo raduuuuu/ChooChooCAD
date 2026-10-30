@@ -65,6 +65,36 @@ describe('the labels say the result', () => {
     expect(picked('C', 'N').keys.flip?.label).toBe('Turn over: come down');
     expect(picked('C', 'A').keys.flip).toBeNull();
   });
+
+  /*
+   * A crossing's mirror image is the same crossing turned a quarter, so F
+   * does nothing R does not, and the data leaves it out (eng review D8).
+   *
+   * MUTATION PROOF, run: give H the switches' `flip: BRANCH` in
+   * switchSeeds.ts. Fails with `expected { …(3) } to be null`.
+   */
+  it('a crossing has no F, and R steps through its ends', () => {
+    expect(picked('C', 'H').keys.flip).toBeNull();
+    expect(picked('C', 'H').keys.rotate).toMatchObject({ label: 'Next end on', enabled: true });
+  });
+
+  /*
+   * AT A PEG END A CROSSING'S TWO WAYS DIFFER ONLY IN TURN: both go on by its
+   * first end, with the other road's peg on one side or the other. With no
+   * F, R has to reach both. Found by placing H in the browser, where R was
+   * disabled and the second way unreachable.
+   *
+   * MUTATION PROOF, run: `rotateCycle` ignoring `flips` (`!same.some(...)`
+   * alone). Fails with `expected { label: 'Next end on', …(2) } to match
+   * object { label: 'Next end on', enabled: true }`.
+   */
+  it('at a peg end R reaches both ways a crossing goes on, though they differ only in turn', () => {
+    const { state, keys } = picked('A', 'H');
+    expect(keys.rotate).toMatchObject({ label: 'Next end on', enabled: true });
+    const before = state.ghost!;
+    const after = reduce(state, { kind: 'rotateGhost' }, ports, { resolve }).ghost!;
+    expect([after.port, after.turn]).toEqual([before.port, before.turn === 'left' ? 'right' : 'left']);
+  });
 });
 
 describe('the pick announcement lists only the keys that act', () => {

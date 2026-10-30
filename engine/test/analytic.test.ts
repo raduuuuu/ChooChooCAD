@@ -27,6 +27,7 @@ import { brandFit } from '../data/thirdParty.js';
 import { layoutTrust } from '../src/joints/trust.js';
 import { BRIO_PIECE_TABLE } from '../data/sources.js';
 import { RAMP_SEEDS } from '../data/rampSeeds.js';
+import { CROSSING_SEEDS, SWITCH_SEEDS } from '../data/switchSeeds.js';
 import { equals, isZero, scale, toXY } from '../src/geom/cyclotomic.js';
 import { displacement } from '../src/geom/pose.js';
 import { computeResidual, totalGiveMm } from '../src/solver/residual.js';
@@ -34,7 +35,8 @@ import { findPolarityViolations } from '../src/feasible.js';
 import { solveLayout } from '../src/solver/result.js';
 import { evaluateLayout } from '../src/joints/evaluate.js';
 import { centrelineRadiusMm, isUncorroborated, isUnverified } from '../src/parts/schema.js';
-import type { Layout, Part } from '../src/parts/schema.js';
+import type { CurvePart, Layout, Part } from '../src/parts/schema.js';
+import { portPolarity, portsOf } from '../src/graph/model.js';
 
 const loop = (ids: string[]): Layout => ({
   placements: ids.map((partId) => ({ partId, turn: 'left' as const })),
@@ -570,25 +572,35 @@ describe('the library: tiers, and a seed a user can correct', () => {
    * switch stays. A correction with the same number of ends still wins, as
    * the IKEA spec above shows.
    *
-   * MUTATION PROOF, run: delete the `endCount` line in `resolveLibrary`.
-   * Fails with `expected 'straight' to be 'switch'`.
+   * The four-ended crossing is here because the end count used to be
+   * `kind === 'switch' ? 3 : 2`, which counted H as two (eng review D6).
+   *
+   * MUTATION PROOFS, run:
+   * - delete the `endCount` line in `resolveLibrary`: fails with `L: expected
+   *   'straight' to be 'multi-road'`.
+   * - `endCount` back to `p.kind === 'multi-road' && p.ports.length === 3 ? 3
+   *   : 2`: fails with `H: expected 'straight' to be 'multi-road'`.
    */
-  it('a two-ended submission does not replace a switch', () => {
-    const l = BUILT_IN.find((p) => p.id === 'L')!;
-    expect(l.dimensions.status).toBe('unverified');
-    const lib = resolveLibrary([
-      {
-        submissionId: 'sub-l',
-        at: '2026-10-22T10:00:00Z',
-        part: {
-          ...(seed as Extract<Part, { kind: 'straight' }>),
-          id: 'L',
-          lengthMm: 144,
-          dimensions: { status: 'user-measured', source: 'test', submittedAt: '2026-10-22T10:00:00Z', corroborations: 1 },
+  it('a two-ended submission does not replace a switch or a crossing', () => {
+    for (const [id, ends] of [['L', 3], ['H', 4]] as const) {
+      const held = BUILT_IN.find((p) => p.id === id)!;
+      expect(held.dimensions.status).toBe('unverified');
+      const lib = resolveLibrary([
+        {
+          submissionId: `sub-${id}`,
+          at: '2026-10-22T10:00:00Z',
+          part: {
+            ...(seed as Extract<Part, { kind: 'straight' }>),
+            id,
+            lengthMm: 144,
+            dimensions: { status: 'user-measured', source: 'test', submittedAt: '2026-10-22T10:00:00Z', corroborations: 1 },
+          },
         },
-      },
-    ]);
-    expect(lib.find((p) => p.id === 'L')!.kind).toBe('switch');
+      ]);
+      const got = lib.find((p) => p.id === id)!;
+      expect(got.kind, id).toBe('multi-road');
+      expect(portsOf(got), id).toHaveLength(ends);
+    }
   });
 
   it('a user measurement outranks a community submission', () => {
@@ -666,8 +678,9 @@ describe('the BRIO piece registry is complete and honest', () => {
   it('every piece marked in-catalogue is actually in the catalogue', () => {
     // Guards the registry against drifting out of step with the data, which is
     // how a "complete" list quietly stops being one.
-    // The ramps are seeds outside BRIO_PARTS, unverified (rampSeeds.ts), and held all the same.
-    const held = new Set([...BRIO_PARTS, ...RAMP_SEEDS].map((p) => p.id));
+    // The ramps, switches and the crossing are seeds outside BRIO_PARTS,
+    // unverified (rampSeeds.ts, switchSeeds.ts), and held all the same.
+    const held = new Set([...BRIO_PARTS, ...RAMP_SEEDS, ...SWITCH_SEEDS, ...CROSSING_SEEDS].map((p) => p.id));
     for (const r of BRIO_PIECE_TABLE) {
       if (r.blocker !== 'in-catalogue') continue;
       const ids = r.ids.split(',').map((x) => x.trim());
@@ -898,7 +911,7 @@ describe('verdicts depend on radius DIFFERENCES, not absolute radii', () => {
 describe('connector polarity', () => {
   /** 'PP' has a peg at both ends. Everything else is a standard BRIO curve. */
   const doublePeg = (id: string): Part => {
-    const base = getPart('E');
+    const base = getPart('E') as CurvePart;
     if (id !== 'PP') return base;
     return { ...base, id: 'PP', ends: { start: 'peg', end: 'peg' } };
   };
@@ -1241,8 +1254,8 @@ describe('K1: the polarity pairs travel exactly as the pieces they vary', () => 
         expect(equals(displacement(getPart(pegs), h), want), `${pegs} at heading ${h}`).toBe(true);
         expect(equals(displacement(getPart(sockets), h), want), `${sockets} at heading ${h}`).toBe(true);
       }
-      expect(getPart(pegs).ends).toEqual({ start: 'peg', end: 'peg' });
-      expect(getPart(sockets).ends).toEqual({ start: 'socket', end: 'socket' });
+      expect([portPolarity(getPart(pegs), 0), portPolarity(getPart(pegs), 1)]).toEqual(['peg', 'peg']);
+      expect([portPolarity(getPart(sockets), 0), portPolarity(getPart(sockets), 1)]).toEqual(['socket', 'socket']);
     }
   });
 

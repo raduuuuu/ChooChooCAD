@@ -44,6 +44,7 @@ import {
   lastPieceId,
   moveRun,
   nextRunAnchor,
+  hasFlip,
   rotateCycle,
   weldEnds,
   type Fit,
@@ -425,8 +426,8 @@ function newGhost(state: EditorState, partId: string, ports: PortsOf, geometry?:
 }
 
 /** The next way in R's cycle (`rotateCycle`), or null when there is no other. */
-function rotated(options: readonly Fit[], g: Ghost): Fit | null {
-  const cycle = rotateCycle(options, g.turn);
+function rotated(options: readonly Fit[], g: Ghost, flips: boolean): Fit | null {
+  const cycle = rotateCycle(options, g.turn, flips);
   if (cycle.length < 2) return null;
   const i = cycle.findIndex((o) => o.port === g.port && o.turn === g.turn);
   return cycle[(i + 1) % cycle.length]!;
@@ -540,7 +541,8 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
         return { ...state, ghost: { ...g, frame: { ...g.frame!, heading: norm16(g.frame!.heading + 1) } } };
       }
       const { options } = fitOptions(state.graph, ports, g.at, g.partId);
-      const next = action.kind === 'rotateGhost' ? rotated(options, g) : flipped(options, g);
+      const flips = geometry ? hasFlip(geometry.resolve(g.partId)) : true;
+      const next = action.kind === 'rotateGhost' ? rotated(options, g, flips) : flipped(options, g);
       return next ? { ...state, ghost: { ...g, ...next } } : state;
     }
 

@@ -11,15 +11,15 @@
  * which was fine for a list and impossible for a graph: there is no single
  * order to re-walk, and a layout in several pieces has several origins.
  *
- * A piece yields one segment per ROAD, not one per piece. A switch draws two,
- * both from the same frame, which is how its roads stay rigidly related on
- * screen for the same reason they do in the arithmetic.
+ * A piece yields one segment per ROAD, not one per piece. A switch draws two
+ * and a crossing two, all from the same frame, which is how its roads stay
+ * rigidly related on screen for the same reason they do in the arithmetic.
  */
 
 import { toXY } from '../geom/cyclotomic.js';
 import type { FPose, Segment } from '../geom/fk.js';
 import { portFrame, type Placement, type PortsOf } from './frames.js';
-import { levelOf, portPolarity, type Frame, type Graph } from './model.js';
+import { levelOf, norm16, portPolarity, roadsOf, type Frame, type Graph } from './model.js';
 import { centrelineRadiusMm, type Part, type Polarity } from '../parts/schema.js';
 
 /** Zeta steps to radians: one step is 22.5 degrees. */
@@ -78,7 +78,6 @@ export function renderGraph(
     const frame = placement.frames.get(piece.pieceId);
     if (!frame) continue;
     const part = resolve(piece.partId);
-    const from = pose(frame);
     // Written only off the floor (SC1), so a flat layout renders as before.
     const level = levelOf(frame);
     const rise = part.kind === 'straight' ? (part.rise ?? 0) : 0;
@@ -105,12 +104,22 @@ export function renderGraph(
       });
     }
 
-    // Port 0 is the entry; every other port is the far end of one road.
-    for (let i = 1; i < count; i++) {
-      const to = pose(portFrame(placement, ports, piece, i));
-      const isCurve =
-        part.kind === 'curve' || (part.kind === 'switch' && i === 2);
-      if (!isCurve) {
+    /*
+     * One segment per ROAD, drawn from the end it starts at to the end it
+     * finishes at (eng review D5). This used to draw port 0 to port i and
+     * bend every arc the way the piece was turned, which held while every
+     * road started at a switch's heel; a crossing's second road starts at its
+     * third end, and an I/J switch bends one arc each way.
+     *
+     * A road's start end faces OUT of the piece, so the segment starts there
+     * facing the other way: on a road from port 0 that is the piece's own
+     * frame, exactly as before.
+     */
+    for (const road of roadsOf(part, piece.turn)) {
+      const start = portFrame(placement, ports, piece, road.from);
+      const from = pose({ pos: start.pos, heading: norm16(start.heading + 8) });
+      const to = pose(portFrame(placement, ports, piece, road.to));
+      if (road.shape.kind === 'straight') {
         segments.push({ kind: 'straight', from, to, partId: piece.partId, pieceId: piece.pieceId, ...levels });
         continue;
       }
@@ -118,10 +127,11 @@ export function renderGraph(
         kind: 'curve',
         from,
         to,
-        centrelineRadiusMm: centrelineRadiusMm(
-          part as Extract<Part, { kind: 'curve' | 'switch' }>,
-        ),
-        sweep: piece.turn === 'right' ? 'right' : 'left',
+        centrelineRadiusMm: centrelineRadiusMm({
+          innerRadiusMm: road.shape.innerRadiusMm,
+          plankWidthMm: part.plankWidthMm,
+        }),
+        sweep: road.shape.side,
         partId: piece.partId,
         pieceId: piece.pieceId,
         ...levels,

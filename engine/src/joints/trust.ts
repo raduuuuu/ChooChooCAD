@@ -16,7 +16,7 @@
  * and anything later cannot drift on what counts as trustworthy.
  */
 
-import { isUncorroborated, isUnverified, type Brand, type Layout, type Part } from '../parts/schema.js';
+import { isMultiRoad, isUncorroborated, isUnverified, type Brand, type Layout, type Part } from '../parts/schema.js';
 
 export interface TrustIssue {
   readonly kind:
@@ -63,26 +63,28 @@ export function layoutTrust(
 
   // 2. Sizes resting on one person's word. Weaker than 1, still worth saying.
   /*
-   * A SWITCH IS MODELLED, WHATEVER ITS SOURCE SAYS (task T3b).
+   * A MULTI-ROAD PIECE IS MODELLED, WHATEVER ITS SOURCE SAYS (task T3b; eng
+   * review D7 widened it from switches to every multi-road piece).
    *
-   * Unconditional on `DimensionStatus` on purpose. `SwitchPart` is one straight
-   * road and one arc from a shared heel; whether a real switch is that shape
-   * is a property of the MODEL, and no figure in `dimensions` can vouch for
-   * it. A switch row promoted to 'published' tomorrow would still be drawn
-   * this way, so hanging this off the unverified branch would make it vanish
-   * exactly when the numbers got better and the model did not.
+   * Unconditional on `DimensionStatus` on purpose. A switch or a crossing is
+   * written as straight and arc roads between listed ends; whether a real
+   * piece is that shape is a property of the MODEL, and no figure in
+   * `dimensions` can vouch for it. A row promoted to 'published' tomorrow
+   * would still be drawn this way, so hanging this off the unverified branch
+   * would make it vanish exactly when the numbers got better and the model
+   * did not.
    *
-   * Detected by the `SwitchPart` discriminant, `kind === 'switch'` (E14), not
-   * by counting ports: a crossing will have four ports and is not a switch.
+   * Keyed on the kind (`isMultiRoad`), not on a list of ids, so a piece added
+   * later carries it without anyone remembering to.
    */
-  const switches = parts.filter((p) => p.kind === 'switch');
-  if (switches.length > 0) {
+  const modelled = parts.filter(isMultiRoad);
+  if (modelled.length > 0) {
     issues.push({
       kind: 'modelled-switch',
       detail:
-        switches.length === 1
-          ? "This switch's geometry is modelled, not measured."
-          : "These switches' geometry is modelled, not measured.",
+        modelled.length === 1
+          ? "This piece's geometry is modelled, not measured."
+          : "These pieces' geometry is modelled, not measured.",
     });
   }
 

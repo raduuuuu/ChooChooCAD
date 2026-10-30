@@ -60,9 +60,10 @@ function viaGraph(layout: Layout) {
 }
 
 /*
- * Two-ended parts only. The chain engine refuses a switch by design (pose.ts
- * `refuseMultiPort`), so a switch in the pool would compare a throw with a
- * verdict rather than two verdicts. Switches are the graph engine's alone.
+ * Two-ended parts only. The chain engine refuses a multi-road piece by design
+ * (pose.ts `refuseMultiRoad`), so a switch or a crossing in the pool would
+ * compare a throw with a verdict rather than two verdicts. They are the graph
+ * engine's alone.
  *
  * And FLAT parts only (eng decision D3 of the two-layer review): the chain
  * engine has no levels, so a ramp would compare a level-blind verdict with a
@@ -72,7 +73,7 @@ function viaGraph(layout: Layout) {
  * Ramps get their own seeded enumeration in levels.test.ts.
  */
 const BRIO = BUILT_IN.filter(
-  (p) => p.brand === 'BRIO' && p.kind !== 'switch' && !(p.kind === 'straight' && p.rise),
+  (p) => p.brand === 'BRIO' && p.kind !== 'multi-road' && !(p.kind === 'straight' && p.rise),
 ).map((p) => p.id);
 
 /** Deterministic, so a failure is reproducible from the seed alone. */

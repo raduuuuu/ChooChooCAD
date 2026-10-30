@@ -36,16 +36,19 @@
 
 import type { DimensionSource, Part } from '../src/parts/schema.js';
 import { DIMENSION_TRUST, trustRank, type DimensionStatus } from '../src/parts/schema.js';
+import { portsOf } from '../src/graph/model.js';
 import { BRIO_PARTS } from './brio.js';
 import { RAMP_SEEDS } from './rampSeeds.js';
-import { SWITCH_SEEDS } from './switchSeeds.js';
+import { CROSSING_SEEDS, SWITCH_SEEDS } from './switchSeeds.js';
 import { THIRD_PARTY_SEEDS } from './thirdParty.js';
 
 /**
  * Built-in parts: published BRIO, unverified BRIO switches measured off 3D-print
  * reproductions, and unverified third-party seeds.
  */
-export const BUILT_IN: readonly Part[] = [...BRIO_PARTS, ...RAMP_SEEDS, ...SWITCH_SEEDS, ...THIRD_PARTY_SEEDS];
+export const BUILT_IN: readonly Part[] = [
+  ...BRIO_PARTS, ...RAMP_SEEDS, ...SWITCH_SEEDS, ...CROSSING_SEEDS, ...THIRD_PARTY_SEEDS,
+];
 
 /**
  * One submitted part. A `Part` plus the bookkeeping a shared library needs.
@@ -94,8 +97,12 @@ function withRise(part: Part, rise: 1 | undefined): Part {
   return rise === undefined ? flat : { ...flat, rise };
 }
 
-/** How many ends a part has: a switch has a heel and two roads. */
-const endCount = (p: Part): number => (p.kind === 'switch' ? 3 : 2);
+/**
+ * How many ends a part has, read off the same ports the solver uses (eng
+ * review D6). This was `kind === 'switch' ? 3 : 2`, which counted a
+ * four-ended crossing as two and would have let a straight replace it.
+ */
+const endCount = (p: Part): number => portsOf(p).length;
 
 export function resolveLibrary(submissions: readonly Submission[]): readonly Part[] {
   const byId = new Map<string, { part: Part; rank: number; at: string }>();

@@ -249,12 +249,12 @@ describe('a layout with a switch', () => {
   /*
    * MUTATION PROOF, run: remove `modelled-switch` from `isSerious` in
    * `VerdictLine.tsx`. Fails with `expected '<div class="verdict
-   * verdict-pass" rol…' to contain '<li class="is-serious">This switch\'s…'`.
+   * verdict-pass" rol…' to contain '<li class="is-serious">This piece\'s…'`.
    */
   it('shows the switch sentence as a serious note, outside the live region', () => {
     expect(trustL.map((t) => t.kind)).toContain('modelled-switch');
     const html = unescape(render('EXACT', trustL));
-    expect(html).toContain(`<li class="is-serious">This switch's geometry is modelled, not measured.</li>`);
+    expect(html).toContain(`<li class="is-serious">This piece's geometry is modelled, not measured.</li>`);
     expect(region(html).inner).not.toContain('modelled');
   });
 

@@ -171,11 +171,15 @@ export function addPiece(
   }
 
   /*
-   * The far end to continue from: port 1 when the piece went on by its start,
-   * and its start (a switch's heel) when it went on turned round.
+   * The far end to continue from: the other end of the road the piece went
+   * on by. On a two-ended piece that is port 1 from its start and its start
+   * from its end; a multi-road piece says which (`Port.along`, eng review
+   * D14), so a crossing joined by its third end carries on at its fourth,
+   * not round the corner at its first.
    */
+  const onward = ports(piece)[joinBy]?.along?.[0];
   const select: PortRef | null =
-    portCount > 1 ? { pieceId, port: joinBy === 0 ? 1 : 0 } : null;
+    portCount > 1 ? { pieceId, port: onward ?? (joinBy === 0 ? 1 : 0) } : null;
   return { graph: { pieces, welds, anchors }, select };
 }
 
@@ -229,10 +233,15 @@ export function fitOptions(
     if (attaching === meeting && meeting === 'peg') return;
     const adapter = attaching === meeting;
     const frame = frameForPortAt(own[fit.port]!.at, targetFrame);
-    // Where every end of the piece lands, as a set: the same set is the same
-    // piece. Prefixed with the adapter flag, so the two kinds never merge.
+    // Where every end of the piece lands, and whether it is a peg or a
+    // socket there, as a set: the same set is the same piece. The polarity is
+    // there for the crossing (eng review D11): turned a quarter, it lands its
+    // ends on the same four spots with the pegs elsewhere, which joins the
+    // next track differently. Two-ended parts are unaffected, since their
+    // ends' polarities follow from the attaching end, which the adapter flag
+    // already splits on. Prefixed with that flag, so the two kinds never merge.
     const key = (adapter ? 'adapter|' : '') + own
-      .map((p) => JSON.stringify(compose(frame, p.at)))
+      .map((p) => `${p.polarity}@${JSON.stringify(compose(frame, p.at))}`)
       .sort()
       .join('|');
     if (seen.has(key)) return;
@@ -259,12 +268,31 @@ export function fitOptions(
  * straight's adapter way was reachable only by an unadvertised F (Flip is
  * hidden for straights). Defined by ends, not by which way is current, so
  * every way in a cycle sees the same cycle and R always comes back round.
+ *
+ * A PIECE WITH NO F TAKES EVERY WAY (`flips` false). A crossing turned over
+ * is the same crossing turned a quarter, so it has no F, but at a peg end
+ * its two ways both go on by its first end and differ only in turn, with
+ * the other road's peg on the other side. Found by placing H in the browser:
+ * R was disabled and the second way could not be reached at all. For a plain
+ * straight this is the cycle it already had: its ways at one end lie the
+ * same either turn and merge, so the turns left are at different ends.
  */
-export function rotateCycle(options: readonly Fit[], turn: Turn): readonly Fit[] {
+export function rotateCycle(options: readonly Fit[], turn: Turn, flips = true): readonly Fit[] {
   const same = options.filter((o) => o.turn === turn);
-  const lone = options.filter((o) => o.turn !== turn && !same.some((s) => s.port === o.port));
+  const lone = options.filter((o) => o.turn !== turn && (!flips || !same.some((s) => s.port === o.port)));
   const cycle = [...same, ...lone];
   return [...cycle.filter((o) => !o.adapter), ...cycle.filter((o) => o.adapter)];
+}
+
+/**
+ * Whether F does anything for a part: a curve bends the other way, a ramp
+ * turns over, a multi-road piece says in its data (`flip`). A plain straight
+ * lies the same either way up, and so does a symmetric crossing.
+ */
+export function hasFlip(part: Part): boolean {
+  if (part.kind === 'curve') return true;
+  if (part.kind === 'multi-road') return part.flip !== undefined;
+  return part.rise !== undefined;
 }
 
 /**

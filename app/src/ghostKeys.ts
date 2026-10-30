@@ -15,7 +15,7 @@ import type { PortsOf } from '../../engine/src/graph/frames.js';
 import { levelOf, portsOf, type Graph } from '../../engine/src/graph/model.js';
 import type { Part } from '../../engine/src/parts/schema.js';
 import { endName } from './GraphListing.js';
-import { fitOptions, rotateCycle, type PendingPiece } from './layoutModel.js';
+import { fitOptions, hasFlip, rotateCycle, type PendingPiece } from './layoutModel.js';
 
 /** One key's effect: a button label and the same thing as a verb phrase. */
 export interface KeyWords {
@@ -43,20 +43,24 @@ export function ghostKeys(
   part: Part,
 ): { readonly rotate: KeyWords; readonly flip: KeyWords | null } {
   const options = ghost.at ? fitOptions(graph, ports, ghost.at, ghost.partId).options : null;
-  const cycle = options ? rotateCycle(options, ghost.turn).length : 0;
+  const cycle = options ? rotateCycle(options, ghost.turn, hasFlip(part)).length : 0;
 
   const rotate: KeyWords =
     options === null
       ? { label: 'Turn 1/16', verb: 'turn it a sixteenth', enabled: true }
-      : (cycle > 2 || (cycle < 2 && portsOf(part).length > 2))
+      // A piece with more than two ends always steps to its NEXT way: a
+      // crossing's two ways at a peg end use the same end, so "other end"
+      // would be wrong there.
+      : (cycle > 2 || portsOf(part).length > 2)
         ? { label: 'Next end on', verb: 'put its next end on', enabled: cycle > 1 }
         : { label: 'Other end on', verb: 'put its other end on', enabled: cycle > 1 };
 
   const canFlip = options === null || options.some((o) => o.turn !== ghost.turn);
   let flip: KeyWords | null = null;
   if (part.kind === 'curve') flip = { label: 'Bend the other way', verb: 'bend it the other way', enabled: canFlip };
-  else if (part.kind === 'switch')
-    flip = { label: 'Branch to the other side', verb: 'branch it to the other side', enabled: canFlip };
+  // A multi-road piece says in its data what F does, or has no F (eng review D8).
+  else if (part.kind === 'multi-road')
+    flip = part.flip ? { label: part.flip.label, verb: part.flip.verb, enabled: canFlip } : null;
   else if (isRamp(part)) {
     flip =
       options === null
@@ -87,7 +91,7 @@ export function afterKey(kind: 'rotateGhost' | 'flipGhost', part: Part, ghost: P
     return `Now joins the track by its ${endName(part, ghost.port, ghost.turn)}.${ramp}`;
   }
   if (part.kind === 'curve') return 'Now bends the other way.';
-  if (part.kind === 'switch') return 'Now branches to the other side.';
+  if (part.kind === 'multi-road') return part.flip?.after ?? 'It looks the same turned over.';
   // F still reaches a plain straight from the keyboard; it reads the same either way up.
   if (!isRamp(part)) return 'A straight looks the same turned over.';
   return `Turned over.${ramp}`;

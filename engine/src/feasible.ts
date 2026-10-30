@@ -40,7 +40,7 @@
  */
 
 import { equals, toXY } from './geom/cyclotomic.js';
-import type { Pose } from './geom/pose.js';
+import { refuseMultiRoad, type Pose } from './geom/pose.js';
 import type { Layout, Part, Polarity } from './parts/schema.js';
 
 /** Two connectors at the same exact position that are not joined to each other. */
@@ -139,8 +139,12 @@ export function findPolarityViolations(
   for (let j = 0; j <= last; j++) {
     const incomingId = layout.placements[j]!.partId;
     const outgoingId = layout.placements[(j + 1) % n]!.partId;
-    const incoming = resolve(incomingId).ends.end;
-    const outgoing = resolve(outgoingId).ends.start;
+    const inPart = resolve(incomingId);
+    const outPart = resolve(outgoingId);
+    refuseMultiRoad(inPart);
+    refuseMultiRoad(outPart);
+    const incoming = inPart.ends.end;
+    const outgoing = outPart.ends.start;
     if (incoming !== outgoing) continue;
     out.push({ jointIndex: j, between: [incomingId, outgoingId], polarity: incoming });
   }

@@ -73,6 +73,21 @@ export function mulZetaPow(a: Cyc, k: number): Cyc {
   return out as unknown as Cyc;
 }
 
+/**
+ * The mirror image across the x axis: complex conjugation, exactly.
+ *
+ * conj(zeta^k) = zeta^-k, and zeta^-k = -zeta^(8-k) for k in 1..7, so the
+ * constant term stays and every other coefficient moves to the opposite
+ * index with its sign flipped. This is how a multi-road piece placed the
+ * other way up (`turn: 'right'`) gets its ports from the ones written for
+ * 'left'.
+ */
+export function conj(a: Cyc): Cyc {
+  const out = [a[0]!, 0, 0, 0, 0, 0, 0, 0];
+  for (let k = 1; k < DEG; k++) out[DEG - k] = a[k] === 0 ? 0 : -a[k]!;
+  return out as unknown as Cyc;
+}
+
 /** zeta^k as a ring element. */
 export function zetaPow(k: number): Cyc {
   return mulZetaPow(fromInt(1), k);

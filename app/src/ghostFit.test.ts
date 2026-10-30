@@ -71,6 +71,23 @@ describe('the ways a part can go on at an end', () => {
   });
 
   /*
+   * A CROSSING TURNED A QUARTER LANDS ON THE SAME FOUR SPOTS with its pegs
+   * elsewhere, which joins the next track differently, so those are two
+   * ways, not one (eng review D11).
+   *
+   * MUTATION PROOF, run: drop the polarity from the de-duplication key.
+   * Fails with `expected [ { port: +0, turn: 'left' }, …(1) ] to have a
+   * length of 4 but got 2`.
+   */
+  it('a crossing: every peg and socket arrangement is a way of its own', () => {
+    const onSocket = fitOptions(run(['C']).graph, ports, run(['C']).at, 'H').options;
+    expect(onSocket).toHaveLength(4);
+    expect(onSocket.filter((o) => !o.adapter).map((o) => o.port)).toEqual([0, 2]);
+    expect(onSocket.filter((o) => o.adapter).map((o) => o.port)).toEqual([1, 3]);
+    expect(fitOptions(run(['A']).graph, ports, run(['A']).at, 'H').options).toHaveLength(2);
+  });
+
+  /*
    * ENG-R4: the preview is computed for one piece, not by re-laying the
    * layout, so it must equal the real placement exactly.
    */
@@ -245,5 +262,35 @@ describe('auto-join', () => {
     expect(joined.joined, 'the exact join was not welded').toBe(1);
     const now = placeAll(joined.graph, ports).frames;
     for (const p of landed.pieces) expect(now.get(p.pieceId), p.pieceId).toEqual(placed.frames.get(p.pieceId));
+  });
+});
+
+/*
+ * BUILDING CARRIES ON ALONG THE ROAD YOU CAME IN ON (eng review D14).
+ *
+ * After a piece goes on, the editor selects its end to build from. That was
+ * "port 1 if joined by port 0, else port 0", which sent building through a
+ * crossing joined by its third end out of its first, round the corner.
+ *
+ * MUTATION PROOF, run: in `addPiece`, ignore `along` (`const onward =
+ * undefined`). Fails with `H by 2: expected +0 to be 3`.
+ */
+describe('which end building carries on from', () => {
+  const after = (base: string, partId: string, port: number) => {
+    const { graph, at } = run([base]);
+    return addPiece(graph, partId, 'left', count(partId), at, ports, { port, turn: 'left' }).select!.port;
+  };
+
+  it('a crossing carries straight on, whichever road it went on by', () => {
+    expect(after('C', 'H', 0), 'H by 0').toBe(1);
+    expect(after('C', 'H', 2), 'H by 2').toBe(3);
+    expect(after('C', 'H', 1), 'H by 1').toBe(0);
+    expect(after('C', 'H', 3), 'H by 3').toBe(2);
+  });
+
+  it('a switch picks as it always did: the straight road from the heel, the heel from a road', () => {
+    expect(after('A', 'L', 0), 'L by heel').toBe(1);
+    expect(after('A', 'L', 1), 'L by straight road').toBe(0);
+    expect(after('A', 'L', 2), 'L by curved road').toBe(0);
   });
 });

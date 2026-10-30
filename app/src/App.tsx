@@ -66,7 +66,7 @@ import {
 import { loadGraph, partialLoadNotice, saveGraph, savesSuppressed } from './layoutStore.js';
 import { saveFailureNotice, type SavedStore } from './saveNotice.js';
 import { viewOf } from './verdictView.js';
-import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
+import { centrelineRadiusMm, isMultiRoad, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
 import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
 import { CANVAS_SEGMENT_CEILING, TrackCanvas } from './TrackCanvas.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
@@ -120,6 +120,12 @@ const BRAND_LABEL: Record<Brand, string> = {
  * long straight it shares a length with (design 12A): the ascending track is
  * a seed outside `BRIO_PARTS`, so library order would put it after the curves.
  */
+/** A part's size on its palette card: a length, a radius, or a multi-road piece's own label (eng review D8). */
+function paletteSize(part: Part): string {
+  if (part.kind === 'straight') return `${part.lengthMm}mm`;
+  if (part.kind === 'curve') return `r${centrelineRadiusMm(part)}`;
+  return part.sizeLabel;
+}
 const isRamp = (p: Part) => p.kind === 'straight' && p.rise !== undefined;
 const partsByBrand = (lib: readonly Part[], b: Brand) => {
   const own = lib.filter((p) => p.brand === b);
@@ -184,10 +190,7 @@ export function App() {
   const library = useMemo(() => resolveLibrary(submissions), [submissions]);
   const resolve = useMemo(() => makeResolver(library), [library]);
   const libraryIds = useMemo(() => new Set(library.map((p) => p.id)), [library]);
-  const switchIds = useMemo(
-    () => new Set(library.filter((p) => p.kind === 'switch').map((p) => p.id)),
-    [library],
-  );
+  const multiRoadIds = useMemo(() => new Set(library.filter(isMultiRoad).map((p) => p.id)), [library]);
 
   /*
    * Both loaders now report whether they threw stored data away, and those
@@ -790,8 +793,7 @@ export function App() {
    * its whole connected run (decision D10).
    */
   const pieceNumber = useMemo(() => new Map(graph.pieces.map((p, i) => [p.pieceId, i + 1])), [graph]);
-  const sizeOf = (part: Part): string =>
-    part.kind === 'straight' ? `${part.lengthMm}mm` : `r${centrelineRadiusMm(part)}`;
+  const sizeOf = paletteSize;
   const canvasPieceName = (id: string): string => {
     const piece = graph.pieces.find((p) => p.pieceId === id)!;
     const part = resolve(piece.partId);
@@ -1145,7 +1147,7 @@ export function App() {
                 <span className="piece-id num">{shortCode(part)}</span>
                 <span className="piece-name">{part.name}</span>
                 <span className="piece-dim num">
-                  {part.kind === 'straight' ? `${part.lengthMm}mm` : `r${centrelineRadiusMm(part)}`}
+                  {paletteSize(part)}
                   {isRamp(part) && (
                     /* The canvas's rise chevron, in ink (design 12A, rule 1); the name says it in words. */
                     <svg className="rise-chevron-icon" viewBox="-8 -10 16 20" aria-hidden="true">
@@ -1418,7 +1420,7 @@ export function App() {
         {submitOpen && (
           <SubmitPart
             existingIds={libraryIds}
-            switchIds={switchIds}
+            multiRoadIds={multiRoadIds}
             onSubmit={(sub) => {
               setSubmissionsActed(true);
               setSubmissions((prev) => [...prev, sub]);

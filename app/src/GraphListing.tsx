@@ -64,7 +64,8 @@ export const LISTING_CEILING = 2000;
 
 /** What one end of a part is called. */
 export function endName(part: Part, port: number, turn?: Turn): string {
-  if (part.kind === 'switch') return ['heel', 'straight road', 'curved road'][port] ?? `end ${port + 1}`;
+  // A multi-road piece names its own ends (eng review D8): "heel", "first road's far end".
+  if (part.kind === 'multi-road') return part.ports[port]?.name ?? `end ${port + 1}`;
   // A ramp's ends say which way it climbs (design 11A). Flipped over (turn
   // 'right'), its high end is port 0.
   if (part.kind === 'straight' && part.rise !== undefined) {
@@ -120,7 +121,8 @@ export function pieceName(n: number, piece: Piece, part: Part, from: number | un
   const by = turnedRound ? `, joined by its ${endName(part, from, piece.turn)}` : '';
   if (part.kind === 'curve') return `${head}, turning ${side}${by}`;
   if (part.kind === 'straight' && part.rise !== undefined && piece.turn === 'right') return `${head}, flipped over${by}`;
-  if (part.kind === 'switch') return `${head}, branching ${side}${by}`;
+  // Only a piece whose mirror image differs (it has an F) branches to a side.
+  if (part.kind === 'multi-road') return part.flip ? `${head}, branching ${side}${by}` : `${head}${by}`;
   return head;
 }
 

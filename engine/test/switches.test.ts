@@ -21,16 +21,19 @@ import { classifyWelds, findWeldPolarityViolations } from '../src/graph/feasible
 import { solveGraph } from '../src/graph/solve.js';
 import {
   portsOf,
+  roadEnd,
   weldGiveMm,
+  type Frame,
   type Graph,
   type Piece,
   type Port,
 } from '../src/graph/model.js';
 import { displacement } from '../src/geom/pose.js';
-import type { Part, SwitchPart } from '../src/parts/schema.js';
+import { ZERO } from '../src/geom/cyclotomic.js';
+import type { MultiRoadPart, Part, StraightPart } from '../src/parts/schema.js';
 
 const base = makeResolver(BUILT_IN);
-const A1 = base('A1');
+const A1 = base('A1') as StraightPart;
 const E = base('E');
 
 /*
@@ -76,17 +79,32 @@ const eCurve = (): { arcSteps: number; innerRadiusMm: number } => {
  * to remove: the catalogue is pinned in `engine/test/sources.test.ts` and
  * nowhere else.
  */
-const SW: SwitchPart = {
+const ROADS = [
+  { from: 0, to: 1, shape: { kind: 'straight', lengthMm: a1Length() } },
+  { from: 0, to: 2, shape: { kind: 'arc', ...eCurve(), side: 'left' } },
+] as const;
+const HEEL: Frame = { pos: ZERO, heading: 8 };
+
+/*
+ * A multi-road piece now, since the switch kind was replaced (eng review D4).
+ * Its two road ends are WALKED from the heel with `roadEnd`, not copied from
+ * A1 and E, so the specs below compare the road walk against `portsOf` of a
+ * plain straight and a plain curve: two code paths, not one value twice.
+ */
+const SW: MultiRoadPart = {
   id: 'TEST-SWITCH',
   brand: 'BRIO',
-  kind: 'switch',
+  kind: 'multi-road',
   name: 'Test switch',
-  throughLengthMm: a1Length(),
-  arcSteps: eCurve().arcSteps,
-  innerRadiusMm: eCurve().innerRadiusMm,
+  ports: [
+    { at: HEEL, polarity: A1.ends.start, name: 'heel', kind: 'heel' },
+    { at: roadEnd(HEEL, ROADS[0].shape, A1.plankWidthMm), polarity: A1.ends.end, name: 'straight road' },
+    { at: roadEnd(HEEL, ROADS[1].shape, A1.plankWidthMm), polarity: A1.ends.end, name: 'curved road' },
+  ],
+  roads: ROADS,
+  sizeLabel: 'test',
   dimensions: A1.dimensions,
   slop: A1.slop,
-  ends: A1.ends,
   heightMm: A1.heightMm,
   gaugeWidthMm: A1.gaugeWidthMm,
   plankWidthMm: A1.plankWidthMm,
@@ -177,7 +195,7 @@ describe('the heel is an ordinary connector', () => {
    *   +0, …(2) } ] to deeply equal []`.
    */
   it('is checked for polarity: a socket heel meeting a socket is an adapter joint', () => {
-    expect(SW.ends.start).toBe('socket');
+    expect(SW.ports[0]!.polarity).toBe('socket');
     const weldOnto = (partId: string): Graph => ({
       pieces: [
         { pieceId: 'sw', partId: SW.id },
@@ -295,11 +313,11 @@ describe('a branching layout', () => {
 describe('the chain engine refuses a switch instead of guessing', () => {
   /*
    * Widening PartKind opened a silent path: pose.ts tests for 'straight' and
-   * treats everything else as a curve, and a SwitchPart carries arcSteps and
-   * an inner radius, so a switch would have been walked as its diverging road
-   * with no error raised anywhere.
+   * treats everything else as a curve, and the old switch kind carried
+   * arcSteps and an inner radius, so a switch would have been walked as its
+   * diverging road with no error raised anywhere.
    */
   it('throws, naming the part', () => {
-    expect(() => displacement(SW, 0)).toThrowError(/switch/);
+    expect(() => displacement(SW, 0)).toThrowError(/TEST-SWITCH has 3 ends: a chain cannot express a branch/);
   });
 });

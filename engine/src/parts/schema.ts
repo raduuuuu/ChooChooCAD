@@ -16,6 +16,8 @@
  * and that remains an open question for the graph work.
  */
 
+import type { Cyc } from '../geom/cyclotomic.js';
+
 export type Brand = 'BRIO' | 'IKEA' | 'PLAYTIVE' | 'HAPE' | 'THOMAS' | 'MELISSA_DOUG';
 
 /**
@@ -165,18 +167,16 @@ export interface SlopBudget {
 }
 
 /*
- * 'switch' is the first kind with more than two ends, and adding it is what
- * the graph rewrite was for. A chain `Layout` could not express a branch at
- * all, so a switch in the palette would have built a layout the engine could
- * not represent: eng review R22, which is why the catalogue was held to
- * two-ended parts until now.
+ * 'multi-road' is every piece with more than two ends: switches, crossings,
+ * Ys, three-ways, double curves. It replaced a 'switch' kind that could only
+ * say "one straight road and one arc from a heel" (eng review D4,
+ * 2026-10-30), because each new shape would otherwise have been another kind
+ * and another branch in every file that asks what a piece is.
  *
- * 'crossing' is deliberately NOT here yet. The model handles four ports (see
- * the crossing test in graphModel.test.ts) but a crossing also needs the
- * same-layer overlap rule it is allowed to violate at its own footprint,
- * which is K8's scope.
+ * A crossing's roads cross each other inside one piece. The overlap check
+ * already skips pairs within one piece (overlap.ts), so that is not a clash.
  */
-export type PartKind = 'straight' | 'curve' | 'switch';
+export type PartKind = 'straight' | 'curve' | 'multi-road';
 
 /**
  * Which half of a joint an end is. A joint mates a peg with a socket; peg to peg
@@ -268,8 +268,6 @@ interface PartBase {
    */
   readonly grooveWidthMm?: number;
   readonly slop: SlopBudget;
-  /** Connector polarity at each end. See `Polarity` for why this is a convention. */
-  readonly ends: PartEnds;
   /**
    * Height above the ground plane, millimetres, CONTINUOUS.
    * Deliberately not an integer level index: BRIO's ascending track happens to
@@ -281,6 +279,8 @@ interface PartBase {
 
 export interface StraightPart extends PartBase {
   readonly kind: 'straight';
+  /** Connector polarity at each end. See `Polarity` for why this is a convention. */
+  readonly ends: PartEnds;
   /** Length in millimetres. Always an integer on real track. */
   readonly lengthMm: number;
   /**
@@ -303,6 +303,8 @@ export interface StraightPart extends PartBase {
 
 export interface CurvePart extends PartBase {
   readonly kind: 'curve';
+  /** Connector polarity at each end. See `Polarity` for why this is a convention. */
+  readonly ends: PartEnds;
   /**
    * Radius to the INNER edge of the wood, millimetres. PUBLISHED.
    *
@@ -332,36 +334,96 @@ export interface CurvePart extends PartBase {
   readonly arcSteps: number;
 }
 
-/**
- * A switch: one piece, three ends, two roads.
- *
- * Entry is the HEEL, where the roads meet; from there the track either runs
- * straight for `throughLengthMm` or curves away by `arcSteps`. Both are
- * measured in the part's own frame, so the piece is rigid by construction
- * and its two roads cannot drift apart depending on which one you walk.
- *
- * `turn` at placement decides which side it diverges to, so a left-hand and
- * a right-hand switch are one part placed two ways rather than two records
- * that could disagree with each other.
- *
- * NO PUBLISHED SWITCH IS IN THE CATALOGUE. Nobody has published BRIO's
- * switch geometry in a form this file could cite. Four switches are in the
- * library as UNVERIFIED seeds read off 3D-print reproductions
- * (`engine/data/switchSeeds.ts`), carrying the same unverified status as the
- * IKEA and Playtive seeds and overridden by any user measurement. The
- * published row still waits on a real switch being measured (task T2).
- */
-export interface SwitchPart extends PartBase {
-  readonly kind: 'switch';
-  /** Heel to the straight road's end, millimetres. */
-  readonly throughLengthMm: number;
-  /** Arc of the diverging road, in 22.5-degree steps. */
-  readonly arcSteps: number;
-  /** Radius of the diverging road, to the INNER edge. See CurvePart. */
-  readonly innerRadiusMm: number;
+/** A pose in a piece's own frame: an exact position and a heading in sixteenths. */
+export interface LocalPose {
+  readonly pos: Cyc;
+  /** Power of zeta, 0..15, pointing OUT of the piece. */
+  readonly heading: number;
 }
 
-export type Part = StraightPart | CurvePart | SwitchPart;
+/**
+ * One end of a multi-road piece, written for the piece placed `turn: 'left'`.
+ * Placed the other way up, every end is mirrored (`conj`).
+ */
+export interface EndSpec {
+  readonly at: LocalPose;
+  readonly polarity: Polarity;
+  /**
+   * What the end is called in the layout list and by the screen reader:
+   * "heel", "straight road", "first road's far end". Data, not code (eng
+   * review D8), so a new shape needs no app change.
+   */
+  readonly name: string;
+  /** 'heel' only where roads meet at the end, as on a switch. Naming only. */
+  readonly kind?: 'heel';
+}
+
+/** How a road runs between its two ends, as walked from `from`. */
+export type RoadShape =
+  | { readonly kind: 'straight'; readonly lengthMm: number }
+  | {
+      readonly kind: 'arc';
+      /** To the INNER edge of the wood, as on `CurvePart`. */
+      readonly innerRadiusMm: number;
+      /** 22.5-degree steps. */
+      readonly arcSteps: number;
+      /** Which way it bends walked from `from`, with the piece `turn: 'left'`. */
+      readonly side: Turn;
+    };
+
+/** A road: track a train can run along, between two ends of the piece. */
+export interface Road {
+  readonly from: number;
+  readonly to: number;
+  readonly shape: RoadShape;
+}
+
+/**
+ * A MULTI-ROAD PIECE: three or more ends, joined by two or more roads.
+ *
+ * The ENDS are listed, each at an exact pose with its own peg or socket, and
+ * the ROADS name which ends they join and how (eng review D9). Both are data,
+ * and they repeat each other on purpose: `multiRoad.test.ts` walks every road
+ * from its `from` end and requires it to land EXACTLY on its `to` end, so a
+ * typo in either list fails, and each measured end is recorded twice.
+ *
+ * End numbers are what saved layouts store, which is why they are written
+ * down rather than worked out from the roads: reordering the roads cannot
+ * renumber an end. End 0 sits at the frame origin facing back (heading 8),
+ * like every other part's entry.
+ *
+ * `turn` at placement mirrors the piece, so a left-hand and a right-hand
+ * switch are one record placed two ways.
+ *
+ * EVERY MULTI-ROAD PIECE IS MODELLED. Nobody has published BRIO's switch or
+ * crossing geometry in a form this file could cite; the seeds are read off
+ * 3D-print reproductions (`engine/data/switchSeeds.ts`), and whatever a
+ * future source says about the numbers, the straight-and-arc shape is the
+ * engine's model (trust.ts says so for any layout holding one).
+ */
+export interface MultiRoadPart extends PartBase {
+  readonly kind: 'multi-road';
+  readonly ports: readonly EndSpec[];
+  readonly roads: readonly Road[];
+  /**
+   * The palette card's size, e.g. "r202" for a switch whose arc is an E, or
+   * "108 x 108" for a crossing.
+   */
+  readonly sizeLabel: string;
+  /**
+   * What F does, in words: the key's label, its verb for the key list, and
+   * what is said after it. ABSENT when the mirror image is the same piece,
+   * as on a symmetric crossing, so F is not offered.
+   */
+  readonly flip?: { readonly label: string; readonly verb: string; readonly after: string };
+}
+
+export type Part = StraightPart | CurvePart | MultiRoadPart;
+
+/** True for every piece with more than two ends. The one place that asks. */
+export function isMultiRoad(part: Part): part is MultiRoadPart {
+  return part.kind === 'multi-road';
+}
 
 /**
  * The radius the ENGINE needs: from the arc centre to the centre of the track.
@@ -407,7 +469,7 @@ export function shortCode(part: Part): string {
   return part.id.startsWith(prefix) ? part.id.slice(prefix.length) : part.id;
 }
 
-export function centrelineRadiusMm(part: CurvePart | SwitchPart): number {
+export function centrelineRadiusMm(part: { readonly innerRadiusMm: number; readonly plankWidthMm: number }): number {
   return part.innerRadiusMm + part.plankWidthMm / 2;
 }
 
