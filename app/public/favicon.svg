@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- The ChooChooCAD mark: a loop of wooden track, one joint left open. Colours from app/src/tokens.css. -->
+  <path d="M157.34 140.15 A70 70 0 1 1 157.34 59.85" fill="none" stroke="#8a7349" stroke-width="44"/>
+  <path d="M157.34 140.15 A70 70 0 1 1 157.34 59.85" fill="none" stroke="#d9be93" stroke-width="36"/>
+  <circle cx="164" cy="69" r="12" fill="#d9be93" stroke="#8a7349" stroke-width="4"/>
+</svg>

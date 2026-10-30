@@ -81,6 +81,10 @@ Lillabo). Re-measure the Lillabo Ys first.
 
 ## P3 — The app's name is not on screen (filed by /plan-design-review 2026-10-30, from the Codex review)
 
+**DONE (2026-10-30).** The rail's first line reads "ChooChooCAD wooden railway
+layouts" beside the logo mark (an open loop of track, in ink), and the tab
+carries the full-colour mark as its icon. Spec: app/src/appName.dom.test.tsx.
+
 **What:** "ChooChooCAD" appears only in the tab title (app/index.html).
 **Why:** Screenshots and first visits show a track tool without saying which one.
 **Pros:** Identity at no cost to the canvas. **Cons:** Takes a line from the 320px rail.

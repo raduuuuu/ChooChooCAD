@@ -70,6 +70,7 @@ import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/pa
 import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
 import { CANVAS_SEGMENT_CEILING, TrackCanvas } from './TrackCanvas.js';
 import { PartPreview } from './PartPreview.js';
+import { AppName } from './AppName.js';
 import { previews } from './previewGeometry.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
 import { VerdictLine, VerdictScope } from './VerdictLine.js';
@@ -1327,6 +1328,7 @@ export function App() {
       )}
 
       <section className="palette" aria-label="Track pieces">
+        <AppName />
         {/*
           * GROUPED BY BRAND, because the brands are not interchangeable.
           *
