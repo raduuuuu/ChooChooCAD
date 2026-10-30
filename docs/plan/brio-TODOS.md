@@ -28,7 +28,14 @@ chosen by the owner: phased, all BRIO types.
 - DONE in PR B: T and X are exact at a 108 centreline (three reproductions
   agree), and `BRIO_PIECE_TABLE` no longer calls them approximate.
 
-## P2 — Multi-road pieces that sit off the whole-millimetre grid (filed by /plan-eng-review 2026-10-30)
+## DONE — Multi-road pieces that sit off the whole-millimetre grid (filed by /plan-eng-review 2026-10-30)
+
+**Done 2026-10-30.** Owner chose "Round, state it" for half millimetres and
+"Smooth S, approximate" for S-bends. F, G, F1 and G1 are in (switchSeeds.ts),
+and so are the Lillabo crossing and the Lillabo switch (thirdParty.ts). The
+two "y" files turned out to be an ordinary switch read from its far end. The
+`-tt` files, with a quarter circle of about 84mm, match no Lillabo piece and
+were left out.
 
 **What:** Decide how to model, and then add, the measured multi-road pieces
 that the exact lattice cannot hold: BRIO F1/G1 (a 144 straight plus a branch

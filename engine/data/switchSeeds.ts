@@ -52,9 +52,9 @@
  * each read the same way and each exact on the grid. Their sources are on
  * each part.
  *
- * WHAT IS NOT HERE. F/G, F1/G1 and the Lillabo multi-road pieces do not sit
- * on the whole-millimetre grid (TODO "Multi-road pieces that sit off the
- * whole-millimetre grid").
+ * F, G, F1 and G1 came later (2026-10-30): their roads are S-bends, drawn
+ * approximately, and F/G's ends are rounded half a millimetre to the grid,
+ * each said on the part.
  */
 
 import type { Cyc } from '../src/geom/cyclotomic.js';
@@ -372,4 +372,78 @@ export const MULTI_ROAD_SEEDS: readonly MultiRoadPart[] = [
     ),
     slop: ESTIMATED_SLOP, ...PROFILE,
   },
+
+  /*
+   * F AND G, the straight fork and merge (Isaxon 3121622). Each road is an
+   * S-bend; their ends sit 23.5 either side of the heel's line, 47 apart.
+   * ROUNDED to the grid (owner, 2026-10-30): F's ends at +24 and -23, so
+   * they stay 47 apart and the heel sits 0.5mm off their middle. G is F run
+   * backwards, so the 0.5 lands on its single end.
+   */
+  {
+    id: 'F', brand: 'BRIO', kind: 'multi-road', name: 'Fork switch',
+    ports: [
+      { at: { pos: ORIGIN, heading: 8 }, polarity: 'socket', name: 'heel', kind: 'heel' },
+      { at: { pos: xy(150, 24), heading: 0 }, polarity: 'peg', name: 'road' },
+      { at: { pos: xy(150, -23), heading: 0 }, polarity: 'peg', name: 'other road' },
+    ],
+    roads: [
+      { from: 0, to: 1, shape: { kind: 's-bend', lengthMm: 150, offsetMm: 24 } },
+      { from: 0, to: 2, shape: { kind: 's-bend', lengthMm: 150, offsetMm: -23 } },
+    ],
+    sizeLabel: '150mm',
+    dimensions: reproduction(
+      'MakerWorld 3121622 "BRIO straight switching track (F & G) Replica" by Isaxon (Brio F)',
+      'Ends at (150, +/-23.5) to 0.1mm, ROUNDED to +24 and -23 for the whole-millimetre grid: ' +
+        'still 47 apart, with the heel 0.5mm off their middle. Each road is an S-bend, drawn as ' +
+        'two arcs: the drawing and its overlap footprint are approximate, the ends exact.',
+    ),
+    slop: ESTIMATED_SLOP, ...PROFILE,
+  },
+  {
+    id: 'G', brand: 'BRIO', kind: 'multi-road', name: 'Merge switch',
+    ports: [
+      { at: { pos: ORIGIN, heading: 8 }, polarity: 'socket', name: "one road's start" },
+      { at: { pos: xy(0, -47), heading: 8 }, polarity: 'socket', name: "other road's start" },
+      { at: { pos: xy(150, -23), heading: 0 }, polarity: 'peg', name: 'joined end', kind: 'heel' },
+    ],
+    roads: [
+      { from: 0, to: 2, shape: { kind: 's-bend', lengthMm: 150, offsetMm: -23 } },
+      { from: 1, to: 2, shape: { kind: 's-bend', lengthMm: 150, offsetMm: 24 } },
+    ],
+    sizeLabel: '150mm',
+    // Turned over, the second road starts on the other side.
+    flip: TURN_OVER,
+    dimensions: reproduction(
+      'MakerWorld 3121622 "BRIO straight switching track (F & G) Replica" by Isaxon (Brio G)',
+      'Starts 47 apart, joined end at (150, -23.5) to 0.1mm, ROUNDED to -23 for the ' +
+        'whole-millimetre grid. Each road is an S-bend, drawn as two arcs: the drawing and its ' +
+        'overlap footprint are approximate, the ends exact.',
+    ),
+    slop: ESTIMATED_SLOP, ...PROFILE,
+  },
+  ...(['socket', 'peg'] as const).map((heel): MultiRoadPart => ({
+    id: heel === 'socket' ? 'F1' : 'G1',
+    brand: 'BRIO',
+    kind: 'multi-road',
+    name: heel === 'socket' ? 'Parallel switch' : 'Parallel switch, peg heel',
+    // A straight road, and a road that ends beside it, 46 over, facing the same way.
+    ports: [
+      { at: { pos: ORIGIN, heading: 8 }, polarity: heel, name: 'heel', kind: 'heel' },
+      { at: { pos: xy(144, 0), heading: 0 }, polarity: other(heel), name: 'straight road' },
+      { at: { pos: xy(144, 46), heading: 0 }, polarity: other(heel), name: 'parallel road' },
+    ],
+    roads: [
+      { from: 0, to: 1, shape: { kind: 'straight', lengthMm: 144 } },
+      { from: 0, to: 2, shape: { kind: 's-bend', lengthMm: 144, offsetMm: 46 } },
+    ],
+    sizeLabel: '144mm',
+    flip: BRANCH,
+    dimensions: reproduction(
+      `MakerWorld 892305 "BRIO Parallel Switches F1 G1" by AU3D (Parallel Switch ${heel === 'socket' ? 'F1' : 'G1'} 144mm)`,
+      'Ends at (144, 0) and (144, 46) heading 0, to 0.1mm: exact. The parallel road is an ' +
+        'S-bend, drawn as two arcs: the drawing and its overlap footprint are approximate.',
+    ),
+    slop: ESTIMATED_SLOP, ...PROFILE,
+  })),
 ];

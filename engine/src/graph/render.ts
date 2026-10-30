@@ -141,6 +141,15 @@ export function renderGraph(
         segments.push({ kind: 'straight', from, to, partId: piece.partId, pieceId: piece.pieceId, ...levels });
         continue;
       }
+      if (road.shape.kind === 's-bend') {
+        segments.push(...sBend(from, to, road.shape.lengthMm, road.shape.offsetMm).map((s) => ({
+          ...s,
+          partId: piece.partId,
+          pieceId: piece.pieceId,
+          ...levels,
+        })));
+        continue;
+      }
       segments.push({
         kind: 'curve',
         from,
@@ -158,6 +167,36 @@ export function renderGraph(
   }
 
   return { segments, ports: rendered };
+}
+
+/**
+ * An S-bend drawn as two equal arcs, out and back (schema.ts `RoadShape`).
+ *
+ * Two arcs of angle t and radius R cover 2R sin t along and 2R(1 - cos t)
+ * across, so tan(t/2) = across / along fixes t, and R follows. The first arc
+ * bends towards the offset, the second back. FLOATS, and only for drawing
+ * and the overlap footprint: the road's two ends are the exact lattice
+ * frames `from` and `to`, which no verdict reads from here.
+ */
+function sBend(
+  from: FPose,
+  to: FPose,
+  lengthMm: number,
+  offsetMm: number,
+): Array<Pick<Segment, 'kind' | 'from' | 'to' | 'centrelineRadiusMm' | 'sweep'>> {
+  const t = 2 * Math.atan(Math.abs(offsetMm) / lengthMm);
+  const r = lengthMm / (2 * Math.sin(t));
+  const out: 'left' | 'right' = offsetMm > 0 ? 'left' : 'right';
+  const back: 'left' | 'right' = out === 'left' ? 'right' : 'left';
+  const mid: FPose = {
+    x: (from.x + to.x) / 2,
+    y: (from.y + to.y) / 2,
+    h: from.h + (out === 'left' ? t : -t),
+  };
+  return [
+    { kind: 'curve', from, to: mid, centrelineRadiusMm: r, sweep: out },
+    { kind: 'curve', from: mid, to, centrelineRadiusMm: r, sweep: back },
+  ];
 }
 
 /** Bounds over rendered ports, which is every extremity a layout has. */
