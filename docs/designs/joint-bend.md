@@ -237,6 +237,8 @@ The design's "If refinement leaves more than 0.5mm, the run reads beyond" is sup
 
 **11A. Overlaps on runs that need bend:** headline "Track overlaps in the drawn shape." (X, outranks closure); the notes always carry "Overlaps were checked on the drawn shape; bending moves pieces up to 3mm." for bend runs, overlap or not. Runs that close exactly keep "Can't be built".
 
+  *Amended 2026-10-30, after the owner saw the Q1 loop drawn open under "closes with bend": a run that closes with bend is now DRAWN bent (engine/src/graph/bendPose.ts), so "the drawn shape" became "the catalogue shape" in both lines. Overlaps are still checked on the catalogue shape.*
+
 ## Open Questions
 
 1. The LP solver: a small dense simplex in TypeScript (variables: up to 2 per weld plus

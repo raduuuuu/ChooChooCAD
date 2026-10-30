@@ -587,7 +587,7 @@ export function VerdictLine({
                 * overlap was found instead of "can't be built"; the notes give
                 * the distance. Exact runs keep the plain claim.
                 */}
-              {e.bend && e.bend.tier !== 'exact' ? 'Track overlaps in the drawn shape.' : <>Can&rsquo;t be built.</>}{' '}
+              {e.bend && e.bend.tier !== 'exact' ? 'Track overlaps in the catalogue shape.' : <>Can&rsquo;t be built.</>}{' '}
               <span className="num">{e.overlapCount}</span>{' '}
               {e.overlapCount === 1
                 ? 'place has track running over other track. Track can only cross on a crossing piece, or raised on ramps over the other track.'
