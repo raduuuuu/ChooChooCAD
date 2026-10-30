@@ -1,6 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-  <!-- The ChooChooCAD mark: a loop of wooden track, one joint left open. Colours from app/src/tokens.css. -->
-  <path d="M157.34 140.15 A70 70 0 1 1 157.34 59.85" fill="none" stroke="#8a7349" stroke-width="44"/>
-  <path d="M157.34 140.15 A70 70 0 1 1 157.34 59.85" fill="none" stroke="#d9be93" stroke-width="36"/>
-  <circle cx="164" cy="69" r="12" fill="#d9be93" stroke="#8a7349" stroke-width="4"/>
+  <!--
+    The ChooChooCAD mark: a loop of wooden track, one joint left open. The top
+    end carries a peg (a neck and a round head), the bottom end the socket it
+    fits, cut through the plank. Colours from app/src/tokens.css.
+  -->
+  <defs>
+    <mask id="socket">
+      <rect width="200" height="200" fill="white"/>
+      <line x1="157.34" y1="140.15" x2="147" y2="154.9" stroke="black" stroke-width="10"/>
+      <circle cx="147" cy="154.9" r="10.5" fill="black"/>
+    </mask>
+  </defs>
+  <g mask="url(#socket)">
+    <path d="M157.34 140.15 A70 70 0 1 1 157.34 59.85" fill="none" stroke="#8a7349" stroke-width="44"/>
+    <path d="M157.34 140.15 A70 70 0 1 1 157.34 59.85" fill="none" stroke="#d9be93" stroke-width="36"/>
+  </g>
+  <line x1="157.34" y1="59.85" x2="167.66" y2="74.6" stroke="#8a7349" stroke-width="13"/>
+  <circle cx="167.66" cy="74.6" r="12" fill="#8a7349"/>
+  <line x1="157.34" y1="59.85" x2="167.66" y2="74.6" stroke="#d9be93" stroke-width="9"/>
+  <circle cx="167.66" cy="74.6" r="10" fill="#d9be93"/>
 </svg>
