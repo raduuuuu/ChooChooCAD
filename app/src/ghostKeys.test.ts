@@ -65,6 +65,18 @@ describe('the labels say the result', () => {
     expect(picked('C', 'N').keys.flip?.label).toBe('Turn over: come down');
     expect(picked('C', 'A').keys.flip).toBeNull();
   });
+
+  /*
+   * A crossing's mirror image is the same crossing turned a quarter, so F
+   * does nothing R does not, and the data leaves it out (eng review D8).
+   *
+   * MUTATION PROOF, run: give H the switches' `flip: BRANCH` in
+   * switchSeeds.ts. Fails with `expected { …(3) } to be null`.
+   */
+  it('a crossing has no F, and R steps through its ends', () => {
+    expect(picked('C', 'H').keys.flip).toBeNull();
+    expect(picked('C', 'H').keys.rotate).toMatchObject({ label: 'Next end on', enabled: true });
+  });
 });
 
 describe('the pick announcement lists only the keys that act', () => {

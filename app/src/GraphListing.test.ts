@@ -80,6 +80,27 @@ describe('the graph listing', () => {
     expect(markup).toContain(`<span id="${end![1]}" class="graph-listing-state">Free</span>`);
   });
 
+  /*
+   * A crossing names its four ends from its own data (eng review D8), and
+   * says nothing about a side: its mirror image is the same crossing.
+   *
+   * MUTATION PROOF, run: in `endName`, name a multi-road end `end ${port +
+   * 1}` always. Fails with `expected [ 'Piece 1: Crossing (H)', …(4) ] to
+   * deeply equal [ 'Piece 1: Crossing (H)', …(4) ]`, and the switch spec below
+   * with `expected [ …(8) ] to include 'Heel of piece 1, a socket'`.
+   */
+  it('names a crossing by its two roads, and gives it no side', () => {
+    const g: Graph = { pieces: [{ pieceId: 'h', partId: 'H' }], welds: [] };
+    // Static markup escapes the apostrophe; a browser reads it back as one.
+    expect(labels(html(g)).map((l) => l.replace(/&#x27;/g, "'"))).toEqual([
+      'Piece 1: Crossing (H)',
+      "First road's near end of piece 1, a peg",
+      "First road's far end of piece 1, a socket",
+      "Second road's near end of piece 1, a peg",
+      "Second road's far end of piece 1, a socket",
+    ]);
+  });
+
   it('names a switch by its heel and its two roads', () => {
     const l = labels(html(withSwitch));
     expect(l).toContain('Piece 1: Curved switch (L), branching right');
