@@ -1883,7 +1883,8 @@
 .build-pull-col { width: min(40rem, 100%); padding: var(--s5); display: flex; flex-direction: column; gap: var(--s4); }
 .build-heading { margin: 0; font-size: var(--build-code); font-weight: 600; }
 .build-resume { margin: 0; font-size: var(--build-meta); }
-.build-parts { border-collapse: collapse; font-size: var(--build-meta); }
+.build-parts { border-collapse: collapse; font-size: var(--build-meta); width: auto; align-self: flex-start; }
+.build-parts td:not(:first-child) { padding-inline-start: var(--s4); }
 .build-parts td { padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--rule); }
 .build-parts td.num { text-align: end; }
 .build-short { font-weight: 600; }
