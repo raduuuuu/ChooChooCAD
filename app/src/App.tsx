@@ -679,8 +679,21 @@ export function App() {
     if (armed) dispatch({ kind: 'clickPort', ref: armed });
     setJoiningStarted(false);
   };
+  /*
+   * FOCUS FOLLOWS THE SWITCH (design review FINDING-002). The two views are
+   * different trees, so the button pressed is gone once the view changes and
+   * focus fell to the page. Set by the switch only, so a part pick that
+   * returns to 2D leaves focus where the pick put it.
+   */
+  const focusSwitch = useRef(false);
+  useEffect(() => {
+    if (!focusSwitch.current) return;
+    focusSwitch.current = false;
+    document.querySelector<HTMLButtonElement>('.view-switch button[aria-pressed="true"]')?.focus();
+  }, [view]);
   const showView = (v: View) => {
     if (v === view) return;
+    focusSwitch.current = true;
     if (v === '3d') {
       if (ghost) dispatch({ kind: 'cancelGhost' });
       if (joining) cancelJoin();
