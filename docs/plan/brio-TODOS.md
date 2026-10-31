@@ -382,6 +382,8 @@ IP questions below should be settled before anything is published publicly
 
 ## P2 — 3D viewer, build mode and the printable sheet
 
+**DONE (2026-10-31).** Build mode and the printable sheet shipped in PRs #85 to #88, as planned in `docs/plan/2026-10-31-build-mode.md` (CEO, eng and design reviewed, D1-D53). The 3D viewer shipped earlier. The text below is kept as written.
+
 **Split 2026-10-31 (/plan-ceo-review, D2/D3).** The 3D viewer itself is planned in
 `docs/plan/2026-10-31-3d-viewer.md`. Build mode and the printable sheet stay here,
 deferred until the viewer exists; they will use its meshes for the per-step render.

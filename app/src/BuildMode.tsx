@@ -30,6 +30,7 @@ import type { MarkInput, SceneInput } from '../../engine/src/view3d/mesh.js';
 import { clearResume, enterHistory, keepAwake, loadResume, saveResume, type Awake, type BuildHistory } from './buildSession.js';
 import type { BuildView } from './Viewer3D.js';
 import { View3DPanel } from './View3DPanel.js';
+import { BuildSheet } from './BuildSheet.js';
 
 /** Taps ignored after a step draws (D40), the "Drawing…" delay (D37), and the tap and swipe distances (D25). */
 export const TAP_GUARD_MS = 400;
@@ -62,6 +63,8 @@ export interface BuildModeProps {
   readonly ceiling: number;
   readonly allSaved: boolean;
   readonly onExit: () => void;
+  /** Opened only to print the sheet, from the editor (sheet 4): print, then leave. */
+  readonly printOnly?: boolean;
 }
 
 type Piece = Extract<BuildItem, { kind: 'piece' }>;
@@ -96,6 +99,34 @@ export default function BuildMode(props: BuildModeProps) {
   const awake = useRef<Awake | null>(null);
   const history = useRef<BuildHistory | null>(null);
   const liveId = useId();
+  /*
+   * PRINTING (sheet scope 4-5). The sheet renders at the body's root only
+   * while printing, and the browser's print dialog shows only it. From the
+   * editor's Print the sheet, build mode opens just to print, then leaves.
+   */
+  const [printing, setPrinting] = useState(!!props.printOnly);
+  const print = () => setPrinting(true);
+  useEffect(() => {
+    if (!printing) return;
+    const frame = requestAnimationFrame(() => {
+      window.print();
+      setPrinting(false);
+      if (props.printOnly) exit();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [printing]);
+  const sheet = printing ? (
+    <BuildSheet
+      items={items}
+      segments={segments}
+      partOf={scene.partOf}
+      partName={partName}
+      verdict={props.verdict}
+      pull={props.pull}
+      noteText={noteSentence}
+      date={new Date()}
+    />
+  ) : null;
 
   const item = items[target]!;
   const pictured = item.kind !== 'pull';
@@ -250,6 +281,9 @@ export default function BuildMode(props: BuildModeProps) {
                 Start again
               </button>
             )}
+            <button className="build-outline" onClick={print}>
+              Print the sheet
+            </button>
             <button className="build-text" onClick={exit}>
               Back to editor
             </button>
@@ -260,6 +294,7 @@ export default function BuildMode(props: BuildModeProps) {
         <p className="sr-only" role="status" aria-live="polite" id={liveId}>
           {said}
         </p>
+        {sheet}
       </div>
     );
   }
@@ -289,6 +324,11 @@ export default function BuildMode(props: BuildModeProps) {
           corner={null}
           build={view.build}
           onDrawn={onDrawn}
+          failureAction={
+            <button className="build-outline" onClick={print}>
+              Print the sheet
+            </button>
+          }
         />
       </div>
       <div className="build-label">
@@ -307,11 +347,15 @@ export default function BuildMode(props: BuildModeProps) {
           <button className={labelItem.kind === 'last' ? 'build-primary' : 'build-outline'} onClick={exit}>
             Back to editor
           </button>
+          <button className="build-outline" onClick={print}>
+            Print the sheet
+          </button>
         </div>
       </div>
       <p className="sr-only" role="status" aria-live="polite" id={liveId}>
         {said}
       </p>
+      {sheet}
     </div>
   );
 }
@@ -407,6 +451,15 @@ function stepOf(items: readonly BuildItem[], index: number): number {
   return 1;
 }
 
+/** A step's note as a sentence: the screen reader's and the printed list's words (D7, D14, D52). */
+export function noteSentence(item: Piece): string | null {
+  const note = item.note;
+  if (!note) return null;
+  if (note.kind === 'bends') return 'This piece closes this run of track. The joints around it bend a little to meet.';
+  if (note.kind === 'beyond') return bendWords(note.run, bendLimit(), 1, 1).line;
+  return `This run of track couldn't be checked.${note.reason ? ` ${note.reason}` : ''}`;
+}
+
 function announce(item: BuildItem, steps: number, partName: (id: string) => string, items: readonly BuildItem[], i: number): string {
   switch (item.kind) {
     case 'pull':
@@ -419,14 +472,8 @@ function announce(item: BuildItem, steps: number, partName: (id: string) => stri
       return `That's the last piece. All ${item.pieces} pieces are down.`;
     case 'piece': {
       const adapter = item.adapter ? 'Adapter first: male-male. ' : '';
-      const note =
-        item.note?.kind === 'bends'
-          ? ' This piece closes this run of track. The joints around it bend a little to meet.'
-          : item.note?.kind === 'beyond'
-            ? ` ${bendWords(item.note.run, bendLimit(), 1, 1).line}`
-            : item.note?.kind === 'unchecked'
-              ? ` This run of track couldn't be checked.${item.note.reason ? ` ${item.note.reason}` : ''}`
-              : '';
+      const sentence = noteSentence(item);
+      const note = sentence ? ` ${sentence}` : '';
       return `${adapter}${partName(item.partId)}, ${item.partId}. Step ${item.step} of ${steps}.${note}`;
     }
   }
