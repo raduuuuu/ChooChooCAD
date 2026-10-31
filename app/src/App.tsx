@@ -83,6 +83,7 @@ import { TablePanel } from './TablePanel.js';
 import { fitSentence, loadTable, saveTable, tableFit, trackExtent, type Table } from './tableModel.js';
 import { SubmitPart } from './SubmitPart.js';
 import { View3DPanel } from './View3DPanel.js';
+import { BuildModeLoader } from './BuildModeLoader.js';
 import { loadView, openingView, saveView, type View } from './viewChoice.js';
 import { clearance } from '../../engine/data/calibration.js';
 import { MEASUREMENTS } from '../../engine/data/measurements.js';
@@ -665,6 +666,14 @@ export function App() {
    */
   const [view, setViewState] = useState<View>(() => openingView(loadView(), editor.graph.pieces.length));
   const [resetSignal, setResetSignal] = useState(0);
+  /*
+   * BUILD MODE (docs/plan/2026-10-31-build-mode.md). While building, the
+   * editor's canvas, rail and keys are gone (D27); its state stays here, so
+   * leaving returns to the editor exactly as it was, with focus on Build it.
+   */
+  const [building, setBuilding] = useState(false);
+  const buildItButton = useRef<HTMLButtonElement | null>(null);
+  const leftBuild = useRef(false);
   const [joiningStarted, setJoiningStarted] = useState(false);
   const joining = !ghost && (joiningStarted || armed !== null);
   const wasArmed = useRef<PortRef | null>(null);
@@ -717,6 +726,21 @@ export function App() {
       </button>
     </div>
   );
+  // Into build mode (build mode plan scope 1): any layout with a piece, whatever the verdict (D9).
+  const buildIt =
+    graph.pieces.length > 0 ? (
+      <button
+        ref={buildItButton}
+        className="build-it"
+        onClick={() => {
+          if (ghost) cancelGhost();
+          if (joining) cancelJoin();
+          setBuilding(true);
+        }}
+      >
+        Build it
+      </button>
+    ) : null;
   // Shown by the 3D panel only while there is a view to reset (design review FINDING-005).
   const resetButton = (
     <button className="view-reset" onClick={() => setResetSignal((n) => n + 1)}>
@@ -759,6 +783,7 @@ export function App() {
     hadGhost.current = ghost !== null;
   }, [ghost]);
   useEditorKeys({
+    enabled: !building,
     onUndo: undo,
     onRedo: redo,
     onEscape: () => {
@@ -862,6 +887,22 @@ export function App() {
         : null,
     };
   }, [view, drawn, graph, resolve, marks, tableView]);
+  // Build mode draws its steps from the whole layout, whichever view the editor had open.
+  const buildScene = useMemo((): SceneInput | null => {
+    if (!building) return null;
+    const { riseMm, plankMm } = clearance(MEASUREMENTS);
+    const partOf = new Map(graph.pieces.map((p) => [p.pieceId, p.partId]));
+    return { segments: drawn.segments, ports: drawn.ports, welds: graph.welds, partOf: (id) => resolve(partOf.get(id)!), riseMm, plankMm };
+  }, [building, drawn, graph, resolve]);
+  const exitBuild = useCallback(() => {
+    leftBuild.current = true;
+    setBuilding(false);
+  }, []);
+  useEffect(() => {
+    if (building || !leftBuild.current) return;
+    leftBuild.current = false;
+    buildItButton.current?.focus();
+  }, [building]);
   const sceneLabel = useMemo(() => {
     const levels = new Set(drawn.ports.map((p) => p.level ?? 0)).size;
     const faults = marks?.scene.length ?? 0;
@@ -1332,6 +1373,37 @@ export function App() {
             </>
   );
 
+  if (building && buildScene) {
+    const shortOf = new Map(shortfalls.map((sf) => [sf.partId, sf.shortBy]));
+    return (
+      <BuildModeLoader
+        graph={graph}
+        segments={render.segments}
+        result={result}
+        scene={buildScene}
+        partName={(id) => resolve(id).name}
+        pull={{
+          rows: Object.entries(counts).map(([partId, count]) => ({ partId, name: resolve(partId).name, count, short: shortOf.get(partId) ?? 0 })),
+          adapters: { count: adaptersUsed, short: adapterShort },
+        }}
+        verdict={
+          <VerdictLine
+            view={verdictView}
+            trust={trust}
+            adaptersUnmarked={adaptersUnmarked}
+            levelUnmarked={levelMarks.hidden}
+            polarityUnmarked={refusedMarks.hidden}
+          />
+        }
+        verdictPass={verdictView.kind === 'EXACT' || verdictView.kind === 'NEEDS_GIVE'}
+        segmentCount={render.segments.length}
+        ceiling={CANVAS_SEGMENT_CEILING}
+        allSaved={unsaved.size === 0 && !graphSaveBlocked && !inventorySaveBlocked && !submissionsSaveBlocked && !tableSaveBlocked}
+        onExit={exitBuild}
+      />
+    );
+  }
+
   return (
     <div className="shell">
       <main className="stage">
@@ -1346,7 +1418,7 @@ export function App() {
             tableNote={tableView ? { text: tableView.note, fits: tableView.fits } : null}
             label={sceneLabel}
             resetSignal={resetSignal}
-            corner={viewSwitch}
+            corner={<>{buildIt}{viewSwitch}</>}
             reset={resetButton}
           />
         ) : (
@@ -1392,7 +1464,7 @@ export function App() {
             levelMismatches={levelMarks.mismatches}
             thirdLevels={levelMarks.thirds}
             emptyAction={emptyAction}
-            corner={<div className="view-corner">{viewSwitch}</div>}
+            corner={<div className="view-corner">{buildIt}{viewSwitch}</div>}
           />
         )}
       </main>

@@ -14,6 +14,10 @@
  * Add-a-part form have their own undo and their own Esc, and a layout edit
  * fired from inside one would be a nasty surprise. So an editable target is
  * skipped entirely.
+ *
+ * BUILD MODE SUSPENDS ALL OF THEM (build mode plan D27): a build must never
+ * edit the layout it is walking through, so `enabled: false` listens to
+ * nothing.
  */
 
 import { useEffect } from 'react';
@@ -35,9 +39,12 @@ export function useEditorKeys(handlers: {
     readonly onFlip: () => void;
     readonly onStep: (by: 1 | -1) => void;
   } | null;
+  /** False while building: no key reaches the editor (D27). */
+  readonly enabled?: boolean;
 }): void {
-  const { onUndo, onRedo, onEscape, placing = null } = handlers;
+  const { onUndo, onRedo, onEscape, placing = null, enabled = true } = handlers;
   useEffect(() => {
+    if (!enabled) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || isEditable(e.target)) return;
       const mod = e.metaKey || e.ctrlKey;
@@ -62,5 +69,5 @@ export function useEditorKeys(handlers: {
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onUndo, onRedo, onEscape, placing]);
+  }, [onUndo, onRedo, onEscape, placing, enabled]);
 }

@@ -253,6 +253,15 @@
   /* Type. Roles assigned deliberately, per the universal font rule. */
   --font-ui: 'IBM Plex Sans', 'Inter', system-ui, sans-serif;
   --font-data: 'IBM Plex Mono', 'SF Mono', ui-monospace, monospace;
+  /*
+   * Build mode, read from about 60cm with the tablet on the floor (build mode
+   * plan D45): about 6-7mm tall on a typical tablet. All on --paper, where
+   * --ink is 13.43:1 and --ink-soft 5.21:1 (measured above). Smaller on
+   * phones, in app.css. Never shrunk to make room for the picture.
+   */
+  --build-name: 40px;
+  --build-code: 28px;
+  --build-meta: 16px;
 
   /* Spacing scale */
   --s1: 4px;

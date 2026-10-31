@@ -1817,3 +1817,77 @@
 }
 .viewer3d-inset rect { fill: none; stroke: var(--ink); stroke-width: 1.5px; }
 .viewer3d-inset line { stroke: var(--ink); stroke-width: 1px; }
+
+/*
+ * BUILD MODE (docs/plan/2026-10-31-build-mode.md, design D32-D53).
+ *
+ * The whole screen, no animation anywhere (D46): every change is a cut, so no
+ * rule below has a transition or an animation, and a test reads this block to
+ * keep it that way. Landscape puts the picture beside the label column,
+ * portrait puts it above (D49); the text keeps its size and the picture
+ * takes what is left.
+ */
+.build-mode {
+  position: fixed;
+  inset: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  overflow: auto;
+  outline: none;
+}
+.build-step {
+  display: grid;
+  grid-template-rows: minmax(0, 65fr) auto;
+  touch-action: none;
+  overflow: hidden;
+}
+@media (min-aspect-ratio: 6/5) {
+  .build-step { grid-template-rows: none; grid-template-columns: minmax(0, 68fr) minmax(20rem, 32fr); }
+}
+.build-picture { position: relative; min-height: 0; max-width: 1400px; width: 100%; }
+.build-picture .canvas-frame,
+.build-picture .canvas-area { position: absolute; inset: 0; }
+.build-label {
+  position: relative;
+  padding: var(--s5);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s2);
+}
+.build-name { margin: 0; font-size: var(--build-name); font-weight: 600; line-height: 1.15; }
+.build-code { margin: 0; font-size: var(--build-code); font-family: var(--font-data); font-weight: 500; }
+.build-code-line { margin: 0; font-size: var(--build-code); line-height: 1.25; }
+.build-meta { margin: 0; font-size: var(--build-meta); color: var(--ink-soft); }
+.build-note { margin: 0; font-size: var(--build-meta); line-height: 1.4; }
+.build-warn { font-size: var(--build-code); display: flex; flex-wrap: wrap; gap: 0 var(--s2); align-items: baseline; }
+.build-reason { color: var(--ink-soft); font-size: var(--build-meta); }
+.build-quiet { margin: 0; min-height: 1.4em; font-size: var(--build-meta); color: var(--ink-soft); }
+/* The corner's controls, with a ring of space where a near-miss does nothing (D50). */
+.build-dead { margin-top: auto; align-self: flex-end; padding: var(--s4); margin-right: calc(-1 * var(--s4)); margin-bottom: calc(-1 * var(--s4)); }
+.build-dead button, .build-actions button { min-height: 48px; padding: 0 var(--s4); font: inherit; font-size: var(--build-meta); }
+.build-outline { background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; color: var(--ink); }
+.build-primary { background: var(--ink); color: var(--paper); border: 1px solid var(--ink); border-radius: 4px; font-weight: 600; }
+.build-text { background: none; border: none; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+/* Previous and Next for keyboards and screen readers (D51): hidden until focused. */
+.build-sr-nav { display: flex; gap: var(--s2); }
+.build-sr-nav button { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.build-sr-nav button:focus-visible { position: static; width: auto; height: 48px; padding: 0 var(--s4); clip-path: none; overflow: visible; }
+/* The pull list (D32). */
+.build-pull { display: flex; justify-content: center; }
+.build-pull-col { width: min(40rem, 100%); padding: var(--s5); display: flex; flex-direction: column; gap: var(--s4); }
+.build-heading { margin: 0; font-size: var(--build-code); font-weight: 600; }
+.build-resume { margin: 0; font-size: var(--build-meta); }
+.build-parts { border-collapse: collapse; font-size: var(--build-meta); }
+.build-parts td { padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--rule); }
+.build-parts td.num { text-align: end; }
+.build-short { font-weight: 600; }
+.build-actions { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; }
+.build-hint { margin: 0; font-size: var(--build-meta); color: var(--ink-soft); }
+.build-verdict .verdict { margin: 0; }
+@media (max-width: 599px) {
+  .build-mode { --build-name: 32px; --build-code: 24px; --build-meta: 15px; }
+  .build-label, .build-pull-col { padding: var(--s4); }
+}
+.build-it { min-height: 36px; }

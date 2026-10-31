@@ -345,6 +345,8 @@ export interface Viewer3DProps {
    * close-up of that piece in a corner, joined to its spot by a line (D34).
    */
   readonly build?: BuildView | null;
+  /** A new scene is on screen (build mode swaps its label in the same frame, D37). */
+  readonly onDrawn?: () => void;
 }
 
 export interface BuildView {
@@ -371,7 +373,9 @@ export function boxOf(arrays: SceneArrays, ids: readonly string[]): Box {
   return min[0] === Infinity ? arrays.bounds : { min: [min[0]!, min[1]!, min[2]!], max: [max[0]!, max[1]!, max[2]!] };
 }
 
-export default function Viewer3D({ input, label, resetSignal, onContextLost, describedBy, build = null }: Viewer3DProps) {
+export default function Viewer3D({ input, label, resetSignal, onContextLost, describedBy, build = null, onDrawn }: Viewer3DProps) {
+  const drawnRef = useRef(onDrawn);
+  drawnRef.current = onDrawn;
   const buildRef = useRef(build);
   buildRef.current = build;
   const host = useRef<HTMLDivElement | null>(null);
@@ -504,6 +508,7 @@ export default function Viewer3D({ input, label, resetSignal, onContextLost, des
       // Build mode frames every step afresh (D17); the 3D view keeps its camera (eng D10).
       if (first || buildRef.current) reset();
       else render();
+      drawnRef.current?.();
     };
     controls.addEventListener('change', render);
     const size = () => {
@@ -512,7 +517,9 @@ export default function Viewer3D({ input, label, resetSignal, onContextLost, des
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      render();
+      // A turned tablet re-frames the step (build mode); the 3D view keeps the user's own camera.
+      if (buildRef.current) reset();
+      else render();
     };
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(size);
     ro?.observe(el);
