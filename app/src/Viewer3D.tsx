@@ -255,9 +255,11 @@ export interface Viewer3DProps {
   readonly resetSignal: number;
   /** The graphics context was lost (eng D9, design 7A). */
   readonly onContextLost: () => void;
+  /** The id of the text that says how to turn the view, keys included (design review FINDING-006). */
+  readonly describedBy?: string;
 }
 
-export default function Viewer3D({ input, label, resetSignal, onContextLost }: Viewer3DProps) {
+export default function Viewer3D({ input, label, resetSignal, onContextLost, describedBy }: Viewer3DProps) {
   const host = useRef<HTMLDivElement | null>(null);
   const arrays = useMemo(() => buildScene(input), [input]);
   const world = useRef<{
@@ -407,6 +409,12 @@ export default function Viewer3D({ input, label, resetSignal, onContextLost }: V
   useEffect(() => {
     world.current?.renderer.domElement.setAttribute('aria-label', label);
   }, [label]);
+  useEffect(() => {
+    const canvas = world.current?.renderer.domElement;
+    if (!canvas) return;
+    if (describedBy) canvas.setAttribute('aria-describedby', describedBy);
+    else canvas.removeAttribute('aria-describedby');
+  }, [describedBy]);
 
   const firstReset = useRef(true);
   useEffect(() => {
