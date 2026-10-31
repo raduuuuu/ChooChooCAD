@@ -13,6 +13,10 @@ DESIGN.md rule 11; `--track-shadow` measured 3.03:1 on `--floor`.
 
 ## P2 — A 55mm train may not fit under a one-level bridge (filed by /plan-eng-review 2026-10-30)
 
+**Also (2026-10-31, /plan-ceo-review D6):** once the train is measured, draw its
+clearance in the 3D viewer as a faint box along floor track that passes under
+raised track. Deferred because an estimated height drawn solid looks measured.
+
 **What:** The floor readings (CALIBRATION.md Q5) give 64mm rise - 12mm plank -
 55mm train = -3mm clearance. Push the 55mm train under a real bridge on its
 supports first: wheels ride in 3mm grooves, so the real gap may be a few mm
@@ -90,6 +94,22 @@ half millimetres; both introduce the engine's first inexact geometry.
 Lillabo). Re-measure the Lillabo Ys first.
 
 **Depends on / blocked by:** the multi-road type (PR A of the plan).
+
+## P3 — The text-selection colour has no token (filed by /plan-design-review 2026-10-31, Codex design voice)
+
+**What:** `::selection` sets `background: #e4d6ba` directly in `app/src/tokens.css:269`, not through a named token with its measured ratio.
+**Why:** DESIGN.md's preamble: every colour is a token; rule 5: each arrives with its measured ratio. This one has neither.
+**Pros:** Closes the only hardcoded colour found. **Cons:** Tiny; no visual change.
+**Context:** Found by the 3D viewer's design outside voice. Name it (e.g. `--selection`), measure `--ink` on it, put the ratio in its comment.
+**Effort:** human S / CC S. **Depends on:** nothing.
+
+## P3 — Pick a piece in 3D and it is selected in 2D (filed by /plan-ceo-review 2026-10-31, D5)
+
+**What:** Clicking a piece in the 3D viewer selects it on the 2D canvas, and the other way round.
+**Why:** Finding which plan-view piece is the one under a bridge is by eye until then.
+**Pros:** 3D becomes a way to navigate. Mesh ids are needed by build mode anyway. **Cons:** Ray-cast picking, which jsdom cannot test.
+**Context:** The 3D viewer ships read-only (`docs/plan/2026-10-31-3d-viewer.md`). Decide side-by-side vs a switch first.
+**Effort:** human M / CC S. **Depends on:** the 3D viewer.
 
 ## P3 — The picked part's card looks like every other card (filed by /plan-design-review 2026-10-30)
 
@@ -331,6 +351,10 @@ IP questions below should be settled before anything is published publicly
 ---
 
 ## P2 — 3D viewer, build mode and the printable sheet
+
+**Split 2026-10-31 (/plan-ceo-review, D2/D3).** The 3D viewer itself is planned in
+`docs/plan/2026-10-31-3d-viewer.md`. Build mode and the printable sheet stay here,
+deferred until the viewer exists; they will use its meshes for the per-step render.
 
 **What:** 3D viewer with procedurally generated meshes instanced per part type;
 build mode as a tablet-first step walkthrough in physical assembly order; a
