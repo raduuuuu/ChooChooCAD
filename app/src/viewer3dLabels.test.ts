@@ -24,7 +24,7 @@ const C = Object.fromEntries(
 
 const scene = (marks: SceneArrays['marks']): SceneArrays => ({
   plankTop: empty, plankSide: empty, grooves: empty, beams: empty, footprints: empty,
-  seams: { positions: new Float32Array(0) }, slab: null, marks, pieceRanges: new Map(),
+  seams: { positions: new Float32Array(0) }, slab: null, marks, pieceRanges: new Map(), pieceBounds: new Map(), next: null,
   bounds: { min: [0, 0, 0], max: [1, 1, 1] },
 });
 

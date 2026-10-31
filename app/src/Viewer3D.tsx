@@ -21,6 +21,7 @@ import {
   BufferGeometry,
   CanvasTexture,
   Color,
+  GreaterDepth,
   Group,
   Mesh,
   MeshBasicMaterial,
@@ -37,7 +38,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
-import { buildScene, type Mesh as MeshArrays, type PlacedMark, type SceneArrays, type SceneInput } from '../../engine/src/view3d/mesh.js';
+import { buildScene, type Box, type Mesh as MeshArrays, type PlacedMark, type SceneArrays, type SceneInput } from '../../engine/src/view3d/mesh.js';
 
 /** Thrown when the browser cannot make a WebGL context; the panel says so (eng D9). */
 export class WebGLUnavailable extends Error {
@@ -58,6 +59,8 @@ export interface SceneColors {
   readonly paperSunk: string;
   readonly fail: string;
   readonly slabSide: string;
+  /** `--ghost-opacity`: the preview's translucency, for the next piece seen through track (D28, D42). */
+  readonly ghostOpacity?: number;
 }
 
 export function tokenColors(root: Element = document.documentElement): SceneColors {
@@ -84,6 +87,7 @@ export function tokenColors(root: Element = document.documentElement): SceneColo
     paperSunk: v('--paper-sunk'),
     fail: v('--fail'),
     slabSide: v('--slab-side'),
+    ghostOpacity: Number.parseFloat(read('--ghost-opacity')) || 0.5,
   };
 }
 
@@ -107,8 +111,9 @@ export const MIN_ELEVATION_DEG = 10;
 export const MAX_ELEVATION_DEG = 85;
 /** A mark's on-screen size, CSS px: the 2D canvas's r=28 clash ring at its 0.75px/mm floor is 42px. */
 export const MARK_PX = 44;
-/** Line widths, CSS px: seams 2.5 (design 26A), level line 2 (16A), slab outline 1.5. */
+/** Line widths, CSS px: seams 2.5 (design 26A), level line 2 (16A), slab outline 1.5, the next piece's edge 3 (D42). */
 const SEAM_PX = 2.5;
+const NEXT_EDGE_PX = 3;
 const LEVEL_LINE_PX = 2;
 const OUTLINE_PX = 1.5;
 
@@ -119,9 +124,16 @@ function geometryOf(m: MeshArrays): BufferGeometry {
   return g;
 }
 
-function flat(color: string, opts: { side?: boolean; depthTest?: boolean } = {}): MeshBasicMaterial {
+function flat(color: string, opts: { side?: boolean; depthTest?: boolean; hiddenOnly?: number } = {}): MeshBasicMaterial {
   // Both sides: the builder's winding is not consistent, and unlit faces have no back to hide.
-  return new MeshBasicMaterial({ color: new Color(color), side: 2, depthTest: opts.depthTest ?? true });
+  const see = opts.hiddenOnly !== undefined;
+  return new MeshBasicMaterial({
+    color: new Color(color),
+    side: 2,
+    depthTest: opts.depthTest ?? true,
+    // Drawn only behind what is already there, at this opacity: a piece shows through what hides it, and nowhere else.
+    ...(see ? { transparent: true, opacity: opts.hiddenOnly, depthWrite: false, depthFunc: GreaterDepth } : {}),
+  });
 }
 
 function lines(positions: Float32Array, color: string, px: number, depthTest = true): LineSegments2 {
@@ -139,6 +151,8 @@ const SHAPES: Record<PlacedMark['kind'], { r: number; d: string; ink: 'fail' | '
   level: { r: 18, d: 'M -10 -4 H 0 V 4 H 10', ink: 'fail' },
   third: { r: 18, d: 'M -7 -2 L 0 5 L 7 -2 M -7 -9 L 0 -2 L 7 -9', ink: 'fail' },
   adapter: { r: 16, d: 'M 0 -16 L 16 0 L 0 16 L -16 0 Z', ink: 'ink' },
+  // The armed end's ring (D43): the end the next piece clips onto. No glyph.
+  join: { r: 16, d: '', ink: 'ink' },
   gap: null,
 };
 
@@ -224,10 +238,24 @@ export function syncScene(group: Group, arrays: SceneArrays, c: SceneColors, dpr
     add(lines(arrays.slab.outline.positions, arrays.slab.overhang ? c.fail : c.inkSoft, OUTLINE_PX), 1);
   }
   add(new Mesh(geometryOf(arrays.footprints), flat(c.trackShadow)), 1);
-  add(new Mesh(geometryOf(arrays.plankSide), flat(c.trackEdge)), 2);
-  add(new Mesh(geometryOf(arrays.plankTop), flat(c.trackFill)), 2);
+  // In build mode what is down is muted, so the next piece carries the weight (D42).
+  const next = arrays.next;
+  add(new Mesh(geometryOf(arrays.plankSide), flat(next ? c.trackShadow : c.trackEdge)), 2);
+  add(new Mesh(geometryOf(arrays.plankTop), flat(next ? c.slabSide : c.trackFill)), 2);
   add(new Mesh(geometryOf(arrays.grooves), flat(c.trackGroove)), 3);
   add(new Mesh(geometryOf(arrays.beams), flat(c.ink)), 3);
+  if (next) {
+    add(new Mesh(geometryOf(next.side), flat(c.trackEdge)), 2);
+    add(new Mesh(geometryOf(next.top), flat(c.trackFill)), 2);
+    add(new Mesh(geometryOf(next.grooves), flat(c.trackGroove)), 3);
+    add(new Mesh(geometryOf(next.beams), flat(c.ink)), 3);
+    if (next.edge.positions.length > 0) add(lines(next.edge.positions, c.ink, NEXT_EDGE_PX), 4);
+    // Seen through whatever is in front (D28): the preview's look, translucent
+    // wood with a solid edge. Its top only, drawn only where something is in
+    // front of it, so the piece itself looks the same when nothing hides it.
+    add(new Mesh(geometryOf(next.top), flat(c.trackFill, { hiddenOnly: c.ghostOpacity ?? 0.5 })), 8);
+    if (next.edge.positions.length > 0) add(lines(next.edge.positions, c.ink, NEXT_EDGE_PX, false), 8);
+  }
   if (arrays.seams.positions.length > 0) add(lines(arrays.seams.positions, c.seam, SEAM_PX), 4);
   // Marks last, over everything (design 15A).
   const levelLines: number[] = [];
@@ -266,11 +294,20 @@ export function disposeChildren(group: Group): void {
  * framed flat layouts at a third of the view.
  */
 export function startPose(arrays: SceneArrays, aspect: number): { position: Vector3; target: Vector3; radius: number } {
-  const [x0, y0, z0] = arrays.bounds.min;
-  const [x1, y1, z1] = arrays.bounds.max;
+  return framePose(arrays.bounds, aspect, startElevationDeg(arrays));
+}
+
+/**
+ * The camera that frames one box from the plan's bottom edge at an elevation:
+ * the 3D view's start pose for the whole scene, and build mode's per step for
+ * the next piece and what it clips onto (D17).
+ */
+export function framePose(box: Box, aspect: number, elevationDeg: number): { position: Vector3; target: Vector3; radius: number } {
+  const [x0, y0, z0] = box.min;
+  const [x1, y1, z1] = box.max;
   const target = new Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
   const radius = Math.max(1, Math.hypot(x1 - x0, y1 - y0, z1 - z0) / 2);
-  const el = (startElevationDeg(arrays) * Math.PI) / 180;
+  const el = (elevationDeg * Math.PI) / 180;
   // Looking along +y, tilted down by the elevation; z is up.
   const forward = new Vector3(0, Math.cos(el), -Math.sin(el));
   const right = new Vector3(1, 0, 0);
@@ -301,9 +338,42 @@ export interface Viewer3DProps {
   readonly onContextLost: () => void;
   /** The id of the text that says how to turn the view, keys included (design review FINDING-006). */
   readonly describedBy?: string;
+  /**
+   * Build mode (docs/plan/2026-10-31-build-mode.md): no turning by drag or
+   * keys (D8), and every new scene framed on `focus`, the next piece and
+   * what it clips onto (D17), instead of keeping the camera. `inset` draws a
+   * close-up of that piece in a corner, joined to its spot by a line (D34).
+   */
+  readonly build?: BuildView | null;
 }
 
-export default function Viewer3D({ input, label, resetSignal, onContextLost, describedBy }: Viewer3DProps) {
+export interface BuildView {
+  readonly focus: readonly string[];
+  readonly inset?: string | null;
+}
+
+/** The close-up's side as a share of the view's shorter side, and its margin, CSS px (D34). */
+export const INSET_SHARE = 0.3;
+const INSET_MARGIN_PX = 12;
+
+/** The box around some pieces, or the whole scene when none of them is drawn. */
+export function boxOf(arrays: SceneArrays, ids: readonly string[]): Box {
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
+  for (const id of ids) {
+    const b = arrays.pieceBounds.get(id);
+    if (!b) continue;
+    for (let i = 0; i < 3; i++) {
+      min[i] = Math.min(min[i]!, b.min[i]!);
+      max[i] = Math.max(max[i]!, b.max[i]!);
+    }
+  }
+  return min[0] === Infinity ? arrays.bounds : { min: [min[0]!, min[1]!, min[2]!], max: [max[0]!, max[1]!, max[2]!] };
+}
+
+export default function Viewer3D({ input, label, resetSignal, onContextLost, describedBy, build = null }: Viewer3DProps) {
+  const buildRef = useRef(build);
+  buildRef.current = build;
   const host = useRef<HTMLDivElement | null>(null);
   const arrays = useMemo(() => buildScene(input), [input]);
   const world = useRef<{
@@ -343,7 +413,15 @@ export default function Viewer3D({ input, label, resetSignal, onContextLost, des
     const camera = new PerspectiveCamera(FOV_DEG, 1, 1, 100000);
     camera.up.set(0, 0, 1);
     const controls = new OrbitControls(camera, canvas);
+    controls.enabled = !buildRef.current; // build mode does not turn (D8)
     controls.enableDamping = false; // design 20A
+    const insetCamera = new PerspectiveCamera(FOV_DEG, 1, 1, 100000);
+    insetCamera.up.set(0, 0, 1);
+    // The close-up's frame and its line to the piece's spot (D34): drawn over the canvas, never hit-tested.
+    const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    overlay.setAttribute('class', 'viewer3d-inset');
+    overlay.setAttribute('aria-hidden', 'true');
+    el.appendChild(overlay);
     controls.minPolarAngle = ((90 - MAX_ELEVATION_DEG) * Math.PI) / 180;
     controls.maxPolarAngle = ((90 - MIN_ELEVATION_DEG) * Math.PI) / 180;
     const render = () => {
@@ -359,11 +437,55 @@ export default function Viewer3D({ input, label, resetSignal, onContextLost, des
         }
       });
       renderer.render(scene, camera);
+      drawInset(w, h);
+    };
+    const drawInset = (w: number, h: number) => {
+      const id = buildRef.current?.inset ?? null;
+      overlay.replaceChildren();
+      if (!id || !current || !current.pieceBounds.has(id)) return;
+      const box = current.pieceBounds.get(id)!;
+      const side = Math.round(Math.min(w, h) * INSET_SHARE);
+      const pose = framePose(box, 1, startElevationDeg(current));
+      insetCamera.position.copy(pose.position);
+      insetCamera.lookAt(pose.target);
+      insetCamera.near = Math.max(1, pose.radius / 200);
+      insetCamera.far = pose.radius * 40;
+      insetCamera.updateProjectionMatrix();
+      // WebGL counts from the bottom: this is the view's bottom-start corner.
+      renderer.setScissorTest(true);
+      renderer.setScissor(INSET_MARGIN_PX, INSET_MARGIN_PX, side, side);
+      renderer.setViewport(INSET_MARGIN_PX, INSET_MARGIN_PX, side, side);
+      renderer.setClearColor(new Color(colors.paper));
+      renderer.render(scene, insetCamera);
+      renderer.setClearColor(new Color(colors.floor));
+      renderer.setViewport(0, 0, w, h);
+      renderer.setScissor(0, 0, w, h);
+      renderer.setScissorTest(false);
+      // The frame, and a line from its nearest corner to where the piece is in the main view.
+      const top = h - INSET_MARGIN_PX - side;
+      const centre = pose.target.clone().project(camera);
+      const px = ((centre.x + 1) / 2) * w;
+      const py = ((1 - centre.y) / 2) * h;
+      const cx = px > INSET_MARGIN_PX + side / 2 ? INSET_MARGIN_PX + side : INSET_MARGIN_PX;
+      const cy = py < top + side / 2 ? top : top + side;
+      const ns = 'http://www.w3.org/2000/svg';
+      const rect = document.createElementNS(ns, 'rect');
+      rect.setAttribute('x', String(INSET_MARGIN_PX));
+      rect.setAttribute('y', String(top));
+      rect.setAttribute('width', String(side));
+      rect.setAttribute('height', String(side));
+      const line = document.createElementNS(ns, 'line');
+      line.setAttribute('x1', String(cx));
+      line.setAttribute('y1', String(cy));
+      line.setAttribute('x2', String(px));
+      line.setAttribute('y2', String(py));
+      overlay.append(line, rect);
     };
     let current: SceneArrays | null = null;
     const reset = () => {
       if (!current) return;
-      const pose = startPose(current, camera.aspect);
+      const b = buildRef.current;
+      const pose = b ? framePose(boxOf(current, b.focus), camera.aspect, startElevationDeg(current)) : startPose(current, camera.aspect);
       camera.position.copy(pose.position);
       controls.target.copy(pose.target);
       controls.minDistance = pose.radius * 0.15;
@@ -379,7 +501,8 @@ export default function Viewer3D({ input, label, resetSignal, onContextLost, des
       const first = current === null;
       current = a;
       syncScene(group, a, colors, window.devicePixelRatio || 1);
-      if (first) reset();
+      // Build mode frames every step afresh (D17); the 3D view keeps its camera (eng D10).
+      if (first || buildRef.current) reset();
       else render();
     };
     controls.addEventListener('change', render);
@@ -401,6 +524,7 @@ export default function Viewer3D({ input, label, resetSignal, onContextLost, des
     canvas.addEventListener('webglcontextlost', lost);
     // Keys only while the view has focus (design 22A): arrows orbit, + and - zoom, 0 resets (D10).
     const keys = (e: KeyboardEvent) => {
+      if (buildRef.current) return; // build mode's keys step through the build (D8)
       const step = (7.5 * Math.PI) / 180;
       const off = camera.position.clone().sub(controls.target);
       const r = off.length();
@@ -438,6 +562,7 @@ export default function Viewer3D({ input, label, resetSignal, onContextLost, des
       controls.removeEventListener('change', render);
       ro?.disconnect();
       disposeChildren(group);
+      overlay.remove();
       controls.dispose();
       renderer.dispose();
       canvas.remove();

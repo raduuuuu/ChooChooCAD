@@ -16,7 +16,7 @@
  * driver's frees), and pixels; the browser pass covers what is drawn
  */
 
-import { Group, PerspectiveCamera, type BufferGeometry, type Material, type Mesh } from 'three';
+import { Color, GreaterDepth, Group, Mesh as ThreeMesh, MeshBasicMaterial, PerspectiveCamera, type BufferGeometry, type Material, type Mesh } from 'three';
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../../engine/data/library.js';
 import { fromInt } from '../../engine/src/geom/cyclotomic.js';
@@ -24,7 +24,7 @@ import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Graph, type Piece } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
 import { buildScene } from '../../engine/src/view3d/mesh.js';
-import { disposeChildren, FOV_DEG, startPose, syncScene, type SceneColors } from './Viewer3D.js';
+import { boxOf, disposeChildren, FOV_DEG, framePose, startPose, syncScene, type SceneColors } from './Viewer3D.js';
 
 const resolve = makeResolver(BUILT_IN);
 const ports = (p: Piece) => portsOf(resolve(p.partId), p.turn);
@@ -33,7 +33,7 @@ const C: SceneColors = {
   seam: '#6e5a38', ink: '#2a2724', inkSoft: '#6b655d', paper: '#f7f3ec', paperSunk: '#efe9df', fail: '#b3261e', slabSide: '#bdb19b',
 };
 
-const arraysOf = (ids: readonly string[]) => {
+const arraysOf = (ids: readonly string[], highlight?: string) => {
   const g: Graph = {
     pieces: ids.map((partId, i) => ({ pieceId: `p${i}`, partId, turn: 'left' })),
     welds: ids.slice(1).map((_, i) => ({ a: { pieceId: `p${i}`, port: 1 }, b: { pieceId: `p${i + 1}`, port: 0 } })),
@@ -45,6 +45,7 @@ const arraysOf = (ids: readonly string[]) => {
     segments: r.segments, ports: r.ports, welds: g.welds, partOf, riseMm: 64, plankMm: 12,
     marks: [{ kind: 'gap', at: [0, 0], source: { kind: 'weld', a: { pieceId: 'p0', port: 0 } }, figure: 12 }],
     table: { outline: [[-50, -300], [900, -300], [900, 300], [-50, 300]], overhang: false },
+    ...(highlight !== undefined ? { highlight } : {}),
   });
 };
 
@@ -135,5 +136,63 @@ describe('the starting view (design 21A; raised layouts, design review D1)', () 
     const up = pose.position.z - pose.target.z;
     const across = Math.hypot(pose.position.x - pose.target.x, pose.position.y - pose.target.y);
     expect(Math.round((Math.atan2(up, across) * 180) / Math.PI)).toBe(deg);
+  });
+});
+
+describe("build mode's picture (build mode plan D28, D42, D17)", () => {
+  // Wood only: LineSegments2 is a Mesh too, with its own line material.
+  const meshes = (group: Group) => group.children.filter((o): o is ThreeMesh => o instanceof ThreeMesh && (o as ThreeMesh).material instanceof MeshBasicMaterial);
+  const hex = (css: string) => new Color(css).getHex();
+
+  /*
+   * MUTATION PROOF, run: the see-through copy drawn with the ordinary depth
+   * test (`depthFunc: GreaterDepth` dropped): `expected 3 to be 6 //
+   * Object.is equality` (LessEqualDepth, not GreaterDepth): it would draw
+   * over the visible piece too.
+   */
+  it('what is down is muted, the next piece is wood, and a copy of its top shows only where something hides it', () => {
+    const group = new Group();
+    syncScene(group, arraysOf(['A', 'A', 'A'], 'p1'), C);
+    const mats = meshes(group).map((m) => m.material as MeshBasicMaterial);
+    const ghosts = mats.filter((m) => m.transparent);
+    expect(ghosts).toHaveLength(1);
+    expect(ghosts[0]!.depthFunc).toBe(GreaterDepth);
+    expect(ghosts[0]!.opacity).toBe(0.5);
+    // The shared top (the pieces down) in --slab-side; the next piece's top in --track-fill.
+    expect(mats.some((m) => m.color.getHex() === hex(C.slabSide) && m.depthTest)).toBe(true);
+    expect(mats.filter((m) => m.color.getHex() === hex(C.trackFill) && !m.transparent)).toHaveLength(1);
+  });
+
+  it('without a next piece nothing is muted and nothing is see-through', () => {
+    const group = new Group();
+    syncScene(group, arraysOf(['A', 'A', 'A']), C);
+    const mats = meshes(group).map((m) => m.material as MeshBasicMaterial);
+    expect(mats.some((m) => m.transparent)).toBe(false);
+    expect(mats.filter((m) => m.color.getHex() === hex(C.trackFill))).toHaveLength(1);
+  });
+
+  /*
+   * MUTATION PROOF, run: `boxOf` ignores the ids (always the whole scene):
+   * `expected 0.6751526192482558 to be greater than 1`, the run's first
+   * piece back in view.
+   */
+  it('a step frames the pieces it names: their box fills the view, the rest may not', () => {
+    const arrays = arraysOf(['A', 'A', 'A', 'A', 'A', 'A'], 'p5');
+    const box = boxOf(arrays, ['p4', 'p5']);
+    const pose = framePose(box, 16 / 9, 35);
+    const cam = new PerspectiveCamera(FOV_DEG, 16 / 9, 1, 1e6);
+    cam.up.set(0, 0, 1);
+    cam.position.copy(pose.position);
+    cam.lookAt(pose.target);
+    cam.updateMatrixWorld();
+    cam.updateProjectionMatrix();
+    const ndcX = (x: number) => cam.position.clone().set(x, 0, 6).project(cam).x;
+    // The framed pieces sit inside the view; the first piece of the run, 576mm away, does not.
+    expect(Math.abs(ndcX(box.min[0]))).toBeLessThanOrEqual(1);
+    expect(Math.abs(ndcX(box.max[0]))).toBeLessThanOrEqual(1);
+    expect(Math.abs(ndcX(0))).toBeGreaterThan(1);
+    // Unknown ids frame the whole scene.
+    expect(boxOf(arrays, ['nope'])).toBe(arrays.bounds);
+    expect((box.max[0] - box.min[0]) / 144).toBeLessThan(3);
   });
 });
