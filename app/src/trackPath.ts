@@ -98,6 +98,8 @@ export interface GapMark {
   readonly b: readonly [number, number];
   /** The engine's figure for this weld. Not recomputed from a and b. */
   readonly gapMm: number;
+  /** Which weld, so the 3D view can place the mark on its level (3D plan, eng O3). */
+  readonly weld: number;
 }
 
 export interface GapAnnotation {
@@ -140,7 +142,7 @@ export function gapMarks(
     const a = byPort.get(`${w.a.pieceId}#${w.a.port}`);
     const b = byPort.get(`${w.b.pieceId}#${w.b.port}`);
     if (!a || !b) return [];
-    return [{ a: [a.x, a.y] as const, b: [b.x, b.y] as const, gapMm: r.gapMm }];
+    return [{ a: [a.x, a.y] as const, b: [b.x, b.y] as const, gapMm: r.gapMm, weld: r.weld }];
   });
 }
 
@@ -184,7 +186,8 @@ export function weldTargets(
  * yields a usable direction, and an exactly-zero vector falls back to up.
  */
 export function gapAnnotations(
-  marks: readonly GapMark[],
+  // Only where the two ends are and the figure; the weld is for the 3D view.
+  marks: readonly Pick<GapMark, 'a' | 'b' | 'gapMm'>[],
   leaderMm: number,
   labelGapMm: number,
 ): readonly GapAnnotation[] {
