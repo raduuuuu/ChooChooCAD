@@ -1802,6 +1802,7 @@
 .viewer3d-howto {
   z-index: 1;
   background: var(--floor);
-  padding: 2px var(--s1);
+  /* Half a step above and below, so the backing hugs one line (design review FINDING-008). */
+  padding: calc(var(--s1) / 2) var(--s1);
   border-radius: 3px;
 }
