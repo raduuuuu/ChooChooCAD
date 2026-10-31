@@ -20,6 +20,10 @@
  *   groove width, 0.2mm proud of the top. A part with no published groove
  *   width gets a bare plank, as in 2D.
  * - MARKS SIT ON THEIR WOOD (eng D21, D25; design 16A): each from its record.
+ * - BUILD MODE'S NEXT PIECE (docs/plan/2026-10-31-build-mode.md, D23, D42):
+ *   `highlight` routes one piece's top, sides, grooves and beam into `next`,
+ *   with its top edges as lines, and every other piece is drawn without
+ *   grooves, so the viewer can mute what is down and ink what comes next.
  *
  * Coordinates are the plan's millimetres with z up. The viewer sets its
  * camera's up vector to z rather than this file swapping axes.
@@ -60,7 +64,7 @@ export interface PortKey {
 
 export interface MarkInput {
   /** Which mark: the viewer draws the canvas's own glyph and colour for it (design 14A). */
-  readonly kind: 'gap' | 'refused' | 'adapter' | 'clash' | 'overlap' | 'level' | 'third';
+  readonly kind: 'gap' | 'refused' | 'adapter' | 'clash' | 'overlap' | 'level' | 'third' | 'join';
   readonly at: readonly [number, number];
   readonly source: MarkSource;
   /** A gap's figure in mm, drawn as the 2D canvas's dimension text. */
@@ -89,6 +93,8 @@ export interface SceneInput {
   readonly marks?: readonly MarkInput[];
   /** The table's outline in plan millimetres (`tableFit(...).outline`), and whether track hangs off it. */
   readonly table?: { readonly outline: readonly (readonly [number, number])[]; readonly overhang: boolean } | null;
+  /** Build mode's next piece (D23): drawn into `next`, and every other piece without grooves (D42). */
+  readonly highlight?: string;
 }
 
 export interface SceneArrays {
@@ -103,7 +109,16 @@ export interface SceneArrays {
   readonly marks: readonly PlacedMark[];
   /** Each piece's run of triangle indices in `plankTop`, for build mode's highlight (eng D20). */
   readonly pieceRanges: ReadonlyMap<string, { readonly start: number; readonly count: number }>;
-  readonly bounds: { readonly min: readonly [number, number, number]; readonly max: readonly [number, number, number] };
+  readonly bounds: Box;
+  /** Each piece's own box, for framing a build step on the next piece (D17, D34). */
+  readonly pieceBounds: ReadonlyMap<string, Box>;
+  /** The highlighted piece, apart from the rest, with its top's outline (D42). Null without `highlight`. */
+  readonly next: { readonly top: Mesh; readonly side: Mesh; readonly grooves: Mesh; readonly beams: Mesh; readonly edge: Lines } | null;
+}
+
+export interface Box {
+  readonly min: readonly [number, number, number];
+  readonly max: readonly [number, number, number];
 }
 
 /** How far painted grooves stand proud of the plank top, mm (eng D22). */
@@ -236,14 +251,22 @@ function fractionAt(s: Segment, x: number, y: number): number {
 
 export function buildScene(input: SceneInput): SceneArrays {
   const { segments, ports, partOf, riseMm, plankMm } = input;
-  const top = new Builder();
-  const side = new Builder();
-  const grooves = new Builder();
-  const beams = new Builder();
+  const mainTop = new Builder();
+  const mainSide = new Builder();
+  const mainGrooves = new Builder();
+  const mainBeams = new Builder();
   const footprints = new Builder();
   const pieceRanges = new Map<string, { start: number; count: number }>();
+  const highlight = input.highlight;
+  const nTop = new Builder();
+  const nSide = new Builder();
+  const nGrooves = new Builder();
+  const nBeams = new Builder();
+  const edge: number[] = [];
   const lo = [Infinity, Infinity, Infinity];
   const hi = [-Infinity, -Infinity, -Infinity];
+  const pieceBox = new Map<string, { min: [number, number, number]; max: [number, number, number] }>();
+  let boxOf: { min: [number, number, number]; max: [number, number, number] } | null = null;
   const grow = (x: number, y: number, z: number) => {
     lo[0] = Math.min(lo[0]!, x);
     lo[1] = Math.min(lo[1]!, y);
@@ -251,6 +274,14 @@ export function buildScene(input: SceneInput): SceneArrays {
     hi[0] = Math.max(hi[0]!, x);
     hi[1] = Math.max(hi[1]!, y);
     hi[2] = Math.max(hi[2]!, z);
+    if (boxOf) {
+      boxOf.min[0] = Math.min(boxOf.min[0], x);
+      boxOf.min[1] = Math.min(boxOf.min[1], y);
+      boxOf.min[2] = Math.min(boxOf.min[2], z);
+      boxOf.max[0] = Math.max(boxOf.max[0], x);
+      boxOf.max[1] = Math.max(boxOf.max[1], y);
+      boxOf.max[2] = Math.max(boxOf.max[2], z);
+    }
   };
   /** The underside's height at each end of every segment, keyed by the segment. */
   const undersides = new Map<Segment, readonly [number, number]>();
@@ -263,6 +294,17 @@ export function buildScene(input: SceneInput): SceneArrays {
 
   for (const s of segments) {
     const part = s.pieceId !== undefined ? partOf(s.pieceId) : undefined;
+    const isNext = highlight !== undefined && s.pieceId === highlight;
+    const top = isNext ? nTop : mainTop;
+    const side = isNext ? nSide : mainSide;
+    const grooves = isNext ? nGrooves : mainGrooves;
+    const beams = isNext ? nBeams : mainBeams;
+    // Only the next piece keeps its grooves in build mode (D42).
+    const painted = part?.grooveWidthMm !== undefined && (highlight === undefined || isNext);
+    if (s.pieceId !== undefined) {
+      boxOf = pieceBox.get(s.pieceId) ?? { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
+      pieceBox.set(s.pieceId, boxOf);
+    } else boxOf = null;
     const width = part?.plankWidthMm ?? 40;
     const half = width / 2;
     const [l0, l1] = endLevels(s, byPiece);
@@ -293,7 +335,7 @@ export function buildScene(input: SceneInput): SceneArrays {
       side.quad(side.vertex(...L(a, a.zb)), side.vertex(...L(a, a.zt)), side.vertex(...L(b, b.zt)), side.vertex(...L(b, b.zb)));
       side.quad(side.vertex(...R(a, a.zt)), side.vertex(...R(a, a.zb)), side.vertex(...R(b, b.zb)), side.vertex(...R(b, b.zt)));
       // Painted grooves (eng D22): none when nobody published a groove width.
-      if (part?.grooveWidthMm !== undefined) {
+      if (painted && part?.grooveWidthMm !== undefined) {
         const gw = part.grooveWidthMm / 2;
         for (const off of [part.gaugeWidthMm / 2, -part.gaugeWidthMm / 2]) {
           const g = (r: typeof a, o: number) =>
@@ -313,6 +355,14 @@ export function buildScene(input: SceneInput): SceneArrays {
           [r.p.x + r.nx * w * sgn, r.p.y + r.ny * w * sgn, FOOTPRINT_LIFT_MM] as const;
         footprints.quad(footprints.vertex(...f(a, wa, 1)), footprints.vertex(...f(a, wa, -1)), footprints.vertex(...f(b, wb, -1)), footprints.vertex(...f(b, wb, 1)));
       }
+    }
+    // The next piece's top outline (D42): both long edges and both ends.
+    if (isNext) {
+      const at = (r: (typeof ring)[number], sgn: 1 | -1) => [r.p.x + r.nx * half * sgn, r.p.y + r.ny * half * sgn, r.zt + GROOVE_LIFT_MM] as const;
+      for (let i = 0; i + 1 < ring.length; i++) {
+        for (const sgn of [1, -1] as const) edge.push(...at(ring[i]!, sgn), ...at(ring[i + 1]!, sgn));
+      }
+      for (const r of [ring[0]!, ring[ring.length - 1]!]) edge.push(...at(r, 1), ...at(r, -1));
     }
     // End caps.
     for (const r of [ring[0]!, ring[ring.length - 1]!]) {
@@ -341,7 +391,7 @@ export function buildScene(input: SceneInput): SceneArrays {
       beams.quad(a3, a0, b0, b3);
       grow(e.p.x, e.p.y, zu);
     }
-    if (s.pieceId !== undefined) {
+    if (s.pieceId !== undefined && !isNext) {
       const was = pieceRanges.get(s.pieceId);
       const count = top.triangles - startIdx;
       // A multi-road piece's roads are consecutive segments, so its range is one run.
@@ -349,6 +399,9 @@ export function buildScene(input: SceneInput): SceneArrays {
       else pieceRanges.set(s.pieceId, { start: startIdx, count });
     }
   }
+
+  // The table and the rest grow the scene's box, never the last piece's.
+  boxOf = null;
 
   // Seams: across the plank top at each joint whose two ends meet (as 2D's `seamLines`).
   const portAt = new Map(ports.map((p) => [`${p.pieceId}#${p.port}`, p]));
@@ -418,16 +471,23 @@ export function buildScene(input: SceneInput): SceneArrays {
     }
   }
 
+  const finite = (b: { min: [number, number, number]; max: [number, number, number] }): Box =>
+    b.min[0] === Infinity ? { min: [0, 0, 0], max: [0, 0, 0] } : b;
   return {
-    plankTop: top.done(),
-    plankSide: side.done(),
-    grooves: grooves.done(),
-    beams: beams.done(),
+    plankTop: mainTop.done(),
+    plankSide: mainSide.done(),
+    grooves: mainGrooves.done(),
+    beams: mainBeams.done(),
     footprints: footprints.done(),
     seams: { positions: new Float32Array(seamPos) },
     slab,
     marks,
     pieceRanges,
+    pieceBounds: new Map([...pieceBox].map(([id, b]) => [id, finite(b)])),
+    next:
+      highlight === undefined
+        ? null
+        : { top: nTop.done(), side: nSide.done(), grooves: nGrooves.done(), beams: nBeams.done(), edge: { positions: new Float32Array(edge) } },
     bounds: {
       min: lo[0] === Infinity ? [0, 0, 0] : [lo[0]!, lo[1]!, lo[2]!],
       max: hi[0] === -Infinity ? [0, 0, 0] : [hi[0]!, hi[1]!, hi[2]!],

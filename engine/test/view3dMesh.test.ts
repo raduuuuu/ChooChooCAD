@@ -34,7 +34,7 @@ const run = (ids: readonly string[], turn: 'left' | 'right' = 'left'): Graph => 
   anchors: new Map([['p0', { pos: fromInt(0), heading: 0 }]]),
 });
 
-function scene(g: Graph, extra: { marks?: readonly MarkInput[]; table?: Parameters<typeof buildScene>[0]['table'] } = {}) {
+function scene(g: Graph, extra: { marks?: readonly MarkInput[]; table?: Parameters<typeof buildScene>[0]['table']; highlight?: string } = {}) {
   const r = renderGraph(g, ports, resolve, placeAll(g, ports));
   const partOf = (id: string) => resolve(g.pieces.find((p) => p.pieceId === id)!.partId);
   return { r, s: buildScene({ segments: r.segments, ports: r.ports, welds: g.welds, partOf, riseMm: RISE, plankMm: PLANK, ...extra }) };
@@ -192,5 +192,76 @@ describe('marks sit on their wood (eng D21, D25, design 16A)', () => {
     const { s } = scene(g, { marks });
     // Halfway along the ramp: underside 32, top 44.
     expect(s.marks[0]!.at[2]).toBeCloseTo(RISE / 2 + PLANK, 6);
+  });
+});
+
+describe("build mode's next piece (build mode plan D23, D42)", () => {
+  /*
+   * MUTATION PROOF, run: `isNext` always false (the next piece drawn with
+   * the rest): `expected 0 to be greater than 0`.
+   */
+  it('the highlighted piece is drawn apart, top, sides and grooves, and the rest keep the remaining triangles', () => {
+    const g = run(['A', 'A', 'A']);
+    const plain = scene(g).s;
+    const { s } = scene(g, { highlight: 'p1' });
+    expect(s.next).not.toBe(null);
+    expect(s.next!.top.indices.length).toBeGreaterThan(0);
+    expect(s.next!.side.indices.length).toBeGreaterThan(0);
+    expect(s.next!.grooves.indices.length).toBeGreaterThan(0);
+    // Its top is no longer in the shared top, and every other triangle is.
+    expect(s.plankTop.indices.length + s.next!.top.indices.length).toBe(plain.plankTop.indices.length);
+    expect(s.pieceRanges.has('p1')).toBe(false);
+    // Its top sits between 144 and 288 along the run.
+    const xs = verts(s.next!.top).map((v) => round(v[0]));
+    expect(Math.min(...xs)).toBe(144);
+    expect(Math.max(...xs)).toBe(288);
+  });
+
+  /*
+   * MUTATION PROOF, run: `painted` ignores the highlight (every piece keeps
+   * its grooves): `expected 24 to be +0 // Object.is equality`.
+   */
+  it('every other piece loses its grooves; without a highlight nothing changes', () => {
+    const g = run(['A', 'A', 'A']);
+    expect(scene(g, { highlight: 'p1' }).s.grooves.indices.length).toBe(0);
+    const plain = scene(g).s;
+    expect(plain.next).toBe(null);
+    expect(plain.grooves.indices.length).toBeGreaterThan(0);
+  });
+
+  it("the next piece's top is outlined: both long edges and both ends, just proud of the top", () => {
+    const { s } = scene(run(['A']), { highlight: 'p0' });
+    const e = s.next!.edge.positions;
+    // A straight: one station pair, two long edges and two ends, two points each.
+    expect(e.length / 6).toBe(4);
+    for (let i = 2; i < e.length; i += 3) expect(round(e[i]!)).toBe(round(PLANK + GROOVE_LIFT_MM));
+  });
+
+  /*
+   * MUTATION PROOF, run: `grow` stops widening the piece's own box
+   * (`if (false && boxOf)`): `expected [ +0, +0, +0 ] to deeply equal
+   * [ 144, -20, +0 ]`, every box left empty and read as the origin.
+   */
+  it('each piece has its own box, for framing a step on it', () => {
+    const { s } = scene(run(['A', 'A']));
+    expect(s.pieceBounds.get('p1')!.min.map(round)).toEqual([144, -20, 0]);
+    expect(s.pieceBounds.get('p1')!.max.map(round)).toEqual([288, 20, PLANK]);
+  });
+
+  /*
+   * MUTATION PROOF, run: `boxOf = null` after the segment loop removed (the
+   * slab then grows the last piece's box): `expected [ -50, -300, -20 ] to
+   * deeply equal [ 144, -20, +0 ]`.
+   */
+  it("the table never widens the last piece's box", () => {
+    const table = { outline: [[-50, -300], [900, -300], [900, 300], [-50, 300]] as [number, number][], overhang: false };
+    const { s } = scene(run(['A', 'A']), { table });
+    expect(s.pieceBounds.get('p1')!.min.map(round)).toEqual([144, -20, 0]);
+  });
+
+  it('a join ring sits on the end it marks, at that end\'s height (D43)', () => {
+    const g = run(['A', 'N', 'A']);
+    const { s } = scene(g, { marks: [{ kind: 'join', at: [360, 0], source: { kind: 'weld', a: { pieceId: 'p1', port: 1 } } }] });
+    expect(s.marks[0]).toEqual({ kind: 'join', at: [360, 0, RISE + PLANK] });
   });
 });

@@ -1806,3 +1806,14 @@
   padding: calc(var(--s1) / 2) var(--s1);
   border-radius: 3px;
 }
+
+/* Build mode's close-up frame and its line to the piece (build mode plan, D34). */
+.viewer3d-inset {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.viewer3d-inset rect { fill: none; stroke: var(--ink); stroke-width: 1.5px; }
+.viewer3d-inset line { stroke: var(--ink); stroke-width: 1px; }
