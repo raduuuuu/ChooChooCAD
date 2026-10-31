@@ -1724,7 +1724,8 @@
 }
 .view-switch { display: inline-flex; }
 .view-switch button,
-.view-reset {
+.view-reset,
+.build-it {
   min-height: 36px;
   min-width: 44px;
   padding: 0 var(--s3);
@@ -1738,8 +1739,10 @@
   cursor: pointer;
 }
 .view-switch button:hover,
-.view-reset:hover { border-color: var(--ink-soft); }
-.view-reset { border-radius: 3px; }
+.view-reset:hover,
+.build-it:hover { border-color: var(--ink-soft); }
+.view-reset,
+.build-it { border-radius: 3px; }
 .view-switch button:first-child { border-radius: 3px 0 0 3px; }
 .view-switch button:last-child { border-radius: 0 3px 3px 0; margin-inline-start: -1px; }
 /*
@@ -1761,7 +1764,8 @@
 }
 @media (pointer: coarse) {
   .view-switch button,
-  .view-reset { min-height: 44px; }
+  .view-reset,
+  .build-it { min-height: 44px; }
 }
 /* The viewer fills the canvas's place; one finger orbits it (design 23A). */
 .viewer3d-area { background: var(--floor); }
@@ -1890,7 +1894,6 @@
   .build-mode { --build-name: 32px; --build-code: 24px; --build-meta: 15px; }
   .build-label, .build-pull-col { padding: var(--s4); }
 }
-.build-it { min-height: 36px; }
 .build-failure-action { position: absolute; inset-inline: 0; bottom: var(--s5); display: flex; justify-content: center; }
 
 /*
