@@ -1172,6 +1172,8 @@ export function App() {
                 disabled={overLimit}
                 // The picked piece's button takes a touch drag (see usePaletteDrag).
                 data-picked={ghost?.partId === part.id ? '' : undefined}
+                // The pick is said, not only drawn: "pressed" while its ghost is out.
+                aria-pressed={ghost?.partId === part.id}
                 // The full code and name, which the card may cut short (11A, eng D5).
                 title={`${shortCode(part)} ${part.name}. Double-click to place directly`}
                 aria-label={[

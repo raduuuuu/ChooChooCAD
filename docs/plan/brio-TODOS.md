@@ -93,6 +93,10 @@ Lillabo). Re-measure the Lillabo Ys first.
 
 ## P3 — The picked part's card looks like every other card (filed by /plan-design-review 2026-10-30)
 
+**DONE (2026-10-31).** The picked card's edge is 2px of --ink (its 1px border
+plus a 1px inset line, so the row stays 36px), and the card is `aria-pressed`
+while its ghost is out. Pinned by `app/src/pickedCard.dom.test.tsx`.
+
 **What:** Clicking a part puts a ghost on the canvas, but its card has no look of its own (`data-picked` only sets touch-action).
 **Why:** With a drawing on every card it will be less obvious which one you picked.
 **Pros:** The pick is visible where it was made. **Cons:** One more card state to test against the dotted (unverified) and dashed (unowned) borders.
@@ -100,6 +104,10 @@ Lillabo). Re-measure the Lillabo Ys first.
 **Depends on:** nothing.
 
 ## P2 — Unverified cards spend the verdict red (filed by /plan-design-review 2026-10-30, from the Codex review)
+
+**DONE (2026-10-31).** The dotted border, the asterisk and the shelves'
+"unverified" word are all --ink now (the word keeps its weight). --fail is
+back to meaning only a layout that cannot be built.
 
 **What:** `.piece.is-unverified` draws its dotted border and asterisk in `--fail`, and the brand shelves' "unverified" word is `--fail` too.
 **Why:** DESIGN.md rule 1: the palette gets no colour; `--fail` means a layout cannot be built. Most new BRIO parts are unverified seeds, so the red now dominates the list.
