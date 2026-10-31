@@ -1742,11 +1742,22 @@
 .view-reset { border-radius: 3px; }
 .view-switch button:first-child { border-radius: 3px 0 0 3px; }
 .view-switch button:last-child { border-radius: 0 3px 3px 0; margin-inline-start: -1px; }
+/*
+ * PRESSED: an --ink edge two pixels deep (the border plus an inset line), so
+ * the button keeps its size; a 2px border made it 3px wider and moved its
+ * label (design review FINDING-004). Raised over its neighbour's shared edge,
+ * and a focused button raised over that, so a focus ring is never hidden.
+ */
 .view-switch button[aria-pressed="true"] {
-  border: 2px solid var(--ink);
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
   font-weight: 600;
   position: relative;
   z-index: 1;
+}
+.view-switch button:focus-visible {
+  position: relative;
+  z-index: 2;
 }
 @media (pointer: coarse) {
   .view-switch button,
