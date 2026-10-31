@@ -95,6 +95,30 @@ Lillabo). Re-measure the Lillabo Ys first.
 
 **Depends on / blocked by:** the multi-road type (PR A of the plan).
 
+## P2 — The raised level reads faintly from the 3D view's starting angle (filed by /design-review 2026-10-31, D1)
+
+**What:** From the start pose (35° up, design 21A) a raised run 64mm above a metre-wide layout reads as a thin strip in the distance; height is clear only after turning the view.
+**Why:** Showing the levels apart is the reason the 3D view exists (3D plan, 0A).
+**Pros:** The first five seconds would show it. **Cons:** Reopens an approved decision (21A); a lower angle shows less of the plan.
+**Context:** Try 25° for layouts with two levels only, or keep 35° and rely on the footprint cue. Screenshots in the design audit of 2026-10-31.
+**Effort:** human S / CC S. **Depends on:** the owner's call on 21A.
+
+## P3 — A missing colour token draws the 3D scene in black (filed by /design-review 2026-10-31, D2)
+
+**What:** `tokenColors` in `app/src/Viewer3D.tsx` falls back to `#000` when a CSS token is missing.
+**Why:** A renamed token would paint a surface pure black, outside the palette (DESIGN.md rule 1), with no error.
+**Pros:** A rename fails loudly. **Cons:** None beyond a console line.
+**Context:** Log the missing token name once with `console.error`, and fall back to `--ink`'s value.
+**Effort:** human S / CC S. **Depends on:** nothing.
+
+## P2 — Part-count badges are cut off at the rail's edge (filed by /design-review 2026-10-31, D3)
+
+**What:** The dark count badges on part cards ("2", "1") sit half outside the rail's right edge and are clipped in every screenshot at 1280-1440px.
+**Why:** A count you can only half read is a count you misread.
+**Pros:** A visible fix on every screen. **Cons:** 2D rail, outside the 3D review.
+**Context:** `.piece-count` in `app/src/app.css`; the card is full width since part previews (eng D5).
+**Effort:** human S / CC S. **Depends on:** nothing.
+
 ## P3 — The text-selection colour has no token (filed by /plan-design-review 2026-10-31, Codex design voice)
 
 **What:** `::selection` sets `background: #e4d6ba` directly in `app/src/tokens.css:269`, not through a named token with its measured ratio.

@@ -679,8 +679,21 @@ export function App() {
     if (armed) dispatch({ kind: 'clickPort', ref: armed });
     setJoiningStarted(false);
   };
+  /*
+   * FOCUS FOLLOWS THE SWITCH (design review FINDING-002). The two views are
+   * different trees, so the button pressed is gone once the view changes and
+   * focus fell to the page. Set by the switch only, so a part pick that
+   * returns to 2D leaves focus where the pick put it.
+   */
+  const focusSwitch = useRef(false);
+  useEffect(() => {
+    if (!focusSwitch.current) return;
+    focusSwitch.current = false;
+    document.querySelector<HTMLButtonElement>('.view-switch button[aria-pressed="true"]')?.focus();
+  }, [view]);
   const showView = (v: View) => {
     if (v === view) return;
+    focusSwitch.current = true;
     if (v === '3d') {
       if (ghost) dispatch({ kind: 'cancelGhost' });
       if (joining) cancelJoin();
@@ -688,23 +701,27 @@ export function App() {
     setViewState(v);
     saveView(v);
   };
-  /* The switch and Reset, in the view's top-end corner (design 1A, 2A). */
+  /*
+   * The switch and Reset, in the view's top-end corner (design 1A, 2A). Reset
+   * comes BEFORE the switch, so the switch keeps its place against the corner:
+   * appended after it, Reset pushed the switch 106px inward on pressing 3D, and
+   * a quick second click landed on Reset (design review FINDING-001).
+   */
   const viewSwitch = (
-    <div className="view-corner">
-      <div className="view-switch" role="group" aria-label="View">
-        <button aria-pressed={view === '2d'} onClick={() => showView('2d')}>
-          2D
-        </button>
-        <button aria-pressed={view === '3d'} onClick={() => showView('3d')}>
-          3D
-        </button>
-      </div>
-      {view === '3d' && (
-        <button className="view-reset" onClick={() => setResetSignal((n) => n + 1)}>
-          Reset view
-        </button>
-      )}
+    <div className="view-switch" role="group" aria-label="View">
+      <button aria-pressed={view === '2d'} onClick={() => showView('2d')}>
+        2D
+      </button>
+      <button aria-pressed={view === '3d'} onClick={() => showView('3d')}>
+        3D
+      </button>
     </div>
+  );
+  // Shown by the 3D panel only while there is a view to reset (design review FINDING-005).
+  const resetButton = (
+    <button className="view-reset" onClick={() => setResetSignal((n) => n + 1)}>
+      Reset view
+    </button>
   );
   const startJoin = useCallback(() => {
     setJoiningStarted(true);
@@ -1330,6 +1347,7 @@ export function App() {
             label={sceneLabel}
             resetSignal={resetSignal}
             corner={viewSwitch}
+            reset={resetButton}
           />
         ) : (
           <TrackCanvas
@@ -1374,7 +1392,7 @@ export function App() {
             levelMismatches={levelMarks.mismatches}
             thirdLevels={levelMarks.thirds}
             emptyAction={emptyAction}
-            corner={viewSwitch}
+            corner={<div className="view-corner">{viewSwitch}</div>}
           />
         )}
       </main>

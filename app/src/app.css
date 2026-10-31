@@ -1728,21 +1728,36 @@
   min-height: 36px;
   min-width: 44px;
   padding: 0 var(--s3);
+  /* Paper, not transparent like the rail's buttons: these sit over the scene. */
   background: var(--paper);
-  border: 1px solid var(--ink-soft);
+  /* The app's outline button: --rule at rest, --ink-soft on hover (design review FINDING-003). */
+  border: 1px solid var(--rule);
   color: var(--ink);
   font: inherit;
   font-size: 14px;
   cursor: pointer;
 }
+.view-switch button:hover,
+.view-reset:hover { border-color: var(--ink-soft); }
 .view-reset { border-radius: 3px; }
 .view-switch button:first-child { border-radius: 3px 0 0 3px; }
 .view-switch button:last-child { border-radius: 0 3px 3px 0; margin-inline-start: -1px; }
+/*
+ * PRESSED: an --ink edge two pixels deep (the border plus an inset line), so
+ * the button keeps its size; a 2px border made it 3px wider and moved its
+ * label (design review FINDING-004). Raised over its neighbour's shared edge,
+ * and a focused button raised over that, so a focus ring is never hidden.
+ */
 .view-switch button[aria-pressed="true"] {
-  border: 2px solid var(--ink);
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
   font-weight: 600;
   position: relative;
   z-index: 1;
+}
+.view-switch button:focus-visible {
+  position: relative;
+  z-index: 2;
 }
 @media (pointer: coarse) {
   .view-switch button,
@@ -1787,6 +1802,7 @@
 .viewer3d-howto {
   z-index: 1;
   background: var(--floor);
-  padding: 2px var(--s1);
+  /* Half a step above and below, so the backing hugs one line (design review FINDING-008). */
+  padding: calc(var(--s1) / 2) var(--s1);
   border-radius: 3px;
 }

@@ -8,7 +8,7 @@
  * loaded only when this panel first shows a layout.
  */
 
-import { Component, lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Component, lazy, Suspense, useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import type { SceneInput } from '../../engine/src/view3d/mesh.js';
 import type { Viewer3DProps } from './Viewer3D.js';
 
@@ -69,14 +69,20 @@ export interface View3DPanelProps {
   readonly tableNote: { readonly text: string; readonly fits: boolean } | null;
   readonly label: string;
   readonly resetSignal: number;
-  /** The switch and Reset, drawn in the frame's corner (design 1A, 2A). */
+  /** The 2D/3D switch, drawn in the frame's corner (design 1A). */
   readonly corner: ReactNode;
+  /**
+   * The Reset view button, shown before the switch only while a view is drawn:
+   * on the empty, too-big and failed states there is nothing to reset
+   * (design 2A; design review FINDING-005).
+   */
+  readonly reset?: ReactNode;
   /** Reloading the page, for a second failed download (eng D13). */
   readonly reload?: () => void;
 }
 
 export function View3DPanel(props: View3DPanelProps) {
-  const { input, pieceCount, segmentCount, ceiling, allSaved, emptyAction, tableNote, label, resetSignal, corner } = props;
+  const { input, pieceCount, segmentCount, ceiling, allSaved, emptyAction, tableNote, label, resetSignal, corner, reset } = props;
   const [attempt, setAttempt] = useState(0);
   const Viewer = useMemo(() => loadViewer(), [attempt]);
   const [failure, setFailure] = useState<{ kind: Failure; downloads: number } | null>(null);
@@ -91,6 +97,10 @@ export function View3DPanel(props: View3DPanelProps) {
   };
   const onContextLost = () => setFailure({ kind: 'lost', downloads });
 
+  // A view is drawn (or loading): not empty, not too big, not failed.
+  const live = pieceCount > 0 && segmentCount <= ceiling && failure === null;
+  // The how-to also describes the canvas, so its keys are announced (design review FINDING-006).
+  const howToId = useId();
   let body: ReactNode;
   if (pieceCount === 0) {
     body = (
@@ -152,7 +162,7 @@ export function View3DPanel(props: View3DPanelProps) {
       </div>
     );
   } else {
-    const viewerProps: Viewer3DProps = { input, label, resetSignal, onContextLost };
+    const viewerProps: Viewer3DProps = { input, label, resetSignal, onContextLost, describedBy: howToId };
     body = (
       <Boundary key={attempt} onError={onError}>
         <Suspense fallback={<Loading />}>
@@ -166,11 +176,17 @@ export function View3DPanel(props: View3DPanelProps) {
     <div className="canvas-frame">
       <div className="canvas-area viewer3d-area">
         {body}
-        {pieceCount > 0 && segmentCount <= ceiling && failure === null && (
-          <p className="viewer3d-howto">3D view: drag to turn, scroll or pinch to zoom. Pick a part to place it in 2D.</p>
+        {live && (
+          <p className="viewer3d-howto" id={howToId}>
+            3D view: drag to turn, scroll or pinch to zoom. Keys: arrows turn, + and &minus; zoom, 0 resets. Pick a part
+            to place it in 2D.
+          </p>
         )}
         {tableNote && <p className={`table-caption${tableNote.fits ? '' : ' is-over'}`}>{tableNote.text}</p>}
-        {corner}
+        <div className="view-corner">
+          {live && reset}
+          {corner}
+        </div>
       </div>
     </div>
   );
