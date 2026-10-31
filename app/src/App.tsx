@@ -49,7 +49,7 @@ import { placeAll } from '../../engine/src/graph/frames.js';
 import { levelOf, portsOf, type Piece as GPiece, type Port, type PortRef } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
 import { bendRender, bentShifts } from '../../engine/src/graph/bendPose.js';
-import { badJointMarks, gapMarks, joinSuggestions, seamLines, weldTargets, type JoinSuggestion } from './trackPath.js';
+import { joinSuggestions, type GapMark, seamLines, weldTargets, type JoinSuggestion } from './trackPath.js';
 import { useEditorKeys } from './useEditorKeys.js';
 import { usePaletteDrag, type CanvasProbe } from './usePaletteDrag.js';
 import { UndoControl } from './UndoControl.js';
@@ -75,6 +75,7 @@ import { AppName } from './AppName.js';
 import { previews } from './previewGeometry.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
 import { JoinStart, VerdictLine, VerdictScope } from './VerdictLine.js';
+import { markLists } from './markLists.js';
 import { ghostFit, joinRefusal, otherLevelEndNear, shiftMm, snapRunMove, type JoinRefusal } from './layoutModel.js';
 import { ghostKeys } from './ghostKeys.js';
 import { InventoryPanel } from './Inventory.js';
@@ -167,6 +168,10 @@ function BrandGroup({ brand, children }: { brand: Brand; children: ReactNode }) 
 }
 
 const capitalise = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Stable empties, so a layout with no marks does not hand the canvas a new array each render. */
+const NO_GAPS: readonly GapMark[] = [];
+const NO_POINTS: readonly (readonly [number, number])[] = [];
 
 export function App() {
   /*
@@ -726,101 +731,39 @@ export function App() {
   // Every joint, where the canvas draws it, so a click can break it (U5).
   const welds = useMemo(() => weldTargets(graph.welds, drawn.ports), [graph, drawn]);
 
-  // Which welds the canvas annotates: see `gapMarks` in trackPath.ts.
-  const gaps = useMemo(
-    // A loop drawn bent has no gap to mark: its joints take it up.
+  /*
+   * THE VERDICT'S MARKS, 2D AND 3D, decided in one place (`markLists`, 3D plan
+   * eng E6/O2): gaps, refused joints at both ends, adapter diamonds, the two
+   * level faults, each left out where a red mark holds the spot. The canvas
+   * list is what these memos always drew; the scene list keeps each mark's
+   * source and hides only behind red on its own level. Above the drawing
+   * ceiling only gaps and clash rings are listed, as before.
+   */
+  const marks = useMemo(
     () =>
       result
-        ? gapMarks(
-            result.residuals.filter((r) => !shifts.has(graph.welds[r.weld]?.a.pieceId ?? '')),
+        ? markLists(
+            {
+              ...result,
+              // A loop drawn bent has no gap to mark: its joints take it up.
+              residuals: result.residuals.filter((r) => !shifts.has(graph.welds[r.weld]?.a.pieceId ?? '')),
+            },
             graph.welds,
             drawn.ports,
+            render.segments.length <= CANVAS_SEGMENT_CEILING,
           )
-        : [],
-    [result, drawn, graph, shifts],
+        : null,
+    [result, graph, drawn, render, shifts],
   );
-
-  /*
-   * THE REFUSED JOINTS, DRAWN.
-   *
-   * `findWeldPolarityViolations` refuses a joint where two ends of the same
-   * kind meet, and the verdict says so in words -- but until this existed the
-   * canvas marked nothing, so "1 joint puts two ends of the same kind
-   * together" pointed nowhere. An overlap got a red ring and a bad joint got
-   * a sentence, which is the same split between the words and the picture
-   * that the port polarity drawing was added to close.
-   *
-   * Resolved the way `gapMarks` resolves a weld. `render.ports` carries
-   * claimed ports too (the canvas filters to free ones only when drawing
-   * dots), so a welded end is still found here.
-   *
-   * THE MARKER GOES AT END `a`, AND THAT IS NOT ALWAYS BOTH ENDS. For a tree
-   * weld the two ends coincide, so one marker is the whole truth. A CLOSING
-   * weld can have a gap -- that is precisely what the `gaps` memo above
-   * exists to draw -- and then end `b` sits somewhere else, unmarked, with
-   * `a` chosen by click order rather than by meaning. Filed rather than
-   * papered over: see the polarity-marker entry in `docs/plan/brio-TODOS.md`.
-   *
-   * ONE MARKER PER VIOLATION, so this count matches the verdict's own.
-   * Reusing the clash marker would have put N rings on screen under a
-   * sentence naming a different N. That is NOT the same as claiming every
-   * mark on this canvas is explained by a sentence: when a layout has both a
-   * violation and a clash, `VerdictLine` prints only the polarity sentence
-   * and the clash rings go unnamed. That ternary predates this change, and it
-   * is filed with the entry above rather than fixed here.
-   */
-  const refusedMarks = useMemo(() => {
-    // Nothing is drawn above the ceiling, so build nothing: the lookup in
-    // `badJointMarks` is over every port in the layout, and that is the size
-    // the ceiling exists to refuse. The notice the canvas shows instead
-    // already says the verdict still applies to the whole layout.
-    if (!result || render.segments.length > CANVAS_SEGMENT_CEILING) return { marks: [], hidden: 0 };
-    return badJointMarks(
-      result.polarityViolations.map((v) => v.weld),
-      graph.welds,
-      drawn.ports,
-      clashMarks.map((c) => c.at),
-    );
-  }, [result, drawn, graph, clashMarks]);
+  const gaps = marks?.canvas.gaps ?? NO_GAPS;
+  const refusedMarks = { marks: marks?.canvas.badJoints ?? NO_POINTS, hidden: marks?.canvas.badJointsHidden ?? 0 };
   const badJoints = refusedMarks.marks;
-
-  /*
-   * WHERE A MALE-MALE ADAPTER GOES (socket adapter plan, R3): one amber mark
-   * per socket-to-socket weld, found the way `badJoints` finds its spots and
-   * built only below the same ceiling. A red mark on the same spot wins: a
-   * clash or a refused joint there is the more urgent fact, and the note
-   * still counts the adapter.
-   */
-  const adapterMarks = useMemo(() => {
-    if (!result) return [];
-    if (render.segments.length > CANVAS_SEGMENT_CEILING) return [];
-    const byPort = new Map(drawn.ports.map((p) => [`${p.pieceId}#${p.port}`, p]));
-    const red = [...badJoints, ...clashMarks.map((c) => c.at)];
-    return result.adapterJoints.flatMap((j) => {
-      const w = graph.welds[j.weld];
-      if (!w) return [];
-      const a = byPort.get(`${w.a.pieceId}#${w.a.port}`);
-      if (!a) return [];
-      if (red.some(([x, y]) => Math.hypot(x - a.x, y - a.y) < 1e-6)) return [];
-      return [[a.x, a.y] as const];
-    });
-  }, [result, drawn, graph, badJoints, clashMarks]);
-
-  /*
-   * THE LEVEL FAULTS' MARKS (design 6A, eng re-run D4): one per joint that
-   * joins two levels and one per ramp that would reach a third level, each
-   * left out where a clash already holds the spot. The verdict counts them all
-   * and says how many are not marked, as the adapter note does.
-   */
-  const levelMarks = useMemo(() => {
-    if (!result || render.segments.length > CANVAS_SEGMENT_CEILING) return { mismatches: [], thirds: [], hidden: 0 };
-    const clashAt = clashMarks.map((c) => c.at);
-    const free = (at: readonly [number, number]) => !clashAt.some(([x, y]) => Math.hypot(x - at[0], y - at[1]) < 1e-6);
-    const mismatches = result.levelMismatches.map((m) => m.at).filter(free);
-    const thirds = result.thirdLevels.map((t) => t.at).filter(free);
-    const hidden = result.levelMismatches.length + result.thirdLevels.length - mismatches.length - thirds.length;
-    return { mismatches, thirds, hidden };
-  }, [result, render, clashMarks]);
+  const adapterMarks = marks?.canvas.adapters ?? NO_POINTS;
+  const levelMarks = {
+    mismatches: marks?.canvas.levelMismatches ?? NO_POINTS,
+    thirds: marks?.canvas.thirdLevels ?? NO_POINTS,
+    hidden: marks?.canvas.levelHidden ?? 0,
+  };
 
   // Adapter joints a red mark hides, said in the note (DR1). None above the
   // ceiling: there the canvas already says nothing is drawn.
