@@ -52,7 +52,7 @@ export interface AssemblyStep {
 }
 
 /** A band per level span: the floor 0, a ramp up from it 1, level one 2, ... */
-function bandOf(lo: number, hi: number): number {
+export function bandOf(lo: number, hi: number): number {
   return lo === hi ? 2 * lo : 2 * lo + 1;
 }
 
