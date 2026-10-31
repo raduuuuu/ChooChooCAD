@@ -97,6 +97,8 @@ Lillabo). Re-measure the Lillabo Ys first.
 
 ## P2 — The raised level reads faintly from the 3D view's starting angle (filed by /design-review 2026-10-31, D1)
 
+**DONE (2026-10-31).** The owner chose 25° for layouts with raised track only; flat layouts keep 35° (21A amended in the 3D plan). `startElevationDeg` in `app/src/Viewer3D.tsx` reads it from whether the scene draws footprints; pinned in `app/src/viewer3dScene.test.ts`.
+
 **What:** From the start pose (35° up, design 21A) a raised run 64mm above a metre-wide layout reads as a thin strip in the distance; height is clear only after turning the view.
 **Why:** Showing the levels apart is the reason the 3D view exists (3D plan, 0A).
 **Pros:** The first five seconds would show it. **Cons:** Reopens an approved decision (21A); a lower angle shows less of the plan.

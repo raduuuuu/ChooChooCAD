@@ -83,6 +83,17 @@ export function tokenColors(root: Element = document.documentElement): SceneColo
 export const FOV_DEG = 30;
 /** The starting elevation, degrees, looking across the plan from its bottom edge (21A). */
 export const START_ELEVATION_DEG = 35;
+/**
+ * A layout with raised track starts lower, so its height shows before anyone
+ * turns the view: at 35 degrees a 64mm level over a metre of plan read as a
+ * thin strip (design review 2026-10-31, D1; the owner's call on 21A).
+ */
+export const START_ELEVATION_RAISED_DEG = 25;
+
+/** The starting elevation for a scene: lower when any track is raised, which is when it draws footprints (18A). */
+export function startElevationDeg(arrays: SceneArrays): number {
+  return arrays.footprints.indices.length > 0 ? START_ELEVATION_RAISED_DEG : START_ELEVATION_DEG;
+}
 /** Tilt limits as elevation, degrees: never under the table, never straight down (21A). */
 export const MIN_ELEVATION_DEG = 10;
 export const MAX_ELEVATION_DEG = 85;
@@ -242,7 +253,7 @@ export function disposeChildren(group: Group): void {
 
 /**
  * The camera's starting place for a scene: from the plan's bottom edge, 35
- * degrees up, at the nearest distance that keeps all eight corners of the
+ * degrees up (25 when any track is raised), at the nearest distance that keeps all eight corners of the
  * scene's box in view with a small margin (design 21A). A bounding sphere
  * framed flat layouts at a third of the view.
  */
@@ -251,7 +262,7 @@ export function startPose(arrays: SceneArrays, aspect: number): { position: Vect
   const [x1, y1, z1] = arrays.bounds.max;
   const target = new Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
   const radius = Math.max(1, Math.hypot(x1 - x0, y1 - y0, z1 - z0) / 2);
-  const el = (START_ELEVATION_DEG * Math.PI) / 180;
+  const el = (startElevationDeg(arrays) * Math.PI) / 180;
   // Looking along +y, tilted down by the elevation; z is up.
   const forward = new Vector3(0, Math.cos(el), -Math.sin(el));
   const right = new Vector3(1, 0, 0);
