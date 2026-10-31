@@ -1922,3 +1922,6 @@
 .sheet-map { display: block; margin-top: 3mm; }
 .sheet-map-cell { fill: none; stroke: var(--ink-soft); stroke-width: 1px; vector-effect: non-scaling-stroke; }
 .sheet-map-here { fill: var(--rule); stroke: var(--ink); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+/* The verdict's own next step ("Nothing to fix. Build it.") is the editor's: in build mode and on paper it is not an instruction (design review FINDING-002). */
+.build-verdict .verdict-action,
+.sheet-verdict .verdict-action { display: none; }
