@@ -51,3 +51,20 @@ describe('the view switch keeps keyboard focus (FINDING-002)', () => {
     expect(document.activeElement?.textContent).toBe('2D');
   });
 });
+
+describe('Reset is offered only with a view to reset (FINDING-005)', () => {
+  /*
+   * MUTATION PROOF, run: the panel renders `{reset}` instead of `{live &&
+   * reset}`: `expected <button class="view-reset"></button> to be null`.
+   */
+  it('shown over a drawn layout, gone once the layout is empty', async () => {
+    const user = app();
+    await user.click(button('Stadium'));
+    await user.click(button('3D'));
+    await screen.findByTestId('viewer3d');
+    expect(button('Reset view')).toBeTruthy();
+    await user.click(button('Clear'));
+    expect(screen.getByText('Nothing to show in 3D yet.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Reset view' })).toBe(null);
+  });
+});
