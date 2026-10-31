@@ -262,6 +262,14 @@
   --build-name: 40px;
   --build-code: 28px;
   --build-meta: 16px;
+  /*
+   * The printed build sheet's paper (build mode plan, D47): plain white, since
+   * the sheet goes onto whatever is in the printer. Measured on it: --ink
+   * 14.85:1, --ink-soft 5.76:1 (text), --rule 1.54:1, which is decorative:
+   * it draws the earlier bands faint on purpose, and the current band's ink
+   * outline and the step numbers carry the meaning.
+   */
+  --sheet-paper: #ffffff;
 
   /* Spacing scale */
   --s1: 4px;

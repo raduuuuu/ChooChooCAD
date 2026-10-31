@@ -1891,3 +1891,31 @@
   .build-label, .build-pull-col { padding: var(--s4); }
 }
 .build-it { min-height: 36px; }
+.build-failure-action { position: absolute; inset-inline: 0; bottom: var(--s5); display: flex; justify-content: center; }
+
+/*
+ * THE PRINTED SHEET (build mode plan, D47, D53). Only it prints; on screen it
+ * is never shown. Landscape, so the printer picks A4 or Letter (D24).
+ */
+.build-sheet { display: none; }
+@media print {
+  @page { size: landscape; margin: 10mm; }
+  body > :not(.build-sheet) { display: none !important; }
+  .build-sheet { display: block; color: var(--ink); background: var(--sheet-paper); font-family: var(--font-ui); font-size: 10pt; }
+  .sheet-page { break-after: page; }
+  .sheet-page:last-child { break-after: auto; }
+}
+.sheet-title { margin: 0; font-size: 18pt; font-weight: 600; }
+.sheet-meta, .sheet-running { margin: 0 0 4mm; font-size: 9pt; color: var(--ink-soft); }
+.sheet-h2 { font-size: 12pt; margin: 6mm 0 2mm; }
+.sheet-table { border-collapse: collapse; }
+.sheet-table th, .sheet-table td { text-align: start; padding: 1mm 4mm 1mm 0; border-bottom: 0.5pt solid var(--rule); }
+.sheet-earlier { fill: none; stroke: var(--rule); }
+.sheet-plank { fill: none; stroke: var(--sheet-paper); }
+.sheet-edge { fill: none; stroke: var(--ink); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.sheet-leader { stroke: var(--ink); stroke-width: 0.66px; vector-effect: non-scaling-stroke; }
+.sheet-disc { fill: var(--sheet-paper); stroke: var(--ink); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.sheet-number, .sheet-edge-name, .sheet-map-name { font-family: var(--font-data); fill: var(--ink); }
+.sheet-map { display: block; margin-top: 3mm; }
+.sheet-map-cell { fill: none; stroke: var(--ink-soft); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.sheet-map-here { fill: var(--rule); stroke: var(--ink); stroke-width: 1px; vector-effect: non-scaling-stroke; }

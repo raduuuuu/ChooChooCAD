@@ -87,6 +87,8 @@ export interface View3DPanelProps {
   readonly build?: BuildView | null;
   /** Passed to the viewer: a new scene is on screen (D37). */
   readonly onDrawn?: () => void;
+  /** Build mode's way on when 3D cannot draw: Print the sheet (scope 7). */
+  readonly failureAction?: ReactNode;
 }
 
 export function View3DPanel(props: View3DPanelProps) {
@@ -198,6 +200,9 @@ export function View3DPanel(props: View3DPanelProps) {
             3D view: drag to turn, scroll or pinch to zoom. Keys: arrows turn, + and &minus; zoom, 0 resets. Pick a part
             to place it in 2D.
           </p>
+        )}
+        {inBuild && pieceCount > 0 && (segmentCount > ceiling || failure !== null) && props.failureAction && (
+          <div className="build-failure-action">{props.failureAction}</div>
         )}
         {tableNote && <p className={`table-caption${tableNote.fits ? '' : ' is-over'}`}>{tableNote.text}</p>}
         <div className="view-corner">

@@ -671,7 +671,8 @@ export function App() {
    * editor's canvas, rail and keys are gone (D27); its state stays here, so
    * leaving returns to the editor exactly as it was, with focus on Build it.
    */
-  const [building, setBuilding] = useState(false);
+  // 'print': opened only to print the sheet, then straight back (sheet scope 4).
+  const [building, setBuilding] = useState<false | 'build' | 'print'>(false);
   const buildItButton = useRef<HTMLButtonElement | null>(null);
   const leftBuild = useRef(false);
   const [joiningStarted, setJoiningStarted] = useState(false);
@@ -735,10 +736,16 @@ export function App() {
         onClick={() => {
           if (ghost) cancelGhost();
           if (joining) cancelJoin();
-          setBuilding(true);
+          setBuilding('build');
         }}
       >
         Build it
+      </button>
+    ) : null;
+  const printSheet =
+    graph.pieces.length > 0 ? (
+      <button className="build-it" onClick={() => setBuilding('print')}>
+        Print the sheet
       </button>
     ) : null;
   // Shown by the 3D panel only while there is a view to reset (design review FINDING-005).
@@ -1400,6 +1407,7 @@ export function App() {
         ceiling={CANVAS_SEGMENT_CEILING}
         allSaved={unsaved.size === 0 && !graphSaveBlocked && !inventorySaveBlocked && !submissionsSaveBlocked && !tableSaveBlocked}
         onExit={exitBuild}
+        printOnly={building === 'print'}
       />
     );
   }
@@ -1418,7 +1426,7 @@ export function App() {
             tableNote={tableView ? { text: tableView.note, fits: tableView.fits } : null}
             label={sceneLabel}
             resetSignal={resetSignal}
-            corner={<>{buildIt}{viewSwitch}</>}
+            corner={<>{printSheet}{buildIt}{viewSwitch}</>}
             reset={resetButton}
           />
         ) : (
@@ -1464,7 +1472,7 @@ export function App() {
             levelMismatches={levelMarks.mismatches}
             thirdLevels={levelMarks.thirds}
             emptyAction={emptyAction}
-            corner={<div className="view-corner">{buildIt}{viewSwitch}</div>}
+            corner={<div className="view-corner">{printSheet}{buildIt}{viewSwitch}</div>}
           />
         )}
       </main>

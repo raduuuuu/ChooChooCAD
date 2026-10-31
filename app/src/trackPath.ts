@@ -406,6 +406,25 @@ export function plankEdges(s: Segment, half: number): readonly [string, string] 
 }
 
 /**
+ * The middle of a piece along its centreline, and the normal there: to the
+ * left of a straight, away from a curve's centre. The selection label and the
+ * printed sheet's step numbers both sit off it.
+ */
+export function segmentMid(s: Segment): { readonly x: number; readonly y: number; readonly nx: number; readonly ny: number } {
+  if (s.kind === 'straight') {
+    return { x: (s.from.x + s.to.x) / 2, y: (s.from.y + s.to.y) / 2, nx: -Math.sin(s.from.h), ny: Math.cos(s.from.h) };
+  }
+  const r = s.centrelineRadiusMm ?? 0;
+  const sign = s.sweep === 'left' ? 1 : -1;
+  const cx = s.from.x - Math.sin(s.from.h) * r * sign;
+  const cy = s.from.y + Math.cos(s.from.h) * r * sign;
+  const vx = (s.from.x + s.to.x) / 2 - cx;
+  const vy = (s.from.y + s.to.y) / 2 - cy;
+  const len = Math.hypot(vx, vy) || 1;
+  return { x: cx + (vx / len) * r, y: cy + (vy / len) * r, nx: vx / len, ny: vy / len };
+}
+
+/**
  * Where a selected piece's label goes (decision 21A): off the middle of the
  * piece, on its outward side (away from a curve's centre; to the left of a
  * straight), unless the label there would cover a gap figure or leave the
@@ -423,28 +442,7 @@ export function labelSpot(
   view: { readonly minX: number; readonly minY: number; readonly width: number; readonly height: number },
   avoid: readonly (readonly [number, number])[],
 ): readonly [number, number] | null {
-  let mx: number;
-  let my: number;
-  let nx: number;
-  let ny: number;
-  if (s.kind === 'straight') {
-    mx = (s.from.x + s.to.x) / 2;
-    my = (s.from.y + s.to.y) / 2;
-    nx = -Math.sin(s.from.h);
-    ny = Math.cos(s.from.h);
-  } else {
-    const r = s.centrelineRadiusMm ?? 0;
-    const sign = s.sweep === 'left' ? 1 : -1;
-    const cx = s.from.x - Math.sin(s.from.h) * r * sign;
-    const cy = s.from.y + Math.cos(s.from.h) * r * sign;
-    const vx = (s.from.x + s.to.x) / 2 - cx;
-    const vy = (s.from.y + s.to.y) / 2 - cy;
-    const len = Math.hypot(vx, vy) || 1;
-    nx = vx / len;
-    ny = vy / len;
-    mx = cx + nx * r;
-    my = cy + ny * r;
-  }
+  const { x: mx, y: my, nx, ny } = segmentMid(s);
   const fits = ([x, y]: readonly [number, number]): boolean =>
     x - halfSize[0] >= view.minX &&
     x + halfSize[0] <= view.minX + view.width &&

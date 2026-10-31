@@ -183,6 +183,26 @@ Controls for a mode the canvas is in (placing a piece, a selected piece) live
 in a strip on the canvas edge, not in the parts rail, so they sit next to the
 thing they act on.
 
+## 12. Build mode is read from the floor
+
+Build mode (docs/plan/2026-10-31-build-mode.md) is used kneeling, with a tablet
+about 60cm away and often a child tapping. Its rules follow from that:
+
+- **Weight, not hue, marks the next piece.** What is down is muted to
+  `--slab-side`. The next piece is full wood with a 3px `--ink` edge. Where
+  track in front hides it, its top shows through in the preview's look
+  (translucent wood, solid edge), and only there. Rule 1 holds: no accent.
+- **The ring on the end it clips onto is the armed end's ring** (3px), so a
+  ring keeps one meaning (rule 11).
+- **Text never shrinks for the picture.** `--build-name`, `--build-code` and
+  `--build-meta` are sized for 60cm. The picture takes the space that is left.
+- **Notes that are verdicts look like verdicts:** glyph, colour and sentence
+  (rule 2). A run that closes by bending is plain ink.
+- **Nothing animates** (rule 8). Steps cut.
+- **The printed sheet is the same plan, the same way up.** It is flipped like
+  the canvas. Earlier bands are drawn in `--rule` on `--sheet-paper`, and step
+  numbers sit in rings, moved out on a leader line when they would collide.
+
 ## What is NOT settled
 
 Nothing in the editor's operability. The canvas, its ends and joints are
