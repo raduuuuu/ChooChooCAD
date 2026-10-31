@@ -975,6 +975,17 @@ Those questions still gate a PUBLIC remote and any deploy.
 counsel question gates both.
 ## P1 — Tolerances, the calibration afternoon, and everything gated on it
 
+**MOSTLY DONE (2026-10-30, PR #72).** The afternoon happened. Joint stretch
+and the train's height are measured and in `engine/data/measurements.ts`; the
+Q1 loop closed and carried a train, which is where the BRIO bend limit now
+comes from (`engine/data/bendLimit.ts`, status `inferred`). Still `null`, and
+each read as published or estimated until someone measures it: the bend
+itself (Q2, `bendDeg` or `bendSidewaysMm`/`bendOverMm`), the ramp rise and
+plank thickness (published 64 and 12), the Q1b loop's leftover gap, and a
+real switch's three figures (`throughMm`, `chordMm`, `offsetMm`; its own P2
+below). Every one of them gets an engineering diagram on the sheet before it
+is asked for. The history below is kept as written.
+
 > **READY TO MEASURE 2026-10-24.** The path from the floor to the engine is
 > built: `docs/calibration-sheet.html` to print, `engine/data/measurements.ts`
 > to copy it into, `engine/data/calibration.ts` deriving the give and the
@@ -2194,6 +2205,17 @@ screen, no repro. Pre-existing and unchanged by this ship; the comment in
 
 ## P1 — The give bound ignores angular slop entirely, which can make a definite "will not fit" false (filed by /ship's docs audit, 2026-10-14)
 
+**DONE (2026-10-30, PRs #73 and #74).** Angular give is modelled: the bend
+model (`engine/src/graph/bend.ts`, `bendRun.ts`, docs/designs/joint-bend.md)
+solves the smallest worst-joint bend that closes each looped run, crediting
+every joint with a bend limit as well as its stretch (`solveGraph`'s
+`sideOf`, `engine/src/graph/solve.ts`). The axial-only total this entry was
+about no longer decides anything, and the `axial-only-give` disclosure is
+retired because it would now be false (`engine/src/joints/trust.ts`). The
+verdict changed direction with it: it claims closure ("closes with bend")
+rather than a definite non-fit, so the bend figure now has to be no larger
+than real joints manage; see the third entry below for what that rests on.
+
 **What:** `totalGiveMm` (`engine/src/solver/residual.ts:135`) sums
 `axialMaxMm` across joints and nothing else. `angularMaxDeg` is recorded on
 every `Joint` by the schema and is **read nowhere** in `engine/src` or
@@ -2247,6 +2269,13 @@ give. This entry stays open on the modelling half.
 
 ## P1 — `HEADING_MISMATCH` refuses layouts on the same unproven bound, one branch before give is considered (filed by /plan-eng-review's outside voice, 2026-10-19)
 
+**DONE (2026-10-30, PR #73).** There is no separate heading gate any more. A
+loop that comes back turned is a walk whose end points the wrong way, and the
+bend model weighs it like any other misfit (`engine/src/graph/bendRun.ts`
+header, eng review D4); the verdict says how far it comes back turned. Pinned
+by `engine/test/analytic.test.ts`, "a loop that comes back turned is weighed by
+the bend, not refused", whose mutation proof restores the old refusal.
+
 **What:** `solveGraph` returns `HEADING_MISMATCH` whenever
 `space.rotationBroken` is true, which it computes from any nonzero
 `headingSteps` on a closing weld. That return happens BEFORE any give
@@ -2287,6 +2316,20 @@ exists. **Priority:** P1.
 exist yet.
 
 ## P1 — `Math.max` and `calibrationStatus: 'measured'` do not establish an upper bound, so the give disclosure can retire on evidence that does not support retiring it (filed by /plan-eng-review's outside voice, 2026-10-19)
+
+**DONE (2026-10-30, PRs #73 and #74), by the question turning over.** Both
+halves are gone. (1) A joint now takes the WEAKER side, `Math.min`, in both
+`computeResidual` and the bend model, because the verdict claims closure and
+a joint is only as loose as its tighter half (`engine/src/solver/residual.ts`
+`Joint` docblock, eng review D10); an upper bound is no longer what is
+needed. (2) No caveat retires on `calibrationStatus` any more: the
+`estimated-give` rule is retired, and every verdict that leans on bend carries
+the limits note, which always says where the BRIO figure came from: measured,
+"A built loop needed BRIO joints to bend …", or estimated
+(`engine/src/joints/bendWords.ts`). What is left is the honest residue, not a
+defect: the inferred figure comes from one loop on one set of track, and the
+note names its source on every verdict rather than going quiet. A Q2
+reading of one joint's bend would replace it (the first entry above).
 
 **What:** two separate gaps in the same chain.
 
