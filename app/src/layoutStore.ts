@@ -587,19 +587,27 @@ export function partialLoadNotice(pieces: number, droppedAnchors: number): strin
   );
 }
 
+/**
+ * The layout exactly as it is stored. One definition, read by `saveGraph` and
+ * by build mode's resume key (build mode plan D18, D26), so a field saved is
+ * a field that changes the key.
+ */
+export function storedGraphOf(graph: Graph): StoredGraph {
+  return {
+    pieces: graph.pieces.map((p) => ({ pieceId: p.pieceId, partId: p.partId, turn: p.turn })),
+    welds: graph.welds.map((w) => ({ a: { ...w.a }, b: { ...w.b } })),
+    // The level only off the floor (SC1), so a flat layout saves exactly as before.
+    anchors: [...(graph.anchors ?? [])].map(([id, f]) => [
+      id,
+      { pos: [...f.pos], heading: f.heading, ...(levelOf(f) !== 0 ? { level: levelOf(f) } : {}) },
+    ]),
+  };
+}
+
 /** Whether the browser stored it. The caller says so when it did not (see saveNotice.ts). */
 export function saveGraph(graph: Graph): boolean {
   try {
-    const payload: StoredGraph = {
-      pieces: graph.pieces.map((p) => ({ pieceId: p.pieceId, partId: p.partId, turn: p.turn })),
-      welds: graph.welds.map((w) => ({ a: { ...w.a }, b: { ...w.b } })),
-      // The level only off the floor (SC1), so a flat layout saves exactly as before.
-      anchors: [...(graph.anchors ?? [])].map(([id, f]) => [
-        id,
-        { pos: [...f.pos], heading: f.heading, ...(levelOf(f) !== 0 ? { level: levelOf(f) } : {}) },
-      ]),
-    };
-    localStorage.setItem(GRAPH_STORAGE_KEY, JSON.stringify(payload));
+    localStorage.setItem(GRAPH_STORAGE_KEY, JSON.stringify(storedGraphOf(graph)));
     return true;
   } catch {
     // Private browsing and full quotas both throw. Losing persistence is not

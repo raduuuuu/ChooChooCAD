@@ -23,11 +23,11 @@ import { BUILT_IN, makeResolver } from '../../engine/data/library.js';
 import { removeWeld } from '../../engine/src/graph/edit.js';
 import { findVertexClashes } from '../../engine/src/graph/feasible.js';
 import { portFrame } from '../../engine/src/graph/frames.js';
-import { toXY } from '../../engine/src/geom/cyclotomic.js';
+import { fromInt, toXY } from '../../engine/src/geom/cyclotomic.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Piece, type Port } from '../../engine/src/graph/model.js';
 import { CHAIN_STORAGE_KEY, GRAPH_RESCUE_KEY, GRAPH_STORAGE_KEY } from './storageKeys.js';
-import { loadGraph, partialLoadNotice, saveGraph, savesSuppressed } from './layoutStore.js';
+import { loadGraph, partialLoadNotice, saveGraph, savesSuppressed, storedGraphOf } from './layoutStore.js';
 
 const resolve = makeResolver(BUILT_IN);
 const ports = (piece: Piece): readonly Port[] => portsOf(resolve(piece.partId), piece.turn);
@@ -1315,5 +1315,41 @@ describe('the solve is handed a constant-time slop lookup', () => {
 
   it('the map is built once per graph, in its own memo', () => {
     expect(source).toMatch(/useMemo\(\s*\(\)\s*=>\s*new Map\(graph\.pieces\.map\(/);
+  });
+});
+
+describe('the stored format (build mode plan D26)', () => {
+  /*
+   * THE BYTES, pinned. `storedGraphOf` was pulled out of `saveGraph` so build
+   * mode's resume key hashes exactly what is saved; this golden was captured
+   * from `saveGraph` BEFORE that extraction, so the move cannot have changed
+   * a stored layout.
+   *
+   * MUTATION PROOF, run: the raised anchor's `level` dropped from
+   * `storedGraphOf`: `expected '{"pieces":[{"pieceId":"p1","partId":"…' to
+   * be '{"pieces":[{"pieceId":"p1","partId":"…' // Object.is equality`.
+   */
+  it('saveGraph writes exactly what it wrote before storedGraphOf existed', () => {
+    const graph = {
+      pieces: [
+        { pieceId: 'p1', partId: 'E', turn: 'left' as const },
+        { pieceId: 'p2', partId: 'N', turn: 'right' as const },
+        { pieceId: 'p3', partId: 'A', turn: 'left' as const },
+      ],
+      welds: [{ a: { pieceId: 'p1', port: 1 }, b: { pieceId: 'p2', port: 0 } }],
+      anchors: new Map([
+        ['p1', { pos: fromInt(0), heading: 0 }],
+        ['p3', { pos: fromInt(500), heading: 4, level: 1 }],
+      ]),
+    };
+    const golden =
+      '{"pieces":[{"pieceId":"p1","partId":"E","turn":"left"},{"pieceId":"p2","partId":"N","turn":"right"},{"pieceId":"p3","partId":"A","turn":"left"}],' +
+      '"welds":[{"a":{"pieceId":"p1","port":1},"b":{"pieceId":"p2","port":0}}],' +
+      '"anchors":[["p1",{"pos":[0,0,0,0,0,0,0,0],"heading":0}],["p3",{"pos":[500,0,0,0,0,0,0,0],"heading":4,"level":1}]]}';
+    withStore({}, (store) => {
+      saveGraph(graph);
+      expect(store.get(GRAPH_STORAGE_KEY)).toBe(golden);
+    });
+    expect(JSON.stringify(storedGraphOf(graph))).toBe(golden);
   });
 });

@@ -10,7 +10,7 @@
 
 import { Component, lazy, Suspense, useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import type { SceneInput } from '../../engine/src/view3d/mesh.js';
-import type { Viewer3DProps } from './Viewer3D.js';
+import type { BuildView, Viewer3DProps } from './Viewer3D.js';
 
 /** Load the viewer; a fresh `lazy` per attempt, since React keeps a failed one failed. */
 const loadViewer = () => lazy(() => import('./Viewer3D.js'));
@@ -79,6 +79,14 @@ export interface View3DPanelProps {
   readonly reset?: ReactNode;
   /** Reloading the page, for a second failed download (eng D13). */
   readonly reload?: () => void;
+  /**
+   * Build mode (docs/plan/2026-10-31-build-mode.md): the viewer frames and
+   * locks each step; no how-to, no Reset, and the failure states drop the
+   * sentences that point at the editor (scope 7).
+   */
+  readonly build?: BuildView | null;
+  /** Passed to the viewer: a new scene is on screen (D37). */
+  readonly onDrawn?: () => void;
 }
 
 export function View3DPanel(props: View3DPanelProps) {
@@ -98,7 +106,8 @@ export function View3DPanel(props: View3DPanelProps) {
   const onContextLost = () => setFailure({ kind: 'lost', downloads });
 
   // A view is drawn (or loading): not empty, not too big, not failed.
-  const live = pieceCount > 0 && segmentCount <= ceiling && failure === null;
+  const live = pieceCount > 0 && segmentCount <= ceiling && failure === null && !props.build;
+  const inBuild = !!props.build;
   // The how-to also describes the canvas, so its keys are announced (design review FINDING-006).
   const howToId = useId();
   let body: ReactNode;
@@ -114,14 +123,14 @@ export function View3DPanel(props: View3DPanelProps) {
       <div className="canvas-empty">
         <p className="canvas-empty-lead">
           This layout has <span className="num">{segmentCount.toLocaleString('en')}</span> pieces of track, more than 3D can
-          draw (<span className="num">{ceiling.toLocaleString('en')}</span>). The 2D plan and the verdict still cover all of it.
+          draw (<span className="num">{ceiling.toLocaleString('en')}</span>).{inBuild ? '' : ' The 2D plan and the verdict still cover all of it.'}
         </p>
       </div>
     );
   } else if (failure?.kind === 'webgl') {
     body = (
       <div className="canvas-empty" role="alert">
-        <p className="canvas-empty-lead">This browser can&rsquo;t draw 3D. The 2D plan has everything.</p>
+        <p className="canvas-empty-lead">This browser can&rsquo;t draw 3D.{inBuild ? '' : ' The 2D plan has everything.'}</p>
       </div>
     );
   } else if (failure?.kind === 'lost') {
@@ -147,7 +156,7 @@ export function View3DPanel(props: View3DPanelProps) {
           </>
         ) : (
           <p className="canvas-empty-lead">
-            Still couldn&rsquo;t load the 3D view. Reloading now would lose changes that aren&rsquo;t saved; keep working in 2D.
+            Still couldn&rsquo;t load the 3D view. Reloading now would lose changes that aren&rsquo;t saved{inBuild ? '.' : '; keep working in 2D.'}
           </p>
         )}
       </div>
@@ -162,7 +171,15 @@ export function View3DPanel(props: View3DPanelProps) {
       </div>
     );
   } else {
-    const viewerProps: Viewer3DProps = { input, label, resetSignal, onContextLost, describedBy: howToId };
+    const viewerProps: Viewer3DProps = {
+      input,
+      label,
+      resetSignal,
+      onContextLost,
+      ...(live ? { describedBy: howToId } : {}),
+      build: props.build ?? null,
+      ...(props.onDrawn ? { onDrawn: props.onDrawn } : {}),
+    };
     body = (
       <Boundary key={attempt} onError={onError}>
         <Suspense fallback={<Loading />}>

@@ -61,3 +61,10 @@ export const GRAPH_RESCUE_KEY = 'brio.graph.v1.rejected';
 
 /** Which view was last shown, '2d' or '3d' (3D plan, eng D10, design 11A). Per browser. */
 export const VIEW_STORAGE_KEY = 'brio.view.v0';
+
+/**
+ * Where a build was left (build mode plan, scope 5, D18): `{ layout, index }`,
+ * the layout's hash and the position in build mode's one list. Only the latest
+ * build is kept; reaching the last piece clears it.
+ */
+export const BUILD_STORAGE_KEY = 'brio.build.v0';
