@@ -123,21 +123,45 @@ const SHAPES: Record<PlacedMark['kind'], { r: number; d: string; ink: 'fail' | '
   gap: null,
 };
 
-/** A mark's texture: the canvas glyph on a --paper disc (design 14A), or a gap's figure. */
-function markTexture(mark: PlacedMark, c: SceneColors, dpr: number): CanvasTexture | null {
+/** A gap figure's text size and its label's side padding, CSS px. */
+const FIGURE_PX = 15;
+const LABEL_PAD_PX = 8;
+
+/** A gap's figure as the 2D canvas writes it: rounded so it never understates (DESIGN.md rule 4). */
+export const figureText = (mm: number) => `${Math.ceil(mm)}mm`;
+
+/** Monospace width when no canvas can measure: 0.6em a character. */
+export const estimateTextPx = (text: string) => text.length * FIGURE_PX * 0.6;
+
+/**
+ * A label's width over its height. A mark is MARK_PX square; a gap's figure is
+ * as wide as its text plus padding, so "1000mm" is never cut (design review
+ * FINDING-007: every mark was a 44px square, which clipped long figures).
+ */
+export const labelAspect = (textPx: number) => Math.max(1, (textPx + 2 * LABEL_PAD_PX) / MARK_PX);
+
+/** A mark's texture and its width over height: the canvas glyph on a --paper disc (design 14A), or a gap's figure on a --paper pill. */
+function markTexture(mark: PlacedMark, c: SceneColors, dpr: number): { map: CanvasTexture; aspect: number } | null {
   if (typeof document === 'undefined') return null;
-  const size = Math.round(MARK_PX * dpr);
+  const shape = SHAPES[mark.kind];
+  const font = `600 ${Math.round(FIGURE_PX * dpr)}px ${getComputedStyle(document.documentElement).getPropertyValue('--font-data').trim() || 'monospace'}`;
+  const text = mark.figure !== undefined ? figureText(mark.figure) : '';
+  const probe = document.createElement('canvas').getContext('2d');
+  if (probe) probe.font = font;
+  const aspect = shape || !text ? 1 : labelAspect((probe ? probe.measureText(text).width : estimateTextPx(text) * dpr) / dpr);
+  const h = Math.round(MARK_PX * dpr);
+  const w = Math.round(MARK_PX * aspect * dpr);
   const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
+  canvas.width = w;
+  canvas.height = h;
   const g = canvas.getContext('2d');
   if (!g) return null;
-  g.translate(size / 2, size / 2);
-  const shape = SHAPES[mark.kind];
-  const unit = size / 64; // the 2D shapes are drawn in a 64-unit box
+  g.translate(w / 2, h / 2);
+  const unit = h / 64; // the 2D shapes are drawn in a 64-unit box
   g.fillStyle = c.paper;
   g.beginPath();
-  g.arc(0, 0, 31 * unit, 0, Math.PI * 2);
+  if (shape) g.arc(0, 0, 31 * unit, 0, Math.PI * 2);
+  else g.roundRect(-w / 2, -h / 2 + 6 * unit, w, h - 12 * unit, (h - 12 * unit) / 2);
   g.fill();
   if (shape) {
     g.scale(unit, unit);
@@ -154,15 +178,14 @@ function markTexture(mark: PlacedMark, c: SceneColors, dpr: number): CanvasTextu
       }
       g.stroke(p);
     }
-  } else if (mark.figure !== undefined) {
+  } else if (text) {
     g.fillStyle = c.ink;
-    g.font = `600 ${Math.round(15 * dpr)}px ${getComputedStyle(document.documentElement).getPropertyValue('--font-data') || 'monospace'}`;
+    g.font = font;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    // Rounded so it never understates (DESIGN.md rule 4), as the 2D figure.
-    g.fillText(`${Math.ceil(mark.figure)}mm`, 0, 0);
+    g.fillText(text, 0, 0);
   }
-  return new CanvasTexture(canvas);
+  return { map: new CanvasTexture(canvas), aspect };
 }
 
 /**
@@ -191,9 +214,11 @@ export function syncScene(group: Group, arrays: SceneArrays, c: SceneColors, dpr
   const levelLines: number[] = [];
   for (const m of arrays.marks) {
     if (m.lineTo !== undefined) levelLines.push(m.at[0], m.at[1], m.at[2], m.at[0], m.at[1], m.lineTo);
-    const map = markTexture(m, c, dpr);
-    const sprite = new Sprite(new SpriteMaterial({ map, depthTest: false, sizeAttenuation: false }));
+    const tex = markTexture(m, c, dpr);
+    const sprite = new Sprite(new SpriteMaterial({ map: tex?.map ?? null, depthTest: false, sizeAttenuation: false }));
     sprite.position.set(m.at[0], m.at[1], m.at[2]);
+    // Wider than tall for a long gap figure (FINDING-007); the renderer scales by it.
+    sprite.userData.aspect = tex?.aspect ?? (m.figure !== undefined ? labelAspect(estimateTextPx(figureText(m.figure))) : 1);
     add(sprite, 10);
   }
   if (levelLines.length > 0) add(lines(new Float32Array(levelLines), c.fail, LEVEL_LINE_PX, false), 9);
@@ -311,7 +336,7 @@ export default function Viewer3D({ input, label, resetSignal, onContextLost, des
         if (o instanceof Sprite) {
           // sizeAttenuation off: scale is a fraction of the view's height times 2 tan(fov/2).
           const k = (MARK_PX / h) * 2 * Math.tan((FOV_DEG * Math.PI) / 360);
-          o.scale.set(k, k, 1);
+          o.scale.set(k * ((o.userData.aspect as number | undefined) ?? 1), k, 1);
         }
       });
       renderer.render(scene, camera);
