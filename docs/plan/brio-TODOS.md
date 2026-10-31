@@ -95,6 +95,14 @@ Lillabo). Re-measure the Lillabo Ys first.
 
 **Depends on / blocked by:** the multi-road type (PR A of the plan).
 
+## P3 — The text-selection colour has no token (filed by /plan-design-review 2026-10-31, Codex design voice)
+
+**What:** `::selection` sets `background: #e4d6ba` directly in `app/src/tokens.css:269`, not through a named token with its measured ratio.
+**Why:** DESIGN.md's preamble: every colour is a token; rule 5: each arrives with its measured ratio. This one has neither.
+**Pros:** Closes the only hardcoded colour found. **Cons:** Tiny; no visual change.
+**Context:** Found by the 3D viewer's design outside voice. Name it (e.g. `--selection`), measure `--ink` on it, put the ratio in its comment.
+**Effort:** human S / CC S. **Depends on:** nothing.
+
 ## P3 — Pick a piece in 3D and it is selected in 2D (filed by /plan-ceo-review 2026-10-31, D5)
 
 **What:** Clicking a piece in the 3D viewer selects it on the 2D canvas, and the other way round.
