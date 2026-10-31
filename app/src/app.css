@@ -1705,3 +1705,88 @@
 @media (pointer: coarse) {
   .verdict-join { min-height: 44px; }
 }
+
+/*
+ * THE 3D VIEW (docs/plan/2026-10-31-3d-viewer.md).
+ *
+ * The switch and Reset sit in the view's top-end corner, the one corner the
+ * canvas leaves free (design 1A, 2A). Segmented, ink and paper only: the
+ * pressed button is told by its heavier ink border and weight, never a colour
+ * (DESIGN.md rule 1). 36px, 44px on a finger (rule 10).
+ */
+.view-corner {
+  position: absolute;
+  inset-inline-end: var(--s3);
+  inset-block-start: var(--s3);
+  display: flex;
+  gap: var(--s2);
+  z-index: 2;
+}
+.view-switch { display: inline-flex; }
+.view-switch button,
+.view-reset {
+  min-height: 36px;
+  min-width: 44px;
+  padding: 0 var(--s3);
+  background: var(--paper);
+  border: 1px solid var(--ink-soft);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.view-reset { border-radius: 3px; }
+.view-switch button:first-child { border-radius: 3px 0 0 3px; }
+.view-switch button:last-child { border-radius: 0 3px 3px 0; margin-inline-start: -1px; }
+.view-switch button[aria-pressed="true"] {
+  border: 2px solid var(--ink);
+  font-weight: 600;
+  position: relative;
+  z-index: 1;
+}
+@media (pointer: coarse) {
+  .view-switch button,
+  .view-reset { min-height: 44px; }
+}
+/* The viewer fills the canvas's place; one finger orbits it (design 23A). */
+.viewer3d-area { background: var(--floor); }
+.viewer3d {
+  position: absolute;
+  inset: 0;
+}
+.viewer3d-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+.viewer3d-canvas:focus { outline: none; }
+.viewer3d-canvas:focus-visible { outline: 2px solid var(--ink); outline-offset: -4px; }
+
+/*
+ * THE HOW-TO (design 3A). In the top-start corner, which the 2D canvas gives
+ * its hidden-end hint and 3D leaves free: at the bottom it ran into a long
+ * table-fit caption (seen in a browser, 2026-10-31). Styled like that hint.
+ */
+.viewer3d-howto {
+  position: absolute;
+  inset-inline-start: var(--s3);
+  inset-block-start: var(--s3);
+  margin: 0;
+  max-width: 50%;
+  font-size: 13px;
+  color: var(--ink-soft);
+  pointer-events: none;
+}
+/*
+ * In 3D the scene fills the frame, so a caption can land on wood (seen at
+ * tablet width, 2026-10-31). A --floor backing keeps the words on the surface
+ * their ratios were measured on (DESIGN.md rule 5).
+ */
+.viewer3d-area .table-caption,
+.viewer3d-howto {
+  z-index: 1;
+  background: var(--floor);
+  padding: 2px var(--s1);
+  border-radius: 3px;
+}

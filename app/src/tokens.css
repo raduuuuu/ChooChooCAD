@@ -164,6 +164,15 @@
   --track-shadow: #8f826c;
   --track-edge: #8a7349;
   /*
+   * THE TABLE SLAB'S SIDES in the 3D view (3D plan, design 19A). DECORATIVE,
+   * and below 3:1 on purpose: 1.70:1 on --floor, 1.75:1 on --paper-sunk
+   * (WCAG relative luminance, measured 2026-10-31). It only makes the slab read
+   * as solid. The table's edge is carried by its outline in --ink-soft, 4.64:1
+   * on --floor and 4.77:1 on the slab's --paper-sunk top, and its fit by the
+   * caption's words.
+   */
+  --slab-side: #bdb19b;
+  /*
    * THE SEAM: the line across the plank where one piece ends and the next
    * begins (decision 11A of the 2026-10-22 editing plan).
    *

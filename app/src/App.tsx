@@ -82,6 +82,11 @@ import { InventoryPanel } from './Inventory.js';
 import { TablePanel } from './TablePanel.js';
 import { fitSentence, loadTable, saveTable, tableFit, trackExtent, type Table } from './tableModel.js';
 import { SubmitPart } from './SubmitPart.js';
+import { View3DPanel } from './View3DPanel.js';
+import { loadView, openingView, saveView, type View } from './viewChoice.js';
+import { clearance } from '../../engine/data/calibration.js';
+import { MEASUREMENTS } from '../../engine/data/measurements.js';
+import type { SceneInput } from '../../engine/src/view3d/mesh.js';
 import {
   loadInventory,
   saveInventory,
@@ -395,10 +400,13 @@ export function App() {
    */
   const saidNext = useRef<string | null>(null);
   const [said, setSaid] = useState('');
+  // Set by a pick made in 3D, so its announcement first says the view changed (design 12A).
+  const backIn2d = useRef(false);
   useEffect(() => {
     if (saidNext.current !== null) {
-      setSaid(saidNext.current);
+      setSaid((backIn2d.current ? 'Back in 2D to place the piece. ' : '') + saidNext.current);
       saidNext.current = null;
+      backIn2d.current = false;
     }
   }, [editor]);
   // `null` is UNDECLARED, which is not the same as owning none. See inventoryModel.ts.
@@ -620,6 +628,12 @@ export function App() {
   const placeButton = useRef<HTMLButtonElement | null>(null);
   const pick = (partId: string, from: HTMLElement | null) => {
     pickOrigin.current = from;
+    // Placing happens in 2D (eng D10); say so, since the view changes under the hand (design 12A).
+    if (view === '3d') {
+      setViewState('2d');
+      saveView('2d');
+      backIn2d.current = true;
+    }
     dispatch({ kind: 'pick', partId });
   };
   const returnFocus = () => {
@@ -642,6 +656,15 @@ export function App() {
    * ends" in the verdict. It ends when the join is made, the armed end is let
    * go, a piece is picked, or Cancel / Escape.
    */
+  /*
+   * 2D OR 3D (3D plan, eng D10, design 1A, 11A). The view is remembered per
+   * browser, but an empty layout opens 2D, where you build. Pressing 3D
+   * cancels a piece being placed and a join in progress (eng D17: no
+   * invisible state that acts); a selection is kept and simply not shown
+   * (design 10A).
+   */
+  const [view, setViewState] = useState<View>(() => openingView(loadView(), editor.graph.pieces.length));
+  const [resetSignal, setResetSignal] = useState(0);
   const [joiningStarted, setJoiningStarted] = useState(false);
   const joining = !ghost && (joiningStarted || armed !== null);
   const wasArmed = useRef<PortRef | null>(null);
@@ -656,6 +679,33 @@ export function App() {
     if (armed) dispatch({ kind: 'clickPort', ref: armed });
     setJoiningStarted(false);
   };
+  const showView = (v: View) => {
+    if (v === view) return;
+    if (v === '3d') {
+      if (ghost) dispatch({ kind: 'cancelGhost' });
+      if (joining) cancelJoin();
+    }
+    setViewState(v);
+    saveView(v);
+  };
+  /* The switch and Reset, in the view's top-end corner (design 1A, 2A). */
+  const viewSwitch = (
+    <div className="view-corner">
+      <div className="view-switch" role="group" aria-label="View">
+        <button aria-pressed={view === '2d'} onClick={() => showView('2d')}>
+          2D
+        </button>
+        <button aria-pressed={view === '3d'} onClick={() => showView('3d')}>
+          3D
+        </button>
+      </div>
+      {view === '3d' && (
+        <button className="view-reset" onClick={() => setResetSignal((n) => n + 1)}>
+          Reset view
+        </button>
+      )}
+    </div>
+  );
   const startJoin = useCallback(() => {
     setJoiningStarted(true);
     if (editor.selected != null) selectPiece(null);
@@ -764,6 +814,43 @@ export function App() {
     thirds: marks?.canvas.thirdLevels ?? NO_POINTS,
     hidden: marks?.canvas.levelHidden ?? 0,
   };
+
+  /*
+   * WHAT THE 3D VIEW DRAWS: the canvas's own drawing (bent loops closed), the
+   * scene's mark list, the measured rise and plank (never restated), and the
+   * table. Built only while 3D is shown.
+   */
+  const sceneInput = useMemo((): SceneInput | null => {
+    if (view !== '3d') return null;
+    const { riseMm, plankMm } = clearance(MEASUREMENTS);
+    const partOf = new Map(graph.pieces.map((p) => [p.pieceId, p.partId]));
+    return {
+      segments: drawn.segments,
+      ports: drawn.ports,
+      welds: graph.welds,
+      partOf: (id) => resolve(partOf.get(id)!),
+      riseMm,
+      plankMm,
+      marks: marks?.scene ?? [],
+      table: tableView
+        ? {
+            outline: [
+              [tableView.outline.minX, tableView.outline.minY],
+              [tableView.outline.maxX, tableView.outline.minY],
+              [tableView.outline.maxX, tableView.outline.maxY],
+              [tableView.outline.minX, tableView.outline.maxY],
+            ],
+            overhang: !tableView.fits,
+          }
+        : null,
+    };
+  }, [view, drawn, graph, resolve, marks, tableView]);
+  const sceneLabel = useMemo(() => {
+    const levels = new Set(drawn.ports.map((p) => p.level ?? 0)).size;
+    const faults = marks?.scene.length ?? 0;
+    const n = graph.pieces.length;
+    return `3D view of the layout: ${n} ${n === 1 ? 'piece' : 'pieces'}, ${levels} ${levels === 1 ? 'level' : 'levels'}, ${faults} ${faults === 1 ? 'mark' : 'marks'}`;
+  }, [drawn, marks, graph]);
 
   // Adapter joints a red mark hides, said in the note (DR1). None above the
   // ceiling: there the canvas already says nothing is drawn.
@@ -1213,51 +1300,8 @@ export function App() {
     </BrandGroup>
   );
 
-  return (
-    <div className="shell">
-      <main className="stage">
-        <TrackCanvas
-          render={drawn}
-          resolve={resolve}
-          cursor={cursor}
-          armed={armed}
-          unjoinable={unjoinable}
-          joining={joining}
-          suggestions={suggestions}
-          onSuggest={(g) => dispatch({ kind: 'joinEnds', a: g.a, b: g.b })}
-          suggestionName={suggestionName}
-          onPortClick={clickPort}
-          welds={welds}
-          onWeldClick={breakJoint}
-          seams={seams}
-          selected={selected}
-          selectedRun={selectedRun}
-          onPieceSelect={selectPiece}
-          onPieceRemove={removePiece}
-          onFloorClick={() => selected !== null && selectPiece(null)}
-          pieceName={canvasPieceName}
-          strip={placingStrip ?? joinStrip ?? selectionStrip ?? dropStrip}
-          ghost={ghostView ? { render: ghostView.render, red: ghostView.red, reach: ghostView.reach } : null}
-          onRunMove={(d, radius) => moveRunBy(d.pieceId, d.dx, d.dy, d.turns, radius)}
-          runOf={runOf}
-          probe={canvasProbe}
-          table={tableView}
-          /*
-            * `result`, not `result?.ok`. The clash list lives on BOTH branches
-            * of GraphResult, and gating the DRAWING on `ok` undid half of the
-            * reason it was put on the failure branch: `viewOf` reports
-            * IMPOSSIBLE with a clash count on a failed solve, so the verdict
-            * said "2 pairs of track ends land in exactly the same spot" while
-            * the canvas marked none of them. A count you cannot locate is not
-            * actionable, which was decision A4's whole point.
-            */
-          clashes={clashMarks}
-          gaps={gaps}
-          badJoints={badJoints}
-          adapterJoints={adapterMarks}
-          levelMismatches={levelMarks.mismatches}
-          thirdLevels={levelMarks.thirds}
-          emptyAction={
+  // The empty state's first step, shared by the 2D canvas and the 3D view (design 5A).
+  const emptyAction = (
             <>
               <button
                 className="primary"
@@ -1269,8 +1313,70 @@ export function App() {
                 {presetByLabel(EMPTY_STATE_PRESET).note}
               </span>
             </>
-          }
-        />
+  );
+
+  return (
+    <div className="shell">
+      <main className="stage">
+        {view === '3d' && sceneInput ? (
+          <View3DPanel
+            input={sceneInput}
+            pieceCount={graph.pieces.length}
+            segmentCount={render.segments.length}
+            ceiling={CANVAS_SEGMENT_CEILING}
+            allSaved={unsaved.size === 0 && !graphSaveBlocked && !inventorySaveBlocked && !submissionsSaveBlocked && !tableSaveBlocked}
+            emptyAction={emptyAction}
+            tableNote={tableView ? { text: tableView.note, fits: tableView.fits } : null}
+            label={sceneLabel}
+            resetSignal={resetSignal}
+            corner={viewSwitch}
+          />
+        ) : (
+          <TrackCanvas
+            render={drawn}
+            resolve={resolve}
+            cursor={cursor}
+            armed={armed}
+            unjoinable={unjoinable}
+            joining={joining}
+            suggestions={suggestions}
+            onSuggest={(g) => dispatch({ kind: 'joinEnds', a: g.a, b: g.b })}
+            suggestionName={suggestionName}
+            onPortClick={clickPort}
+            welds={welds}
+            onWeldClick={breakJoint}
+            seams={seams}
+            selected={selected}
+            selectedRun={selectedRun}
+            onPieceSelect={selectPiece}
+            onPieceRemove={removePiece}
+            onFloorClick={() => selected !== null && selectPiece(null)}
+            pieceName={canvasPieceName}
+            strip={placingStrip ?? joinStrip ?? selectionStrip ?? dropStrip}
+            ghost={ghostView ? { render: ghostView.render, red: ghostView.red, reach: ghostView.reach } : null}
+            onRunMove={(d, radius) => moveRunBy(d.pieceId, d.dx, d.dy, d.turns, radius)}
+            runOf={runOf}
+            probe={canvasProbe}
+            table={tableView}
+            /*
+              * `result`, not `result?.ok`. The clash list lives on BOTH branches
+              * of GraphResult, and gating the DRAWING on `ok` undid half of the
+              * reason it was put on the failure branch: `viewOf` reports
+              * IMPOSSIBLE with a clash count on a failed solve, so the verdict
+              * said "2 pairs of track ends land in exactly the same spot" while
+              * the canvas marked none of them. A count you cannot locate is not
+              * actionable, which was decision A4's whole point.
+              */
+            clashes={clashMarks}
+            gaps={gaps}
+            badJoints={badJoints}
+            adapterJoints={adapterMarks}
+            levelMismatches={levelMarks.mismatches}
+            thirdLevels={levelMarks.thirds}
+            emptyAction={emptyAction}
+            corner={viewSwitch}
+          />
+        )}
       </main>
 
       {unsavedNotice !== undefined && unsavedDismissed !== unsavedNotice && (

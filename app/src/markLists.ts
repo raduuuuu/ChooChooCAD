@@ -110,7 +110,7 @@ export function markLists(facts: MarkFacts, welds: readonly Weld[], ports: reado
 
     for (const g of gaps) {
       const w = welds[g.weld]!;
-      scene.push({ kind: 'gap', at: g.a, source: { kind: 'weld', a: w.a } });
+      scene.push({ kind: 'gap', at: g.a, source: { kind: 'weld', a: w.a }, figure: g.gapMm });
     }
     for (const c of facts.clashes) scene.push({ kind: 'clash', at: c.at, source: { kind: 'clash', a: c.a, b: c.b } });
     for (const o of facts.overlaps) scene.push({ kind: 'overlap', at: o.at, source: { kind: 'overlap', a: o.a, b: o.b } });

@@ -306,6 +306,8 @@ export interface TrackCanvasProps {
    * `seamLines` (request 2 of the 2026-10-22 editing plan).
    */
   readonly seams?: readonly SeamLine[];
+  /** Drawn in the canvas's top-end corner: the 2D/3D switch (3D plan, design 1A). */
+  readonly corner?: ReactNode;
   /** The selected piece (decision R1/D2), drawn with the strong outline. */
   readonly selected?: string | null;
   /** Every piece connected to the selected one, drawn with the quiet outline (2A). */
@@ -367,6 +369,7 @@ export function TrackCanvas({
   welds = [],
   onWeldClick,
   seams = [],
+  corner,
   selected = null,
   selectedRun,
   onPieceSelect,
@@ -747,8 +750,20 @@ export function TrackCanvas({
       </g>
     ) : null;
 
+  /*
+   * The empty and too-big states sit in the same frame as the drawing, so the
+   * view's corner (the 2D/3D switch, design 1A) is there in every state.
+   */
+  const framed = (node: ReactNode) => (
+    <div className="canvas-frame">
+      <div className="canvas-area">
+        {node}
+        {corner}
+      </div>
+    </div>
+  );
   if (segments.length > CANVAS_SEGMENT_CEILING) {
-    return (
+    return framed(
       <div className="canvas-empty">
         <p className="canvas-empty-lead">
           Too much track to draw: {segments.length.toLocaleString()} pieces.
@@ -757,19 +772,19 @@ export function TrackCanvas({
           The layout is still here and still checked, and the verdict below
           applies to all of it. Remove some track to see the picture again.
         </p>
-      </div>
+      </div>,
     );
   }
 
   if (segments.length === 0 && !ghost) {
-    return (
+    return framed(
       <div className="canvas-empty">
         <p className="canvas-empty-lead">Nothing on the floor yet.</p>
         {emptyAction && <div className="canvas-empty-action">{emptyAction}</div>}
         <p className="canvas-empty-hint">
           Or place pieces one at a time from the palette.
         </p>
-      </div>
+      </div>,
     );
   }
 
@@ -1470,6 +1485,7 @@ export function TrackCanvas({
         {hiddenEnds === 1 ? 'it' : 'them'} from &ldquo;This layout, as a list&rdquo;.
       </p>
     )}
+    {corner}
     </div>
     {strip}
     </div>

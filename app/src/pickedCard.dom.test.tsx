@@ -21,7 +21,8 @@ import { App } from './App.js';
 
 const card = (id: string) =>
   screen.getAllByRole('button', { name: new RegExp(`^Add ${getPart(id).name}\\b`) })[0]!;
-const pressed = () => screen.queryAllByRole('button', { pressed: true });
+// Part cards only: the 2D/3D switch is a pressed button too (3D plan, design 1A).
+const pressed = () => screen.queryAllByRole('button', { pressed: true }).filter((b) => b.classList.contains('piece-main'));
 
 describe('the picked card', () => {
   /*

@@ -58,3 +58,6 @@ export const TABLE_STORAGE_KEY = 'brio.table.v0';
  * has something to send, and so the loss is recoverable by hand.
  */
 export const GRAPH_RESCUE_KEY = 'brio.graph.v1.rejected';
+
+/** Which view was last shown, '2d' or '3d' (3D plan, eng D10, design 11A). Per browser. */
+export const VIEW_STORAGE_KEY = 'brio.view.v0';
