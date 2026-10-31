@@ -716,7 +716,7 @@
 .piece-count {
   position: absolute;
   top: -7px;
-  right: -7px;
+  right: var(--s1);           /* inside the card: the rail clips anything past its edge (design review D3) */
   min-width: 18px;
   height: 18px;
   padding: 0 4px;

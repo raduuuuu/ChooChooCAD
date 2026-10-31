@@ -107,6 +107,8 @@ Lillabo). Re-measure the Lillabo Ys first.
 
 ## P3 — A missing colour token draws the 3D scene in black (filed by /design-review 2026-10-31, D2)
 
+**DONE (2026-10-31).** `tokenColors` logs the missing token's name and draws it in `--ink`; pinned in `app/src/viewer3dTokens.dom.test.tsx`.
+
 **What:** `tokenColors` in `app/src/Viewer3D.tsx` falls back to `#000` when a CSS token is missing.
 **Why:** A renamed token would paint a surface pure black, outside the palette (DESIGN.md rule 1), with no error.
 **Pros:** A rename fails loudly. **Cons:** None beyond a console line.
@@ -114,6 +116,8 @@ Lillabo). Re-measure the Lillabo Ys first.
 **Effort:** human S / CC S. **Depends on:** nothing.
 
 ## P2 — Part-count badges are cut off at the rail's edge (filed by /design-review 2026-10-31, D3)
+
+**DONE (2026-10-31).** `.piece-count` sits `var(--s1)` inside the card's right edge; checked in the browser at 1280px (badge right edge 1256, rail edge 1260).
 
 **What:** The dark count badges on part cards ("2", "1") sit half outside the rail's right edge and are clipped in every screenshot at 1280-1440px.
 **Why:** A count you can only half read is a count you misread.

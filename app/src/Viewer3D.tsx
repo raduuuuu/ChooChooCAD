@@ -62,7 +62,15 @@ export interface SceneColors {
 
 export function tokenColors(root: Element = document.documentElement): SceneColors {
   const css = getComputedStyle(root);
-  const v = (name: string) => css.getPropertyValue(name).trim() || '#000';
+  const read = (name: string) => css.getPropertyValue(name).trim();
+  // A missing token says so and draws in ink, inside the palette, rather than
+  // in a black nobody chose (DESIGN.md rule 1; design review D2).
+  const v = (name: string) => {
+    const got = read(name);
+    if (got) return got;
+    console.error(`3D view: the colour token ${name} is missing; drawing it in --ink.`);
+    return read('--ink') || '#000';
+  };
   return {
     floor: v('--floor'),
     trackFill: v('--track-fill'),
