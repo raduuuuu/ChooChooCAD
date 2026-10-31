@@ -915,11 +915,14 @@
 .brand-group.is-collapsible > .palette-row { margin-top: var(--s2); }
 .brand-name { font-weight: 600; color: var(--ink); }
 /*
- * --fail, not a new colour. This IS a correctness warning: the sizes are not
- * backed by any publisher. It sits on --paper at 6.09:1, above the 4.5:1 floor
- * 14px text owes.
+ * --ink and weight, not --fail (DESIGN.md rule 1). It was --fail, read as a
+ * correctness warning, but a size nobody publishes is a doubt about a figure,
+ * not a layout that cannot be built, and --fail means only the second. With
+ * most of the library now unverified seeds, the red said "fails" down the
+ * whole rail. The word still carries the warning; the verdict's trust register
+ * says what it means for the layout once a piece is placed.
  */
-.brand-warn { color: var(--fail); font-weight: 600; }
+.brand-warn { color: var(--ink); font-weight: 600; }
 
 /*
  * UNVERIFIED DIMENSIONS.
@@ -929,14 +932,19 @@
  * greyscale because they are patterns rather than hues. A piece can be both:
  * dotted and greyed at once is a part you do not own whose size is also a guess.
  */
+/*
+ * In --ink, not --fail (DESIGN.md rule 1, same reason as `.brand-warn`): the
+ * pattern is the signal, and the red belongs to verdicts. --ink keeps the
+ * dotted border visible where --rule (1.40:1) would lose it.
+ */
 .piece.is-unverified .piece-main,
 .piece.is-unverified .piece-mirror {
   border-style: dotted;
-  border-color: var(--fail);
+  border-color: var(--ink);
 }
 .piece.is-unverified .piece-id::after {
   content: '*';
-  color: var(--fail);
+  color: var(--ink);
 }
 
 /*
@@ -1623,3 +1631,16 @@
  * palette.
  */
 .piece-main[data-picked] { touch-action: none; }
+/*
+ * THE PICKED CARD (part previews TODO). The ghost on the canvas came from this
+ * card, and with a drawing on every card the pick was easy to lose. Weight
+ * means importance, as on the canvas (`.piece-selected` is 2px --ink), so the
+ * picked card's edge is 2px of --ink: the 1px border plus a 1px inset line,
+ * which keeps the row 36px. It is solid and inside the border, so it reads over
+ * a dotted (unverified) or dashed (unowned) border without hiding it. After
+ * those rules, at their specificity, so it wins the border colour.
+ */
+.piece > .piece-main[data-picked] {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
