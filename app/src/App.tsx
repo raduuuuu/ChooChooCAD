@@ -708,21 +708,20 @@ export function App() {
    * a quick second click landed on Reset (design review FINDING-001).
    */
   const viewSwitch = (
-    <div className="view-corner">
-      {view === '3d' && (
-        <button className="view-reset" onClick={() => setResetSignal((n) => n + 1)}>
-          Reset view
-        </button>
-      )}
-      <div className="view-switch" role="group" aria-label="View">
-        <button aria-pressed={view === '2d'} onClick={() => showView('2d')}>
-          2D
-        </button>
-        <button aria-pressed={view === '3d'} onClick={() => showView('3d')}>
-          3D
-        </button>
-      </div>
+    <div className="view-switch" role="group" aria-label="View">
+      <button aria-pressed={view === '2d'} onClick={() => showView('2d')}>
+        2D
+      </button>
+      <button aria-pressed={view === '3d'} onClick={() => showView('3d')}>
+        3D
+      </button>
     </div>
+  );
+  // Shown by the 3D panel only while there is a view to reset (design review FINDING-005).
+  const resetButton = (
+    <button className="view-reset" onClick={() => setResetSignal((n) => n + 1)}>
+      Reset view
+    </button>
   );
   const startJoin = useCallback(() => {
     setJoiningStarted(true);
@@ -1348,6 +1347,7 @@ export function App() {
             label={sceneLabel}
             resetSignal={resetSignal}
             corner={viewSwitch}
+            reset={resetButton}
           />
         ) : (
           <TrackCanvas
@@ -1392,7 +1392,7 @@ export function App() {
             levelMismatches={levelMarks.mismatches}
             thirdLevels={levelMarks.thirds}
             emptyAction={emptyAction}
-            corner={viewSwitch}
+            corner={<div className="view-corner">{viewSwitch}</div>}
           />
         )}
       </main>
