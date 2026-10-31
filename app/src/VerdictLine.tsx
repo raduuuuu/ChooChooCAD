@@ -34,6 +34,7 @@ import {
   ACTION_WHEN_RAISED,
   ACTION_WHEN_THIRD_LEVEL,
   actionWhenOpenRuns,
+  isJoinAction,
   FAILURE_COPY,
   isFailure,
 } from './verdictAction.js';
@@ -141,8 +142,19 @@ function Trust({ trust }: { trust: readonly TrustIssue[] }) {
  * state with nothing to suggest returns null instead of an empty box.
  */
 function Action({ action }: { action: string | null }) {
+  const startJoin = useContext(JoinStart);
   if (!action) return null;
-  return <p className="verdict-action">{action}</p>;
+  // The join instruction is also the control that starts one (design review 28A).
+  return (
+    <p className="verdict-action">
+      {action}
+      {startJoin && isJoinAction(action) && (
+        <button type="button" className="verdict-join" onClick={startJoin}>
+          Join two ends
+        </button>
+      )}
+    </p>
+  );
 }
 
 /**
@@ -373,6 +385,12 @@ function Basis() {
  * which. Provided by App; empty means no prefix.
  */
 export const VerdictScope = createContext<string | null>(null);
+
+/**
+ * Starts joining mode, when the layout has two or more free ends (design
+ * review 28A); null otherwise, and the action line stays text only.
+ */
+export const JoinStart = createContext<(() => void) | null>(null);
 
 function Verdict({
   tone,

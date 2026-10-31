@@ -158,6 +158,14 @@ nothing else uses:
   chevron. No beech and no grooves: the palette gets no colour (rule 1). The
   drawing follows the card's text colour, so a greyed card has a greyed
   drawing.
+- **A seam is a 2.5px `--seam` line that runs past both plank edges** (seams
+  and join review, 26A, 2026-10-31), so pieces in a straight run can be
+  counted; inside the plank it vanished into the grooves.
+- **A thin ink ring inside an end means "a join can go here"**, shown only
+  while joining (27A): 2px against the armed end's 3px, so the armed end stays
+  the heaviest port mark.
+- **A small paper button with an ink edge between two ends is a join on
+  offer** (28B): the only button drawn on the track.
 - **Strokes keep their device size** (`vector-effect: non-scaling-stroke`),
   because the canvas fits the whole layout into a fixed box and a stroke in
   millimetres thins to nothing on a big board.

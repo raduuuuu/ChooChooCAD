@@ -468,3 +468,92 @@ export function labelSpot(
   }
   return null;
 }
+
+/** Two free ends close enough, and facing, to offer a one-press join (design 28B). */
+export interface JoinSuggestion {
+  readonly a: PortRef;
+  readonly b: PortRef;
+  /** Midway between the two ends, where the Join button sits. */
+  readonly at: readonly [number, number];
+  /** Both ends' level (they share one); the button is drawn with that level's track. */
+  readonly level: number;
+}
+
+/**
+ * How far apart two free ends may be and still be offered a join, in mm (28B).
+ * 100, not the 60 first proposed: the Near miss loop, opened at its closing
+ * joint, leaves its ends 72mm apart, and that is the very case the button is
+ * for (seen in a browser, 2026-10-31). Under a medium straight's 144mm, so a
+ * gap you could fill with a piece is not offered as a join.
+ */
+export const SUGGEST_JOIN_MM = 100;
+/** How far from facing each other they may turn, in degrees (28B). */
+export const SUGGEST_JOIN_DEG = 30;
+/** Above this many free ends nothing is suggested: the pairs grow as the square. */
+export const SUGGEST_JOIN_MAX_ENDS = 200;
+
+/**
+ * THE JOINS THE CANVAS OFFERS (design review 28B, 2026-10-31).
+ *
+ * A loop whose last piece stops just short of its first is the commonest
+ * join there is, and the one the free-end dots hide best. So: two free ends on
+ * one level, at most SUGGEST_JOIN_MM apart, pointing at each other to within
+ * SUGGEST_JOIN_DEG, and a join the editor would make (`canJoin`, the same
+ * refusal the reducer applies). Each end is offered once, to its nearest
+ * partner, so two buttons never claim the same end.
+ */
+export function joinSuggestions(
+  ports: readonly RenderedPort[],
+  canJoin: (a: PortRef, b: PortRef) => boolean,
+): readonly JoinSuggestion[] {
+  const free = ports.filter((p) => p.free);
+  if (free.length < 2 || free.length > SUGGEST_JOIN_MAX_ENDS) return [];
+  const facing = Math.cos((SUGGEST_JOIN_DEG * Math.PI) / 180);
+  const pairs: { i: number; j: number; d: number }[] = [];
+  for (let i = 0; i < free.length; i++) {
+    for (let j = i + 1; j < free.length; j++) {
+      const p = free[i]!;
+      const q = free[j]!;
+      if ((p.level ?? 0) !== (q.level ?? 0)) continue;
+      const d = Math.hypot(q.x - p.x, q.y - p.y);
+      if (d > SUGGEST_JOIN_MM) continue;
+      // Outward headings opposite: cos(h_p - h_q) close to -1.
+      if (-Math.cos(p.h - q.h) < facing) continue;
+      // And each points at the other, not away (a gap, not two backs).
+      if (d > 1e-6 && (Math.cos(p.h) * (q.x - p.x) + Math.sin(p.h) * (q.y - p.y)) / d < facing) continue;
+      pairs.push({ i, j, d });
+    }
+  }
+  pairs.sort((x, y) => x.d - y.d);
+  const used = new Set<number>();
+  const out: JoinSuggestion[] = [];
+  for (const { i, j } of pairs) {
+    if (used.has(i) || used.has(j)) continue;
+    const p = free[i]!;
+    const q = free[j]!;
+    const a = { pieceId: p.pieceId, port: p.port };
+    const b = { pieceId: q.pieceId, port: q.port };
+    if (!canJoin(a, b)) continue;
+    used.add(i);
+    used.add(j);
+    out.push({ a, b, at: [(p.x + q.x) / 2, (p.y + q.y) / 2], level: p.level ?? 0 });
+  }
+  return out;
+}
+
+/** How far a seam runs past each plank edge, in screen pixels (design 26A). */
+export const SEAM_OVERHANG_PX = 4;
+
+/** A seam lengthened by `byMm` at both ends, along its own line. */
+export function pastEdges(m: SeamLine, byMm: number): readonly [readonly [number, number], readonly [number, number]] {
+  const dx = m.to[0] - m.from[0];
+  const dy = m.to[1] - m.from[1];
+  const len = Math.hypot(dx, dy);
+  if (len === 0) return [m.from, m.to];
+  const ux = (dx / len) * byMm;
+  const uy = (dy / len) * byMm;
+  return [
+    [m.from[0] - ux, m.from[1] - uy],
+    [m.to[0] + ux, m.to[1] + uy],
+  ];
+}
