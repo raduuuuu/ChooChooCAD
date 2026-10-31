@@ -1728,13 +1728,17 @@
   min-height: 36px;
   min-width: 44px;
   padding: 0 var(--s3);
+  /* Paper, not transparent like the rail's buttons: these sit over the scene. */
   background: var(--paper);
-  border: 1px solid var(--ink-soft);
+  /* The app's outline button: --rule at rest, --ink-soft on hover (design review FINDING-003). */
+  border: 1px solid var(--rule);
   color: var(--ink);
   font: inherit;
   font-size: 14px;
   cursor: pointer;
 }
+.view-switch button:hover,
+.view-reset:hover { border-color: var(--ink-soft); }
 .view-reset { border-radius: 3px; }
 .view-switch button:first-child { border-radius: 3px 0 0 3px; }
 .view-switch button:last-child { border-radius: 0 3px 3px 0; margin-inline-start: -1px; }
