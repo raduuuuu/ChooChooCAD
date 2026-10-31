@@ -3,7 +3,10 @@
  * and by hand: `bun scripts/chunkBudget.ts`.
  *
  * The main chunk was 124.07 kB gzipped before the 3D view (measured
- * 2026-10-31, `bun run build` at b757b9a); it may grow by at most 5 kB. And
+ * 2026-10-31, `bun run build` at b757b9a), with 5 kB allowed on top. The 3D
+ * view and build mode spent that allowance on purpose, each reviewed, so the
+ * baseline was re-measured once they shipped: 129.02 kB (2026-10-31, at
+ * b3210c1, the owner's call). It may grow by at most 5 kB from there. And
  * Three.js must not be in it: its renderer's name in the main chunk means a
  * stray import pulled it in, which `app/src/view3dImports.test.ts` also
  * guards from the source side.
@@ -14,7 +17,7 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
 const ASSETS = join(import.meta.dir, '..', 'app', 'dist', 'assets');
-const BASELINE_KB = 124.07;
+const BASELINE_KB = 129.02;
 const ALLOWANCE_KB = 5;
 
 const files = readdirSync(ASSETS).filter((f) => f.endsWith('.js'));
