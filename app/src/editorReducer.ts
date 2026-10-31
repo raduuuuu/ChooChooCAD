@@ -237,6 +237,12 @@ export type EditorAction =
   | { readonly kind: 'add'; readonly partId: string; readonly turn: Turn }
   | { readonly kind: 'clickPort'; readonly ref: PortRef }
   /**
+   * Join these two free ends in one step (design review 28B: the canvas's
+   * Join button). The same as arming `a` and clicking `b`, so it refuses
+   * what that refuses; whatever end was armed before is set aside.
+   */
+  | { readonly kind: 'joinEnds'; readonly a: PortRef; readonly b: PortRef }
+  /**
    * Break the weld between these two ends (task U5). Ports, not a weld index
    * (finding E4): breaking reorders `graph.welds`, so an index read from one
    * render and applied to a newer graph breaks the wrong weld.
@@ -685,6 +691,11 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
       }
       // Arming an end and selecting a piece are never on at once.
       return { ...state, cursor: ref, armed: ref, selected: null };
+    }
+
+    case 'joinEnds': {
+      if (state.ghost || stillFree(state.graph, action.a) === null) return state;
+      return step({ ...state, armed: action.a, cursor: action.a, selected: null }, { kind: 'clickPort', ref: action.b }, ports, geometry);
     }
 
     case 'breakWeld': {

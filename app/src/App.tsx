@@ -49,11 +49,11 @@ import { placeAll } from '../../engine/src/graph/frames.js';
 import { levelOf, portsOf, type Piece as GPiece, type Port, type PortRef } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
 import { bendRender, bentShifts } from '../../engine/src/graph/bendPose.js';
-import { badJointMarks, gapMarks, seamLines, weldTargets } from './trackPath.js';
+import { badJointMarks, gapMarks, joinSuggestions, seamLines, weldTargets, type JoinSuggestion } from './trackPath.js';
 import { useEditorKeys } from './useEditorKeys.js';
 import { usePaletteDrag, type CanvasProbe } from './usePaletteDrag.js';
 import { UndoControl } from './UndoControl.js';
-import { GraphListing } from './GraphListing.js';
+import { endName, GraphListing } from './GraphListing.js';
 import { describeAction } from './announce.js';
 import { solveGraph } from '../../engine/src/graph/solve.js';
 import {
@@ -74,7 +74,7 @@ import { PartPreview } from './PartPreview.js';
 import { AppName } from './AppName.js';
 import { previews } from './previewGeometry.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
-import { VerdictLine, VerdictScope } from './VerdictLine.js';
+import { JoinStart, VerdictLine, VerdictScope } from './VerdictLine.js';
 import { ghostFit, joinRefusal, otherLevelEndNear, shiftMm, snapRunMove, type JoinRefusal } from './layoutModel.js';
 import { ghostKeys } from './ghostKeys.js';
 import { InventoryPanel } from './Inventory.js';
@@ -631,6 +631,31 @@ export function App() {
     returnFocus();
   };
   /*
+   * JOINING, AS A MODE (design review 27A, 28A, 2026-10-31). Arming an end was
+   * the only sign a join was under way: a thin ring, no words, no Cancel.
+   * `joining` also covers the step before an end is armed, after "Join two
+   * ends" in the verdict. It ends when the join is made, the armed end is let
+   * go, a piece is picked, or Cancel / Escape.
+   */
+  const [joiningStarted, setJoiningStarted] = useState(false);
+  const joining = !ghost && (joiningStarted || armed !== null);
+  const wasArmed = useRef<PortRef | null>(null);
+  useEffect(() => {
+    if (wasArmed.current !== null && armed === null) setJoiningStarted(false);
+    wasArmed.current = armed;
+  }, [armed]);
+  useEffect(() => {
+    if (ghost) setJoiningStarted(false);
+  }, [ghost]);
+  const cancelJoin = () => {
+    if (armed) dispatch({ kind: 'clickPort', ref: armed });
+    setJoiningStarted(false);
+  };
+  const startJoin = useCallback(() => {
+    setJoiningStarted(true);
+    if (editor.selected != null) selectPiece(null);
+  }, [editor.selected]);
+  /*
    * A PALETTE DRAG (decisions E6, 6A): the same pick, then the preview follows
    * the pointer; release over the canvas drops it, anywhere else cancels.
    */
@@ -666,6 +691,7 @@ export function App() {
     onRedo: redo,
     onEscape: () => {
       if (ghost) cancelGhost();
+      else if (joining) cancelJoin();
       else if (editor.selected != null) selectPiece(null);
     },
     placing: ghost
@@ -904,6 +930,25 @@ export function App() {
     }
     return out;
   }, [armed, sites]);
+
+  /*
+   * ENDS THAT NEARLY MEET, offered as one-press joins (design review 28B).
+   * Not while placing, and nothing above the drawing ceiling.
+   */
+  const suggestions = useMemo(
+    () =>
+      ghost || render.segments.length > CANVAS_SEGMENT_CEILING
+        ? []
+        : joinSuggestions(drawn.ports, (a, b) => joinRefusal(sites, a, b) === null),
+    [ghost, render, drawn, sites],
+  );
+  const endWords = (ref: PortRef): string => {
+    const i = graph.pieces.findIndex((p) => p.pieceId === ref.pieceId);
+    const piece = graph.pieces[i];
+    return piece ? `the ${endName(resolve(piece.partId), ref.port, piece.turn)} of piece ${i + 1}` : 'an end';
+  };
+  const suggestionName = (g: JoinSuggestion) => `Join ${endWords(g.a)} to ${endWords(g.b)}`;
+  const freeEnds = useMemo(() => drawn.ports.filter((p) => p.free).length, [drawn]);
   const ghostView = useMemo(() => {
     if (!ghost) return null;
     const part = resolve(ghost.partId);
@@ -1018,6 +1063,33 @@ export function App() {
         </p>
       </div>
     ) : null;
+
+  /*
+   * THE JOINING STRIP (design review 27A): what is happening and how to stop.
+   * Escape cancels too (useEditorKeys).
+   */
+  const joinStrip = joining ? (
+    <div
+      className="mode-strip"
+      role="group"
+      aria-label="Joining two ends"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          cancelJoin();
+        }
+      }}
+    >
+      <p className="mode-strip-text">
+        {armed ? (
+          <>Joining from {endWords(armed)}. Click another free end to join it.</>
+        ) : (
+          <>Joining two ends. Click the first free end.</>
+        )}
+      </p>
+      <button onClick={cancelJoin}>Cancel (Esc)</button>
+    </div>
+  ) : null;
 
   const placingStrip = ghostView ? (
     <div
@@ -1207,6 +1279,10 @@ export function App() {
           cursor={cursor}
           armed={armed}
           unjoinable={unjoinable}
+          joining={joining}
+          suggestions={suggestions}
+          onSuggest={(g) => dispatch({ kind: 'joinEnds', a: g.a, b: g.b })}
+          suggestionName={suggestionName}
           onPortClick={clickPort}
           welds={welds}
           onWeldClick={breakJoint}
@@ -1217,7 +1293,7 @@ export function App() {
           onPieceRemove={removePiece}
           onFloorClick={() => selected !== null && selectPiece(null)}
           pieceName={canvasPieceName}
-          strip={placingStrip ?? selectionStrip ?? dropStrip}
+          strip={placingStrip ?? joinStrip ?? selectionStrip ?? dropStrip}
           ghost={ghostView ? { render: ghostView.render, red: ghostView.red, reach: ghostView.reach } : null}
           onRunMove={(d, radius) => moveRunBy(d.pieceId, d.dx, d.dy, d.turns, radius)}
           runOf={runOf}
@@ -1315,6 +1391,7 @@ export function App() {
         </div>
       )}
 
+      <JoinStart.Provider value={!ghost && !joining && freeEnds >= 2 ? startJoin : null}>
       <VerdictScope.Provider value={ghost ? 'Placed track:' : null}>
         <VerdictLine
           view={verdictView}
@@ -1324,6 +1401,7 @@ export function App() {
           polarityUnmarked={refusedMarks.hidden}
         />
       </VerdictScope.Provider>
+      </JoinStart.Provider>
 
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="false">
         {said}

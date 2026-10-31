@@ -26,7 +26,7 @@ import { reduce, type EditorState } from './editorReducer.js';
 import { EMPTY_GRAPH } from './layoutModel.js';
 import { PRESETS } from './presets.js';
 import { TrackCanvas } from './TrackCanvas.js';
-import { gridLabel, gridPath, gridStep, seamLines, visibleBox } from './trackPath.js';
+import { gridLabel, gridPath, gridStep, pastEdges, SEAM_OVERHANG_PX, seamLines, visibleBox } from './trackPath.js';
 
 const resolve = makeResolver(BUILT_IN);
 const ports = (piece: Piece): readonly Port[] => portsOf(resolve(piece.partId), piece.turn);
@@ -170,6 +170,30 @@ describe('the canvas draws them', () => {
     // No measurement in a static render, so the fallback picks the step.
     expect(html).toContain('Grid: 10 cm');
   });
+
+  /*
+   * THE SEAM RUNS PAST THE PLANK (design review 26A): on a straight run a
+   * seam inside the 40mm plank vanished into the grooves.
+   *
+   * MUTATION PROOF, run: the canvas draws `m.from`/`m.to` instead of
+   * `pastEdges(...)`: `expected [ 40, 40 ] to deeply equal [ 48, 48 ]`.
+   */
+  it('draws each seam past both plank edges', () => {
+    const graph = build(['A', 'A', 'A']);
+    const { render, seams } = seamsOf(graph);
+    const html = renderToStaticMarkup(createElement(TrackCanvas, { render, resolve, seams }));
+    const drawn = [...html.matchAll(/<line class="seam" x1="([^"]+)" y1="([^"]+)" x2="([^"]+)" y2="([^"]+)"/g)].map((m) =>
+      Math.round(Math.hypot(Number(m[3]) - Number(m[1]), Number(m[4]) - Number(m[2]))),
+    );
+    // No measurement in a static render, so one CSS px is one mm: 40 + 2 x 4.
+    expect(drawn).toEqual([40 + 2 * SEAM_OVERHANG_PX, 40 + 2 * SEAM_OVERHANG_PX]);
+  });
+
+  it('lengthens a seam along its own line, and leaves a point alone', () => {
+    const [a, b] = pastEdges({ from: [0, -20], to: [0, 20], pieceId: 'p' }, 4);
+    expect([a[0] + 0, a[1], b[0] + 0, b[1]]).toEqual([0, -24, 0, 24]);
+    expect(pastEdges({ from: [5, 5], to: [5, 5], pieceId: 'p' }, 4)).toEqual([[5, 5], [5, 5]]);
+  });
 });
 
 /*
@@ -204,6 +228,14 @@ describe('the seam and grid use their measured tokens at a fixed device weight',
     expect(lastDecl('.seam', 'stroke')).toBe('var(--seam)');
     expect(token('seam')).toBe('#6e5a38');
     expect(lastDecl('.seam', 'vector-effect')).toBe('non-scaling-stroke');
+  });
+
+  /*
+   * MUTATION PROOF, run: `.seam` back to `stroke-width: 1.5`:
+   * `expected '1.5' to be '2.5'`.
+   */
+  it('the seam is 2.5px, heavy enough to count straights by (26A)', () => {
+    expect(lastDecl('.seam', 'stroke-width')).toBe('2.5');
   });
 
   it('the grid is --grid-line, the documented faint tone', () => {

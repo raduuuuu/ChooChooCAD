@@ -199,6 +199,14 @@ export function describeAction(
       if (prev.armed && !next.armed) return 'Selection cleared.';
       return null;
     }
+    case 'joinEnds': {
+      if (next.graph.welds.length > prev.graph.welds.length) {
+        const made = next.graph.welds[next.graph.welds.length - 1]!;
+        return `Joined ${where(prev.graph, action.a)} to ${where(prev.graph, action.b)}${withAdapter(next.graph, made)}.`;
+      }
+      const why = joinRefusal(connectorSites(prev.graph, portsOfPiece, placeAll(prev.graph, portsOfPiece)), action.a, action.b);
+      return why ? `Can't join ${where(prev.graph, action.a)} to ${where(prev.graph, action.b)}: ${JOIN_REFUSED[why]}.` : null;
+    }
     case 'breakWeld': {
       const named = (w: Graph['welds'][number]) =>
         (same(w.a, action.a) && same(w.b, action.b)) || (same(w.a, action.b) && same(w.b, action.a));

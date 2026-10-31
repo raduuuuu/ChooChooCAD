@@ -30,6 +30,9 @@ import type { PortRef } from '../../engine/src/graph/model.js';
 import type { Part, Polarity } from '../../engine/src/parts/schema.js';
 import {
   clashMarkers,
+  pastEdges,
+  SEAM_OVERHANG_PX,
+  type JoinSuggestion,
   gapAnnotations,
   gridLabel,
   gridPath,
@@ -280,6 +283,18 @@ export interface TrackCanvasProps {
   readonly armed?: PortRef | null;
   /** Free ends the armed one can't join, keyed `pieceId#port`, with why. */
   readonly unjoinable?: ReadonlyMap<string, JoinRefusal>;
+  /**
+   * Joining is under way (design 27A): every free end that can take the join
+   * gets a target ring. True while an end is armed, and after "Join two ends"
+   * before the first end is chosen (28A).
+   */
+  readonly joining?: boolean;
+  /** Free ends that nearly meet, each offered as a Join button (28B). */
+  readonly suggestions?: readonly JoinSuggestion[];
+  /** Pressing a suggestion's Join button. */
+  readonly onSuggest?: (s: JoinSuggestion) => void;
+  /** The suggestion's accessible name: which two ends it joins. */
+  readonly suggestionName?: (s: JoinSuggestion) => string;
   /** Clicking a free end. This is the whole editing interaction (D5). */
   readonly onPortClick?: (ref: PortRef) => void;
   /** Every joint, resolved to the canvas by `weldTargets` (task U5). */
@@ -344,6 +359,10 @@ export function TrackCanvas({
   cursor = null,
   armed = null,
   unjoinable,
+  joining = false,
+  suggestions = [],
+  onSuggest,
+  suggestionName,
   onPortClick,
   welds = [],
   onWeldClick,
@@ -913,16 +932,11 @@ export function TrackCanvas({
           * target: `pointer-events: none` comes from the stylesheet.
           */}
         {/* The dragged run's seams travel with it, in the overlay above. */}
-        {seams.filter((m) => raisedPiece(m.pieceId) === raised).map((m, i) => hiddenRun?.has(m.pieceId) ? null : (
-          <line
-            key={`seam-${i}`}
-            className="seam"
-            x1={m.from[0]}
-            y1={m.from[1]}
-            x2={m.to[0]}
-            y2={m.to[1]}
-          />
-        ))}
+        {seams.filter((m) => raisedPiece(m.pieceId) === raised).map((m, i) => {
+          if (hiddenRun?.has(m.pieceId)) return null;
+          const [from, to] = pastEdges(m, SEAM_OVERHANG_PX * mmPerPx);
+          return <line key={`seam-${i}`} className="seam" x1={from[0]} y1={from[1]} x2={to[0]} y2={to[1]} />;
+        })}
         {/*
           * SELECTION (decisions 10A and 2A): the rest of the selected piece's
           * run gets a quiet 1px line along both plank edges, the piece itself
@@ -1213,6 +1227,12 @@ export function TrackCanvas({
                   <circle cx={p.x} cy={p.y} r={21} className="port-cursor-ring" />
                 )}
                 {/*
+                  * A JOIN TARGET (design 27A): an end the join can go to, while
+                  * joining. Weight, not colour: 2px against the armed end's 3px,
+                  * and inside it at r=12 so the two rings never sit on one line.
+                  */}
+                {joining && !isArmed && !refused && <circle cx={p.x} cy={p.y} r={12} className="port-target-ring" />}
+                {/*
                   * Filled is a peg, hollow is a socket; same radius, so this
                   * adds no ink to a dense layout. A switch's heel is drawn the
                   * same way, because it is a peg or a socket too. Why the
@@ -1220,6 +1240,45 @@ export function TrackCanvas({
                   * docs/plan/brio-TODOS.md.
                   */}
                 <circle cx={p.x} cy={p.y} r={8} className={POLARITY_CLASS[p.polarity]} />
+              </g>
+            );
+          })}
+      {/*
+        * JOIN SUGGESTIONS (design review 28B): two free ends that nearly meet
+        * get a "Join" button between them, so the commonest join (a loop that
+        * stops just short) is one press. Sized in screen pixels like the
+        * marks, 44px tall on a finger (DESIGN.md rule 10); last in the layer
+        * so nothing on its level covers it. Ink and paper only (rule 1).
+        */}
+      {!ghost &&
+        suggestions
+          .filter((g) => (g.level >= 1) === raised)
+          .map((g) => {
+            const w = 56 * mmPerPx;
+            const hgt = (coarse ? 44 : 28) * mmPerPx;
+            const name = suggestionName?.(g) ?? 'Join these two ends';
+            return (
+              <g
+                key={`suggest-${g.a.pieceId}#${g.a.port}-${g.b.pieceId}#${g.b.port}`}
+                className="join-suggest"
+                role="button"
+                tabIndex={0}
+                aria-label={name}
+                onClick={() => onSuggest?.(g)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSuggest?.(g);
+                  }
+                }}
+              >
+                <title>{name}</title>
+                <rect x={g.at[0] - w / 2} y={g.at[1] - hgt / 2} width={w} height={hgt} rx={4 * mmPerPx} className="join-suggest-box" />
+                <g transform={`translate(${g.at[0]}, ${g.at[1]}) scale(1, -1)`}>
+                  <text className="join-suggest-text" x={0} y={0} style={{ fontSize: 14 * mmPerPx }}>
+                    Join
+                  </text>
+                </g>
               </g>
             );
           })}

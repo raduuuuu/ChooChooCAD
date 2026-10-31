@@ -174,3 +174,11 @@ export const ACTION_FOR_FAILURE: Record<FailureKind, string> = {
  * action, and a second invitation here is the exact thing design D10 removed.
  */
 export const ACTION_WHEN_EMPTY: string | null = null;
+
+/**
+ * The actions that ask for a join (design review 28A): the verdict shows a
+ * "Join two ends" button beside these, so the instruction is also the control.
+ */
+export function isJoinAction(action: string): boolean {
+  return action === ACTION_FOR_FAILURE.NO_CYCLE || action === actionWhenOpenRuns(1) || action === actionWhenOpenRuns(2);
+}

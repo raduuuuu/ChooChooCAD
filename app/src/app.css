@@ -147,9 +147,16 @@
   color: var(--ink-soft);
   pointer-events: none;
 }
+/*
+ * A SEAM YOU CAN COUNT BY (design review 26A, 2026-10-31). At 1.5px inside the
+ * plank it vanished into the grooves on a straight run, so three straights
+ * read as one long plank. 2.5px, and the canvas runs it SEAM_OVERHANG_PX past
+ * both plank edges, so the join reads on the floor as well as on the wood.
+ * Weight, not a new colour (rules 1 and 11).
+ */
 .seam {
   stroke: var(--seam);
-  stroke-width: 1.5;
+  stroke-width: 2.5;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
@@ -1278,6 +1285,39 @@
   stroke-dasharray: 3 3;
   vector-effect: non-scaling-stroke;
 }
+/*
+ * A JOIN TARGET (design review 27A): while joining, every end the join can go
+ * to. --ink like the armed ring but 2px against its 3px, and at r=12 inside
+ * it, so weight keeps the armed end the heaviest port mark.
+ */
+.port-target-ring {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+/*
+ * THE JOIN SUGGESTION (design review 28B): a small paper button with an ink
+ * edge between two ends that nearly meet. Paper and ink only (rule 1); the
+ * text is counter-flipped by the canvas like the gap figure.
+ */
+.join-suggest { cursor: pointer; }
+.join-suggest-box {
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.join-suggest:hover .join-suggest-box,
+.join-suggest:focus-visible .join-suggest-box { stroke-width: 3; }
+.join-suggest:focus { outline: none; }
+.join-suggest-text {
+  fill: var(--ink);
+  font-weight: 600;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
 .port:focus { outline: none; }
 .port:focus-visible .port-dot { stroke: var(--ink); stroke-width: 7; }
 
@@ -1643,4 +1683,25 @@
 .piece > .piece-main[data-picked] {
   border-color: var(--ink);
   box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+/*
+ * THE VERDICT'S JOIN BUTTON (design review 28A): the instruction "join the
+ * free ends" is also the control that starts joining. A plain bordered button
+ * like the rail's, on the action line.
+ */
+.verdict-join {
+  margin-inline-start: var(--s2);
+  min-height: 32px;
+  padding: 0 var(--s3);
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  border-radius: 3px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+@media (pointer: coarse) {
+  .verdict-join { min-height: 44px; }
 }
