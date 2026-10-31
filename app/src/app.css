@@ -1869,7 +1869,7 @@
 .build-reason { color: var(--ink-soft); font-size: var(--build-meta); }
 .build-quiet { margin: 0; min-height: 1.4em; font-size: var(--build-meta); color: var(--ink-soft); }
 /* The corner's controls, with a ring of space where a near-miss does nothing (D50). */
-.build-dead { margin-top: auto; align-self: flex-end; padding: var(--s4); margin-right: calc(-1 * var(--s4)); margin-bottom: calc(-1 * var(--s4)); }
+.build-dead { margin-top: auto; align-self: flex-end; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s2); padding: var(--s4); margin-inline-end: calc(-1 * var(--s4)); margin-bottom: calc(-1 * var(--s4)); }
 .build-dead button, .build-actions button { min-height: 48px; padding: 0 var(--s4); font: inherit; font-size: var(--build-meta); }
 .build-outline { background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; color: var(--ink); }
 .build-primary { background: var(--ink); color: var(--paper); border: 1px solid var(--ink); border-radius: 4px; font-weight: 600; }
