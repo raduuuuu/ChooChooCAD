@@ -1871,9 +1871,13 @@
 /* The corner's controls, with a ring of space where a near-miss does nothing (D50). */
 .build-dead { margin-top: auto; align-self: flex-end; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s2); padding: var(--s4); margin-inline-end: calc(-1 * var(--s4)); margin-bottom: calc(-1 * var(--s4)); }
 .build-dead button, .build-actions button { min-height: 48px; padding: 0 var(--s4); font: inherit; font-size: var(--build-meta); }
-.build-outline { background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; color: var(--ink); }
-.build-primary { background: var(--ink); color: var(--paper); border: 1px solid var(--ink); border-radius: 4px; font-weight: 600; }
-.build-text { background: none; border: none; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.build-outline { background: var(--paper); border: 1px solid var(--rule); border-radius: 3px; color: var(--ink); cursor: pointer; }
+.build-outline:hover { border-color: var(--ink-soft); }
+/* One filled button per build screen, the one thing to do there (design D32, D38), as the empty state's is in the editor. */
+.build-primary { background: var(--ink); color: var(--paper); border: 1px solid var(--ink); border-radius: 3px; font-weight: 600; cursor: pointer; }
+.build-primary:hover { background: var(--ink-soft); border-color: var(--ink-soft); }
+.build-text { background: none; border: none; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.build-text:hover { text-decoration-thickness: 2px; }
 /* Previous and Next for keyboards and screen readers (D51): hidden until focused. */
 .build-sr-nav { display: flex; gap: var(--s2); }
 .build-sr-nav button { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
