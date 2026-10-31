@@ -1,6 +1,6 @@
 /**
  * THE 3D VIEW'S CONTROLS BEHAVE LIKE CONTROLS (design review of the 3D view,
- * 2026-10-31, FINDING-002 and FINDING-005).
+ * 2026-10-31, FINDING-002, FINDING-005 and FINDING-006).
  *
  * Value: protects=keyboard focus stays on the switch when the view changes,
  * and Reset is offered only when there is a view to reset
@@ -19,7 +19,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { App } from './App.js';
 
 vi.mock('./Viewer3D.js', () => ({
-  default: () => <div data-testid="viewer3d" />,
+  // The real viewer puts `describedBy` on its canvas; the mock puts it on its stand-in.
+  default: (props: { describedBy?: string }) => <div data-testid="viewer3d" aria-describedby={props.describedBy} />,
 }));
 
 const button = (name: string) => screen.getAllByRole('button', { name })[0]!;
@@ -66,5 +67,21 @@ describe('Reset is offered only with a view to reset (FINDING-005)', () => {
     await user.click(button('Clear'));
     expect(screen.getByText('Nothing to show in 3D yet.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Reset view' })).toBe(null);
+  });
+});
+
+describe('the 3D view says its keys (FINDING-006)', () => {
+  /*
+   * MUTATION PROOF, run: the panel stops passing `describedBy: howToId` to the
+   * viewer: `expected null not to be null`.
+   */
+  it('the view is described by the how-to, and the how-to names the keys', async () => {
+    const user = app();
+    await user.click(button('Stadium'));
+    await user.click(button('3D'));
+    const view = await screen.findByTestId('viewer3d');
+    const id = view.getAttribute('aria-describedby');
+    expect(id).not.toBe(null);
+    expect(document.getElementById(id!)?.textContent).toMatch(/Keys: arrows turn, \+ and − zoom, 0 resets\./);
   });
 });
