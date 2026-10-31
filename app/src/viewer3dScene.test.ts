@@ -1,13 +1,14 @@
 /**
  * THE 3D SCENE FREES WHAT IT REPLACES, AND STARTS WITH EVERYTHING IN VIEW
- * (3D plan, eng D12 and D16, design 21A).
+ * (3D plan, eng D12 and D16, design 21A), FROM LOWER WHEN ANY TRACK IS RAISED
+ * (design review 2026-10-31, D1).
  *
  * Value: protects=every rebuild disposes the geometries and materials it
  * replaces, so memory stays flat however long you edit with 3D open, and
  * leaving 3D disposes the rest; the starting camera sees every corner of the
- * scene
+ * scene, 35 degrees up, or 25 when the layout has raised track
  * Value: fails_when=`syncScene` stops disposing, or `startPose` frames too
- * tight or from the wrong side
+ * tight, from the wrong side, or a raised layout from as high as a flat one
  * Value: why_new=no 3D code existed
  * Value: seam=none: `syncScene`, `disposeChildren` and `startPose` are the
  * viewer's own functions, run with real three objects, which need no WebGL
@@ -97,13 +98,19 @@ describe('rebuilding the scene frees what it replaces (eng D16)', () => {
   });
 });
 
-describe('the starting view (design 21A)', () => {
+describe('the starting view (design 21A; raised layouts, design review D1)', () => {
   /*
    * MUTATION PROOF, run: the fitted distance cut to a third (`d = d / 3`):
    * `expected false to be true`.
+   *
+   * MUTATION PROOF, run: `startElevationDeg` always returns
+   * START_ELEVATION_DEG: `expected 35 to be 25` (the raised case).
    */
-  it('sees all eight corners of the scene, from the plan’s bottom edge, looking up 35 degrees', () => {
-    const arrays = arraysOf(['A', 'N', 'A', 'E', 'E', 'D']);
+  it.each([
+    ['flat', ['A', 'A', 'E', 'E', 'D'], 35],
+    ['with a ramp to a raised level', ['A', 'N', 'A', 'E', 'E', 'D'], 25],
+  ] as const)('a layout %s: sees all eight corners, from the plan’s bottom edge, looking up %i degrees', (_, ids, deg) => {
+    const arrays = arraysOf(ids);
     const aspect = 16 / 9;
     const pose = startPose(arrays, aspect);
     const cam = new PerspectiveCamera(FOV_DEG, aspect, 1, 1e6);
@@ -127,6 +134,6 @@ describe('the starting view (design 21A)', () => {
     expect(pose.position.y).toBeLessThan(pose.target.y);
     const up = pose.position.z - pose.target.z;
     const across = Math.hypot(pose.position.x - pose.target.x, pose.position.y - pose.target.y);
-    expect(Math.round((Math.atan2(up, across) * 180) / Math.PI)).toBe(35);
+    expect(Math.round((Math.atan2(up, across) * 180) / Math.PI)).toBe(deg);
   });
 });
