@@ -63,6 +63,8 @@ export interface MarkInput {
   readonly kind: 'gap' | 'refused' | 'adapter' | 'clash' | 'overlap' | 'level' | 'third';
   readonly at: readonly [number, number];
   readonly source: MarkSource;
+  /** A gap's figure in mm, drawn as the 2D canvas's dimension text. */
+  readonly figure?: number;
 }
 
 export interface PlacedMark {
@@ -71,6 +73,7 @@ export interface PlacedMark {
   readonly at: readonly [number, number, number];
   /** A level mismatch's line runs from `at` down or up to this height (design 16A). */
   readonly lineTo?: number;
+  readonly figure?: number;
 }
 
 export interface SceneInput {
@@ -182,9 +185,13 @@ export function stations(s: Segment): readonly Station[] {
   return out;
 }
 
-/** The level at each end of a segment, read from its own piece's ports at those spots. */
-function endLevels(s: Segment, ports: readonly RenderedPort[]): readonly [number, number] {
-  const own = ports.filter((p) => p.pieceId === s.pieceId);
+/**
+ * The level at each end of a segment, read from its own piece's ports at those
+ * spots. `byPiece` is built once per scene: filtering every port for every
+ * segment was quadratic, 1.4s at the 10,000-segment ceiling (measured).
+ */
+function endLevels(s: Segment, byPiece: ReadonlyMap<string, readonly RenderedPort[]>): readonly [number, number] {
+  const own = s.pieceId !== undefined ? (byPiece.get(s.pieceId) ?? []) : [];
   const at = (q: FPose): number => {
     let best: RenderedPort | undefined;
     let bestD = Infinity;
@@ -247,12 +254,18 @@ export function buildScene(input: SceneInput): SceneArrays {
   };
   /** The underside's height at each end of every segment, keyed by the segment. */
   const undersides = new Map<Segment, readonly [number, number]>();
+  const byPiece = new Map<string, RenderedPort[]>();
+  for (const p of ports) {
+    const list = byPiece.get(p.pieceId);
+    if (list) list.push(p);
+    else byPiece.set(p.pieceId, [p]);
+  }
 
   for (const s of segments) {
     const part = s.pieceId !== undefined ? partOf(s.pieceId) : undefined;
     const width = part?.plankWidthMm ?? 40;
     const half = width / 2;
-    const [l0, l1] = endLevels(s, ports);
+    const [l0, l1] = endLevels(s, byPiece);
     const z0 = l0 * riseMm;
     const z1 = l1 * riseMm;
     undersides.set(s, [z0, z1]);
@@ -381,7 +394,8 @@ export function buildScene(input: SceneInput): SceneArrays {
     return best === -Infinity ? plankMm : best;
   };
   const portTop = (k: PortKey): number => (portAt.get(`${k.pieceId}#${k.port}`)?.level ?? 0) * riseMm + plankMm;
-  const marks: PlacedMark[] = (input.marks ?? []).map((m) => {
+  const marks: PlacedMark[] = (input.marks ?? []).map((m) => ({ ...place(m), ...(m.figure !== undefined ? { figure: m.figure } : {}) }));
+  function place(m: MarkInput): PlacedMark {
     const [x, y] = m.at;
     const src = m.source;
     switch (src.kind) {
@@ -397,12 +411,12 @@ export function buildScene(input: SceneInput): SceneArrays {
         return { kind: m.kind, at: [x, y, Math.max(za, zb)], lineTo: Math.min(za, zb) };
       }
       case 'ramp': {
-        const own = ports.filter((p) => p.pieceId === src.pieceId);
+        const own = byPiece.get(src.pieceId) ?? [];
         const highest = own.reduce((z, p) => Math.max(z, (p.level ?? 0) * riseMm + plankMm), plankMm);
         return { kind: m.kind, at: [x, y, highest] };
       }
     }
-  });
+  }
 
   return {
     plankTop: top.done(),

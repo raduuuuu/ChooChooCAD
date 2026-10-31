@@ -166,6 +166,11 @@ nothing else uses:
   the heaviest port mark.
 - **A small paper button with an ink edge between two ends is a join on
   offer** (28B): the only button drawn on the track.
+- **In the 3D view, a mark is the canvas's own glyph on a paper disc, facing
+  the camera, a fixed size on screen and drawn over the wood** (3D plan,
+  design 14A, 15A), and **a thin red upright line between two heights is a
+  level mismatch** (16A): the one 3D-only mark, so it takes a shape nothing
+  else on screen has.
 - **Strokes keep their device size** (`vector-effect: non-scaling-stroke`),
   because the canvas fits the whole layout into a fixed box and a stroke in
   millimetres thins to nothing on a big board.

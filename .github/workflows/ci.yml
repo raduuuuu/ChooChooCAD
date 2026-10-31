@@ -114,6 +114,10 @@ jobs:
       - name: Build
         run: bun run build
 
+      # The editor stays small and Three.js stays in the lazy chunk (3D plan, eng D11).
+      - name: Chunk budget
+        run: bun scripts/chunkBudget.ts
+
       # Only when Pages asked for it: the artifact the deploy job publishes is
       # the one this exact run built and tested.
       - name: Upload Pages artifact
