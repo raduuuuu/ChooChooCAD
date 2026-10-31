@@ -688,9 +688,19 @@ export function App() {
     setViewState(v);
     saveView(v);
   };
-  /* The switch and Reset, in the view's top-end corner (design 1A, 2A). */
+  /*
+   * The switch and Reset, in the view's top-end corner (design 1A, 2A). Reset
+   * comes BEFORE the switch, so the switch keeps its place against the corner:
+   * appended after it, Reset pushed the switch 106px inward on pressing 3D, and
+   * a quick second click landed on Reset (design review FINDING-001).
+   */
   const viewSwitch = (
     <div className="view-corner">
+      {view === '3d' && (
+        <button className="view-reset" onClick={() => setResetSignal((n) => n + 1)}>
+          Reset view
+        </button>
+      )}
       <div className="view-switch" role="group" aria-label="View">
         <button aria-pressed={view === '2d'} onClick={() => showView('2d')}>
           2D
@@ -699,11 +709,6 @@ export function App() {
           3D
         </button>
       </div>
-      {view === '3d' && (
-        <button className="view-reset" onClick={() => setResetSignal((n) => n + 1)}>
-          Reset view
-        </button>
-      )}
     </div>
   );
   const startJoin = useCallback(() => {
