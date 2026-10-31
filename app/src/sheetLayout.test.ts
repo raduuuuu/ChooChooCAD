@@ -161,3 +161,19 @@ describe('pages read top to bottom (the sheet is flipped like the canvas)', () =
     expect(first.view.minY).toBeGreaterThan(last.view.minY);
   });
 });
+
+describe('the band in the middle of the page (design review FINDING-006)', () => {
+  /*
+   * MUTATION PROOF, run: the centring offsets removed (`x0 = bandBox.minX`,
+   * `y0 = bandBox.minY`): `expected 107.15953307392996 to be close to +0,
+   * received difference is 107.15953307392996`, the band against the
+   * page's first edge.
+   */
+  it('a band smaller than the page is centred on it', () => {
+    const { items, segments } = row(3, 200);
+    const [page] = sheetPages(items, segments);
+    const b = page!.bandBox;
+    expect(page!.view.minX + page!.view.w / 2).toBeCloseTo(b.minX + b.w / 2, 6);
+    expect(page!.view.minY + page!.view.h / 2).toBeCloseTo(b.minY + b.h / 2, 6);
+  });
+});

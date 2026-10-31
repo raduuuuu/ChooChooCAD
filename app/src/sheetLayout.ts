@@ -191,11 +191,14 @@ export function sheetPages(items: readonly BuildItem[], segments: readonly Segme
     const rows = Math.max(1, Math.ceil((bandBox.h * scale) / PAGE_MM.h - 1e-9));
     const tw = PAGE_MM.w / scale;
     const th = PAGE_MM.h / scale;
+    // The band sits in the middle of its pages, not against the first one's edge (design review FINDING-006).
+    const x0 = bandBox.minX - (cols * tw - bandBox.w) / 2;
+    const y0 = bandBox.minY - (rows * th - bandBox.h) / 2;
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         // Row 0 is the TOP of the printed band: the drawing is flipped like the
         // canvas (y up on the floor), so the top row holds the highest y.
-        const view: Box = { minX: bandBox.minX + col * tw, minY: bandBox.minY + (rows - 1 - row) * th, w: tw, h: th };
+        const view: Box = { minX: x0 + col * tw, minY: y0 + (rows - 1 - row) * th, w: tw, h: th };
         const here = wanted.filter((w) => w.at[0] >= view.minX && w.at[0] < view.minX + tw && w.at[1] >= view.minY && w.at[1] < view.minY + th);
         pages.push({
           band,

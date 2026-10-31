@@ -1724,7 +1724,8 @@
 }
 .view-switch { display: inline-flex; }
 .view-switch button,
-.view-reset {
+.view-reset,
+.build-it {
   min-height: 36px;
   min-width: 44px;
   padding: 0 var(--s3);
@@ -1738,8 +1739,10 @@
   cursor: pointer;
 }
 .view-switch button:hover,
-.view-reset:hover { border-color: var(--ink-soft); }
-.view-reset { border-radius: 3px; }
+.view-reset:hover,
+.build-it:hover { border-color: var(--ink-soft); }
+.view-reset,
+.build-it { border-radius: 3px; }
 .view-switch button:first-child { border-radius: 3px 0 0 3px; }
 .view-switch button:last-child { border-radius: 0 3px 3px 0; margin-inline-start: -1px; }
 /*
@@ -1761,7 +1764,8 @@
 }
 @media (pointer: coarse) {
   .view-switch button,
-  .view-reset { min-height: 44px; }
+  .view-reset,
+  .build-it { min-height: 44px; }
 }
 /* The viewer fills the canvas's place; one finger orbits it (design 23A). */
 .viewer3d-area { background: var(--floor); }
@@ -1850,6 +1854,10 @@
 .build-picture .canvas-area { position: absolute; inset: 0; }
 .build-label {
   position: relative;
+  /* A long warning or enlarged text scrolls here instead of being cut off (design review FINDING-007). */
+  overflow-y: auto;
+  touch-action: pan-y;
+  min-height: 0;
   padding: var(--s5);
   display: flex;
   flex-direction: column;
@@ -1865,11 +1873,15 @@
 .build-reason { color: var(--ink-soft); font-size: var(--build-meta); }
 .build-quiet { margin: 0; min-height: 1.4em; font-size: var(--build-meta); color: var(--ink-soft); }
 /* The corner's controls, with a ring of space where a near-miss does nothing (D50). */
-.build-dead { margin-top: auto; align-self: flex-end; padding: var(--s4); margin-right: calc(-1 * var(--s4)); margin-bottom: calc(-1 * var(--s4)); }
+.build-dead { margin-top: auto; align-self: flex-end; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s2); padding: var(--s4); margin-inline-end: calc(-1 * var(--s4)); margin-bottom: calc(-1 * var(--s4)); }
 .build-dead button, .build-actions button { min-height: 48px; padding: 0 var(--s4); font: inherit; font-size: var(--build-meta); }
-.build-outline { background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; color: var(--ink); }
-.build-primary { background: var(--ink); color: var(--paper); border: 1px solid var(--ink); border-radius: 4px; font-weight: 600; }
-.build-text { background: none; border: none; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.build-outline { background: var(--paper); border: 1px solid var(--rule); border-radius: 3px; color: var(--ink); cursor: pointer; }
+.build-outline:hover { border-color: var(--ink-soft); }
+/* One filled button per build screen, the one thing to do there (design D32, D38), as the empty state's is in the editor. */
+.build-primary { background: var(--ink); color: var(--paper); border: 1px solid var(--ink); border-radius: 3px; font-weight: 600; cursor: pointer; }
+.build-primary:hover { background: var(--ink-soft); border-color: var(--ink-soft); }
+.build-text { background: none; border: none; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.build-text:hover { text-decoration-thickness: 2px; }
 /* Previous and Next for keyboards and screen readers (D51): hidden until focused. */
 .build-sr-nav { display: flex; gap: var(--s2); }
 .build-sr-nav button { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -1879,7 +1891,8 @@
 .build-pull-col { width: min(40rem, 100%); padding: var(--s5); display: flex; flex-direction: column; gap: var(--s4); }
 .build-heading { margin: 0; font-size: var(--build-code); font-weight: 600; }
 .build-resume { margin: 0; font-size: var(--build-meta); }
-.build-parts { border-collapse: collapse; font-size: var(--build-meta); }
+.build-parts { border-collapse: collapse; font-size: var(--build-meta); width: auto; align-self: flex-start; }
+.build-parts td:not(:first-child) { padding-inline-start: var(--s4); }
 .build-parts td { padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--rule); }
 .build-parts td.num { text-align: end; }
 .build-short { font-weight: 600; }
@@ -1890,7 +1903,6 @@
   .build-mode { --build-name: 32px; --build-code: 24px; --build-meta: 15px; }
   .build-label, .build-pull-col { padding: var(--s4); }
 }
-.build-it { min-height: 36px; }
 .build-failure-action { position: absolute; inset-inline: 0; bottom: var(--s5); display: flex; justify-content: center; }
 
 /*
@@ -1919,3 +1931,6 @@
 .sheet-map { display: block; margin-top: 3mm; }
 .sheet-map-cell { fill: none; stroke: var(--ink-soft); stroke-width: 1px; vector-effect: non-scaling-stroke; }
 .sheet-map-here { fill: var(--rule); stroke: var(--ink); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+/* The verdict's own next step ("Nothing to fix. Build it.") is the editor's: in build mode and on paper it is not an instruction (design review FINDING-002). */
+.build-verdict .verdict-action,
+.sheet-verdict .verdict-action { display: none; }

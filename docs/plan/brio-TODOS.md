@@ -95,6 +95,38 @@ Lillabo). Re-measure the Lillabo Ys first.
 
 **Depends on / blocked by:** the multi-road type (PR A of the plan).
 
+## P3 — Build mode's buttons are a second button vocabulary (filed by /design-review 2026-10-31, D1)
+
+**What:** `.build-outline`, `.build-primary` and `.build-text` (app/src/app.css, BUILD MODE block) restate the app's outline and filled buttons instead of sharing them, at 48px rather than 36/44.
+**Why:** Two systems drift: the design review already had to re-align radius and hover by hand.
+**Pros:** One button rule set. **Cons:** Build mode's 48px floor target needs its own token either way.
+**Context:** Found by the design outside voice. Start from `.view-reset` and `.canvas-empty-action button`; add a `--target-build` token for the 48px.
+**Effort:** human S / CC S. **Depends on:** nothing.
+
+## P3 — The printed sheet's type and spacing are not tokens (filed by /design-review 2026-10-31, D2)
+
+**What:** The print block in app.css sets 18pt/12pt/10pt/9pt and mm spacing directly; only `--sheet-paper` is a token.
+**Why:** DESIGN.md: every type role and spacing value lives in tokens.css.
+**Pros:** The sheet joins the system. **Cons:** Print units (pt, mm) next to screen tokens need a short note on why.
+**Context:** Codex design voice, 2026-10-31. Add `--sheet-title`, `--sheet-body`, `--sheet-meta` and a spacing pair.
+**Effort:** human S / CC S. **Depends on:** nothing.
+
+## P3 — "Sheet n of m" can undercount when a list runs past one page (filed by /design-review 2026-10-31, D3)
+
+**What:** `BuildSheet.tsx` counts one page each for the parts list and the step list; a long list breaks onto more physical pages than the header says.
+**Why:** A header that miscounts pages makes a loose sheet look missing.
+**Pros:** Honest page count. **Cons:** Browsers do not expose physical page numbers to the page; the fix is either paginating the tables by row count or calling them sections.
+**Context:** Codex design voice. Simplest: "Build order · Step list" without a count on list pages, and count only the drawing pages.
+**Effort:** human S / CC S. **Depends on:** nothing.
+
+## P3 — Build mode's loading and failure text uses the editor's size (filed by /design-review 2026-10-31, D4)
+
+**What:** `BuildModeLoader.tsx` reuses `.canvas-empty-lead`, so "Couldn't load build mode." renders at editor size inside a screen read from 60cm.
+**Why:** Build mode's text rule (DESIGN.md rule 12) is `--build-*` sizes.
+**Pros:** Readable from the floor. **Cons:** One more class.
+**Context:** Design outside voice. Use `.build-code-line` for the sentence.
+**Effort:** human S / CC S. **Depends on:** nothing.
+
 ## P2 — The raised level reads faintly from the 3D view's starting angle (filed by /design-review 2026-10-31, D1)
 
 **DONE (2026-10-31).** The owner chose 25° for layouts with raised track only; flat layouts keep 35° (21A amended in the 3D plan). `startElevationDeg` in `app/src/Viewer3D.tsx` reads it from whether the scene draws footprints; pinned in `app/src/viewer3dScene.test.ts`.
