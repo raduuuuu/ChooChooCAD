@@ -20,7 +20,9 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../data/library.js';
 import { brandFit } from '../data/thirdParty.js';
-import { placeAll } from '../src/graph/frames.js';
+import { placeAll, residuals } from '../src/graph/frames.js';
+import { bendRuns } from '../src/graph/bendRun.js';
+import { bendLimit } from '../data/bendLimit.js';
 import { portsOf, type Frame, type Graph, type Piece } from '../src/graph/model.js';
 import { findPlankOverlaps } from '../src/graph/overlap.js';
 import { connectorSites } from '../src/graph/feasible.js';
@@ -85,23 +87,70 @@ describe('the bent drawing alone does not refuse either', () => {
   });
 });
 
-describe('with its last two ends joined, the check runs out of work and says so', () => {
+const joined: Graph = { ...graph, welds: [...graph.welds, { a: { pieceId: 'p70', port: 1 }, b: { pieceId: 'p78', port: 0 } }] };
+
+describe('with its last two ends joined, it closes within the budget', () => {
   /*
-   * Joining p70 to p78 makes an eighth loop. The solve needs 360M units
-   * (measured 2026-11-01) against a 200M budget, and a refinement runs out.
-   * It used to say "got within 0.6mm of closing", a figure from where the
-   * solve stopped. If the budget is raised past 360M this layout closes
-   * instead, and this test should then say so.
+   * Joining p70 to p78 makes an eighth loop, which needs about 350M units
+   * (measured 2026-11-01). At the old 200M budget it ran out; at 650M it
+   * closes.
+   *
+   * MUTATION PROOF, run: `maxWork` back to 200M fails with `expected false
+   * to be true`.
+   */
+  it('closes, needing 2.6 degrees', () => {
+    const r = solve(joined);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.lead?.status).toBe('closes');
+  });
+});
+
+describe('a check that runs out of work says so, not how near it got', () => {
+  /*
+   * The joined layout's one run, given less work than it needs. Before, a
+   * refinement that ran out reported its leftover ("got within 0.6mm of
+   * closing" at the old 200M), a figure from where the solve stopped. Two
+   * places can run out mid-refinement: the bisection, and the step that
+   * keeps an answer close to the last one. When the second runs out, the
+   * last pass's answer stands, and here it had already settled (found at
+   * 350M with every stretch 0.8mm).
    *
    * MUTATION PROOF, run: `cutShort` ignored in `solveRun` fails with
-   * `expected 'the model still leaves 0.6mm' to be 'out of work'`.
+   * `expected 'the model still leaves 0.6mm' to be 'out of work'`; the close
+   * step's running out ignored (the far answer taken) fails with the sweep
+   * below listing the leftovers it reports.
    */
-  it('says out of work, not how near it got', () => {
-    const joined: Graph = { ...graph, welds: [...graph.welds, { a: { pieceId: 'p70', port: 1 }, b: { pieceId: 'p78', port: 0 } }] };
-    const r = solve(joined);
-    expect(r.ok).toBe(false);
-    if (r.ok) return;
-    expect(r.reason).toBe('BEND_UNCHECKED');
-    expect(r.detail).toBe('out of work');
+  const pl = placeAll(joined, ports);
+  const rs = residuals(joined, ports, pl);
+  const byId = new Map(joined.pieces.map((p) => [p.pieceId, p]));
+  const run = (maxWork: number, stretch: (id: string) => number) =>
+    bendRuns(joined, pl, rs, (id) => ports(byId.get(id)!), (id) => ({ limitRad: (bendLimit().deg * Math.PI) / 180, stretchMm: stretch(id) }), {
+      maxCells: 2_000_000,
+      maxWork,
+    })[0]!;
+
+  it('out of work in the bisection', () => {
+    const r = run(200_000_000, (id) => resolve(byId.get(id)!.partId).slop.axialMm);
+    expect(r.status).toBe('unchecked');
+    expect(r.why).toBe('out of work');
   });
+
+  /*
+   * Where the close step runs out moves with the last digit of Math.hypot
+   * (Bun and Node differ there), so this sweeps the budgets around it. No
+   * budget may report a leftover: a run either closes or says it ran out.
+   */
+  it('out of work keeping the answer close: never a leftover from where it stopped', () => {
+    const leftovers: string[] = [];
+    // Measured windows: 0.8mm at 347-349M (Node) or 348-351M (Bun), 1.5mm
+    // at 352-357M (Node) or 353-357M (Bun).
+    for (const stretch of [0.8, 1.5]) {
+      for (let m = 345; m <= 360; m += 1) {
+        const r = run(m * 1_000_000, () => stretch);
+        if (r.why?.startsWith('the model still leaves')) leftovers.push(`${stretch}mm at ${m}M: ${r.why}`);
+      }
+    }
+    expect(leftovers).toEqual([]);
+  }, 60_000);
 });

@@ -87,8 +87,8 @@ describe('interlocking loops that close on the floor get a verdict (R1, OV-B)', 
     // 36 full solves of a 60-piece layout: about 3s alone, 6s beside the suite.
   }, 30_000);
 
-  it('the budget is 200M units of work', () => {
-    expect(BEND_BUDGET.maxWork).toBe(200_000_000);
+  it('the budget is 650M units of work', () => {
+    expect(BEND_BUDGET.maxWork).toBe(650_000_000);
   });
 });
 
@@ -166,8 +166,8 @@ describe('a refinement that runs out says so (2026-11-01)', () => {
   const total = full.kind === 'solved' ? full.work : 0;
 
   /*
-   * The owner's layout with its last two ends joined needs 360M units; at
-   * 200M a refinement ran out and the screen said "got within 0.6mm of
+   * The owner's 79-piece layout with its last two ends joined needed more
+   * than the old 200M budget; a refinement ran out and the screen said "got within 0.6mm of
    * closing", a figure from where the solve stopped, not where it would end.
    *
    * Here every cut-short Q1 solve still settles; the owner's layout, where

@@ -538,6 +538,11 @@ function solveLoops(
       if (near) {
         work += near.work;
         if (near.kind === 'feasible') z = near.x;
+        // Out of work here too: the answer is where it stopped, so say so.
+        if (near.kind === 'exhausted') {
+          cutShort = true;
+          break;
+        }
       }
     }
     turns = z.slice(0, nJ);
