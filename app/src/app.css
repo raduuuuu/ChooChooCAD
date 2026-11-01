@@ -1151,6 +1151,7 @@
  * not a layout to design, it is an experience that should not ship, so this
  * says so instead of cramming.
  */
+/* gate: NARROW_QUERY. The editor only; a shared link has its own phone screen (share plan, design 18A). */
 @media (max-width: 620px) {
   .shell { display: block; padding: var(--s5) var(--s4); }
   /*
@@ -1160,7 +1161,7 @@
    * sentence, the arrowed action -- renders on a phone as the only product
    * chrome under a message that just said the editor needs a larger screen.
    */
-  .stage, .verdict, .verdict-notes, .palette, .inventory, .submit, .shortfall, .notice { display: none; }
+  .shell :is(.stage, .verdict, .verdict-notes, .palette, .inventory, .submit, .shortfall, .notice) { display: none; }
   .shell::before {
     content: 'The track editor needs a larger screen. Open it on a desktop or tablet.';
     display: block;
@@ -1918,3 +1919,40 @@
 }
 /* The verdict's own next step ("Nothing to fix. Build it.") is the editor's: in build mode it is not an instruction (design review FINDING-002). */
 .build-verdict .verdict-action { display: none; }
+
+/*
+ * THE FRIEND'S SCREEN: a shared railway, read-only (share plan, design 1A,
+ * 18A, 20A). One column, in reading order: who made this, what it is, the
+ * plan, whether it works, Build it, the parts, the quiet ways out. The plan
+ * takes the room that is left; nothing on it is a control (`inert`).
+ */
+.friend { min-height: 100%; display: flex; flex-direction: column; background: var(--paper); color: var(--ink); }
+.friend-head { padding: var(--s3) var(--s5); border-bottom: 1px solid var(--rule); }
+.friend-main { flex: 1; display: flex; flex-direction: column; gap: var(--s4); padding: var(--s4) var(--s5) var(--s5); width: min(64rem, 100%); margin: 0 auto; }
+.friend-title { margin: 0; font-size: var(--page-title); font-weight: 600; outline: none; }
+.friend-picture { height: min(60vh, 40rem); min-height: 16rem; display: flex; background: var(--floor); border: 1px solid var(--rule); }
+.friend-picture-inner { flex: 1; display: flex; min-width: 0; min-height: 0; }
+.friend-verdict .verdict { margin: 0; padding: 0; background: none; }
+.friend-sizes { margin: var(--s2) 0 0; font-size: 14px; color: var(--ink-soft); }
+.friend-actions { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s3); }
+.friend-build { min-height: 48px; padding: 0 var(--s5); background: var(--ink); color: var(--paper); border: 1px solid var(--ink); border-radius: 3px; font: inherit; font-weight: 600; cursor: pointer; }
+.friend-build:hover { background: var(--ink-soft); border-color: var(--ink-soft); }
+.friend-parts summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: var(--s1); list-style: none; }
+.friend-parts summary::-webkit-details-marker { display: none; }
+/* The shelves' caret, turned and not animated (DESIGN.md rule 8). */
+.friend-parts summary::after { content: '>'; margin-inline-start: var(--s2); font-family: var(--font-data); font-size: 12px; color: var(--ink-soft); }
+.friend-parts[open] summary::after { transform: rotate(90deg); }
+.friend-parts table { border-collapse: collapse; }
+.friend-parts td { padding: var(--s1) var(--s4) var(--s1) 0; border-bottom: 1px solid var(--rule); }
+.friend-quiet { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); }
+.friend-quiet button { min-height: 44px; background: none; border: none; padding: 0; color: var(--ink); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.friend-quiet button:hover { text-decoration-thickness: 2px; }
+.friend-message .friend-main { justify-content: center; align-items: flex-start; max-width: 36rem; }
+.friend-message-line { margin: 0; font-size: 17px; line-height: 1.5; outline: none; }
+@media (max-width: 620px) {
+  .friend-head { padding: var(--s3) var(--s4); }
+  .friend-main { padding: var(--s3) var(--s4) var(--s4); gap: var(--s3); }
+  .friend-picture { height: 50vh; min-height: 12rem; }
+  .friend-actions { align-items: stretch; }
+  .friend-build { width: 100%; }
+}

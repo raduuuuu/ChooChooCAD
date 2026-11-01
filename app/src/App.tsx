@@ -46,7 +46,7 @@ import { spanningForest } from '../../engine/src/graph/forest.js';
 import { toXY } from '../../engine/src/geom/cyclotomic.js';
 import { connectorSites } from '../../engine/src/graph/feasible.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
-import { levelOf, portsOf, type Piece as GPiece, type Port, type PortRef } from '../../engine/src/graph/model.js';
+import { levelOf, portsOf, type Graph, type Piece as GPiece, type Port, type PortRef } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
 import { bendRender, bentShifts } from '../../engine/src/graph/bendPose.js';
 import { joinSuggestions, type GapMark, seamLines, weldTargets, type JoinSuggestion } from './trackPath.js';
@@ -64,7 +64,7 @@ import {
   type EditorAction,
   type EditorState,
 } from './editorReducer.js';
-import { loadGraph, partialLoadNotice, saveGraph, savesSuppressed } from './layoutStore.js';
+import { holdsOwnLayout, loadGraph, partialLoadNotice, saveGraph, savesSuppressed } from './layoutStore.js';
 import { saveFailureNotice, type SavedStore } from './saveNotice.js';
 import { viewOf } from './verdictView.js';
 import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
@@ -85,6 +85,11 @@ import { SubmitPart } from './SubmitPart.js';
 import { View3DPanel } from './View3DPanel.js';
 import { BuildModeLoader } from './BuildModeLoader.js';
 import { loadView, openingView, saveView, type View } from './viewChoice.js';
+import { LINK_FRAGMENT } from './linkFragment.js';
+import { exitLabel, LINK_HELD } from './linkWords.js';
+import { FriendScreen } from './FriendScreen.js';
+import { leaveLink } from './leaveLink.js';
+import { BUILD_LINK_STORAGE_KEY } from './storageKeys.js';
 import { clearance } from '../../engine/data/calibration.js';
 import { MEASUREMENTS } from '../../engine/data/measurements.js';
 import type { SceneInput } from '../../engine/src/view3d/mesh.js';
@@ -179,7 +184,15 @@ const capitalise = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
 const NO_GAPS: readonly GapMark[] = [];
 const NO_POINTS: readonly (readonly [number, number])[] = [];
 
-export function App() {
+/**
+ * `link`: a shared layout, already decoded (share plan). The same App, told
+ * it is showing somebody else's railway (eng D21): parts resolve against the
+ * built-in catalogue only (D14), nothing is loaded from or saved to this
+ * browser's layout (the link route started a read-only storage session, D31),
+ * every graph change is refused in `dispatch`, and the screen is the friend's
+ * (design 1A) rather than the editor.
+ */
+export function App({ link }: { readonly link?: Graph } = {}) {
   /*
    * ORDER MATTERS HERE. The library includes parts this user submitted, so it
    * cannot be a module constant any more. Submissions load first, the library
@@ -193,7 +206,8 @@ export function App() {
    * suppressed the mount save, and the survivors were written over the stored
    * bytes before anyone could be told.
    */
-  const [submissionsLoad] = useState(loadSubmissionsResult);
+  // A link is read against the built-in catalogue only (eng D14): no submissions.
+  const [submissionsLoad] = useState(() => (link ? { value: [], dropped: 0 } : loadSubmissionsResult()));
   const [submissions, setSubmissions] = useState<readonly Submission[]>(
     submissionsLoad.value,
   );
@@ -230,8 +244,12 @@ export function App() {
    * Same shape as the `ports` memo below, written out here because this runs
    * once in a `useState` initialiser, before that memo exists.
    */
+  // Whether this browser holds a layout of its own, for the exit's wording (design 10A, eng D23).
+  const [ownLayout] = useState(() => (link ? holdsOwnLayout() : true));
   const [graphLoad] = useState(() =>
-    loadGraph(libraryIds, (piece: GPiece) => portsOf(resolve(piece.partId), piece.turn)),
+    link
+      ? { value: link, droppedAnchors: 0, rescued: false, uncopied: false }
+      : loadGraph(libraryIds, (piece: GPiece) => portsOf(resolve(piece.partId), piece.turn)),
   );
   const [inventoryLoad] = useState(() => loadInventory(libraryIds));
   const [tableLoad] = useState(loadTable);
@@ -435,6 +453,35 @@ export function App() {
     });
   }, []);
   const unsavedNotice = saveFailureNotice(unsaved);
+  /*
+   * EVERYTHING IS SAVED: no save failed AND none is being held back (share
+   * plan, eng D34). One value for every reload that could lose work: build
+   * mode's Reload and a pasted link. "No failure" alone is not enough, because
+   * a save held back after a rescue fails nothing and stores nothing.
+   */
+  const allSaved = unsaved.size === 0 && !graphSaveBlocked && !inventorySaveBlocked && !submissionsSaveBlocked && !tableSaveBlocked;
+  const allSavedNow = useRef(allSaved);
+  allSavedNow.current = allSaved;
+  /*
+   * A LINK PASTED INTO THIS TAB (share plan D8, D15, D34). The browser does
+   * not reload for a new `#…`, so this does, and the link route at the top of
+   * main.tsx handles it exactly as a fresh visit. Only when everything is
+   * saved: otherwise the address goes back and the work stays on screen.
+   */
+  const [linkHeld, setLinkHeld] = useState(false);
+  useEffect(() => {
+    const onHash = (e: HashChangeEvent) => {
+      if (!LINK_FRAGMENT.test(location.hash)) return;
+      if (allSavedNow.current) {
+        location.reload();
+        return;
+      }
+      history.replaceState(history.state, '', e.oldURL);
+      setLinkHeld(true);
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
   // Dismissing hides THIS sentence; another store failing changes it, and it shows again.
   const [unsavedDismissed, setUnsavedDismissed] = useState<string | undefined>(undefined);
 
@@ -589,6 +636,11 @@ export function App() {
        * throw where no boundary looks. Pinned by editFailure.dom.test.tsx.
        */
       const next = reduce(e, action, ports, { resolve, placed: { graph, placement, render } });
+      // A shared link is read-only (eng D21): THE one place the layout changes refuses it.
+      if (link && next.graph !== e.graph) {
+        saidNext.current = null;
+        return e;
+      }
       // Described here, from the exact state the action ran on, because the
       // updater is the one place that sees it (see `said` below). Pure, so
       // StrictMode calling this twice writes the same sentence twice.
@@ -664,7 +716,8 @@ export function App() {
    * invisible state that acts); a selection is kept and simply not shown
    * (design 10A).
    */
-  const [view, setViewState] = useState<View>(() => openingView(loadView(), editor.graph.pieces.length));
+  // A shared link always opens in 2D, where the verdict's marks are (design 21A).
+  const [view, setViewState] = useState<View>(() => (link ? '2d' : openingView(loadView(), editor.graph.pieces.length)));
   const [resetSignal, setResetSignal] = useState(0);
   /*
    * BUILD MODE (docs/plan/2026-10-31-build-mode.md). While building, the
@@ -1398,8 +1451,64 @@ export function App() {
         verdictPass={verdictView.kind === 'EXACT' || verdictView.kind === 'NEEDS_GIVE'}
         segmentCount={render.segments.length}
         ceiling={CANVAS_SEGMENT_CEILING}
-        allSaved={unsaved.size === 0 && !graphSaveBlocked && !inventorySaveBlocked && !submissionsSaveBlocked && !tableSaveBlocked}
+        allSaved={allSaved}
         onExit={exitBuild}
+        resumeKey={link ? BUILD_LINK_STORAGE_KEY : undefined}
+      />
+    );
+  }
+
+  if (link) {
+    const verdictLine = (
+      <VerdictLine
+        view={verdictView}
+        trust={trust}
+        adaptersUnmarked={adaptersUnmarked}
+        levelUnmarked={levelMarks.hidden}
+        polarityUnmarked={refusedMarks.hidden}
+      />
+    );
+    return (
+      <FriendScreen
+        pieces={graph.pieces.length}
+        picture={
+          view === '3d' && sceneInput ? (
+            <View3DPanel
+              input={sceneInput}
+              pieceCount={graph.pieces.length}
+              segmentCount={render.segments.length}
+              ceiling={CANVAS_SEGMENT_CEILING}
+              allSaved
+              emptyAction={null}
+              tableNote={null}
+              label={sceneLabel}
+              resetSignal={resetSignal}
+              corner={null}
+            />
+          ) : (
+            <TrackCanvas
+              render={drawn}
+              resolve={resolve}
+              seams={seams}
+              clashes={clashMarks}
+              gaps={gaps}
+              badJoints={badJoints}
+              adapterJoints={adapterMarks}
+              levelMismatches={levelMarks.mismatches}
+              thirdLevels={levelMarks.thirds}
+              pieceName={canvasPieceName}
+            />
+          )
+        }
+        planLabel={`Plan of the railway, ${graph.pieces.length} ${graph.pieces.length === 1 ? 'piece' : 'pieces'}.`}
+        verdict={verdictLine}
+        parts={Object.entries(counts).map(([partId, count]) => ({ partId, name: resolve(partId).name, count }))}
+        adapters={adaptersUsed}
+        view={view}
+        onView={setViewState}
+        onBuild={() => setBuilding(true)}
+        exitLabel={exitLabel(ownLayout)}
+        onExit={leaveLink}
       />
     );
   }
@@ -1413,7 +1522,7 @@ export function App() {
             pieceCount={graph.pieces.length}
             segmentCount={render.segments.length}
             ceiling={CANVAS_SEGMENT_CEILING}
-            allSaved={unsaved.size === 0 && !graphSaveBlocked && !inventorySaveBlocked && !submissionsSaveBlocked && !tableSaveBlocked}
+            allSaved={allSaved}
             emptyAction={emptyAction}
             tableNote={tableView ? { text: tableView.note, fits: tableView.fits } : null}
             label={sceneLabel}
@@ -1475,6 +1584,17 @@ export function App() {
             <p className="notice-line">{unsavedNotice}</p>
           </div>
           <button className="notice-close" onClick={() => setUnsavedDismissed(unsavedNotice)}>
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {linkHeld && (
+        <div className="notice" role="status" aria-live="polite" aria-atomic="false">
+          <div>
+            <p className="notice-line">{LINK_HELD}</p>
+          </div>
+          <button className="notice-close" onClick={() => setLinkHeld(false)}>
             Dismiss
           </button>
         </div>

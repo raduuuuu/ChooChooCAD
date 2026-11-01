@@ -50,10 +50,10 @@ export type ResumeState =
  * integer }` reads as no build at all; an index outside the list reads as the
  * start (scope 5).
  */
-export function loadResume(graph: Graph, itemCount: number): ResumeState {
+export function loadResume(graph: Graph, itemCount: number, key: string = BUILD_STORAGE_KEY): ResumeState {
   let raw: string | null = null;
   try {
-    raw = localStorage.getItem(BUILD_STORAGE_KEY);
+    raw = localStorage.getItem(key);
   } catch {
     return { kind: 'fresh', index: 0 };
   }
@@ -72,13 +72,13 @@ export function loadResume(graph: Graph, itemCount: number): ResumeState {
 }
 
 /** Whether the browser kept it. False is said once, quietly (D12, D36). */
-export function saveResume(graph: Graph, index: number): boolean {
-  return stored(write(BUILD_STORAGE_KEY, JSON.stringify({ layout: layoutKey(graph), index })));
+export function saveResume(graph: Graph, index: number, key: string = BUILD_STORAGE_KEY): boolean {
+  return stored(write(key, JSON.stringify({ layout: layoutKey(graph), index })));
 }
 
-export function clearResume(): void {
+export function clearResume(key: string = BUILD_STORAGE_KEY): void {
   // Nothing to clear when storage is blocked.
-  remove(BUILD_STORAGE_KEY);
+  remove(key);
 }
 
 /* ------------------------------------------------------------------------- */

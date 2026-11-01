@@ -608,6 +608,32 @@ export function loadGraph(
 }
 
 /**
+ * WHETHER THIS BROWSER HOLDS A LAYOUT OF ITS OWN (share plan, eng D23).
+ *
+ * Provably empty means: no saved layout and nothing in the rescue or legacy
+ * slots, or a saved layout that reads and has no pieces. Anything else, a
+ * corrupt save included, counts as a layout: those are the bytes someone
+ * hopes to get back. Reads only, so a link session can ask.
+ */
+export function holdsOwnLayout(): boolean {
+  try {
+    const raw = localStorage.getItem(GRAPH_STORAGE_KEY);
+    if (localStorage.getItem(GRAPH_RESCUE_KEY) !== null || localStorage.getItem(CHAIN_STORAGE_KEY) !== null) return true;
+    if (raw === null) return false;
+    const parsed: unknown = JSON.parse(raw);
+    const pieces = (parsed as { pieces?: unknown } | null)?.pieces;
+    return !(Array.isArray(pieces) && pieces.length === 0);
+  } catch {
+    // Unparseable bytes are somebody's layout too; blocked storage is not a layout.
+    try {
+      return localStorage.getItem(GRAPH_STORAGE_KEY) !== null;
+    } catch {
+      return false;
+    }
+  }
+}
+
+/**
  * The notice for a partial load, in the words the user reads.
  *
  * Lives here rather than in `App.tsx` because the copy is a claim about what
