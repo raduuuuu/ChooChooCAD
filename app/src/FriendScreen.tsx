@@ -10,6 +10,7 @@
  *   O This works. …                               (the editor's own verdict)
  *   Checked with catalogue sizes.                  (D14, 8A)
  *   [ Build it ]                                   (the one solid button)
+ *   Open in editor                                 (desktop; a sentence on a phone)
  *   ▸ Parts: 14 pieces                             (folded)
  *   3D · Back to my layout / Start your own        (quiet)
  *
@@ -26,6 +27,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { AppName } from './AppName.js';
 import { CATALOGUE_SIZES, linkTitle } from './linkWords.js';
+import { OpenInEditor } from './OpenInEditor.js';
 
 export interface FriendPartRow {
   readonly partId: string;
@@ -46,6 +48,8 @@ export interface FriendScreenProps {
   readonly view: '2d' | '3d';
   readonly onView: (v: '2d' | '3d') => void;
   readonly onBuild: () => void;
+  /** The shared layout in the saved format, for Open in editor. */
+  readonly linkBytes: string;
   readonly exitLabel: string;
   readonly onExit: () => void;
 }
@@ -77,6 +81,7 @@ export function FriendScreen(props: FriendScreenProps) {
           <button className="friend-build" onClick={props.onBuild}>
             Build it
           </button>
+          <OpenInEditor linkBytes={props.linkBytes} />
           <details className="friend-parts">
             <summary>
               Parts: <span className="num">{total}</span> {total === 1 ? 'piece' : 'pieces'}

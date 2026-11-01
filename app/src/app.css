@@ -1947,6 +1947,26 @@
 .friend-quiet { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); }
 .friend-quiet button { min-height: 44px; background: none; border: none; padding: 0; color: var(--ink); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .friend-quiet button:hover { text-decoration-thickness: 2px; }
+/* Open in editor: a quiet text button on a tablet or computer; a phone gets the sentence instead (design 18A). */
+.friend-open { min-height: 44px; background: none; border: none; padding: 0; color: var(--ink); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.friend-open:hover { text-decoration-thickness: 2px; }
+.friend-open:disabled { color: var(--ink-soft); text-decoration: none; cursor: default; }
+.friend-phone-note { display: none; margin: 0; color: var(--ink-soft); }
+/* The two layouts at stake, each drawn in ink like a part card (design 11A, eng D72). */
+.friend-ask { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s4); border: 1px solid var(--rule); border-radius: 3px; max-width: 36rem; }
+.friend-ask-question { margin: 0; font-weight: 600; outline: none; }
+.friend-ask-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s2); }
+.friend-ask-row { display: flex; align-items: center; gap: var(--s3); min-height: 48px; }
+.layout-thumb { flex: none; color: var(--ink); }
+.friend-ask-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s4); }
+.friend-ask-keep { min-height: 44px; background: none; border: none; padding: 0; color: var(--ink); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.friend-said { margin: 0; }
+/* Not a failure: nothing is wrong, so the rule colour and text buttons, no red (design 22A). */
+.notice.put-aside { border-color: var(--rule); }
+.put-aside-buttons { display: flex; gap: var(--s4); flex: none; }
+.put-aside-button { min-height: 44px; background: none; border: none; padding: 0; color: var(--ink); font: inherit; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.put-aside-button:hover { text-decoration-thickness: 2px; }
+.put-aside-button:disabled { color: var(--ink-soft); text-decoration: none; cursor: default; }
 .friend-message .friend-main { justify-content: center; align-items: flex-start; max-width: 36rem; }
 .friend-message-line { margin: 0; font-size: 17px; line-height: 1.5; outline: none; }
 @media (max-width: 620px) {
@@ -1955,4 +1975,6 @@
   .friend-picture { height: 50vh; min-height: 12rem; }
   .friend-actions { align-items: stretch; }
   .friend-build { width: 100%; }
+  .friend-open, .friend-ask { display: none; }
+  .friend-phone-note { display: block; }
 }

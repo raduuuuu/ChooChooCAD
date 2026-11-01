@@ -36,3 +36,29 @@ export const LINK_CRASHED = "This link couldn't be shown.";
 export const CATALOGUE_SIZES = 'Checked with catalogue sizes.';
 /** The exit, worded for where it goes: D23's empty check picks one (design 10A). */
 export const exitLabel = (holdsOwn: boolean) => (holdsOwn ? 'Back to my layout' : 'Start your own');
+
+/** Opening a link in the editor (design doc step 3; eng D23, D29, D72; design 11A, 18A). */
+export const OPEN_IN_EDITOR = 'Open in editor';
+export const PHONE_CANNOT_EDIT = 'Open this link on a tablet or computer to change it.';
+export const PUT_ASIDE_FAILED = "Your layout couldn't be put aside, so nothing changed.";
+export const ASK_REPLACE = 'Replace the layout you put aside last time?';
+export const ASIDE_EARLIER = 'Put aside earlier (will be replaced): ';
+export const ASIDE_CURRENT = 'Your current layout (goes into its place): ';
+export const KEPT_BOTH = 'Nothing changed. To keep both, restore your earlier layout first.';
+export const UNREADABLE_LAYOUT = "A layout that couldn't be read (kept exactly as saved)";
+export const piecesWord = (n: number) => `${n} ${n === 1 ? 'piece' : 'pieces'}`;
+
+/** The put-aside notice in the editor (design 9A, 13A, 22A; eng D24, D36). */
+export const putAsideLine = (pieces: number | null) =>
+  pieces === null
+    ? "An earlier layout that couldn't be read is put aside, kept exactly as saved."
+    : `Your earlier layout (${piecesWord(pieces)}) is put aside.`;
+export const discardQuestion = (pieces: number | null) =>
+  pieces === null
+    ? "Discard the put-aside layout that couldn't be read? This can't be undone."
+    : `Discard the put-aside layout (${piecesWord(pieces)})? This can't be undone.`;
+export const RESTORE_FAILED = "Storage is full, so your layouts couldn't be swapped. Both are as they were.";
+export const STRANDED =
+  "Storage is full, so your previous layout is only in this tab now. Download a copy to keep it safe. ChooChooCAD can't open these files yet, so keep this tab open until you've freed some space.";
+export const RESTORE_WAITS = "Restore waits until your changes are saved.";
+export const STALE_TAB = 'This layout was changed in another tab. Reload to see the latest.';

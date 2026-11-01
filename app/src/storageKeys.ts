@@ -76,3 +76,12 @@ export const BUILD_STORAGE_KEY = 'brio.build.v0';
  * and nothing piles up. The only key a link session may write.
  */
 export const BUILD_LINK_STORAGE_KEY = 'brio.build.link.v0';
+
+/**
+ * The friend's own layout, put aside when a shared link is opened in the
+ * editor (share plan, design doc step 3; eng D23, D24, D29, D72). Separate
+ * from the rescue slot: this holds a layout somebody chose to set aside, which
+ * "Restore my previous layout" swaps back. The raw stored bytes, untouched, so
+ * even a layout that could not be read is kept exactly as it was.
+ */
+export const GRAPH_PREVIOUS_KEY = 'brio.graph.v1.previous';
