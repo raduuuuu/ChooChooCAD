@@ -37,7 +37,10 @@ import {
   gridLabel,
   gridPath,
   gridStep,
+  clickableEndsOf,
+  endHitRadiusMm,
   labelSpot,
+  pickEnd,
   plankEdges,
   segmentPath,
   visibleBox,
@@ -612,16 +615,18 @@ export function TrackCanvas({
   const k = markScale(shown.pxPerMm);
   const hitWidth = (plank: number) =>
     coarse ? Math.max(plank, 44 / (shown.pxPerMm ?? 1)) : plank;
+  /** A screen point in the drawing's millimetres, or null off the canvas (or without layout, as in jsdom). */
+  const clientToModel = (cx: number, cy: number): [number, number] | null => {
+    const r = svgEl?.getBoundingClientRect();
+    const m = drawGroup?.getScreenCTM?.();
+    if (!r || !m || cx < r.left || cx > r.right || cy < r.top || cy > r.bottom) return null;
+    const p = new DOMPoint(cx, cy).matrixTransform(m.inverse());
+    return [p.x, p.y];
+  };
   if (probe) {
     const scale = shown.pxPerMm ?? 1;
     probe.current = {
-      toModel: (cx, cy) => {
-        const r = svgEl?.getBoundingClientRect();
-        const m = drawGroup?.getScreenCTM?.();
-        if (!r || !m || cx < r.left || cx > r.right || cy < r.top || cy > r.bottom) return null;
-        const p = new DOMPoint(cx, cy).matrixTransform(m.inverse());
-        return [p.x, p.y];
-      },
+      toModel: clientToModel,
       freeEndNear: (x, y, radiusPx) => {
         let best: PortRef | null = null;
         let bestD = radiusPx / scale;
@@ -667,15 +672,22 @@ export function TrackCanvas({
    * end can be reached only from the layout list. Keyboard users already use
    * the list; this line tells a mouse user it exists.
    */
-  const hiddenEnds = useMemo(
+  const hiddenEndKeys = useMemo(
     () =>
       raisedSegments.length === 0
-        ? 0
-        : renderedPorts.filter(
+        ? new Set<string>()
+        : new Set(renderedPorts.filter(
             (p) => p.free && (p.level ?? 0) === 0 && onPlank(p.x, p.y, raisedSegments, (id) => resolve(id).plankWidthMm / 2),
-          ).length,
+          ).map((p) => `${p.pieceId}#${p.port}`)),
     [renderedPorts, raisedSegments, resolve],
   );
+  const hiddenEnds = hiddenEndKeys.size;
+  /*
+   * THE ENDS A CLICK CAN MEAN (plan 2026-11-01, eng E1, X1), in drawing order:
+   * floor then raised, so a later one is the one on top. A floor end under
+   * raised wood is not here: the wood takes that click, as it always did.
+   */
+  const clickableEnds = useMemo(() => clickableEndsOf(renderedPorts, hiddenEndKeys), [renderedPorts, hiddenEndKeys]);
   const dragPivot = useMemo(() => {
     if (!drag) return null;
     const p = renderedPorts.find((rp) => rp.pieceId === drag.pieceId && rp.port === 0);
@@ -751,6 +763,8 @@ export function TrackCanvas({
   const labelSeg = selected !== null ? segments.find((seg) => seg.pieceId === selected) : undefined;
   const labelText = labelSeg && pieceName ? pieceName(selected!) : null;
   const mmPerPx = 1 / (shown.pxPerMm ?? 1);
+  // An end's click radius: 26mm, and on a touch screen never under 44px across (design DR9, rule 10).
+  const endHitMm = endHitRadiusMm(coarse, 1 / mmPerPx);
   const labelAt =
     labelSeg && labelText
       ? labelSpot(
@@ -1180,7 +1194,13 @@ export function TrackCanvas({
               <g
                 key={`${p.pieceId}#${p.port}`}
                 className={portClass}
-                onClick={() => onPortClick?.({ pieceId: p.pieceId, port: p.port })}
+                onClick={(e) => {
+                  // The end meant, among every reachable end near the click (eng E1); this one without layout.
+                  const own = { pieceId: p.pieceId, port: p.port };
+                  const at = clientToModel(e.clientX, e.clientY);
+                  const meant = at && pickEnd(at, clickableEnds, endHitMm, armed, (r) => unjoinable?.has(`${r.pieceId}#${r.port}`) === true);
+                  onPortClick?.(meant ?? own);
+                }}
                 role="button"
                 tabIndex={0}
                 /*
@@ -1237,7 +1257,7 @@ export function TrackCanvas({
                 }}
               >
                 {refused && <title>{`Can't join the selected end: ${JOIN_REFUSED_SHORT[refused]}`}</title>}
-                <circle cx={p.x} cy={p.y} r={26} className="port-hit" />
+                <circle cx={p.x} cy={p.y} r={endHitMm} className="port-hit" />
                 {/*
                   * ARMED IS A RING, NOT A BIGGER BLOB (task W3, decision D5).
                   *

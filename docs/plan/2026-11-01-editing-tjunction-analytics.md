@@ -523,11 +523,11 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
   - Surfaced by: R1, DR1, DR2, DR3, DR4, DR6, DR8
   - Files: app/src/app.css, app/src/TrackCanvas.tsx (top-layer outline), app/src/App.tsx (strip order, hint, removed line), app/src/storageKeys.ts, DESIGN.md (rule 11), app/src/selectionHint.dom.test.tsx
   - Verify: DOM tests (hint per screen; dismissal by canvas, keyboard and list; reload; storage blocked; removed line + Undo; outline over a bridge); both hint strings under copyPosition.test.ts; real-browser look on a dense layout
-- [ ] **T2 (P1, human: ~6h / CC: ~35min)** — canvas — Pick the best reachable end; floor click un-selects; name the join; 44px ends on touch
+- [x] **T2 (P1, human: ~6h / CC: ~35min)** — canvas — Pick the best reachable end; floor click un-selects; name the join; 44px ends on touch
   - Surfaced by: E1, X1, X2, X4, DR5, DR9
   - Files: app/src/TrackCanvas.tsx, app/src/App.tsx, app/src/stackedEnds.dom.test.tsx, scripts/browserChecks.ts
   - Verify: eng T2's tests, plus the joined line + Undo and the coarse-pointer radius at a zoom where 26mm < 44px
-- [ ] **T3 (P1, human: ~3h / CC: ~30min)** — catalogue — Two-way "T-junction" from a MakerWorld 3MF
+- [x] **T3 (P1, human: ~3h / CC: ~30min)** — catalogue — Two-way "T-junction" from a MakerWorld 3MF (stop rule fired: the only two-way model, Flame's 3225419, has its own sizes; owner answered "Add Flame's T Rail as measured"; shipped as "T-junction, printed" in PR #103)
   - Surfaced by: R3, X6, DR7
   - Files: engine/data/switchSeeds.ts, engine/data/sources.ts, engine/test/switchSeeds.test.ts, app/src (Flip hidden for symmetric parts)
   - Verify: eng T3's checks; card order and drawing; F hidden while placing it
