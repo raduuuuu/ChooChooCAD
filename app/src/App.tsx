@@ -33,6 +33,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState , type ReactNode } from 'react';
 import {
+  BUILT_IN,
   droppedSubmissionsNotice,
   loadSubmissionsResult,
   makeResolver,
@@ -40,6 +41,8 @@ import {
   saveSubmissions,
   type Submission,
 } from '../../engine/data/library.js';
+
+const BUILT_IN_IDS: ReadonlySet<string> = new Set(BUILT_IN.map((p) => p.id));
 import { brandFit } from '../../engine/data/thirdParty.js';
 import { layoutTrust } from '../../engine/src/joints/trust.js';
 import { spanningForest } from '../../engine/src/graph/forest.js';
@@ -66,6 +69,7 @@ import {
 } from './editorReducer.js';
 import { holdsOwnLayout, loadGraph, partialLoadNotice, saveGraph, savesSuppressed, storedGraphOf } from './layoutStore.js';
 import { PutAsideNotice } from './PutAsideNotice.js';
+import { ShareControl } from './ShareControl.js';
 import { saveFailureNotice, type SavedStore } from './saveNotice.js';
 import { viewOf } from './verdictView.js';
 import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
@@ -811,6 +815,14 @@ export function App({ link }: { readonly link?: Graph } = {}) {
         Build it
       </button>
     ) : null;
+  /*
+   * SHARE (share plan, design 5A): first in the corner, so Build it stays the
+   * stronger action next to the switch. A corrected built-in part keeps its
+   * id, so the link carries the catalogue's size for it (eng D14), and Share
+   * says so.
+   */
+  const corrected = useMemo(() => new Set(submissions.map((s) => s.part.id).filter((id) => BUILT_IN_IDS.has(id))), [submissions]);
+  const shareIt = <ShareControl graph={graph} usesCorrections={graph.pieces.some((p) => corrected.has(p.partId))} announce={setSaid} />;
   // Shown by the 3D panel only while there is a view to reset (design review FINDING-005).
   const resetButton = (
     <button className="view-reset" onClick={() => setResetSignal((n) => n + 1)}>
@@ -1545,7 +1557,7 @@ export function App({ link }: { readonly link?: Graph } = {}) {
             tableNote={tableView ? { text: tableView.note, fits: tableView.fits } : null}
             label={sceneLabel}
             resetSignal={resetSignal}
-            corner={<>{buildIt}{viewSwitch}</>}
+            corner={<>{shareIt}{buildIt}{viewSwitch}</>}
             reset={resetButton}
           />
         ) : (
@@ -1591,7 +1603,7 @@ export function App({ link }: { readonly link?: Graph } = {}) {
             levelMismatches={levelMarks.mismatches}
             thirdLevels={levelMarks.thirds}
             emptyAction={emptyAction}
-            corner={<div className="view-corner">{buildIt}{viewSwitch}</div>}
+            corner={<div className="view-corner">{shareIt}{buildIt}{viewSwitch}</div>}
           />
         )}
       </main>

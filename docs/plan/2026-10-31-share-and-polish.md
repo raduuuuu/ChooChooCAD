@@ -273,7 +273,7 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
   - Surfaced by: Q1/D11, OV1/D14, E1/D9, T1/D12, design doc step 3
   - Files: app/src/layoutStore.ts, new share module + tests (names: eng review)
   - Verify: per-class refusal tests; 1 MB-zeros test; setItem spy never called; frozen links decode
-- [ ] **T4 (P1, human: ~2 days / CC: ~2h)**: share (b): route `#v<digits>.`, the gated hashchange reload, the read-only view, the link crash screen, the storage rules, Open in editor + put-aside + Restore
+- [x] **T4 (P1, human: ~2 days / CC: ~2h)**: share (b): route `#v<digits>.`, the gated hashchange reload, the read-only view, the link crash screen, the storage rules, Open in editor + put-aside + Restore (done: #96, #97, #98; opened live on woodentrain.world 2026-11-01)
   - Surfaced by: A2/D7, A3/D8, OV2/D15, OV4/D17, design doc step 3
   - Files: app/src/main.tsx, app/src/App.tsx, app/src/storageKeys.ts, app/src/buildSession.ts, new link-boundary module (exact shape: A1, eng review)
   - Verify: the all-keys isolation test (view + Build it + exit); `#v2.abc` test; throwing-view test; failing-save hashchange test; full storage on Open in editor and on Restore; then a hand-made Stadium link opened on woodentrain.world
@@ -649,7 +649,7 @@ These supersede the CEO tasks T3 to T5 for the share wave.
   - Surfaced by: D30, D22, D14, D17, D25, D32, D12, D9
   - Files: app/src/shareLink.ts, app/src/shareLink.test.ts, app/src/linkWords.ts, fixtures
   - Verify: refusal table; 1 MB zeros; 501 pieces; frozen links; round-trip over every fixture and preset
-- [ ] **E3 (P1, human: ~2 days / CC: ~2h)**: share (b): main.tsx route, LinkBoundary, App `source` with the setEditor guard, the read-only session, hashchange on allSaved, Open in editor (empty rule, guard, ask/decline, withImport), Restore (swap, rollback, download), cross-tab listener
+- [x] **E3 (P1, human: ~2 days / CC: ~2h)**: share (b): main.tsx route, LinkBoundary, App `source` with the setEditor guard, the read-only session, hashchange on allSaved, Open in editor (empty rule, guard, ask/decline, withImport), Restore (swap, rollback, download), cross-tab listener (done: #97, #98)
   - Surfaced by: D21, D7, D8/D15/D34, D23, D27, D28, D29, D35, D24/D36, D37
   - Files: app/src/main.tsx, app/src/App.tsx, app/src/LinkBoundary.tsx (new), app/src/storageKeys.ts, app/src/buildSession.ts
   - Verify: the all-keys isolation test, plus one test per row of the failure table; then D38's device run; then a hand-made Stadium link opened on woodentrain.world
@@ -816,7 +816,7 @@ Classifier: OPERATE (app UI) for the editor and the friend's screen. Hard reject
   - Surfaced by: Passes 1, 4, 5, 6
   - Files: app/src/App.tsx, app/src/AppName.tsx, app/src/VerdictLine.tsx, app/src/TrackCanvas.tsx, app/src/app.css, app/src/tokens.css, DESIGN.md
   - Verify: DOM tests for the fold (a not-checked note stays visible), for the example (shown only when nothing is stored; nothing written until edited), and for reduced motion; then /design-review on the live site
-- [ ] **DT2 (P1, human: ~1.5 days / CC: ~1.5h)**: share (b) screens:
+- [x] **DT2 (P1, human: ~1.5 days / CC: ~1.5h)**: share (b) screens: (done: #97, #98)
   - order and title (1A), loading (6A), the standard-sizes line (8A), exit labels (10A)
   - the ask with thumbnails (11A), the storage-full copy (13A)
   - the phone friend screen (18A), accessibility (20A), 2D first (21A)
