@@ -527,11 +527,16 @@ export function VerdictLine({
   }
 
   // Every failure is GREY. Never green, never styled as a near-pass.
+  //
+  // The part register rides here too (QA 2026-11-01, owner's answer A). It
+  // was empty on every failure, so a Lillabo piece on BRIO track said nothing
+  // until the loop closed, though the IKEA shelf promises the verdict says
+  // what it means. What the parts are is true whether or not a loop exists.
   if (isFailure(e.kind)) {
     return (
       <Verdict
         tone="unknown"
-        notes={notesFor([], ACTION_FOR_FAILURE[e.kind] ?? null, false, e.adapterCount, adaptersUnmarked, raisedOf(e))}
+        notes={notesFor(trust, ACTION_FOR_FAILURE[e.kind] ?? null, false, e.adapterCount, adaptersUnmarked, raisedOf(e))}
       >
         <Mark glyph="?" />
         <span className="verdict-text">
