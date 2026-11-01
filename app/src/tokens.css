@@ -276,9 +276,14 @@
   --s4: 20px;
   --s5: 32px;
 
-  /* Motion. One authored moment: the settle. */
-  --settle-ms: 260ms;
-  --settle-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  /*
+   * Motion. One authored moment: the settle (share plan, design 15A). A
+   * placed piece drops its last 2mm and comes to full strength. Short and
+   * ease-out, so it reads as landing, not as an effect; reduced motion
+   * turns it off (app.css).
+   */
+  --motion-settle-ms: 160ms;
+  --motion-settle-ease: ease-out;
 }
 
 /*

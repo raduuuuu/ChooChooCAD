@@ -298,7 +298,7 @@ describe('the words (D33, D41)', () => {
 
 describe('no motion (D46)', () => {
   /*
-   * MUTATION PROOF, run: `transition: opacity var(--settle-ms)` added to
+   * MUTATION PROOF, run: `transition: opacity var(--motion-settle-ms)` added to
    * `.build-step`: `expected [ 'transition' ] to deeply equal []`.
    */
   it('nothing in build mode’s styles animates', () => {

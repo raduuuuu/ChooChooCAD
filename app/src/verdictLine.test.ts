@@ -302,23 +302,23 @@ describe('the limits note does not depend on the trust list', () => {
   });
 
   /*
-   * Three disclosures, all serious: two shown, one counted, and the limits
-   * note still there, outside the cap.
+   * Three disclosures, all serious: the brand note stays in view, the other
+   * two fold behind "N notes" with the limits note, and nothing is cut.
    *
-   * MUTATION PROOF, run: raise `TRUST_INLINE_LIMIT` to 3 and this fails with
-   * `expected 3 to be 2`; and `{bend && <BendNotes words={bend} />}` removed
-   * from `notesFor` fails the pure-BRIO spec above with `expected '<div
-   * class="verdict verdict-fail" rol…' to contain '<p class="verdict-limits">A
-   * built loo…'`.
+   * MUTATION PROOF, run: `{bend && <BendNotes words={bend} />}` removed from
+   * the fold: `expected '<div class="verdict verdict-fail" rol…' to contain
+   * '<p class="verdict-limits">A built loo…'`.
    */
-  it('a switch plus IKEA layout truncates the list, and the limits note stays', () => {
+  it('a switch plus IKEA layout keeps the brand note in view, and folds the rest with the limits note', () => {
     const trust = trustFor(['L', 'IKEA-150']);
     expect(trust.map((t) => t.kind)).toEqual(['unverified-size', 'modelled-switch', 'brands-do-not-join']);
     const html = render(exceeds, trust);
-    expect(liCount(html)).toBe(2);
-    expect(overflow(html)).toMatch(/1<\/span> more note\b/);
-    expect(overflow(html)).not.toMatch(/notes/);
+    const [before, folded = ''] = html.split('<div id="verdict-folded"');
+    expect(before).toMatch(/do not physically join/);
+    expect(liCount(folded)).toBe(2);
+    expect(overflow(html)).toBeNull();
     expect(html).toContain(LIMITS);
+    expect(folded).toContain(LIMITS);
     expect(html).not.toMatch(CLAIMS_PHYSICAL_NON_FIT);
   });
 

@@ -16,7 +16,8 @@
  */
 .shell {
   display: grid;
-  grid-template-rows: minmax(320px, 1fr) auto auto;
+  /* The identity line, then the canvas dominates. */
+  grid-template-rows: auto minmax(320px, 1fr) auto auto;
   height: 100%;
   min-height: 0;
 }
@@ -270,20 +271,20 @@
 .canvas-empty-hint { font-size: 16px; }
 
 /*
- * THE SETTLE IS GONE, not merely fixed.
- *
- * This held `.joint { transition: transform ... }` plus a reduced-motion
- * override. No element has ever had that class: the per-joint glyphs it was
- * written for were deleted with the per-joint verdict at R21, and three design
- * reviews flagged the rule as dead before it was finally removed on 2026-10-09.
- *
- * Worth being honest about what removing it leaves. The design brief asked for
- * ONE authored motion moment, the settle, propagating from the piece you just
- * placed. The product now has no motion at all. That is an unrealised intention
- * rather than a broken one, and `--settle-ms` and `--settle-ease` are kept in
- * tokens.css for whoever builds it against the arriving segment, which is the
- * other half of the task this deletion came from.
+ * THE SETTLE (share plan, design 15A): the one authored motion, built at
+ * last. It once lived on a `.joint` class no element had (removed
+ * 2026-10-09); this one is on the arriving piece's own paths (TrackCanvas
+ * `settling`). Translated in the drawing's own units, flipped like the
+ * canvas, so +2 starts the piece 2mm up and it drops into place.
  */
+@keyframes settle {
+  from { opacity: 0.85; transform: translate(0, 2px); }
+  to   { opacity: 1;    transform: none; }
+}
+.settle { animation: settle var(--motion-settle-ms) var(--motion-settle-ease); }
+@media (prefers-reduced-motion: reduce) {
+  .settle { animation: none; }
+}
 
 /* 2nd in hierarchy: one unmistakable status line. */
 /*
@@ -336,7 +337,8 @@
    * drew a divider through the middle of the status band, between the claim
    * and the notes that describe it.
    */
-  background: var(--paper-sunk);
+  /* On paper, not a shaded band (share plan, design 4A): one --rule above, one below. */
+  background: var(--paper);
   font-size: 16px;
   line-height: 1.45;
   border-bottom: 1px solid var(--rule);
@@ -422,19 +424,35 @@
 .verdict-trust li.is-serious::before { content: '!'; color: var(--fail); }
 
 /*
- * The truncation count (finding E7). A SENTENCE, not a control.
- *
- * Deliberately styled as prose rather than as a link or button: nothing here
- * is clickable, and anything that looks clickable and is not is worse than
- * plain text. The full list is reachable through task U7a's graph listing.
+ * NEVER FOLDED, IN INK (design 4A, eng D69): how many pieces have sizes
+ * nobody has measured, in the adapter note's register.
  */
-.verdict-more {
-  margin: var(--s2) 0 0;
-  padding: 0;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--ink-soft);
+.verdict-unmeasured {
+  margin: var(--s1) 0 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ink);
+  max-width: 76ch;
 }
+/*
+ * "N notes" (design 4A): a text button like the brand note, no colour. The
+ * explanations open in place under it; the open state lasts the session.
+ */
+.verdict-fold {
+  min-height: 36px;
+  margin: var(--s1) 0 0;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.verdict-fold:hover { color: var(--ink); }
+@media (pointer: coarse) { .verdict-fold { min-height: 44px; } }
 
 /*
  * THE NOTES BLOCK (task X2a, Y1 decision 2).
@@ -463,7 +481,7 @@
    * markers landing under the verdict glyph.
    */
   padding: 0 var(--s4) var(--s3) calc(var(--s4) + 2.2ch + var(--s4));
-  background: var(--paper-sunk);
+  background: var(--paper);
 }
 
 /*
@@ -474,9 +492,8 @@
  * a middot, or an exclamation when serious; the action carries an arrow,
  * which reads as "do this" rather than "note this".
  *
- * --ink-soft measures 4.77:1 against --paper-sunk, the ground .verdict-notes
- * sets. Clear of the 4.5:1 text floor. (--paper's 5.21:1 is the wrong ground
- * for anything inside the verdict band.)
+ * --ink-soft measures 5.21:1 against --paper, the ground .verdict-notes sets
+ * since the shaded band went (design 4A). Clear of the 4.5:1 text floor.
  */
 .verdict-action {
   position: relative;
@@ -516,7 +533,19 @@
 .verdict-empty { color: var(--empty); }
 
 /*
- * The app's name, the first line of the rail. Quiet on purpose: it names the
+ * THE IDENTITY LINE (share plan, design 2A): start-aligned at the top of the
+ * stage, on paper, in every mode. A put-aside notice (22A) sits inside it,
+ * under the name, so it reads as part of who you are here, not a warning.
+ */
+.identity {
+  padding: var(--s2) var(--s4);
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+}
+.identity .notice { margin: var(--s2) 0 0; }
+
+/*
+ * The app's name, on the identity line. Quiet on purpose: it names the
  * tool for a screenshot or a first visit and then gets out of the way, so it
  * sits in ink at the size of the labels around it, with no header bar.
  */
@@ -910,12 +939,8 @@
   font-family: var(--font-data);
   font-size: 12px;
   color: var(--ink-soft);
-  transition: transform 120ms ease;
 }
 .brand-group[open] > .brand-note::after { transform: rotate(90deg); }
-@media (prefers-reduced-motion: reduce) {
-  .brand-note::after { transition: none; }
-}
 .brand-note:hover { color: var(--ink); }
 /* So a closed shelf still says how much is behind it. */
 .brand-count {
@@ -1486,12 +1511,13 @@
 @media (min-width: 1000px) {
   .shell {
     grid-template-columns: minmax(0, 1fr) 320px;
-    /* Three rows now: the notes block is a sibling of the verdict (X2a). */
-    grid-template-rows: minmax(0, 1fr) auto auto;
+    /* The identity line (design 2A), the stage, then the verdict and its notes block (X2a). */
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
   }
-  .stage         { grid-column: 1; grid-row: 1; }
-  .verdict       { grid-column: 1; grid-row: 2; }
-  .verdict-notes { grid-column: 1; grid-row: 3; }
+  .identity      { grid-column: 1; grid-row: 1; }
+  .stage         { grid-column: 1; grid-row: 2; }
+  .verdict       { grid-column: 1; grid-row: 3; }
+  .verdict-notes { grid-column: 1; grid-row: 4; }
   .palette {
     grid-column: 2;
     grid-row: 1 / -1;

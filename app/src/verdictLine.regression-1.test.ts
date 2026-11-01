@@ -70,15 +70,17 @@ describe('a layout that is not a loop yet', () => {
   });
 
   /*
-   * The QA layout itself: a seed switch trips two serious kinds of its own, so
-   * the two-line cap (TRUST_INLINE_LIMIT) shows those and counts the brand note
-   * as one more. The cap is unchanged here; the plan's verdict redesign owns it.
+   * The QA layout itself: a seed switch and a Lillabo straight. The brand
+   * note and the unmeasured count stay in view; which parts and why fold
+   * behind "N notes" (share plan, design 4A, eng D69).
    * MUTATION PROOF, run (the pre-fix branch): `expected '<div class="verdict
    * verdict-unknown" …' to match /nobody has measured/`.
    */
   it('the QA layout (curved switch L + Lillabo straight) shows its part notes', () => {
     const html = verdictHtml(pair('L', 'IKEA-150'));
-    expect(html).toMatch(/nobody has measured/);
-    expect(html).toMatch(/and <span class="num">1<\/span> more note/);
+    const [before] = html.split('<div id="verdict-folded"');
+    expect(before).toMatch(/do not physically join/);
+    expect(before).toMatch(/<span class="num">2<\/span> pieces have sizes nobody has measured\./);
+    expect(html).toMatch(/nobody has measured, so this answer is exact about an estimate/);
   });
 });

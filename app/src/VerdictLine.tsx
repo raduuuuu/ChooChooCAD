@@ -21,7 +21,7 @@
  * every measured defect in the engine lived in it.
  */
 
-import { Children, cloneElement, createContext, isValidElement, useContext, type ReactNode } from 'react';
+import { Children, cloneElement, createContext, isValidElement, useContext, useState, type ReactNode } from 'react';
 import type { TrustIssue } from '../../engine/src/joints/trust.js';
 import type { VerdictView } from './verdictView.js';
 import type { BendWords } from '../../engine/src/joints/bendWords.js';
@@ -61,77 +61,80 @@ const isSerious = (t: TrustIssue) =>
   // strictly less grounded than an unverified published figure.
   t.kind === 'modelled-switch';
 
-/** At most this many disclosures are shown; the rest become a count (E7). */
-const TRUST_INLINE_LIMIT = 2;
-
+/*
+ * THE TRUST LIST, IN FULL (share plan, design 4A). It used to stop at two
+ * lines and count the rest ("and 1 more note"), because every line sat under
+ * the verdict on every edit. The list now lives behind the "N notes" fold,
+ * where it is read only when asked for, so it is never cut short.
+ *
+ * Serious first, then the rest (Y1 decision 4). SERIOUS IS PER ITEM, not per
+ * list: an earlier version repainted every marker red whenever one item was
+ * serious, and the benign notes claimed the verdict was misleading.
+ */
 function Trust({ trust }: { trust: readonly TrustIssue[] }) {
   if (trust.length === 0) return null;
-
-  /*
-   * SERIOUS FIRST, then the rest, then a count (Y1 decision 4).
-   *
-   * With five trust kinds present the block was five lines of equal weight
-   * above the action. Ordering by seriousness means the two that make the
-   * verdict actively misleading are the two that survive truncation.
-   *
-   * COUNT CORRECTED 2026-10-19. This read "task T3b adds a fifth kind", which
-   * was true when `TrustIssue` carried four. The axial-only kind took the
-   * fifth slot, so T3b's switch disclosure is the SIXTH. The ordinal is not
-   * load-bearing for any behaviour here, which is exactly why it went stale
-   * unnoticed: nothing reads it and no test could catch it. Stated as a count
-   * rather than an ordinal below so the next addition does not repeat this.
-   *
-   * `TrustIssue` kinds today: `unverified-size`, `single-source`,
-   * `brands-do-not-join`, `estimated-give`, `axial-only-give`,
-   * `modelled-switch`. Three of them are serious, and `TRUST_INLINE_LIMIT` is
-   * 2, so on a layout that trips two serious kinds nothing else is shown --
-   * and every layout with a seed switch trips two, because the seeds are also
-   * `unverified`. The give qualification no longer
-   * depends on being shown: `verdictLine.test.ts` pins that the EXCEEDS
-   * headline carries it even when this list is truncated to the two serious
-   * lines.
-   */
-  const ordered = [...trust].sort(
-    (a, b) => Number(isSerious(b)) - Number(isSerious(a)),
+  const ordered = [...trust].sort((a, b) => Number(isSerious(b)) - Number(isSerious(a)));
+  return (
+    <ul className="verdict-trust">
+      {ordered.map((t) => (
+        <li key={t.kind + t.detail} className={isSerious(t) ? 'is-serious' : undefined}>
+          {t.detail}
+        </li>
+      ))}
+    </ul>
   );
-  const shown = ordered.slice(0, TRUST_INLINE_LIMIT);
-  const hidden = ordered.length - shown.length;
+}
 
+/*
+ * NEVER FOLDED (share plan, design 4A; eng D69; DESIGN.md rule 3). A folded
+ * note never hides what was not checked or what the track physically needs:
+ * the adapter and raised-track notes, brands that do not join, and how many
+ * pieces have sizes nobody has measured. The reasons behind those (which
+ * parts, where a limit comes from) are in the fold.
+ */
+const kept = (t: TrustIssue) => t.kind === 'brands-do-not-join';
+
+function Unmeasured({ n }: { n: number }) {
+  return (
+    <p className="verdict-unmeasured">
+      <span className="num">{n}</span> {n === 1 ? 'piece has a size' : 'pieces have sizes'} nobody has measured.
+    </p>
+  );
+}
+
+/** The fold's open state, kept for the session so it does not snap shut on every edit (4A). */
+const FOLD_KEY = 'brio.verdict.notes.open';
+const foldWasOpen = () => {
+  try {
+    return sessionStorage.getItem(FOLD_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * "N notes", a text button that opens the explanations in place (design 4A).
+ * The folded block stays in the markup with `hidden`, so `aria-describedby`
+ * still reaches it and a static render still carries every sentence.
+ */
+function Fold({ count, children }: { count: number; children: ReactNode }) {
+  const [open, setOpen] = useState(foldWasOpen);
+  const toggle = () => {
+    setOpen(!open);
+    try {
+      sessionStorage.setItem(FOLD_KEY, open ? '0' : '1');
+    } catch {
+      // The fold still works; it just forgets on reload.
+    }
+  };
   return (
     <>
-      {/*
-        * SERIOUS IS PER ITEM, not per list, and the first version got that
-        * wrong. The flag was computed with `shown.some(isSerious)` and consumed
-        * by `.verdict-trust.is-serious li::before`, which repaints EVERY
-        * marker. Since the sort puts serious kinds first and the limit is two,
-        * the ordinary multi-brand case shows [unverified-size, estimated-give]
-        * and the benign standing "give is estimated" note got a red
-        * exclamation claiming the verdict is actively misleading. That is the
-        * colour-plus-glyph channel over-claiming, against DESIGN.md rule 3.
-        */}
-      <ul className="verdict-trust">
-        {shown.map((t) => (
-          <li key={t.kind + t.detail} className={isSerious(t) ? 'is-serious' : undefined}>
-            {t.detail}
-          </li>
-        ))}
-      </ul>
-      {/*
-        * NON-INTERACTIVE TRUNCATION, not a "+N more" toggle (finding E7).
-        *
-        * A toggle implies state, activation and focus, and the harness task
-        * X2b builds renders static markup and dispatches nothing, so the
-        * expansion could never be asserted. That is the same error the T3
-        * split and the U7a/U7b split each caught once already. A plain
-        * sentence is assertable and needs no DOM. The full list is reachable
-        * through U7a's graph listing.
-        */}
-      {hidden > 0 && (
-        <p className="verdict-more">
-          and <span className="num">{hidden}</span> more{' '}
-          {hidden === 1 ? 'note' : 'notes'} about this layout.
-        </p>
-      )}
+      <button type="button" className="verdict-fold" aria-expanded={open} aria-controls="verdict-folded" onClick={toggle}>
+        <span className="num">{count}</span> {count === 1 ? 'note' : 'notes'}
+      </button>
+      <div id="verdict-folded" className="verdict-folded" hidden={!open}>
+        {children}
+      </div>
     </>
   );
 }
@@ -223,14 +226,24 @@ function notesFor(
   bend: BendWords | null = null,
 ) {
   if (trust.length === 0 && !action && adapters === 0 && !raised && !bend) return undefined;
+  const unmeasured = trust.find((t) => t.kind === 'unverified-size')?.pieces ?? 0;
+  const folded = trust.filter((t) => !kept(t));
+  const limits = bend ? bend.limits.length + (bend.overlapNote ? 1 : 0) : 0;
+  const foldCount = limits + (basis ? 1 : 0) + folded.length;
   return (
     <>
-      {bend && <BendNotes words={bend} />}
-      {basis && <Basis />}
       {adapters > 0 && <AdapterNote n={adapters} unmarked={unmarked} />}
       {raised && <RaisedNote bridges={raised.bridges} />}
-      <Trust trust={trust} />
+      {unmeasured > 0 && <Unmeasured n={unmeasured} />}
+      <Trust trust={trust.filter(kept)} />
       <Action action={action} />
+      {foldCount > 0 && (
+        <Fold count={foldCount}>
+          {bend && <BendNotes words={bend} />}
+          {basis && <Basis />}
+          <Trust trust={folded} />
+        </Fold>
+      )}
     </>
   );
 }

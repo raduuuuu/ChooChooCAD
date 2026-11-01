@@ -48,6 +48,14 @@ Related: never claim more than was checked. The middle verdict is deliberately
 hedged, because the engine knows a gap fits inside the joints' total give and
 does not know that the give can be distributed to absorb it.
 
+A folded note never hides a not-checked or adapter note (share plan, design
+4A, eng D69). The verdict strip always shows its glyph, its sentence, the next
+step, and anything the track physically needs or was not checked for:
+adapters, raised track's unchecked supports, brands that do not join, and
+how many pieces have sizes nobody has measured. Only the explanations (which
+parts, where a limit comes from, what the answer rests on) fold behind
+"N notes".
+
 ## 4. Every number is a measurement
 
 Numbers get `.num`: the mono face with tabular figures. Not for looks. A
@@ -112,11 +120,20 @@ make them wrong. "Above" and "below" stay banned even for height, because
 they read as screen positions (design review of the two-layer plan, 7A,
 2026-10-23).
 
+`app/src/copyPosition.test.ts` holds the rule: it reads every text node and
+string literal with the TypeScript parser and fails on a position word.
+Comments and movement ("turning left", "arrows turn") are not copy.
+
 ## 8. One authored motion
 
 There is one deliberate moment of movement, and `prefers-reduced-motion` turns
 it off. Nothing else animates. A drafting tool that moves while you are reading
 a measurement is working against its own purpose.
+
+The moment is the settle (design 15A): a piece placed on its own drops its
+last 2mm into place over `--motion-settle-ms` (160ms), ease-out, from 0.85 to
+full strength. A preset, a load or a whole run arriving does not move, and
+build mode stays cut (rule 12).
 
 ## 9. Browser surfaces carry the design too
 
@@ -124,6 +141,11 @@ Selection, caret, focus ring and scrollbars ship with defaults that belong to no
 design system. They are themed in `tokens.css`. Leaving them at their defaults
 is the cheapest tell that a page was assembled rather than designed, and it is
 the thing a reviewer notices without being able to say why.
+
+The identity line is one of these surfaces (design 2A): the mark,
+ChooChooCAD and "wooden railway layouts", start-aligned at the top of every
+screen (editor, a friend's screen, a first visit), so a screenshot always
+says which tool it is.
 
 ## 10. Touch targets have a floor, unconditionally on data entry
 
@@ -199,6 +221,20 @@ about 60cm away and often a child tapping. Its rules follow from that:
 - **Notes that are verdicts look like verdicts:** glyph, colour and sentence
   (rule 2). A run that closes by bending is plain ink.
 - **Nothing animates** (rule 8). Steps cut.
+
+## 13. A shared railway is an invitation
+
+A friend opening a link is someone's guest, usually on a phone, often unsure
+what they were sent (share plan, design 1A, 8A, 10A). So the screen says what
+arrived before anything else:
+
+- **One order:** the title ("A wooden railway · 14 pieces"), the plan as the
+  anchor, the verdict, Build it as the one solid button, the parts folded,
+  then the quiet ways out.
+- **Exits say where they go:** "Back to my layout" when the friend has one,
+  "Start your own" when they do not.
+- **It says what the check rests on:** "Checked with catalogue sizes." is
+  always shown under the verdict, never folded.
 
 ## What is NOT settled
 
