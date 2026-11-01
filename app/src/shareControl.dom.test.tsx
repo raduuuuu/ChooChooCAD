@@ -81,6 +81,10 @@ describe('Share', () => {
     render(<ShareControl graph={TWO} usesCorrections={false} announce={said} />);
     await user.click(screen.getByRole('button', { name: 'Share' }));
     await screen.findByRole('button', { name: 'Link copied' });
+    // The 2s timer starts in an effect after "Link copied" renders. Flush it
+    // first, or the advance can run before the timer exists (CI flake,
+    // 2026-11-01: "Unable to find … button … Share").
+    await act(async () => {});
     await act(async () => vi.advanceTimersByTime(2000));
     expect(screen.getByRole('button', { name: 'Share' })).toBeTruthy();
     vi.useRealTimers();
