@@ -11,7 +11,8 @@ import { BUILD_LINK_STORAGE_KEY } from './storageKeys.js';
  * D31). Any `#v<digits>.` is a link, so the editor never mounts for one and
  * the storage session is on before any component could save. The link route
  * and its decoder are their own chunk: the editor never downloads them.
- * Everything else is the editor, exactly as before.
+ * Everything else is the editor, which opens on the first-visit example when
+ * this browser has no layout of its own (design 3A).
  */
 const LinkRoute = lazy(() => import('./LinkRoute.js').then((m) => ({ default: m.LinkRoute })));
 
@@ -29,7 +30,7 @@ if (LINK_FRAGMENT.test(location.hash)) {
   root.render(
     <StrictMode>
       <ErrorBoundary>
-        <App />
+        <App offerExample />
       </ErrorBoundary>
     </StrictMode>,
   );

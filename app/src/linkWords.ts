@@ -40,6 +40,12 @@ export const exitLabel = (holdsOwn: boolean) => (holdsOwn ? 'Back to my layout' 
 /** Opening a link in the editor (design doc step 3; eng D23, D29, D72; design 11A, 18A). */
 export const OPEN_IN_EDITOR = 'Open in editor';
 export const PHONE_CANNOT_EDIT = 'Open this link on a tablet or computer to change it.';
+/** The first visit's example (design 3A, 19A): the Stadium, labelled as an example, never saved until it is yours. */
+export const EXAMPLE_PRESET = 'Stadium';
+export const exampleTitle = (pieces: number) => `An example · ${pieces} ${pieces === 1 ? 'piece' : 'pieces'}`;
+export const ownTitle = (pieces: number) => `Your railway · ${pieces} ${pieces === 1 ? 'piece' : 'pieces'}`;
+/** On a phone with no link: phones view and build, and this says where to design (19A). */
+export const PHONE_DESIGN_ELSEWHERE = 'Open ChooChooCAD on a tablet or computer to design your own.';
 export const PUT_ASIDE_FAILED = "Your layout couldn't be put aside, so nothing changed.";
 export const ASK_REPLACE = 'Replace the layout you put aside last time?';
 export const ASIDE_EARLIER = 'Put aside earlier (will be replaced): ';
