@@ -82,6 +82,8 @@ export type BendOutcome =
       readonly work: number;
       /** True when no closure was found within LAMBDA_CEILING: `lambda` is then a floor, not a value. */
       readonly atLeast: boolean;
+      /** True when a refinement ran out of work, so the leftover is where it stopped, not where it would end. */
+      readonly cutShort: boolean;
     }
   /** Too big to set up within `maxCells`; nothing was allocated. */
   | { readonly kind: 'too-big'; readonly cells: number }
@@ -491,7 +493,7 @@ function solveLoops(
   run: BendRun,
   loops: readonly number[],
   maxWork: number,
-): { lambda: number; first: number; turns: number[]; stretches: number[]; left: { mm: number; rad: number }; work: number; atLeast: boolean } | { why: string; work: number } {
+): { lambda: number; first: number; turns: number[]; stretches: number[]; left: { mm: number; rad: number }; work: number; atLeast: boolean; cutShort: boolean } | { why: string; work: number } {
   const nJ = run.joints.length;
   let turns = new Array<number>(nJ).fill(0);
   let stretches = new Array<number>(nJ).fill(0);
@@ -499,6 +501,7 @@ function solveLoops(
   let lambda = 0;
   let first = 0;
   let left = worstLeftover(run, loops, turns, stretches);
+  let cutShort = false;
   for (let pass = 0; pass <= REFINEMENTS; pass++) {
     const lin = linearise(run, loops, turns, stretches);
     const r = minMax(run, lin, maxWork - work);
@@ -506,11 +509,15 @@ function solveLoops(
     work += r.work;
     if (r.kind !== 'solved') {
       // A refinement that finds nothing keeps the answer it started from:
-      // the leftover says how far that answer is from closing (D12).
-      if (pass > 0) break;
+      // the leftover says how far that answer is from closing (D12). One that
+      // ran out of work says so: its leftover is where it stopped (2026-11-01).
+      if (pass > 0) {
+        cutShort = r.kind === 'exhausted';
+        break;
+      }
       if (r.kind === 'exhausted') return { why: 'out of work', work };
       // No closure within the ceiling: beyond, by at least that much.
-      return { lambda: LAMBDA_CEILING, first: LAMBDA_CEILING, turns, stretches, left, work, atLeast: true };
+      return { lambda: LAMBDA_CEILING, first: LAMBDA_CEILING, turns, stretches, left, work, atLeast: true, cutShort: false };
     }
     lambda = r.lambda;
     if (pass === 0) first = r.lambda;
@@ -531,6 +538,11 @@ function solveLoops(
       if (near) {
         work += near.work;
         if (near.kind === 'feasible') z = near.x;
+        // Out of work here too: the answer is where it stopped, so say so.
+        if (near.kind === 'exhausted') {
+          cutShort = true;
+          break;
+        }
       }
     }
     turns = z.slice(0, nJ);
@@ -542,7 +554,7 @@ function solveLoops(
     // and around a solution that far out the linear model means nothing.
     if (pass === 0 && r.lambda > SURELY_BEYOND) break;
   }
-  return { lambda, first, turns, stretches, left, work, atLeast: false };
+  return { lambda, first, turns, stretches, left, work, atLeast: false, cutShort };
 }
 
 /**
@@ -582,6 +594,7 @@ export function solveBend(run: BendRun, maxCells: number, maxWork: number): Bend
     leftoverRad: whole.left.rad,
     work,
     atLeast: whole.atLeast,
+    cutShort: whole.cutShort,
   };
 }
 

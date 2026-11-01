@@ -296,7 +296,7 @@ describe('the answer does not depend on how the layout was built (eng review D13
 
 describe('no verdict unless the solve earned one (eng review D11, D12)', () => {
   const solved = (lambda: number, leftoverMm: number) =>
-    ({ kind: 'solved', lambda, firstLinearLambda: lambda, turns: [], stretches: [], leftoverMm, leftoverRad: 0, standalone: [lambda], work: 0, atLeast: false }) as const;
+    ({ kind: 'solved', lambda, firstLinearLambda: lambda, turns: [], stretches: [], leftoverMm, leftoverRad: 0, work: 0, atLeast: false, cutShort: false }) as const;
 
   /*
    * MUTATION PROOF, run: `statusOf` returning 'beyond' for an unsettled solve

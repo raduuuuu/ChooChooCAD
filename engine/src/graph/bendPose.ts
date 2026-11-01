@@ -96,13 +96,19 @@ function shiftPose(d: Move, p: FPose): FPose {
   return { x, y, h };
 }
 
-/** The render with each shifted piece's wood and ends moved rigidly by its shift. */
-export function bendRender(render: GraphRender, shifts: ReadonlyMap<string, Move>): GraphRender {
-  if (shifts.size === 0) return render;
-  const segments = render.segments.map((s): Segment => {
+/** Each shifted piece's wood moved rigidly by its shift. */
+export function bendSegments(segments: readonly Segment[], shifts: ReadonlyMap<string, Move>): readonly Segment[] {
+  if (shifts.size === 0) return segments;
+  return segments.map((s): Segment => {
     const d = s.pieceId !== undefined ? shifts.get(s.pieceId) : undefined;
     return d ? { ...s, from: shiftPose(d, s.from), to: shiftPose(d, s.to) } : s;
   });
+}
+
+/** The render with each shifted piece's wood and ends moved rigidly by its shift. */
+export function bendRender(render: GraphRender, shifts: ReadonlyMap<string, Move>): GraphRender {
+  if (shifts.size === 0) return render;
+  const segments = bendSegments(render.segments, shifts);
   const ports = render.ports.map((p) => {
     const d = shifts.get(p.pieceId);
     if (!d) return p;
