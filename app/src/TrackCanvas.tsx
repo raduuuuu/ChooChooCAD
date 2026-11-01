@@ -880,6 +880,24 @@ export function TrackCanvas({
     </g>
   );
   const raisedHere = segments.some((seg) => (seg.level ?? 0) >= 1 || Boolean(seg.rise));
+  /*
+   * THE SELECTED PIECE, ABOVE BOTH LEVELS (plan 2026-11-01, design DR1, DR6).
+   * A 3px ink line along each plank edge over a wider paper halo, drawn after
+   * the raised layer so a floor piece stays visible under a bridge. Weight and
+   * space, no colour (DESIGN.md rules 1 and 11).
+   */
+  const selectionTop =
+    selected === null
+      ? null
+      : segments
+          .filter((seg) => seg.pieceId === selected)
+          .flatMap((seg, i) => {
+            const d = plankEdges(seg, resolve(seg.partId).plankWidthMm / 2);
+            return [
+              ...d.map((e, side) => <path key={`sel-halo-${i}-${side}`} d={e} className="piece-selected-halo" />),
+              ...d.map((e, side) => <path key={`sel-${i}-${side}`} d={e} className="piece-selected" />),
+            ];
+          });
   const levelLayer = (raised: boolean) => (
     <>
         {!raised && shadows()}
@@ -975,23 +993,16 @@ export function TrackCanvas({
         })}
         {/*
           * SELECTION (decisions 10A and 2A): the rest of the selected piece's
-          * run gets a quiet 1px line along both plank edges, the piece itself
-          * a 2px one. Along the edges, not a fat stroke under the track, so
-          * each keeps its device weight at every zoom (non-scaling strokes).
+          * run gets a quiet 1px line along both plank edges, on its own level.
+          * Along the edges, not a fat stroke under the track, so each keeps
+          * its device weight at every zoom (non-scaling strokes). The selected
+          * piece itself is drawn above both levels (`selectionTop`).
           */}
         {selected !== null &&
           segments.filter(onLevel(raised)).map((seg, i) => {
-            if (seg.pieceId === undefined) return null;
-            const isSelected = seg.pieceId === selected;
-            if (!isSelected && !selectedRun?.has(seg.pieceId)) return null;
+            if (seg.pieceId === undefined || seg.pieceId === selected || !selectedRun?.has(seg.pieceId)) return null;
             const half = resolve(seg.partId).plankWidthMm / 2;
-            return plankEdges(seg, half).map((d, side) => (
-              <path
-                key={`sel-${i}-${side}`}
-                d={d}
-                className={isSelected ? 'piece-selected' : 'piece-run'}
-              />
-            ));
+            return plankEdges(seg, half).map((d, side) => <path key={`run-${i}-${side}`} d={d} className="piece-run" />);
           })}
         {/*
           * THE PIECES AS TARGETS (decision R1/D2). An invisible stroke the
@@ -1360,6 +1371,7 @@ export function TrackCanvas({
         {levelLayer(false)}
         {ghostOnFloor && ghostLayer}
         {levelLayer(true)}
+        {selectionTop}
         {/*
           * THE GAP, DRAWN (task W2, decision D4).
           *

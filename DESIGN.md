@@ -161,7 +161,11 @@ nothing else uses:
 - **Dashed means the cursor**, where the next piece attaches. Nothing else on
   the canvas is dashed.
 - **Weight means importance.** The armed end's 3px ring is the heaviest port
-  mark; a selection is drawn by line weight, not by a new colour.
+  mark; a selection is drawn by line weight, not by a new colour. The
+  selected piece is 3px `--ink` along both plank edges over a wider `--paper`
+  halo, drawn above both levels so it shows through a bridge; the rest of its
+  run is 1px `--ink-soft` (plan 2026-11-01, design DR1, DR6). Never a tint:
+  wood that changes colour reads as a preview.
 - **A preview is translucent wood with a SOLID edge** (`--ghost-opacity`).
   Only its wood is translucent; its edge, glyph and words stay opaque, so no
   contrast depends on the opacity.
@@ -203,7 +207,10 @@ nothing else uses:
 
 Controls for a mode the canvas is in (placing a piece, a selected piece) live
 in a strip on the canvas edge, not in the parts rail, so they sit next to the
-thing they act on.
+thing they act on. The strip speaks in one order: placing, joining, the
+selected piece, a refused move, what the last removal did (with Undo), and
+last, until a piece has been selected once in this browser, the one-line
+hint that pieces can be selected and removed (design DR2, DR3, DR4).
 
 ## 12. Build mode is read from the floor
 

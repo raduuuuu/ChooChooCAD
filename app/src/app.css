@@ -192,12 +192,19 @@
 }
 .piece:focus-visible .piece-focus { visibility: visible; }
 .piece-selected,
+.piece-selected-halo,
 .piece-run {
   fill: none;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
-.piece-selected { stroke: var(--ink); stroke-width: 2; }
+/*
+ * The selected piece: 3px ink, the heaviest piece mark (equal to the armed
+ * end's ring, rule 11), over a 7px paper halo that parts it from the planks
+ * beside it (plan 2026-11-01, design DR6). No tint: colour is for verdicts.
+ */
+.piece-selected-halo { stroke: var(--paper); stroke-width: 7; }
+.piece-selected { stroke: var(--ink); stroke-width: 3; }
 .piece-run { stroke: var(--ink-soft); stroke-width: 1; }
 .piece-label {
   font-size: 13px;
@@ -1714,7 +1721,7 @@
 /*
  * THE PICKED CARD (part previews TODO). The ghost on the canvas came from this
  * card, and with a drawing on every card the pick was easy to lose. Weight
- * means importance, as on the canvas (`.piece-selected` is 2px --ink), so the
+ * means importance, as on the canvas (`.piece-selected` is drawn by weight), so the
  * picked card's edge is 2px of --ink: the 1px border plus a 1px inset line,
  * which keeps the row 36px. It is solid and inside the border, so it reads over
  * a dotted (unverified) or dashed (unowned) border without hiding it. After

@@ -85,3 +85,11 @@ export const BUILD_LINK_STORAGE_KEY = 'brio.build.link.v0';
  * even a layout that could not be read is kept exactly as it was.
  */
 export const GRAPH_PREVIOUS_KEY = 'brio.graph.v1.previous';
+
+/**
+ * Whether this browser has selected a piece once (plan 2026-11-01, design DR3).
+ * Until then the canvas strip carries a one-line hint that pieces can be
+ * selected and removed; after it, never again. A missing or unreadable value
+ * shows the hint, which is the safe direction.
+ */
+export const SELECT_HINT_STORAGE_KEY = 'brio.hint.select.v0';
