@@ -64,7 +64,8 @@ import {
   type EditorAction,
   type EditorState,
 } from './editorReducer.js';
-import { holdsOwnLayout, loadGraph, partialLoadNotice, saveGraph, savesSuppressed } from './layoutStore.js';
+import { holdsOwnLayout, loadGraph, partialLoadNotice, saveGraph, savesSuppressed, storedGraphOf } from './layoutStore.js';
+import { PutAsideNotice } from './PutAsideNotice.js';
 import { saveFailureNotice, type SavedStore } from './saveNotice.js';
 import { viewOf } from './verdictView.js';
 import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
@@ -86,10 +87,10 @@ import { View3DPanel } from './View3DPanel.js';
 import { BuildModeLoader } from './BuildModeLoader.js';
 import { loadView, openingView, saveView, type View } from './viewChoice.js';
 import { LINK_FRAGMENT } from './linkFragment.js';
-import { exitLabel, LINK_HELD } from './linkWords.js';
+import { exitLabel, LINK_HELD, STALE_TAB } from './linkWords.js';
 import { FriendScreen } from './FriendScreen.js';
 import { leaveLink } from './leaveLink.js';
-import { BUILD_LINK_STORAGE_KEY } from './storageKeys.js';
+import { BUILD_LINK_STORAGE_KEY, GRAPH_STORAGE_KEY } from './storageKeys.js';
 import { clearance } from '../../engine/data/calibration.js';
 import { MEASUREMENTS } from '../../engine/data/measurements.js';
 import type { SceneInput } from '../../engine/src/view3d/mesh.js';
@@ -459,7 +460,23 @@ export function App({ link }: { readonly link?: Graph } = {}) {
    * mode's Reload and a pasted link. "No failure" alone is not enough, because
    * a save held back after a rescue fails nothing and stores nothing.
    */
-  const allSaved = unsaved.size === 0 && !graphSaveBlocked && !inventorySaveBlocked && !submissionsSaveBlocked && !tableSaveBlocked;
+  /*
+   * ANOTHER TAB CHANGED THE LAYOUT (share plan, eng D37): opening a link in
+   * the editor there, or editing there. This tab's next autosave would write
+   * its older layout over that one, so from here it stops saving the layout
+   * and says so; Reload shows the latest. A link's own tab saves nothing anyway.
+   */
+  const [staleTab, setStaleTab] = useState(false);
+  useEffect(() => {
+    if (link) return;
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === GRAPH_STORAGE_KEY || e.key === null) setStaleTab(true);
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [link]);
+  const allSaved =
+    unsaved.size === 0 && !graphSaveBlocked && !staleTab && !inventorySaveBlocked && !submissionsSaveBlocked && !tableSaveBlocked;
   const allSavedNow = useRef(allSaved);
   allSavedNow.current = allSaved;
   /*
@@ -497,9 +514,9 @@ export function App({ link }: { readonly link?: Graph } = {}) {
    * rescues the raw bytes, so this is belt and braces.
    */
   useEffect(() => {
-    if (graphSaveBlocked) return;
+    if (graphSaveBlocked || staleTab) return;
     saved('layout', saveGraph(graph) || graph.pieces.length === 0);
-  }, [graph, graphSaveBlocked, saved]);
+  }, [graph, graphSaveBlocked, staleTab, saved]);
 
   useEffect(() => {
     if (inventorySaveBlocked) return;
@@ -1507,6 +1524,7 @@ export function App({ link }: { readonly link?: Graph } = {}) {
         view={view}
         onView={setViewState}
         onBuild={() => setBuilding(true)}
+        linkBytes={JSON.stringify(storedGraphOf(graph))}
         exitLabel={exitLabel(ownLayout)}
         onExit={leaveLink}
       />
@@ -1577,6 +1595,19 @@ export function App({ link }: { readonly link?: Graph } = {}) {
           />
         )}
       </main>
+
+      {staleTab && (
+        <div className="notice" role="alert">
+          <div>
+            <p className="notice-line">{STALE_TAB}</p>
+          </div>
+          <button className="notice-close" onClick={() => location.reload()}>
+            Reload
+          </button>
+        </div>
+      )}
+
+      <PutAsideNotice allSaved={allSaved} />
 
       {unsavedNotice !== undefined && unsavedDismissed !== unsavedNotice && (
         <div className="notice" role="status" aria-live="polite" aria-atomic="false">
