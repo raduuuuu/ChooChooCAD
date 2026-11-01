@@ -1,8 +1,13 @@
 # TODOS — BRIO Track Designer
 
-Created 2026-10-06 by /plan-ceo-review. The repo exists now
-(`raduuuuu/brio-designer`, private); this is the exported copy that lives in
-the tree, and `docs/plan/README.md` says where the canonical one is.
+Created 2026-10-06 by /plan-ceo-review. The repo is `raduuuuu/ChooChooCAD`
+(renamed from `brio-designer`; public, deployed to woodentrain.world); this is
+the exported copy that lives in the tree, and `docs/plan/README.md` says where
+the canonical one is.
+
+**Tidied 2026-11-01.** Every finished entry's heading now starts with DONE or
+CLOSED, so a heading that still names a priority is open work. Bodies are kept
+as written.
 
 ## DONE 2026-10-23 — A raised look for raised track
 
@@ -43,7 +48,12 @@ over 225mm needs about 234mm of slope), which is why one re-measure comes first.
 `bun run calibration` prints the Q4 result. Part in engine/data/rampSeeds.ts.
 **Depends on:** the re-measure.
 
-## P1 — Every BRIO piece from MakerWorld (owner, 2026-10-29)
+## DONE — Every BRIO piece from MakerWorld (owner, 2026-10-29)
+
+**DONE (2026-11-01).** All phases shipped: Lillabo (#64), the multi-road type
+and H (#65), nine more multi-road pieces (#66), buffer stops (#67, #68), the
+off-grid pieces (#69), and the printed T-junction (#103). They are unverified
+seeds until measured; the measuring is its own entries below.
 
 Plan and measurements: `docs/plan/2026-10-29-makerworld-pieces.md`. Scope
 chosen by the owner: phased, all BRIO types.
@@ -103,7 +113,7 @@ Lillabo). Re-measure the Lillabo Ys first.
 **Context:** Found by the design outside voice. Start from `.view-reset` and `.canvas-empty-action button`; add a `--target-build` token for the 48px.
 **Effort:** human S / CC S. **Depends on:** nothing.
 
-## P3 — The printed sheet's type and spacing are not tokens (filed by /design-review 2026-10-31, D2)
+## CLOSED — The printed sheet's type and spacing are not tokens (filed by /design-review 2026-10-31, D2)
 
 **CLOSED (2026-11-01): the printed sheet was removed** (`docs/plan/2026-10-31-share-and-polish.md`, OH-cut: "too much overlap with build mode"). Kept as written.
 
@@ -113,7 +123,7 @@ Lillabo). Re-measure the Lillabo Ys first.
 **Context:** Codex design voice, 2026-10-31. Add `--sheet-title`, `--sheet-body`, `--sheet-meta` and a spacing pair.
 **Effort:** human S / CC S. **Depends on:** nothing.
 
-## P3 — "Sheet n of m" can undercount when a list runs past one page (filed by /design-review 2026-10-31, D3)
+## CLOSED — "Sheet n of m" can undercount when a list runs past one page (filed by /design-review 2026-10-31, D3)
 
 **CLOSED (2026-11-01): the printed sheet was removed** (`docs/plan/2026-10-31-share-and-polish.md`, OH-cut: "too much overlap with build mode"). Kept as written.
 
@@ -131,7 +141,7 @@ Lillabo). Re-measure the Lillabo Ys first.
 **Context:** Design outside voice. Use `.build-code-line` for the sentence.
 **Effort:** human S / CC S. **Depends on:** nothing.
 
-## P2 — The raised level reads faintly from the 3D view's starting angle (filed by /design-review 2026-10-31, D1)
+## DONE — The raised level reads faintly from the 3D view's starting angle (filed by /design-review 2026-10-31, D1)
 
 **DONE (2026-10-31).** The owner chose 25° for layouts with raised track only; flat layouts keep 35° (21A amended in the 3D plan). `startElevationDeg` in `app/src/Viewer3D.tsx` reads it from whether the scene draws footprints; pinned in `app/src/viewer3dScene.test.ts`.
 
@@ -141,7 +151,7 @@ Lillabo). Re-measure the Lillabo Ys first.
 **Context:** Try 25° for layouts with two levels only, or keep 35° and rely on the footprint cue. Screenshots in the design audit of 2026-10-31.
 **Effort:** human S / CC S. **Depends on:** the owner's call on 21A.
 
-## P3 — A missing colour token draws the 3D scene in black (filed by /design-review 2026-10-31, D2)
+## DONE — A missing colour token draws the 3D scene in black (filed by /design-review 2026-10-31, D2)
 
 **DONE (2026-10-31).** `tokenColors` logs the missing token's name and draws it in `--ink`; pinned in `app/src/viewer3dTokens.dom.test.tsx`.
 
@@ -151,7 +161,7 @@ Lillabo). Re-measure the Lillabo Ys first.
 **Context:** Log the missing token name once with `console.error`, and fall back to `--ink`'s value.
 **Effort:** human S / CC S. **Depends on:** nothing.
 
-## P2 — Part-count badges are cut off at the rail's edge (filed by /design-review 2026-10-31, D3)
+## DONE — Part-count badges are cut off at the rail's edge (filed by /design-review 2026-10-31, D3)
 
 **DONE (2026-10-31).** `.piece-count` sits `var(--s1)` inside the card's right edge; checked in the browser at 1280px (badge right edge 1256, rail edge 1260).
 
@@ -177,7 +187,7 @@ Lillabo). Re-measure the Lillabo Ys first.
 **Context:** The 3D viewer ships read-only (`docs/plan/2026-10-31-3d-viewer.md`). Decide side-by-side vs a switch first.
 **Effort:** human M / CC S. **Depends on:** the 3D viewer.
 
-## P3 — The picked part's card looks like every other card (filed by /plan-design-review 2026-10-30)
+## DONE — The picked part's card looks like every other card (filed by /plan-design-review 2026-10-30)
 
 **DONE (2026-10-31).** The picked card's edge is 2px of --ink (its 1px border
 plus a 1px inset line, so the row stays 36px), and the card is `aria-pressed`
@@ -189,7 +199,7 @@ while its ghost is out. Pinned by `app/src/pickedCard.dom.test.tsx`.
 **Context:** Fix idea: a 2px ink border, matching the canvas's weight-means-importance rule, plus `aria-pressed`. Plan: docs/plan/2026-10-30-part-previews.md.
 **Depends on:** nothing.
 
-## P2 — Unverified cards spend the verdict red (filed by /plan-design-review 2026-10-30, from the Codex review)
+## DONE — Unverified cards spend the verdict red (filed by /plan-design-review 2026-10-30, from the Codex review)
 
 **DONE (2026-10-31).** The dotted border, the asterisk and the shelves'
 "unverified" word are all --ink now (the word keeps its weight). --fail is
@@ -201,7 +211,7 @@ back to meaning only a layout that cannot be built.
 **Context:** Fix idea: the same dotted border and asterisk in `--ink`. Decide the shelf word with it.
 **Depends on:** nothing.
 
-## P3 — The app's name is not on screen (filed by /plan-design-review 2026-10-30, from the Codex review)
+## DONE — The app's name is not on screen (filed by /plan-design-review 2026-10-30, from the Codex review)
 
 **DONE (2026-10-30).** The rail's first line reads "ChooChooCAD wooden railway
 layouts" beside the logo mark (an open loop of track, in ink), and the tab
@@ -213,7 +223,7 @@ carries the full-colour mark as its icon. Spec: app/src/appName.dom.test.tsx.
 **Context:** Fix idea: a quiet "ChooChooCAD · wooden railway layouts" line at the top of the rail, no header bar.
 **Depends on:** nothing.
 
-## P3 — Point mouse users to the list for ends hidden under a bridge
+## DONE — Point mouse users to the list for ends hidden under a bridge
 
 **DONE (2026-10-24).** When a free floor end's centre lies on raised wood, the
 canvas shows one quiet line at top left: "1 free end is under raised track.
@@ -293,6 +303,11 @@ not presented as individual decisions. Full context lives in
 
 Added 2026-10-06 by /plan-eng-review (D20). Blocks public launch only; blocks
 nothing in development.
+
+**OVERDUE (noted 2026-11-01).** This said to settle these questions before the
+part database is published in a repo or deployed. Both have happened: the repo
+is public and the app is live at woodentrain.world. The questions are still
+open and still need counsel.
 
 **What:** two questions needing counsel, not engineering.
 1. The part database is a wholesale transcription of woodenrailway.info's curated
@@ -434,7 +449,7 @@ IP questions below should be settled before anything is published publicly
 
 ---
 
-## P2 — 3D viewer, build mode and the printable sheet
+## DONE — 3D viewer, build mode and the printable sheet
 
 **DONE (2026-10-31).** Build mode and the printable sheet shipped in PRs #85 to #88, as planned in `docs/plan/2026-10-31-build-mode.md` (CEO, eng and design reviewed, D1-D53). The 3D viewer shipped earlier. The text below is kept as written. The printable sheet was removed again on 2026-11-01 (share-and-polish plan, OH-cut): build mode covers it.
 
@@ -634,7 +649,12 @@ reopened the engine. This review then re-decided the product shape around a new
 user instruction: multi-layer tracks, capped at three layers, modelled on PCB
 layouts.
 
-## P1 — Switches and the coupled multi-cycle solve
+## DONE — Switches and the coupled multi-cycle solve
+
+**DONE.** Switches are in the catalogue and the editor (the multi-road part
+type, #65), and loops that share joints are solved together for the bend each
+joint needs (#73), within an honest work budget (#105, #106). The text below
+is kept as written.
 
 > **CORRECTED 2026-10-09 by the fourth eng review.** This entry described work
 > that no longer exists. A coupled minimax solve over a cycle basis with
@@ -708,7 +728,13 @@ deferred here.
 
 ---
 
-## P1 — Drag-and-drop, with undo, the drop-overlap guard and keyboard parity
+## DONE — Drag-and-drop, with undo, the drop-overlap guard and keyboard parity
+
+**DONE (2026-10-23).** Shipped by the editing plan
+(`docs/plan/2026-10-22-editing-and-canvas.md`): select and remove with
+multi-step undo (#27), placing through a preview (#28), dragging placed runs
+(#29), dragging from the palette (#30), refusing a drop onto track (#35) and a
+run moved onto track (#37). The text below is kept as written.
 
 **What:** One body of work, not four features: pieces drag from the palette and
 reposition after placement; a rigid forward-kinematics preview during the drag
@@ -751,7 +777,7 @@ re-decision; K0c repair for the solve-on-release contract
 
 ---
 
-## P2 — A manual join can re-lay a loop that does not close (filed by /plan-eng-review 2026-10-22, D7)
+## DONE — A manual join can re-lay a loop that does not close (filed by /plan-eng-review 2026-10-22, D7)
 
 **What:** Make `spanningForest` (engine/src/graph/forest.ts) prefer the previous tree edges when a
 weld merges two components, so no join or edit re-lays track that was already placed.
@@ -785,7 +811,7 @@ until this lands; start from that comparison and make it pass for manual joins t
 
 ---
 
-## P2 — Draw your table or room on the grid (deferred by /plan-ceo-review 2026-10-22, E4)
+## DONE — Draw your table or room on the grid (deferred by /plan-ceo-review 2026-10-22, E4)
 
 **What:** A width x depth input that draws the table or room outline on the metric grid, so "does
 it fit" is answered on screen.
@@ -817,7 +843,7 @@ the model for a small persisted value.
 
 ---
 
-## Open and unassigned: the overlap narrowphase primitive
+## DONE — The overlap narrowphase primitive
 
 > **DONE 2026-10-23, after an owner bug report:** two planks laid across each other drew as one
 > merged shape that read as a switch, and the verdict said nothing. `engine/src/graph/overlap.ts`
@@ -877,7 +903,7 @@ Needs a decision before X4 is implemented.
 
 # Deferred by /plan-ceo-review 2026-10-07 (third pass, after the layer instruction)
 
-## P1 — Multiple independent components (several separate tracks in one layout)
+## DONE — Multiple independent components (several separate tracks in one layout)
 
 **DONE (2026-10-24).** The premise below is from the chain engine and no longer
 holds. The graph engine already kept several runs: each run has its own anchor,
@@ -1013,7 +1039,11 @@ no longer exist, to per-piece facts, which do.
 **Priority:** P2
 **Depends on:** nothing
 
-## P2 — Where the app is published, and whether the fonts may travel with it
+## DONE — Where the app is published, and whether the fonts may travel with it
+
+**DONE.** Published at woodentrain.world. The OFL licence travels with the
+fonts: `app/public/fonts/IBM-Plex-Sans-OFL.txt` and `IBM-Plex-Mono-OFL.txt`
+are copied into every build.
 
 **What:** the half of the old CI entry that X1b did NOT do. A decision about
 where the app is published, and whether the self-hosted woff2 fonts plus their
@@ -1047,6 +1077,11 @@ plank thickness (published 64 and 12), the Q1b loop's leftover gap, and a
 real switch's three figures (`throughMm`, `chordMm`, `offsetMm`; its own P2
 below). Every one of them gets an engineering diagram on the sheet before it
 is asked for. The history below is kept as written.
+
+**2026-11-01.** A layout of interlocking loops that closes on the floor was
+refused by the bend checker's work budget, not by the calibration (#105, #106).
+Q2 now has its plan-view drawing on the calibration sheet; a Q2 reading would
+replace the inferred limit with a measured one.
 
 > **READY TO MEASURE 2026-10-24.** The path from the floor to the engine is
 > built: `docs/calibration-sheet.html` to print, `engine/data/measurements.ts`
@@ -1104,7 +1139,7 @@ and it was taken with the consequences stated. What follows from it:
 
 # Deferred by /plan-ceo-review 2026-10-13 (SELECTIVE EXPANSION)
 
-## P2 — The polarity marker, and three things it does not yet do (filed by /ship, 2026-10-16)
+## DONE — The polarity marker, and three things it does not yet do (filed by /ship, 2026-10-16)
 
 > **DONE 2026-10-24.** (1) A refused joint is marked at BOTH ends when they
 > are apart, so the self-welded B2 shows a mark at 0 and at 54 whichever end
@@ -1184,7 +1219,7 @@ ambiguous for anyone who reuses it.
 **Effort:** human ~1d / CC ~1h for all of it. **Priority:** P2, except item 2
 which is P1 because it is user-visible today.
 
-## P2 — Offer only polarity-compatible free ends in the editor
+## DONE — Offer only polarity-compatible free ends in the editor
 
 **DONE (2026-10-24).** With an end selected, the editor refuses a join that can
 never be built: two pegs, or ends on different levels (only a ramp joins
@@ -1281,6 +1316,11 @@ in flight.
 
 ## P2 — Measure a real BRIO switch (filed by T1, under the calibration deferral)
 
+**Still open, no longer blocking (2026-11-01).** Switches shipped as
+unverified seeds read off MakerWorld models, so the catalogue row this entry
+said could not ship did. A measured switch would turn its seed into a
+verified part; Q6 on the calibration sheet asks for the three figures.
+
 **What:** With a physical BRIO switch and calipers, record its through-road
 length, diverging-leg radius and arc, and the heel offset. Then compute the
 rounding residual against the 22.5-degree lattice.
@@ -1311,7 +1351,11 @@ point, not an extra.
 **Priority:** P2.
 **Depends on / blocked by:** owning a BRIO switch. Blocks task T2 entirely.
 
-## P2 — Deploy the app to a URL (filed by the CEO review, 2026-10-13)
+## DONE — Deploy the app to a URL (filed by the CEO review, 2026-10-13)
+
+**DONE.** The app is live at woodentrain.world, deployed by GitHub Pages after
+CI passes on main (#43). The counsel question this entry said gates a public
+deploy was not settled first: see the IP entry.
 
 **What:** Put the current app on a public URL. One hour, after a remote exists.
 
@@ -1844,7 +1888,10 @@ divergence it exists for.
 **Depends on / blocked by:** B waits on U5's intent for `breakWeld`; the
 `analytic.test.ts` half of C is K2's job.
 
-## P1 — `solveGraph` computes a second placement instead of accepting the one App.tsx already made (filed by /ship, 2026-10-14)
+## DONE — `solveGraph` computes a second placement instead of accepting the one App.tsx already made (filed by /ship, 2026-10-14)
+
+**DONE (2026-10-24, #55 and #56; #59 then shared the drawing too).** Both
+halves below are done; the heading kept "half" from when only one was.
 
 **`solveGraph` HALF DONE (2026-10-24).** `solveGraph(graph, ports, resolve,
 slop, placement, library?)` takes the placement as a required argument and
@@ -2230,7 +2277,7 @@ coverage. Not a ship job: it rewrites the introduction, "The UI" and the whole
 **Effort:** human ~3h / CC ~45m. **Priority:** P2.
 **Depends on / blocked by:** nothing.
 
-## P2 — A no-op edit counts as consent to overwrite, and an engine throw from a handler is uncatchable (filed by /ship, 2026-10-14)
+## DONE — A no-op edit counts as consent to overwrite, and an engine throw from a handler is uncatchable (filed by /ship, 2026-10-14)
 
 Two small correctness items from the delta review, both narrow enough to
 defer and both real.
@@ -2265,7 +2312,7 @@ screen, no repro. Pre-existing and unchanged by this ship; the comment in
 **Effort:** human ~2h / CC ~25m for both. **Priority:** P2.
 **Depends on / blocked by:** nothing.
 
-## P1 — The give bound ignores angular slop entirely, which can make a definite "will not fit" false (filed by /ship's docs audit, 2026-10-14)
+## DONE — The give bound ignores angular slop entirely, which can make a definite "will not fit" false (filed by /ship's docs audit, 2026-10-14)
 
 **DONE (2026-10-30, PRs #73 and #74).** Angular give is modelled: the bend
 model (`engine/src/graph/bend.ts`, `bendRun.ts`, docs/designs/joint-bend.md)
@@ -2329,7 +2376,7 @@ per-joint value is `Math.max` of two per-part summaries. So the verdict stopped
 claiming a definite non-fit instead: it now says a gap exceeds the MODELLED
 give. This entry stays open on the modelling half.
 
-## P1 — `HEADING_MISMATCH` refuses layouts on the same unproven bound, one branch before give is considered (filed by /plan-eng-review's outside voice, 2026-10-19)
+## DONE — `HEADING_MISMATCH` refuses layouts on the same unproven bound, one branch before give is considered (filed by /plan-eng-review's outside voice, 2026-10-19)
 
 **DONE (2026-10-30, PR #73).** There is no separate heading gate any more. A
 loop that comes back turned is a walk whose end points the wrong way, and the
@@ -2377,7 +2424,7 @@ exists. **Priority:** P1.
 (`CALIBRATION.md` Q2) for the angular figure, and a derivation that does not
 exist yet.
 
-## P1 — `Math.max` and `calibrationStatus: 'measured'` do not establish an upper bound, so the give disclosure can retire on evidence that does not support retiring it (filed by /plan-eng-review's outside voice, 2026-10-19)
+## DONE — `Math.max` and `calibrationStatus: 'measured'` do not establish an upper bound, so the give disclosure can retire on evidence that does not support retiring it (filed by /plan-eng-review's outside voice, 2026-10-19)
 
 **DONE (2026-10-30, PRs #73 and #74), by the question turning over.** Both
 halves are gone. (1) A joint now takes the WEAKER side, `Math.min`, in both
@@ -2428,7 +2475,7 @@ soundness caveat at all.
 task body); the engine half depends on what the measurement actually yields.
 
 
-## P1 — `loadGraph` reports a rescue for bytes that were never at risk, on the legacy-chain path (filed by /ship, 2026-10-14)
+## DONE — `loadGraph` reports a rescue for bytes that were never at risk, on the legacy-chain path (filed by /ship, 2026-10-14)
 
 **DONE (2026-10-27).** `loadGraph` returns `uncopied`: true only when the layout
 key held bytes the load did not keep whole AND the copy aside failed. The graph
@@ -2512,7 +2559,7 @@ tests a claim about the product rather than a restatement of the code.
 **Effort:** human ~2h / CC ~25m. **Priority:** P3.
 **Depends on / blocked by:** nothing.
 
-## P2 — `droppedAnchors` counts entries, and a valid anchor can lose to a bad one (filed 2026-10-15)
+## DONE — `droppedAnchors` counts entries, and a valid anchor can lose to a bad one (filed 2026-10-15)
 
 **DONE (2026-10-27).** The loader collects the ids with an unreadable entry in
 a set, and only those with no readable entry anywhere become orphans; the
@@ -2539,7 +2586,7 @@ provisional lane for any id `anchorMap` already holds a valid frame for.
 **Effort:** human ~45m / CC ~10m. **Priority:** P2.
 **Depends on / blocked by:** nothing.
 
-## P2 — `captureAnchors` honours a stale anchor on any demoted root, not just orphans (filed 2026-10-15)
+## CLOSED — `captureAnchors` honours a stale anchor on any demoted root, not just orphans (filed 2026-10-15)
 
 **OVERTAKEN (closed 2026-10-27).** Fixed on 2026-10-22 by the codex review of
 the editing plan: `captureAnchors` now takes the measured frame for every
@@ -2933,7 +2980,7 @@ before. Pinned in `GraphListing.test.ts` through the real reducer.
 
 ---
 
-## P2 — Canvas marks keep their screen size (filed by /plan-design-review 2026-10-23)
+## DONE — Canvas marks keep their screen size (filed by /plan-design-review 2026-10-23)
 
 **DONE (2026-10-24).** Every red fault mark (clash, refused joint, both level
 faults) and the adapter diamond are enlarged by one factor, `markScale` in
