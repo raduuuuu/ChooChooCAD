@@ -199,9 +199,6 @@ about 60cm away and often a child tapping. Its rules follow from that:
 - **Notes that are verdicts look like verdicts:** glyph, colour and sentence
   (rule 2). A run that closes by bending is plain ink.
 - **Nothing animates** (rule 8). Steps cut.
-- **The printed sheet is the same plan, the same way up.** It is flipped like
-  the canvas. Earlier bands are drawn in `--rule` on `--sheet-paper`, and step
-  numbers sit in rings, moved out on a leader line when they would collide.
 
 ## What is NOT settled
 

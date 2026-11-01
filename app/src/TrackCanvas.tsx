@@ -6,7 +6,7 @@
  * SVG rather than a canvas library. Dragging a run moves one transformed group
  * and nothing is solved mid-drag (decision E6), so there is still nothing a
  * scene graph would buy; SVG gives exact arcs and prints legibly in
- * greyscale, which the build sheet will require.
+ * greyscale.
  *
  * NO PER-JOINT GLYPHS. They used to render a four-channel per-joint verdict
  * (colour, shape, ratio on hover, dotted ring for an unmeasured tolerance), and
