@@ -260,7 +260,14 @@ export function solveRun(pieces: readonly string[], built: BendRun | BuiltRun | 
     leftoverMm: o.leftoverMm,
     turnedSteps,
     // Rounded up: a leftover above 0.5mm never reads as 0.5 (DESIGN.md rule 4).
-    why: status === 'unchecked' ? `the model still leaves ${(Math.ceil(o.leftoverMm * 10 - 1e-9) / 10).toFixed(1)}mm` : null,
+    // A refinement that ran out of work stopped short of where it would end,
+    // so it says it ran out rather than how near it got.
+    why:
+      status !== 'unchecked'
+        ? null
+        : o.cutShort
+          ? 'out of work'
+          : `the model still leaves ${(Math.ceil(o.leftoverMm * 10 - 1e-9) / 10).toFixed(1)}mm`,
     work: o.work,
     movesMm: Math.max(0, ...built.loops.map((loop) => bendMovesMm(loop, o.turns, o.stretches))),
     others: [],

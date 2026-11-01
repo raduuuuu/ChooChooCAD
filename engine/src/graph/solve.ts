@@ -21,6 +21,7 @@ import { analyseCycles, type CycleReport } from './cycles.js';
 import { BEND_BUDGET, bendRuns, cycleLambda, type JointSide, type OtherPart, type RunBend } from './bendRun.js';
 import { bendLimit } from '../../data/bendLimit.js';
 import { classifyWelds, connectorSites, findVertexClashes, type AdapterJoint, type VertexClash, type WeldPolarityViolation } from './feasible.js';
+import { bendSegments, bentShifts } from './bendPose.js';
 import { findBridges, findPlankOverlaps, type PlankOverlap } from './overlap.js';
 import { renderGraph } from './render.js';
 import type { Segment } from '../geom/fk.js';
@@ -201,15 +202,12 @@ export function solveGraph(
 
   // Computed once, up front, because every branch below reports them.
   const clashes = findVertexClashes(graph, ports, placement);
-  const overlaps = findPlankOverlaps(
-    graph,
-    segments,
-    (id) => resolve(id).plankWidthMm / 2,
-    connectorSites(graph, ports, placement),
-  );
+  const halfWidth = (id: string) => resolve(id).plankWidthMm / 2;
+  const sites = connectorSites(graph, ports, placement);
+  const overlaps = findPlankOverlaps(graph, segments, halfWidth, sites);
   const { violations: polarityViolations, adapters: adapterJoints } = classifyWelds(graph, resolve, ports);
   const { mismatches: levelMismatches, thirdLevels } = findLevelFaults(graph, ports, placement, rs);
-  const bridges = findBridges(graph, segments, (id) => resolve(id).plankWidthMm / 2, connectorSites(graph, ports, placement));
+  const bridges = findBridges(graph, segments, halfWidth, sites);
   const raised = segments.some((sg) => (sg.level ?? 0) + (sg.rise ?? 0) > 0);
   const levels = { levelMismatches, thirdLevels, bridges, raised, runs: summariseRuns(graph, placement.forest, rs) };
 
@@ -442,6 +440,26 @@ export function solveGraph(
   // run beyond the bend is the layout's headline however good the rest.
   const withinBound = bend.every((b) => b.status === 'exact' || b.status === 'closes');
 
+  /*
+   * A CROSSING COUNTS WHEN IT IS THERE BOTH WAYS (owner's layout, 2026-11-01).
+   * A run that closes by bending its joints sits on the floor bent, and the
+   * canvas draws it that way (bendPose.ts). At catalogue angles the same run
+   * misses by up to its gap, so a piece near the gap can lie across its
+   * neighbour there and nowhere on the floor: two mini straights 31mm out of
+   * place read as "track over track" on a 79-piece layout that closes with
+   * 2.6 degrees. The bent drawing is not exact either: it moves each piece
+   * rigidly, and around a crossing that puts planks into each other that the
+   * catalogue keeps apart (the interlocked fixture, joined four to six
+   * times). So when a run is bent, an overlap is kept only if the bent wood
+   * has it too, marked where the bent wood has it. Never more refusals than
+   * the catalogue alone gave.
+   */
+  const shifts = bentShifts(graph, placement, ports, bend);
+  const bentOverlaps = shifts.size === 0 ? [] : findPlankOverlaps(graph, bendSegments(segments, shifts), halfWidth, sites);
+  const pairOf = (o: PlankOverlap) => (o.a < o.b ? `${o.a} ${o.b}` : `${o.b} ${o.a}`);
+  const bentAt = new Map(bentOverlaps.map((o) => [pairOf(o), o]));
+  const lyingOverlaps = shifts.size === 0 ? overlaps : overlaps.flatMap((o) => bentAt.get(pairOf(o)) ?? []);
+
   return {
     ok: true,
     closesExactly: rs.every((r) => r.closes),
@@ -453,7 +471,7 @@ export function solveGraph(
     cycles,
     worst,
     clashes,
-    overlaps,
+    overlaps: lyingOverlaps,
     polarityViolations,
     adapterJoints,
     ...levels,

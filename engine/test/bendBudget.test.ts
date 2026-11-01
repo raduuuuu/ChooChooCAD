@@ -156,3 +156,33 @@ describe('the work cap is honest (OV-A, eng X1, X2)', () => {
     }
   });
 });
+
+describe('a refinement that runs out says so (2026-11-01)', () => {
+  const q1: BendRun = {
+    joints: Q1_LOOP.map(() => ({ limitRad: (2 * Math.PI) / 180, stretchMm: 2 })),
+    loops: [Q1_LOOP.map((id, i) => ({ move: pieceMove(portsOf(getPart(id)), 0, 1), joint: i, sign: 1 as const }))],
+  };
+  const full = solveBend(q1, 1e9, 1e12);
+  const total = full.kind === 'solved' ? full.work : 0;
+
+  /*
+   * The owner's layout with its last two ends joined needs 360M units; at
+   * 200M a refinement ran out and the screen said "got within 0.6mm of
+   * closing", a figure from where the solve stopped, not where it would end.
+   *
+   * Here every cut-short Q1 solve still settles; the owner's layout, where
+   * one does not, is pinned in bentOverlap.test.ts.
+   *
+   * MUTATION PROOF, run: `cutShort` never set fails with `expected 0 to be
+   * greater than 0`.
+   */
+  it('a solve cut short in a refinement is marked, and a finished one is not', () => {
+    let cut = 0;
+    for (let budget = 0; budget < total; budget += 200) {
+      const o = solveBend(q1, 1e9, budget);
+      if (o.kind === 'solved' && o.cutShort) cut++;
+    }
+    expect(cut).toBeGreaterThan(0);
+    expect(full.kind === 'solved' && full.cutShort).toBe(false);
+  });
+});
