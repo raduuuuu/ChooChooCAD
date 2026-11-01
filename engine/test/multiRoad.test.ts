@@ -34,9 +34,36 @@ const at = (x: number, y: number, heading: number): Frame => ({
 describe('every road lands exactly on the end it names (D9)', () => {
   it('the catalogue has every multi-road piece found on the grid', () => {
     expect(MULTI.map((p) => p.id)).toEqual([
-      'L', 'M', 'O1', 'P1', 'H', 'H1', 'H2', 'I', 'J', 'O', 'P', 'T', 'X', 'EE', 'F', 'G', 'F1', 'G1',
+      'L', 'M', 'O1', 'P1', 'H', 'H1', 'H2', 'I', 'J', 'O', 'P', 'T', 'TJ', 'X', 'EE', 'F', 'G', 'F1', 'G1',
       'IKEA-SW', 'IKEA-SW-P', 'IKEA-X145',
     ]);
+  });
+
+  /*
+   * THE PRINTED T-JUNCTION AGAINST ITS 3MF (plan 2026-11-01, T3). The mesh of
+   * MakerWorld 3225419, turned so the stem faces back: a socket stem, a peg
+   * at (75, 75) facing +y, a socket at (75, -75) facing -y, two quarter
+   * curves at 55 inner and a 150mm bar. Symmetric, so no flip (design DR7).
+   *
+   * MUTATION PROOFS, run:
+   * - the peg bar end made a socket: `expected [ [ …(3) ], [ …(3) ], [ …(3)
+   *   ] ] to deeply equal [ [ …(3) ], [ …(3) ], [ …(3) ] ]`.
+   * - `flip: BRANCH` added: `expected { …(3) } to be undefined`.
+   */
+  it('the printed T-junction is the 3MF as measured, with no flip', () => {
+    const tj = MULTI.find((p) => p.id === 'TJ')!;
+    expect(tj.ports.map((p) => [p.at.pos, p.at.heading, p.polarity])).toEqual([
+      [at(0, 0, 8).pos, 8, 'socket'],
+      [at(75, 75, 4).pos, 4, 'peg'],
+      [at(75, -75, 12).pos, 12, 'socket'],
+    ]);
+    expect(tj.roads.map((r) => r.shape)).toEqual([
+      { kind: 'arc', innerRadiusMm: 55, arcSteps: 4, side: 'left' },
+      { kind: 'arc', innerRadiusMm: 55, arcSteps: 4, side: 'right' },
+      { kind: 'straight', lengthMm: 150 },
+    ]);
+    expect(tj.flip).toBeUndefined();
+    expect(tj.dimensions.status).toBe('unverified');
   });
 
   /*
