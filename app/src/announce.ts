@@ -220,6 +220,8 @@ export function describeAction(
       if (kind === 'join') return 'Undid the join.';
       if (kind === 'remove') return 'Undid the removal. The piece is back.';
       if (kind === 'move') return 'Undid the move.';
+      if (kind === 'clear') return 'Undid the clear. The layout is back.';
+      if (kind === 'preset') return 'Undid loading the layout. The one before is back.';
       return null;
     }
     case 'redo': {
@@ -229,6 +231,8 @@ export function describeAction(
       if (kind === 'join') return 'Joined the ends again.';
       if (kind === 'remove') return 'Removed the piece again.';
       if (kind === 'move') return 'Moved the run again.';
+      if (kind === 'clear') return 'Cleared the layout again.';
+      if (kind === 'preset') return 'Loaded the layout again.';
       return null;
     }
     case 'selectPiece': {

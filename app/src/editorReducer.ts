@@ -193,7 +193,8 @@ export interface EditorState {
  * "Remove last" stays as its own control (the owner's ruling, 2026-10-22): it
  * works on a layout loaded from storage, where the history is empty. It is
  * now a step like any other, so Undo brings the piece back. `clear` and
- * `preset` start a fresh history, as they always reset the old one-step Undo.
+ * `preset` are steps too (QA 2026-11-01, owner's answer A): they used to start
+ * a fresh history, so one stray tap on a preset lost the layout for good.
  */
 /**
  * A PIECE BEING PLACED (decision R3, with E2 and 18A).
@@ -212,7 +213,7 @@ export interface Ghost {
 }
 
 export interface Step {
-  readonly kind: 'place' | 'placeJoin' | 'break' | 'join' | 'remove' | 'move';
+  readonly kind: 'place' | 'placeJoin' | 'break' | 'join' | 'remove' | 'move' | 'clear' | 'preset';
   /** In `past`, the graph before the step; in `future`, the graph after it. */
   readonly graph: Graph;
 }
@@ -807,7 +808,9 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
     }
 
     case 'clear':
-      return { graph: EMPTY_GRAPH, cursor: null, armed: null, past: [], future: [] };
+      // Nothing on the floor and nothing to undo back to: a press changes nothing.
+      if (state.graph.pieces.length === 0) return state;
+      return { graph: EMPTY_GRAPH, cursor: null, armed: null, ...remember(state, 'clear') };
 
     /*
      * A preset builds a run and then welds its two ends, exactly as a user
@@ -841,7 +844,15 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
        * null, so a preset that ever fails to close still hands back a usable
        * cursor instead of silently relocating the next piece.
        */
-      return { graph, cursor: resumeCursor(graph, ports), armed: null, past: [], future: [] };
+      // A step when it replaces something; on a fresh, empty floor there is
+      // nothing to go back to, so the history stays as it was.
+      const fresh = state.graph.pieces.length === 0 && (state.past ?? []).length === 0;
+      return {
+        graph,
+        cursor: resumeCursor(graph, ports),
+        armed: null,
+        ...(fresh ? { past: [], future: [] } : remember(state, 'preset')),
+      };
     }
   }
 }

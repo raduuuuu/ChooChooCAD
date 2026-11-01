@@ -938,7 +938,7 @@ describe('breaking a joint, and Undo', () => {
     expect(reduce(s, { kind: 'breakWeld', a: free, b: free }, ports)).toBe(s);
   });
 
-  it('a join and Remove last are undoable; Clear and a preset start a fresh history', () => {
+  it('a join, Remove last, Clear and a preset are all undoable', () => {
     let s = openChain(8);
     const last = s.graph.pieces[7]!.pieceId;
     const first = s.graph.pieces[0]!.pieceId;
@@ -953,7 +953,9 @@ describe('breaking a joint, and Undo', () => {
     const shortened = reduce(three, { kind: 'removeLast' }, ports);
     expect(lastStep(shortened)?.kind).toBe('remove');
     expect(reduce(shortened, { kind: 'undo' }, ports).graph).toBe(three.graph);
-    expect(lastStep(reduce(chain(3), { kind: 'clear' }, ports))).toBeNull();
-    expect(lastStep(reduce(chain(3), { kind: 'preset', ids: ['E', 'E'] }, ports))).toBeNull();
+    // QA 2026-11-01 (owner's answer A): Clear and a preset are steps too. They
+    // used to start a fresh history, so a stray tap lost the layout for good.
+    expect(lastStep(reduce(chain(3), { kind: 'clear' }, ports))?.kind).toBe('clear');
+    expect(lastStep(reduce(chain(3), { kind: 'preset', ids: ['E', 'E'] }, ports))?.kind).toBe('preset');
   });
 });
