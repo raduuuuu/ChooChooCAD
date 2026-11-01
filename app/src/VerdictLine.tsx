@@ -37,6 +37,7 @@ import {
   isJoinAction,
   FAILURE_COPY,
   isFailure,
+  uncheckedSentence,
 } from './verdictAction.js';
 
 /*
@@ -546,15 +547,21 @@ export function VerdictLine({
   // until the loop closed, though the IKEA shelf promises the verdict says
   // what it means. What the parts are is true whether or not a loop exists.
   if (isFailure(e.kind)) {
+    // The checker's own limit is said as one sentence that already ends with "build it and see" (R2).
+    const unchecked = e.kind === 'BEND_UNCHECKED' ? uncheckedSentence(e.detail) : null;
     return (
       <Verdict
         tone="unknown"
-        notes={notesFor(trust, ACTION_FOR_FAILURE[e.kind] ?? null, false, e.adapterCount, adaptersUnmarked, raisedOf(e))}
+        notes={notesFor(trust, unchecked ? null : (ACTION_FOR_FAILURE[e.kind] ?? null), false, e.adapterCount, adaptersUnmarked, raisedOf(e))}
       >
         <Mark glyph="?" />
         <span className="verdict-text">
-          {FAILURE_COPY[e.kind]}{' '}
-          <span className="verdict-detail">{e.detail}</span>
+          {unchecked ?? (
+            <>
+              {FAILURE_COPY[e.kind]}{' '}
+              <span className="verdict-detail">{e.detail}</span>
+            </>
+          )}
         </span>
       </Verdict>
     );

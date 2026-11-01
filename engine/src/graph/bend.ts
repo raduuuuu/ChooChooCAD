@@ -78,8 +78,6 @@ export type BendOutcome =
       readonly leftoverMm: number;
       /** How far the worst loop's ends still point apart after refinement, radians. */
       readonly leftoverRad: number;
-      /** Each loop's own min-max lambda, solved alone. A diagnostic; it never decides a verdict. */
-      readonly standalone: readonly number[];
       /** Units of solver work spent, for the caller's budget. */
       readonly work: number;
       /** True when no closure was found within LAMBDA_CEILING: `lambda` is then a floor, not a value. */
@@ -216,8 +214,14 @@ function loopRows(
 
 // ── The feasibility test: phase-1 simplex with bounded variables ──────────
 
+/**
+ * A feasibility test's answer. `exhausted` is its own outcome, never read as
+ * infeasible: a test that could not afford its next step has shown nothing
+ * about the rows (plan 2026-11-01, eng X1). `work` never exceeds the budget
+ * the test was given, because each step is charged before it is taken.
+ */
 interface Feasible {
-  readonly ok: boolean;
+  readonly kind: 'feasible' | 'infeasible' | 'exhausted';
   readonly x: number[];
   readonly work: number;
 }
@@ -227,6 +231,12 @@ interface Feasible {
  * artificial per row, minimised to zero. Bounds stay implicit (a nonbasic
  * variable sits at one of its bounds), entering and leaving follow Bland's
  * rule, and artificials that leave the basis never return.
+ *
+ * THE UNIT OF WORK is one sweep of the m x N table: setting it up is one, and
+ * each iteration (pricing, ratio test and pivot) is one more. A sweep is
+ * charged BEFORE it is done, and one the budget cannot cover is not started:
+ * the test returns `exhausted` with the work it really spent, which is never
+ * more than `maxWork` (plan 2026-11-01, eng X1, X2).
  */
 function feasible(
   A: readonly (readonly number[])[],
@@ -238,6 +248,8 @@ function feasible(
   const m = A.length;
   const n = lo.length;
   const N = n + m;
+  const sweep = m * N;
+  if (sweep > maxWork) return { kind: 'exhausted', x: lo.slice(), work: 0 };
   // Every structural variable starts AT its lower bound. Not at 0 when 0 lies
   // inside: a nonbasic variable only ever moves away from the bound it sits
   // on, so one parked mid-range could never turn the other way.
@@ -261,10 +273,11 @@ function feasible(
   }
   const loOf = (j: number): number => (j < n ? lo[j]! : 0);
   const hiOf = (j: number): number => (j < n ? hi[j]! : Infinity);
-  let work = m * N;
+  let work = sweep;
   const maxIter = 50 * N + 100;
   for (let iter = 0; iter < maxIter; iter++) {
-    if (work > maxWork) return { ok: false, x, work };
+    if (work + sweep > maxWork) return { kind: 'exhausted', x: x.slice(0, n), work };
+    work += sweep;
     // Reduced costs of phase 1: artificials cost 1.
     let enter = -1;
     let dir = 0;
@@ -283,7 +296,6 @@ function feasible(
         break;
       }
     }
-    work += m * N;
     if (enter < 0) break;
     // Ratio test.
     let step = hiOf(enter) - loOf(enter);
@@ -312,7 +324,7 @@ function feasible(
         leaveToUpper = toUpper;
       }
     }
-    if (!Number.isFinite(step)) return { ok: false, x, work };
+    if (!Number.isFinite(step)) return { kind: 'infeasible', x: x.slice(0, n), work };
     // Move.
     x[enter] = x[enter]! + dir * step;
     for (let i = 0; i < m; i++) x[basis[i]!] = x[basis[i]!]! - dir * step * T[i]![enter]!;
@@ -343,7 +355,7 @@ function feasible(
   }
   let infeasibility = 0;
   for (let i = 0; i < m; i++) if (basis[i]! >= n) infeasibility += x[basis[i]!]!;
-  return { ok: infeasibility <= FEASIBLE_TOL, x: x.slice(0, n), work };
+  return { kind: infeasibility <= FEASIBLE_TOL ? 'feasible' : 'infeasible', x: x.slice(0, n), work };
 }
 
 // ── The min-max solve ──────────────────────────────────────────────────────
@@ -390,50 +402,53 @@ function boundsAt(run: BendRun, lambda: number): { lo: number[]; hi: number[] } 
   return { lo, hi };
 }
 
-interface MinMax {
-  readonly lambda: number;
-  readonly z: number[];
-  readonly work: number;
-}
+/**
+ * The bisection's answer, always with the work it really spent, so a caller
+ * that stops here still charges it (eng X1): solved, `none` when no lambda up
+ * to LAMBDA_CEILING is feasible, or `exhausted` when the budget ran out first.
+ */
+type MinMax =
+  | { readonly kind: 'solved'; readonly lambda: number; readonly z: number[]; readonly work: number }
+  | { readonly kind: 'none' | 'exhausted'; readonly work: number };
 
-/** The smallest lambda for which the linear rows are feasible, by bisection. Null if none up to LAMBDA_CEILING. */
-function minMax(run: BendRun, lin: Linear, maxWork: number): MinMax | null | 'out-of-work' {
+/** The smallest lambda for which the linear rows are feasible, by bisection. */
+function minMax(run: BendRun, lin: Linear, maxWork: number): MinMax {
   let work = 0;
-  const test = (lambda: number): Feasible | 'out-of-work' => {
+  const test = (lambda: number): Feasible => {
     const { lo, hi } = boundsAt(run, lambda);
     const f = feasible(lin.A, lin.b, lo, hi, maxWork - work);
     work += f.work;
-    return work > maxWork ? 'out-of-work' : f;
+    return f;
   };
   const zero = test(0);
-  if (zero === 'out-of-work') return 'out-of-work';
-  if (zero.ok) return { lambda: 0, z: zero.x, work };
+  if (zero.kind === 'exhausted') return { kind: 'exhausted', work };
+  if (zero.kind === 'feasible') return { kind: 'solved', lambda: 0, z: zero.x, work };
   let lo = 0;
   let hi = 1;
   let best: Feasible | null = null;
   for (;;) {
     const f = test(hi);
-    if (f === 'out-of-work') return 'out-of-work';
-    if (f.ok) {
+    if (f.kind === 'exhausted') return { kind: 'exhausted', work };
+    if (f.kind === 'feasible') {
       best = f;
       break;
     }
     lo = hi;
     hi *= 2;
-    if (hi > LAMBDA_CEILING) return null;
+    if (hi > LAMBDA_CEILING) return { kind: 'none', work };
   }
   for (let i = 0; i < BISECTIONS && hi - lo > 1e-7 * hi; i++) {
     const mid = (lo + hi) / 2;
     const f = test(mid);
-    if (f === 'out-of-work') return 'out-of-work';
-    if (f.ok) {
+    if (f.kind === 'exhausted') return { kind: 'exhausted', work };
+    if (f.kind === 'feasible') {
       hi = mid;
       best = f;
     } else {
       lo = mid;
     }
   }
-  return { lambda: hi, z: best!.x, work };
+  return { kind: 'solved', lambda: hi, z: best!.x, work };
 }
 
 function worstLeftover(run: BendRun, loops: readonly number[], turns: readonly number[], stretches: readonly number[]): { mm: number; rad: number } {
@@ -467,17 +482,16 @@ function solveLoops(
   for (let pass = 0; pass <= REFINEMENTS; pass++) {
     const lin = linearise(run, loops, turns, stretches);
     const r = minMax(run, lin, maxWork - work);
-    if (pass > 0 && (r === null || r === 'out-of-work')) {
+    // Whatever the outcome, what it spent is spent (eng X1).
+    work += r.work;
+    if (r.kind !== 'solved') {
       // A refinement that finds nothing keeps the answer it started from:
       // the leftover says how far that answer is from closing (D12).
-      break;
-    }
-    if (r === 'out-of-work') return { why: 'out of work', work: maxWork };
-    if (r === null) {
+      if (pass > 0) break;
+      if (r.kind === 'exhausted') return { why: 'out of work', work };
       // No closure within the ceiling: beyond, by at least that much.
       return { lambda: LAMBDA_CEILING, first: LAMBDA_CEILING, turns, stretches, left, work, atLeast: true };
     }
-    work += r.work;
     lambda = r.lambda;
     if (pass === 0) first = r.lambda;
     turns = r.z.slice(0, nJ);
@@ -509,21 +523,16 @@ export function solveBend(run: BendRun, maxCells: number, maxWork: number): Bend
       return { kind: 'unsolved', why: 'a joint has no usable bend or stretch figure', work: 0 };
     }
   }
+  /*
+   * THE WHOLE RUN, ONCE (plan 2026-11-01, OV-B). Each loop used to be solved
+   * again on its own afterwards, for a per-loop figure nothing read, and if
+   * one of those ran out of work the finished answer below was thrown away as
+   * unsolved. A run of interlocking loops that closed was refused that way.
+   */
   const all = run.loops.map((_, i) => i);
   const whole = solveLoops(run, all, maxWork);
   if ('why' in whole) return { kind: 'unsolved', why: whole.why, work: whole.work };
-  let work = whole.work;
-  const standalone: number[] = [];
-  for (const l of all) {
-    if (run.loops.length === 1) {
-      standalone.push(whole.lambda);
-      continue;
-    }
-    const one = solveLoops(run, [l], maxWork - work);
-    if ('why' in one) return { kind: 'unsolved', why: one.why, work: one.work + work };
-    work += one.work;
-    standalone.push(one.lambda);
-  }
+  const work = whole.work;
   return {
     kind: 'solved',
     lambda: whole.lambda,
@@ -532,7 +541,6 @@ export function solveBend(run: BendRun, maxCells: number, maxWork: number): Bend
     stretches: whole.stretches,
     leftoverMm: whole.left.mm,
     leftoverRad: whole.left.rad,
-    standalone,
     work,
     atLeast: whole.atLeast,
   };

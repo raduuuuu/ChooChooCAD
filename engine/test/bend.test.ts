@@ -210,9 +210,9 @@ describe('a joint is spent once, however many loops use it (cycles.ts rule 2)', 
    * neither, and the run needs its full limit. Solving loops one at a time and
    * pooling would report 0.5.
    *
-   * MUTATION PROOF, run: `solveBend` returning the MAX of the standalone
-   * lambdas instead of the joint solve (`lambda: Math.max(...standalone)`)
-   * fails with `expected 0.4999999701976776 to be close to 1, received
+   * MUTATION PROOF, run (before the per-loop re-solves were removed):
+   * `solveBend` returning the MAX of the standalone lambdas instead of the
+   * joint solve (`lambda: Math.max(...standalone)`) fails with `expected 0.4999999701976776 to be close to 1, received
    * difference is 0.5000000298023224, but expected 5e-7`.
    */
   it('two loops each fine alone are not fine together', () => {
@@ -233,8 +233,12 @@ describe('a joint is spent once, however many loops use it (cycles.ts rule 2)', 
     const o = solveBend(run, 1e6, 1e9);
     expect(o.kind).toBe('solved');
     if (o.kind !== 'solved') return;
-    expect(o.standalone[0]).toBeCloseTo(0.5, 6);
-    expect(o.standalone[1]).toBeCloseTo(0.5, 6);
+    // Each loop alone, as its own run (solveBend no longer computes this for
+    // the caller: nothing read it, and it could veto a solved run).
+    for (const loop of run.loops) {
+      const alone = solveBend({ joints: run.joints, loops: [loop] }, 1e6, 1e9);
+      expect(alone.kind === 'solved' && alone.lambda).toBeCloseTo(0.5, 6);
+    }
     expect(o.lambda).toBeCloseTo(1, 6);
   });
 });

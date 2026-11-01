@@ -1,0 +1,1171 @@
+{
+ "note": "The owner's 60-piece layout (share link, 2026-11-01) and the six loose-end pairs that join on the floor, in the order they were tried. With all six joined it closes at 2.53 degrees of bend (plan docs/plan/2026-11-01-bend-solver-budget.md).",
+ "base": {
+  "pieces": [
+   {
+    "pieceId": "p0",
+    "partId": "H1",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p1",
+    "partId": "H2",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p2",
+    "partId": "E",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p3",
+    "partId": "E",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p4",
+    "partId": "E",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p5",
+    "partId": "P1",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p6",
+    "partId": "A2",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p7",
+    "partId": "O1",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p8",
+    "partId": "A2",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p9",
+    "partId": "E",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p10",
+    "partId": "A2",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p11",
+    "partId": "M",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p12",
+    "partId": "D",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p13",
+    "partId": "D",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p14",
+    "partId": "A1",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p15",
+    "partId": "A1",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p16",
+    "partId": "B1",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p17",
+    "partId": "H2",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p18",
+    "partId": "M",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p19",
+    "partId": "D",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p20",
+    "partId": "E",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p21",
+    "partId": "E",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p22",
+    "partId": "M",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p23",
+    "partId": "O1",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p24",
+    "partId": "E",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p25",
+    "partId": "E",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p26",
+    "partId": "E",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p27",
+    "partId": "A",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p28",
+    "partId": "C2",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p29",
+    "partId": "A1",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p30",
+    "partId": "A1",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p31",
+    "partId": "A",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p32",
+    "partId": "A",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p33",
+    "partId": "A",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p34",
+    "partId": "E",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p35",
+    "partId": "D",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p36",
+    "partId": "A2",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p37",
+    "partId": "D",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p38",
+    "partId": "A1",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p39",
+    "partId": "TJ",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p40",
+    "partId": "A1",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p41",
+    "partId": "D",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p42",
+    "partId": "A1",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p43",
+    "partId": "D",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p44",
+    "partId": "A1",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p45",
+    "partId": "E1",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p46",
+    "partId": "A2",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p47",
+    "partId": "E",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p48",
+    "partId": "D",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p49",
+    "partId": "D",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p50",
+    "partId": "A2",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p51",
+    "partId": "E",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p52",
+    "partId": "E1",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p53",
+    "partId": "E",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p54",
+    "partId": "E",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p55",
+    "partId": "A2",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p56",
+    "partId": "A",
+    "turn": "right"
+   },
+   {
+    "pieceId": "p57",
+    "partId": "A",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p58",
+    "partId": "A2",
+    "turn": "left"
+   },
+   {
+    "pieceId": "p59",
+    "partId": "A2",
+    "turn": "left"
+   }
+  ],
+  "welds": [
+   {
+    "a": {
+     "pieceId": "p1",
+     "port": 2
+    },
+    "b": {
+     "pieceId": "p2",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p2",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p3",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p3",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p4",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p4",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p5",
+     "port": 2
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p5",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p6",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p6",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p7",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p7",
+     "port": 2
+    },
+    "b": {
+     "pieceId": "p8",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p10",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p11",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p12",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p13",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p0",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p14",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p14",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p15",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p15",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p16",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p18",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p19",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p17",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p20",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p20",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p21",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p21",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p22",
+     "port": 2
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p22",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p23",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p23",
+     "port": 2
+    },
+    "b": {
+     "pieceId": "p24",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p24",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p25",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p25",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p26",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p17",
+     "port": 3
+    },
+    "b": {
+     "pieceId": "p26",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p23",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p28",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p27",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p29",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p29",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p30",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p27",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p31",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p31",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p0",
+     "port": 2
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p28",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p32",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p17",
+     "port": 2
+    },
+    "b": {
+     "pieceId": "p33",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p18",
+     "port": 2
+    },
+    "b": {
+     "pieceId": "p34",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p8",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p9",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p35",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p36",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p5",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p36",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p38",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p39",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p30",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p40",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p38",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p40",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p32",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p41",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p41",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p42",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p43",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p44",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p9",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p45",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p45",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p46",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p1",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p46",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p19",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p44",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p42",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p47",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p37",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p48",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p33",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p49",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p34",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p49",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p51",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p52",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p53",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p54",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p11",
+     "port": 2
+    },
+    "b": {
+     "pieceId": "p12",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p13",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p56",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p0",
+     "port": 3
+    },
+    "b": {
+     "pieceId": "p56",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p55",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p53",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p11",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p57",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p54",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p57",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p55",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p58",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p58",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p59",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p35",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p10",
+     "port": 1
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p18",
+     "port": 0
+    },
+    "b": {
+     "pieceId": "p50",
+     "port": 0
+    }
+   },
+   {
+    "a": {
+     "pieceId": "p50",
+     "port": 1
+    },
+    "b": {
+     "pieceId": "p51",
+     "port": 0
+    }
+   }
+  ],
+  "anchors": [
+   [
+    "p0",
+    {
+     "pos": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "heading": 6
+    }
+   ],
+   [
+    "p27",
+    {
+     "pos": [
+      0,
+      0,
+      166,
+      0,
+      0,
+      0,
+      58,
+      0
+     ],
+     "heading": 2
+    }
+   ],
+   [
+    "p31",
+    {
+     "pos": [
+      0,
+      0,
+      22,
+      0,
+      0,
+      0,
+      58,
+      0
+     ],
+     "heading": 2
+    }
+   ],
+   [
+    "p18",
+    {
+     "pos": [
+      -562,
+      0,
+      0,
+      0,
+      202,
+      0,
+      512,
+      0
+     ],
+     "heading": 12
+    }
+   ],
+   [
+    "p1",
+    {
+     "pos": [
+      648,
+      0,
+      -542,
+      0,
+      110,
+      0,
+      332,
+      0
+     ],
+     "heading": 14
+    }
+   ],
+   [
+    "p9",
+    {
+     "pos": [
+      42,
+      0,
+      -38,
+      0,
+      -272,
+      0,
+      -326,
+      0
+     ],
+     "heading": 2
+    }
+   ],
+   [
+    "p10",
+    {
+     "pos": [
+      144,
+      0,
+      -706,
+      0,
+      -202,
+      0,
+      260,
+      0
+     ],
+     "heading": 0
+    }
+   ],
+   [
+    "p37",
+    {
+     "pos": [
+      -360,
+      0,
+      202,
+      0,
+      202,
+      0,
+      584,
+      0
+     ],
+     "heading": 0
+    }
+   ],
+   [
+    "p53",
+    {
+     "pos": [
+      -108,
+      0,
+      -836,
+      0,
+      0,
+      0,
+      260,
+      0
+     ],
+     "heading": 6
+    }
+   ],
+   [
+    "p55",
+    {
+     "pos": [
+      -310,
+      0,
+      -634,
+      0,
+      0,
+      0,
+      260,
+      0
+     ],
+     "heading": 4
+    }
+   ],
+   [
+    "p17",
+    {
+     "pos": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      584,
+      0
+     ],
+     "heading": 14
+    }
+   ],
+   [
+    "p50",
+    {
+     "pos": [
+      -634,
+      0,
+      0,
+      0,
+      202,
+      0,
+      512,
+      0
+     ],
+     "heading": 4
+    }
+   ],
+   [
+    "p51",
+    {
+     "pos": [
+      -634,
+      0,
+      0,
+      0,
+      256,
+      0,
+      512,
+      0
+     ],
+     "heading": 4
+    }
+   ]
+  ]
+ },
+ "joins": [
+  {
+   "a": {
+    "pieceId": "p16",
+    "port": 1
+   },
+   "b": {
+    "pieceId": "p17",
+    "port": 1
+   }
+  },
+  {
+   "a": {
+    "pieceId": "p22",
+    "port": 1
+   },
+   "b": {
+    "pieceId": "p37",
+    "port": 1
+   }
+  },
+  {
+   "a": {
+    "pieceId": "p39",
+    "port": 1
+   },
+   "b": {
+    "pieceId": "p47",
+    "port": 0
+   }
+  },
+  {
+   "a": {
+    "pieceId": "p43",
+    "port": 0
+   },
+   "b": {
+    "pieceId": "p59",
+    "port": 1
+   }
+  },
+  {
+   "a": {
+    "pieceId": "p48",
+    "port": 0
+   },
+   "b": {
+    "pieceId": "p52",
+    "port": 1
+   }
+  },
+  {
+   "a": {
+    "pieceId": "p0",
+    "port": 0
+   },
+   "b": {
+    "pieceId": "p1",
+    "port": 0
+   }
+  }
+ ]
+}

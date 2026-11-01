@@ -52,7 +52,6 @@ export interface RunBend {
   /** The most any of the run's loops comes back turned, in 22.5-degree steps. */
   readonly turnedSteps: number;
   /** Each fundamental loop's own lambda, solved alone (diagnostic). */
-  readonly standalone: readonly number[];
   /** Why there is no verdict, when `status` is 'unchecked'. */
   readonly why: string | null;
   /** Solver work spent on this run. */
@@ -240,7 +239,7 @@ export function statusOf(o: Extract<BendOutcome, { kind: 'solved' }>): Exclude<R
  * and the chain path (eng review D2), so both read the same rule.
  */
 export function solveRun(pieces: readonly string[], built: BendRun | BuiltRun | null, turnedSteps: number, budget: BendBudget): RunBend {
-  const none = { lambda: null, stretchMm: 0, leftoverMm: null, turnedSteps, standalone: [], movesMm: 0, others: [], brio: true, atLeast: false } as const;
+  const none = { lambda: null, stretchMm: 0, leftoverMm: null, turnedSteps, movesMm: 0, others: [], brio: true, atLeast: false } as const;
   if (!built) return { ...none, pieces, status: 'unchecked', why: 'a loop could not be followed round', work: 0 };
   const o: BendOutcome = solveBend(built, budget.maxCells, budget.maxWork);
   if (o.kind !== 'solved') {
@@ -260,7 +259,6 @@ export function solveRun(pieces: readonly string[], built: BendRun | BuiltRun | 
     stretchMm: Math.max(0, ...o.stretches),
     leftoverMm: o.leftoverMm,
     turnedSteps,
-    standalone: o.standalone,
     // Rounded up: a leftover above 0.5mm never reads as 0.5 (DESIGN.md rule 4).
     why: status === 'unchecked' ? `the model still leaves ${(Math.ceil(o.leftoverMm * 10 - 1e-9) / 10).toFixed(1)}mm` : null,
     work: o.work,
@@ -272,8 +270,17 @@ export function solveRun(pieces: readonly string[], built: BendRun | BuiltRun | 
   };
 }
 
-/** The solver's table and work caps (eng review D9, D11). */
-export const BEND_BUDGET = { maxCells: 2_000_000, maxWork: 20_000_000 } as const;
+/**
+ * The solver's table and work caps (eng review D9, D11).
+ *
+ * Work raised from 20M to 200M (plan 2026-11-01, R1): four or more loops
+ * sharing joints ran out at 20M and were reported unchecked though they close
+ * on the floor; the owner's 60-piece layout with every loose end joined needs
+ * between 100M and 200M. A unit is one sweep of a simplex table (bend.ts), so
+ * the cap is the same on every machine; about 1.3M units a millisecond on a
+ * 2026 laptop. The table cap does not bind (measured) and stays.
+ */
+export const BEND_BUDGET = { maxCells: 2_000_000, maxWork: 200_000_000 } as const;
 
 export interface BendBudget {
   readonly maxCells: number;
@@ -316,7 +323,7 @@ export function bendRuns(
     );
     const exact = closing.every((w) => residualBy.get(w)?.closes === true);
     if (exact) {
-      out.push({ pieces, status: 'exact', lambda: 0, stretchMm: 0, leftoverMm: 0, turnedSteps: 0, standalone: closing.map(() => 0), why: null, work: 0, movesMm: 0, others: [], brio: true, atLeast: false });
+      out.push({ pieces, status: 'exact', lambda: 0, stretchMm: 0, leftoverMm: 0, turnedSteps: 0, why: null, work: 0, movesMm: 0, others: [], brio: true, atLeast: false });
       continue;
     }
     const built = buildRun(graph, placement, closing.map((w) => fundamentalCycle(graph, forest, w)), portsOf, side);

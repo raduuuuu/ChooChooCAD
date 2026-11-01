@@ -71,9 +71,31 @@
   <tr><td>Pull apart: gap between the end faces at the limit<code class="field">q2.pullApartMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
   <tr><td>Push together: 0 if the faces touch, else the gap at the hard stop<code class="field">q2.pushStopMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
   <tr><td>Bend flat on the floor, angle at the limit<code class="field">q2.bendDeg</code></td><td class="box"></td><td class="unit">deg</td></tr>
-  <tr><td>Or: the far end's sideways travel<code class="field">q2.bendSidewaysMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
-  <tr><td>&hellip; over this length (the piece's length)<code class="field">q2.bendOverMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+  <tr><td>Or: sideways travel at the far end, square to the rule<code class="field">q2.bendSidewaysMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+  <tr><td>&hellip; and the distance along the rule from the joint to that point<code class="field">q2.bendOverMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
 </table>
+<p class="do">For the bend, if you have no protractor: lay a steel rule flat on the floor against one side of piece 1, running on past the joint. Swing piece 2 away from the rule until the joint binds, and hold it there without forcing.</p>
+<svg class="dwg" viewBox="0 24 200 52" role="img" aria-label="Plan view from above. Piece 1 lies along a steel rule. Piece 2 is swung away from the rule until the joint binds. Measure the sideways travel at piece 2's far corner, square to the rule, and the distance along the rule from the joint to that point.">
+  <rect class="floor" x="8" y="48" width="166" height="5" style="fill:none"/>
+  <g class="tick"><line x1="30" y1="48" x2="30" y2="50"/><line x1="50" y1="48" x2="50" y2="50"/><line x1="70" y1="48" x2="70" y2="50"/><line x1="90" y1="48" x2="90" y2="51"/><line x1="110" y1="48" x2="110" y2="50"/><line x1="130" y1="48" x2="130" y2="50"/><line x1="150" y1="48" x2="150" y2="50"/><line x1="170" y1="48" x2="170" y2="50"/></g>
+  <text x="20" y="57" class="note">steel rule, flat on the floor</text>
+  <rect class="part" x="20" y="38" width="70" height="10"/>
+  <text x="55" y="44" text-anchor="middle">piece 1</text>
+  <g transform="rotate(-10 90 48)"><rect class="part" x="90" y="38" width="70" height="10"/><text x="125" y="44" text-anchor="middle">piece 2</text></g>
+  <circle cx="90" cy="48" r="0.9" fill="currentColor"/>
+  <text x="90" y="34" text-anchor="middle" class="note">joint</text>
+  <line class="ext" x1="90" y1="35" x2="90" y2="47"/>
+  <line class="ext" x1="158.9" y1="35.8" x2="166" y2="35.8"/>
+  <line class="dim" x1="164" y1="35.8" x2="164" y2="48" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text x="166" y="40">SIDEWAYS = ?</text>
+  <text x="166" y="44" class="note">square to the rule,</text>
+  <text x="166" y="47" class="note">at the far corner</text>
+  <line class="ext" x1="90" y1="53" x2="90" y2="66"/>
+  <line class="ext" x1="158.9" y1="36" x2="158.9" y2="66" style="stroke-dasharray:1 1"/>
+  <line class="dim" x1="90" y1="63" x2="158.9" y2="63" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text x="124" y="61" text-anchor="middle">OVER = ?  (along the rule, joint to that point)</text>
+  <text x="124" y="72" text-anchor="middle" class="note">plan view from above; the bend is drawn far larger than it really is</text>
+</svg>
 
 <div class="grid">
 <div>
