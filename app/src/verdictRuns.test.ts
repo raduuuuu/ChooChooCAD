@@ -1,5 +1,5 @@
 /**
- * THE VERDICT SPEAKS ABOUT EACH RUN OF TRACK (brio-TODOS.md P1, "Multiple
+ * THE VERDICT SPEAKS ABOUT EACH RUN OF TRACK (generic-TODOS.md P1, "Multiple
  * independent components").
  *
  * Separate runs already placed, moved and checked for overlap; the verdict

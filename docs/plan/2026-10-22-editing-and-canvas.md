@@ -1,6 +1,6 @@
 # Working plan: remove any piece, piece seams, placement preview, floor grid, drag-and-drop
 
-CEO summary: ~/.gstack/projects/brio-designer/ceo-plans/2026-10-22-editing-and-canvas.md
+CEO summary: ~/.gstack/projects/ChooChooCAD/ceo-plans/2026-10-22-editing-and-canvas.md
 
 Source: user request, 2026-10-22 (verbatim): "1/ the user needs to be able to remove any
 piece from the table, not just the last. 2/ user needs to see clear delimitations between
@@ -22,7 +22,7 @@ Branch at review: main @ 93a55dc. Review depth: implementation-ready.
   (r=14) are (app/src/TrackCanvas.tsx).
 - No seams by design: layers are painted layer-by-layer across all segments so "every
   joint would [not] show a seam that is not there" (TrackCanvas.tsx, layer loop comment).
-  Request 2 reverses that choice deliberately: real BRIO joints are visible.
+  Request 2 reverses that choice deliberately: real Generic joints are visible.
 - Every rendered port carries x, y and heading `h` (engine/src/graph/render.ts:34-42), so a
   seam line across the plank at each joint needs no engine change.
 - Orientation today: palette main button adds turning left; a separate ↻ button adds turning
@@ -34,7 +34,7 @@ Branch at review: main @ 93a55dc. Review depth: implementation-ready.
 - Design principle on record: "the track is the only texture on screen" (TrackCanvas.tsx:3).
   Request 4 overrides it.
 - Backlog: P1 "Drag-and-drop, with undo, the drop-overlap guard and keyboard parity"
-  (docs/plan/brio-TODOS.md:450). Its upgrade trigger is "any edit richer than append"; request
+  (docs/plan/generic-TODOS.md:450). Its upgrade trigger is "any edit richer than append"; request
   1 is exactly that, so the trigger has fired. Requests 1 and 3 are the first slice of it.
 
 ## Decision ledger
@@ -99,7 +99,7 @@ Commitment comparison:
 Commitment | Source | Current | A | B | C
 ---|---|---|---|---|---
 Grid behind the track | request 4 | none | yes | yes | yes
-Spacing unit | | n/a | metric, steps 10cm / 50cm / 1m picked from the fitted view | fixed 10cm, 1m heavier | 54mm, BRIO's shortest straight
+Spacing unit | | n/a | metric, steps 10cm / 50cm / 1m picked from the fitted view | fixed 10cm, 1m heavier | 54mm, Generic's shortest straight
 On-screen density stays readable | fitted viewBox | n/a | yes, step chosen so cells stay ~20-60px | no, a 10m layout draws 100 lines a side | no
 Scale stated in words | | n/a | "Grid: 10 cm" caption | caption | caption
 Printed sheet | build sheet must print in greyscale | n/a | grid kept, lighter | same | same
@@ -110,7 +110,7 @@ A) Metric, scales with zoom (recommended)
 A faint grid in real centimetres behind the track; the step is 10 cm, 50 cm or 1 m, picked so squares stay a comfortable size as the layout grows, with a "Grid: 10 cm" caption. Effort S, risk low. ✅ Answers "will this fit on my floor or table" directly, in units you can measure with a tape. ✅ Stays subtle on a one-piece layout and a ten-metre one alike. ❌ The step changing as the layout grows can surprise you if you miss the caption.
 B) Fixed 10 cm
 Always 10 cm squares with a heavier line every metre. Effort S, risk low. ✅ Simplest, and one square always means the same thing. ✅ The metre lines still give the big picture. ❌ On a large layout the fitted view packs the lines so tight they read as a grey wash instead of a grid.
-C) BRIO track units
+C) Generic track units
 Squares the length of the shortest straight (54 mm). Effort S, risk low. ✅ Counts in "pieces" rather than centimetres. ❌ Curves and switches never land on it, so it suggests an alignment the track does not have, and it says nothing about room size.
 
 ## Mode
@@ -136,7 +136,7 @@ Delight scan (30-minute class): E2, E5, a hover highlight on piece bodies before
   are integers mod 16 (22.5 degree steps, engine/src/graph/model.ts:59). Translating a component by
   whole millimetres (dx + dy*zeta^4) and rotating it by k*22.5 degrees (mulZetaPow) are both exact,
   so a drag that snaps to whole mm and 22.5 degrees cannot break exact closure. This is the
-  "component origin MUST be a lattice point" hard requirement in brio-TODOS.md (P1 multiple
+  "component origin MUST be a lattice point" hard requirement in generic-TODOS.md (P1 multiple
   components), satisfied by construction.
 - Each component is placed from one anchor on its root piece (`graph.anchors`, model.ts:144);
   moving a component means rewriting that one anchor. Anchors already persist and reload.
@@ -144,7 +144,7 @@ Delight scan (30-minute class): E2, E5, a hover highlight on piece bodies before
   segments (render.ts:99-113). Piece hit targets and the selection outline need `pieceId` on each
   rendered segment.
 - The engine detects connector coincidence and polarity, not plank-over-plank crossing mid-span
-  (brio-TODOS.md "overlap narrowphase", superseded note). Any overlap guard built here inherits
+  (generic-TODOS.md "overlap narrowphase", superseded note). Any overlap guard built here inherits
   that limit and must say so.
 - Rendering cost: 453ms for 10,000 pieces through renderToStaticMarkup (TrackCanvas.tsx). A drag
   that re-renders the whole SVG per pointermove would stall on large layouts; the P1 entry
@@ -330,9 +330,9 @@ Print: `@media print` keeps the grid at half the screen opacity.
   segments share it and outline together.
 - `touch-action: none` only on piece hit paths, free ends and the drag overlay, so the page still scrolls.
 
-### Prerequisites of the P1 entry (brio-TODOS.md:482)
+### Prerequisites of the P1 entry (generic-TODOS.md:482)
 - K5's document type: the persisted `Graph` (layoutStore.ts) is the document, anchors included. Met.
-- K0c: removed by R21 (brio-TODOS.md:383). Moot.
+- K0c: removed by R21 (generic-TODOS.md:383). Moot.
 - R16 fingerprint: drag adds no verdict-affecting field; snapping is exact lattice arithmetic, so there
   is no snap epsilon to record. No change needed.
 
@@ -363,7 +363,7 @@ not proposed for approval, dropped.
 - P-e Snap granularity for a free drop: 1 cm, or the visible grid step.
 
 ## Deferred
-- E4 Table/room outline on the grid: to brio-TODOS.md (new persisted value, save-gate rules).
+- E4 Table/room outline on the grid: to generic-TODOS.md (new persisted value, save-gate rules).
 
 ## NOT in scope
 - E3 Turn round a placed piece inside a run: skipped by the user (D6:C). Rotating a whole dragged
@@ -400,13 +400,13 @@ Spec review: 3 launches, final score 6/10, last 14 issues applied and verified a
 
 | ID and owner | Contract and evidence | Current | Proposed | Status | Exact approval and scope |
 |---|---|---|---|---|---|
-| F1 acted flag (S1/S4) | App.tsx:458 `setGraphActed(true)` on EVERY dispatch; brio-TODOS.md:1798 P2 item 1. This plan adds pick, rotate, move-ghost, cancel, select: none edit the graph, all would release a held graph save. | A: set only when the reduced graph differs, decided INSIDE the updater (EditorState carries `edited: boolean`, read by the save gate) so StrictMode and batching cannot desync it | | approved | D17 answer: "A) Fix in PR 1". Mounted spec in suppression.dom.test.tsx: pick/rotate/cancel/select leave the stored blob unchanged; Place saves. Existing suppression specs stay green unedited. |
-| F2 handler throw (S2) | brio-TODOS.md:1798 P2 item 2: a throw from placeAll inside a reducer call in an event handler bypasses ErrorBoundary (frozen UI, no crash screen). Drag/drop/move/undo add many more reducer paths from pointer handlers. | A: catch in `dispatch`, store the error, rethrow during render so ErrorBoundary shows its screen and repro. BUILD FINDING (PR 1): unnecessary; React already routes an updater throw to render (react-dom `dispatchSetStateInternal` swallows eager throws). Catch removed; editFailure.dom.test.tsx pins the real hazard (computing state in the handler). Outcome D18 asked for holds. | | approved | D18 answer: "A) Route to crash screen". DOM spec with a reducer forced to throw under StrictMode; mutation: remove the catch. Lands in PR 1. |
+| F1 acted flag (S1/S4) | App.tsx:458 `setGraphActed(true)` on EVERY dispatch; generic-TODOS.md:1798 P2 item 1. This plan adds pick, rotate, move-ghost, cancel, select: none edit the graph, all would release a held graph save. | A: set only when the reduced graph differs, decided INSIDE the updater (EditorState carries `edited: boolean`, read by the save gate) so StrictMode and batching cannot desync it | | approved | D17 answer: "A) Fix in PR 1". Mounted spec in suppression.dom.test.tsx: pick/rotate/cancel/select leave the stored blob unchanged; Place saves. Existing suppression specs stay green unedited. |
+| F2 handler throw (S2) | generic-TODOS.md:1798 P2 item 2: a throw from placeAll inside a reducer call in an event handler bypasses ErrorBoundary (frozen UI, no crash screen). Drag/drop/move/undo add many more reducer paths from pointer handlers. | A: catch in `dispatch`, store the error, rethrow during render so ErrorBoundary shows its screen and repro. BUILD FINDING (PR 1): unnecessary; React already routes an updater throw to render (react-dom `dispatchSetStateInternal` swallows eager throws). Catch removed; editFailure.dom.test.tsx pins the real hazard (computing state in the handler). Outcome D18 asked for holds. | | approved | D18 answer: "A) Route to crash screen". DOM spec with a reducer forced to throw under StrictMode; mutation: remove the catch. Lands in PR 1. |
 
 ### Section findings (no decision needed: implementation detail of approved behaviour)
 - S2: `setPointerCapture` can throw; caught and treated as a drag that did not finish (approved cancel rule).
 - S2: `getScreenCTM()` null: drag does not start; click paths unaffected.
-- S2: save failures on quota stay as filed (brio-TODOS.md:1713), unchanged by this plan.
+- S2: save failures on quota stay as filed (generic-TODOS.md:1713), unchanged by this plan.
 
 ## Review Sections 1-11 (findings)
 
@@ -558,14 +558,14 @@ REALITY: already-done pass no commits on origin/main since the ask touch the nam
 REALITY: surface-check pass no CLI commands or HTTP routes; named functions exist (removePiece, orientation, resumeCursor) app/src/editorReducer.ts:171
 REALITY: binding-decisions finding plan reopens owner ruling U5 one-step Undo, resolved by D12 app/src/editorReducer.ts:111
 REALITY: numbers finding 453ms is a cited baseline [re-measure before gate]; 72mm [reported by Codex, not re-run]; 16ms budget [estimated] app/src/TrackCanvas.tsx:237
-REALITY: deferred-asks pass no linked issue; user asks 1-4 all in scope, E4 deferred with reason docs/plan/brio-TODOS.md:486
+REALITY: deferred-asks pass no linked issue; user asks 1-4 all in scope, E4 deferred with reason docs/plan/generic-TODOS.md:486
 REALITY: pr-count finding no ship-policy file, default one PR per wave; plan uses five sequential PRs by approved delivery split, queue cost five review cycles docs/plan/2026-10-22-editing-and-canvas.md:1
 REALITY: units pass no existing input changes units or accuracy; the new 10mm snap quantum only rounds new free positions, and no existing threshold consumes it engine/src/geom/cyclotomic.ts:23
 REALITY: perf-table finding no branch-vs-base perf table yet; E1 benchmark and canvas re-render must be measured in PR 3 and PR 4 app/src/TrackCanvas.tsx:237
 
 ## NOT in scope
 - E3 Turn round a placed piece inside a run: skipped (D6:C), user declined.
-- E4 Table/room outline: deferred (D7:A) to brio-TODOS.md, needs a new persisted value.
+- E4 Table/room outline: deferred (D7:A) to generic-TODOS.md, needs a new persisted value.
 - Mid-span plank crossing detection: existing engine gap, stays in the backlog (overlap narrowphase entry).
 - Pulling one piece out of a run by dragging: not chosen (D10:A whole run); break a joint first.
 - Auto re-pick after Place: declined (D15:B).
@@ -613,11 +613,11 @@ REALITY: perf-table finding no branch-vs-base perf table yet; E1 benchmark and c
   ghost on empty      | ghost invisible (no SVG)     | Y        | Y     | ghost shown         | n/a
   saveGraph quota     | save fails                   | N        | N     | Silent              | N   (pre-existing, filed)
 ```
-The quota row is pre-existing and filed (brio-TODOS.md:1713); this plan does not touch it, so it is
+The quota row is pre-existing and filed (generic-TODOS.md:1713); this plan does not touch it, so it is
 not counted as a new critical gap.
 
 ## Scope Expansion Decisions
-CEO plan: ~/.gstack/projects/brio-designer/ceo-plans/2026-10-22-editing-and-canvas.md
+CEO plan: ~/.gstack/projects/ChooChooCAD/ceo-plans/2026-10-22-editing-and-canvas.md
 - Accepted: E1, E2, E5, E6
 - Deferred: E4
 - Skipped: E3
@@ -752,7 +752,7 @@ REALITY: already-done pass no origin/main commits since the ask touch the named 
 REALITY: surface-check pass no CLI flags or routes; named engine functions verified (residuals, placeAll, removeWeld) engine/src/graph/frames.ts:163
 REALITY: binding-decisions pass CEO decisions D1-D20 and U5 supersession logged; nothing in branch decisions contradicts the plan docs/plan/2026-10-22-editing-and-canvas.md:1
 REALITY: numbers finding walk cost 27,515 nodes at depth 4 [measured: app/src/editorReducer.test.ts:412]; 453ms render [re-measure before gate: app/src/TrackCanvas.tsx:237]; ~32 files [estimated] app/src/editorReducer.test.ts:412
-REALITY: deferred-asks pass no linked issue; E4 deferred with reason docs/plan/brio-TODOS.md:486
+REALITY: deferred-asks pass no linked issue; E4 deferred with reason docs/plan/generic-TODOS.md:486
 REALITY: pr-count finding no ship-policy, default one PR per wave; five sequential PRs approved by the owner, five review cycles of queue cost docs/plan/2026-10-22-editing-and-canvas.md:1
 REALITY: units pass no existing input changes units; 10mm snap applies only to new free positions engine/src/geom/cyclotomic.ts:23
 REALITY: perf-table finding no base/branch perf table yet; required in PR 3 (ghost) and PR 4 (drag) app/src/TrackCanvas.tsx:237
@@ -776,7 +776,7 @@ Comparison grid:
 | Lines (implementation, estimated) | n/a | ~25 removed, ~35 added, saves ~15 net and avoids ~50 duplicated | ~60 added |
 Question D2:
 D2 — ENG-R1: Should the three "ends at the same spot" checks share one engine map?
-Project/branch/task: brio-designer on main; eng review of the editing plan, code quality.
+Project/branch/task: ChooChooCAD on main; eng review of the editing plan, code quality.
 ELI10: The verdict already finds track ends sitting on the same spot (findVertexClashes, feasible.ts:108) with an exact position key. The plan adds two more checks of the same kind: the drop/ghost conflict check and auto-join. If they build their own maps in app code, a small keying difference would let the ghost say "fits" while the verdict says "clash".
 Stakes if we pick wrong: the preview and the verdict disagree about the same layout, which is the trust this app is built on.
 Recommendation: A because one exact keying for every caller removes a whole class of disagreement and saves code; shared code with three proven callers.
@@ -813,7 +813,7 @@ Comparison grid:
 | Mutation proof | run, recorded | rerun and recorded | rerun and recorded |
 Question D3:
 D3 — ENG-R2: How should the reducer's every-state walk handle nine new actions?
-Project/branch/task: brio-designer on main; eng review, test review of editorReducer.test.ts:411.
+Project/branch/task: ChooChooCAD on main; eng review, test review of editorReducer.test.ts:411.
 ELI10: A test walks every sequence of up to four editor actions and checks the editor never contradicts itself. Placing a piece now takes two actions (pick, Place), so four actions only reach two pieces, and nine new actions make the walk about 2.5 times wider per step. Most visited states are repeats (1,708 distinct out of 27,515 today), so walking only distinct states lets it go deeper for less time.
 Stakes if we pick wrong: either the walk silently covers less than it does today, or the suite slows by seconds.
 Recommendation: A because it keeps (and deepens) today's coverage at a lower cost; complete coverage for marginal effort.
@@ -843,7 +843,7 @@ Comparison grid:
 | Acceptance | none stated | every existing assertion string kept verbatim except the two intentional changes; each touched spec's mutation rerun and its recorded message updated | suite green |
 Question D4:
 D4 — ENG-R3: How should existing editor tests be protected while placement changes?
-Project/branch/task: brio-designer on main; eng review, regression rule for 5 DOM test files and the reducer specs.
+Project/branch/task: ChooChooCAD on main; eng review, regression rule for 5 DOM test files and the reducer specs.
 ELI10: Placing a piece goes from one click to pick-then-Place, so 12 places in 5 test files that click "Add Large curve" must change. The danger is that while rewriting them, an assertion that guards an old bug (a lost cursor, a save that fires too early) gets weakened and nobody notices.
 Stakes if we pick wrong: a fixed bug like "the next piece starts a separate run" comes back with every test green.
 Recommendation: A because it changes only the placing step and keeps every guarding assertion word for word, so a regression cannot hide in the rewrite.
@@ -910,7 +910,7 @@ Comparison grid:
 | Proof | none | spec: ghost frame equals the placed piece's frame after Place for every fitOptions option (exact equality); benchmark reports R-press cost at 10,000 pieces | benchmark as planned |
 Question D5:
 D5 — ENG-R4: Should the ghost be computed from the one piece, not by re-laying the whole layout?
-Project/branch/task: brio-designer on main; eng review, performance of ghost placement (plan section D).
+Project/branch/task: ChooChooCAD on main; eng review, performance of ghost placement (plan section D).
 ELI10: Each time you press R or move the ghost, the plan re-lays every piece of the layout to show one translucent piece. On a big layout that is slow and the plan answers with a "checking" delay. The engine already has the exact formula to put one piece at one end (frameForPortAt), and the "anything else at this spot?" question can be a lookup in a map built once per real edit.
 Stakes if we pick wrong: on large layouts rotating the ghost lags, or the ghost and the placed piece disagree.
 Recommendation: A because it makes every ghost update constant-time with the same exact arithmetic the engine uses, and a spec proves ghost and placed piece are identical; explicit and cheaper.
@@ -953,7 +953,7 @@ Comparison grid:
 | Proof | none | probe becomes a spec: join at the mid-loop switch is not auto-joined and nothing moves; mutation: skip the frame comparison | same probe as a spec: nothing moves | spec: announcement count |
 Question D6:
 D6 — ENG-R5: An exact join into a loop that doesn't close can make track jump. What should auto-join do?
-Project/branch/task: brio-designer on main; eng review, reopens auto-join (CEO D13/D20) with a probe.
+Project/branch/task: ChooChooCAD on main; eng review, reopens auto-join (CEO D13/D20) with a probe.
 ELI10: I proved with a probe that joining two ends that meet exactly, facing each other, can still move other track by about 600 mm, when one side contains a loop whose ends don't meet (like the Near miss preset). The engine lays each run starting from where it was entered, and the join changes that entry point. So "the ghost shows exactly what you get" breaks for these layouts.
 Stakes if we pick wrong: a drop or Place that looked harmless sends part of a loop across the floor.
 Recommendation: A because it keeps the promise "what you see is what you get" with no engine change, using one before/after frame comparison the D19 work already needs.
@@ -974,7 +974,7 @@ Accepted scope: auto-join on Place and drop welds only when no other piece's fra
 History: reopens CEO D13 (auto-join) as narrowed by D20; D13/D20 otherwise unchanged.
 
 ### TODO decisions (eng)
-- D7 (ENG-R6): A) Add to TODOS.md — "A manual join can re-lay a loop that does not close" filed as P2 (docs/plan/brio-TODOS.md:493).
+- D7 (ENG-R6): A) Add to TODOS.md — "A manual join can re-lay a loop that does not close" filed as P2 (docs/plan/generic-TODOS.md:493).
 
 Approval readiness: PASS
 Checked rows: ENG-R1 (eng D2:A), ENG-R2 (eng D3:A), ENG-R3 (eng D4:A), ENG-R4 (eng D5:A), ENG-R5 (eng D6:A, reopening CEO D13/D20), ENG-R6 (eng D7:A); structure (eng D1:A). Scope Challenge findings 2 and 3 are factual corrections implementing CEO D1/R3 and D19; finding 1's required proof is ENG-R2. Section 2 announce item and Section 4 memo proof are required proof of existing decisions (U7b; CEO S7). No deferred or unanswered remedy is inside accepted work.

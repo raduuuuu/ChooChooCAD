@@ -184,7 +184,7 @@ export function solveGraph(
   /**
    * Where every piece is: `placeAll(graph, ports)`, from the caller. Taken,
    * not derived, so the verdict and the drawing read ONE placement and a clash
-   * mark lands where the drawing drew the clash (brio-TODOS.md P1).
+   * mark lands where the drawing drew the clash (generic-TODOS.md P1).
    */
   placement: Placement,
   /** Parts a repair may suggest, and how brands join. Omit for no suggestion. */
@@ -286,7 +286,7 @@ export function solveGraph(
    * conclude that the route to an expensive solve was therefore shut, and
    * that inference is what let two real freezes through review: the all-pairs
    * overlap scan upstream of here (seconds at ten thousand pieces; the
-   * figures are in the DONE entry in `docs/plan/brio-TODOS.md`) and a scanning
+   * figures are in the DONE entry in `docs/plan/generic-TODOS.md`) and a scanning
    * `slop` callback in `App.tsx` (quadratic in pieces; measured at the
    * callback). Neither needed a dense
    * graph, a duplicate weld, or anything this branch bounds. "The input this
@@ -353,8 +353,8 @@ export function solveGraph(
   }
 
   /*
-   * THE BEND (docs/designs/joint-bend.md). Each piece's side of a joint: BRIO
-   * pieces are credited with the BRIO bend limit (measured, inferred from the
+   * THE BEND (docs/designs/joint-bend.md). Each piece's side of a joint: Generic
+   * pieces are credited with the Generic bend limit (measured, inferred from the
    * Q1 loop, or estimated; `bendLimit`), other brands with their own figure,
    * and every piece with its stretch from `slop`. A joint takes the weaker
    * side (eng review D10). A missing bend figure is NaN, which the solver
@@ -362,7 +362,7 @@ export function solveGraph(
    */
   const sideOf = (pieceId: string): JointSide => {
     const part = resolve(byId.get(pieceId)!.partId);
-    const deg = part.brand === 'BRIO' ? bendLimit().deg : part.slop.angularDeg;
+    const deg = part.brand === 'GENERIC' ? bendLimit().deg : part.slop.angularDeg;
     return {
       limitRad: typeof deg === 'number' && Number.isFinite(deg) && deg > 0 ? (deg * Math.PI) / 180 : Number.NaN,
       stretchMm: slop(pieceId),
@@ -370,16 +370,16 @@ export function solveGraph(
   };
   const bend = bendRuns(graph, placement, rs, portsById, sideOf, BEND_BUDGET).map((run) => {
     const seen = new Map<string, OtherPart>();
-    let brio = false;
+    let generic = false;
     for (const id of run.pieces) {
       const part = resolve(byId.get(id)!.partId);
-      if (part.brand === 'BRIO') brio = true;
-      if (part.brand === 'BRIO' || seen.has(part.id)) continue;
+      if (part.brand === 'GENERIC') generic = true;
+      if (part.brand === 'GENERIC' || seen.has(part.id)) continue;
       const deg = part.slop.angularDeg;
       seen.set(part.id, { partId: part.id, name: part.name, limitDeg: typeof deg === 'number' && deg > 0 ? deg : Number.NaN });
     }
     const others = [...seen.values()].sort((a, b) => (a.partId < b.partId ? -1 : a.partId > b.partId ? 1 : 0));
-    return { ...run, others, brio };
+    return { ...run, others, generic };
   });
   const beyond = bend.filter((b) => b.status === 'beyond');
   const unchecked = bend.find((b) => b.status === 'unchecked');

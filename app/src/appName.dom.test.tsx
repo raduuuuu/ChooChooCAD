@@ -1,5 +1,5 @@
 /**
- * THE APP SAYS ITS NAME (brio-TODOS.md, "The app's name is not on screen").
+ * THE APP SAYS ITS NAME (generic-TODOS.md, "The app's name is not on screen").
  *
  * Value: protects=the identity line above the canvas names the app in text a screenshot or a screen
  * reader gets, and the logo mark beside it stays decorative

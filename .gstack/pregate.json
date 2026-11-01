@@ -79,7 +79,7 @@
     ],
     "bun.lock": [],
     "docs/**": [],
-    "engine/data/brio.ts": [
+    "engine/data/generic.ts": [
       "app/src/inventoryModel.test.ts",
       "app/src/repro.test.ts",
       "app/src/trackPath.test.ts",

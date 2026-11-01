@@ -2,11 +2,11 @@
 
 > **2026-11-01:** the printable sheet (PR #88) was removed, because it overlapped build mode (`docs/plan/2026-10-31-share-and-polish.md`, OH-cut). Build mode stays. The sheet's decisions below are kept as the record of what was built.
 
-Status: CEO review in progress (2026-10-31). Source spec: `docs/plan/2026-10-06-brio-track-designer.md:1779-1820` (D3, G1, G2, printed sheet). Backlog entry: `docs/plan/brio-TODOS.md` "P2 — 3D viewer, build mode and the printable sheet".
+Status: CEO review in progress (2026-10-31). Source spec: `docs/plan/2026-10-06-generic-track-designer.md:1779-1820` (D3, G1, G2, printed sheet). Backlog entry: `docs/plan/generic-TODOS.md` "P2 — 3D viewer, build mode and the printable sheet".
 
 ## What it is
 
-**Build mode** turns a finished layout into a step-by-step walkthrough for putting the real track together on the floor. One step per piece, in the order `assemblyOrder` gives (floor, then ramps, then raised track; under before over; every piece clips onto one already down). Each step shows the layout so far with the next piece highlighted where it goes, the piece's name and BRIO code large enough to read at 60cm, and a small "Step 12 of 34". Tap anywhere for the next step; swipe back for the previous one; the step survives closing the app.
+**Build mode** turns a finished layout into a step-by-step walkthrough for putting the real track together on the floor. One step per piece, in the order `assemblyOrder` gives (floor, then ramps, then raised track; under before over; every piece clips onto one already down). Each step shows the layout so far with the next piece highlighted where it goes, the piece's name and Generic code large enough to read at 60cm, and a small "Step 12 of 34". Tap anywhere for the next step; swipe back for the previous one; the step survives closing the app.
 
 **The printable sheet** is the same order on paper, for building without a screen: drawings that survive greyscale, with a sentence where a loop closes by bending (D7; no per-joint marks).
 
@@ -78,7 +78,7 @@ Status: CEO review in progress (2026-10-31). Source spec: `docs/plan/2026-10-06-
 ## Landscape
 
 - **[Layer 1]** LEGO Builder is the reference app for digital building instructions. It shows step-by-step 3D instructions you can zoom and turn, saves your progress so you pick up where you left off, and has a "Build Together" mode where people take turns on steps ([LEGO Builder app](https://www.lego.com/en-sa/builder-app), [App Store listing](https://apps.apple.com/qa/app/lego-builder-3d-instructions/id1486159728?l=en-GB)).
-- **[Layer 2]** In LEGO Builder's 2024 user reviews, people complain about animated instructions that are hard to skip, and about losing their step after logging out ([appfollow](https://apps.appfollow.io/ios/lego-r-builder-3d-instructions/1486159728?country=us)). This supports the decisions already made: no animation, and the step is saved. There is no wooden-track equivalent. The BRIO fan site [woodenrailway.info](https://woodenrailway.info/) offers planning advice, not build instructions.
+- **[Layer 2]** In LEGO Builder's 2024 user reviews, people complain about animated instructions that are hard to skip, and about losing their step after logging out ([appfollow](https://apps.appfollow.io/ios/lego-r-builder-3d-instructions/1486159728?country=us)). This supports the decisions already made: no animation, and the step is saved. There is no wooden-track equivalent. The Generic fan site [the published guide](the published track guide) offers planning advice, not build instructions.
 - **[Layer 3]** Paper manuals don't use one page per brick. They group several pieces per step and number them. One drawing per piece would make a 34-piece layout into 34 drawings, which is too many to print. A numbered plan (each piece labelled with its step number, split by phase: floor, ramps, raised) covers the same order on a page or two.
 
 ## 0C. Dream state
@@ -122,7 +122,7 @@ SELECTIVE EXPANSION, chosen by the owner 2026-10-31. Approved decisions carried:
    - **Orbit is off in build mode (D8).** That means `OrbitControls` and the viewer's own arrow-key handler (Viewer3D.tsx:402-431). A tap advances and a swipe right goes back, so a drag never turns the view.
    - **Marks.** Build mode drops the verdict's marks, keeping only the join ring (G1: no verdict line).
    - **The join ring (E2).** Every end the next piece clips onto is ringed, looked up from `joins` piece ids to the weld between the two pieces to that weld's port on the piece already down. The ring is drawn like the marks, as a camera-facing ring at the port. A step with no joins (a new run starts) shows no ring.
-   - **The label.** Name and BRIO code, legible at 60cm, with "Step n of N" small underneath.
+   - **The label.** Name and Generic code, legible at 60cm, with "Step n of N" small underneath.
    - **The bend note (D7, D15).** Bend results are per run of track, not per loop, so the note speaks about the run. It appears at the step that closes the run's LAST loop, when the whole run is down:
      - "This piece closes this run of track. The joints around it bend a little to meet."
      - It shows when that run's status is `closes` with lambda > 0.
@@ -131,7 +131,7 @@ SELECTIVE EXPANSION, chosen by the owner 2026-10-31. Approved decisions carried:
      - The run is found through `runs.loops[].pieces` (every branch) or `RunBend.pieces` (`ok: true`).
    - **Adapters (D16).** The step that seats a socket-to-socket joint says "Put a male-male adapter in first." The joints come from `result.adapterJoints`.
 4. **Input.** A tap anywhere outside a button advances (G1). A swipe right goes back (G2), and a swipe left advances. On a keyboard, Right and Space advance, and Left goes back. Each step is announced in a polite live region: the name, the code, "Step n of N" and any note.
-5. **Resume.** The position is saved under `brio.build.v0` as `{ layout, index }`. `layout` is a hash of the exact saved layout JSON the steps are built from: pieces, welds and anchors, so moving a run also restarts (D18), and `index` points into the one list from item 2. Only the latest build is kept. A layout whose hash differs starts at step 0, and an index past the end of the list is clamped to 0. Reaching "Built" clears the saved position.
+5. **Resume.** The position is saved under `generic.build.v0` as `{ layout, index }`. `layout` is a hash of the exact saved layout JSON the steps are built from: pieces, welds and anchors, so moving a run also restarts (D18), and `index` points into the one list from item 2. Only the latest build is kept. A layout whose hash differs starts at step 0, and an index past the end of the list is clamped to 0. Reaching "Built" clears the saved position.
 6. **Screen awake (E3).** The screen stays on while build mode is open. The browser drops the lock when the page is hidden. It is requested again inside the next advancing tap or key press, since iPad Safari refuses a request without a user gesture (D21).
 7. **When 3D can't draw.** Build mode shows View3DPanel's four states in its own words, and each one offers the printable sheet:
    - no WebGL
@@ -220,7 +220,7 @@ Effort: human ~2 weeks / CC ~4-5 h [estimated], in 3-4 PRs (engine steps; viewer
   invalid: index < 0 or > last, prevented by clamping; any edit is impossible (build mode hides the editor)
   ```
 - **Coupling.** Build mode reads App's graph, result and inventory as props. Viewer3D gains props but no build knowledge.
-- **Rollback.** Revert the PR. No stored format changes except the new `brio.build.v0` key, which older code ignores.
+- **Rollback.** Revert the PR. No stored format changes except the new `generic.build.v0` key, which older code ignores.
 
 **Findings:**
 - RESOLVED (D10) **S1-a, browser Back:** on a tablet, the system Back gesture leaves the site, not build mode. Nothing in App uses the history API (grep: no pushState or popstate). This goes to the owner.
@@ -250,7 +250,7 @@ Effort: human ~2 weeks / CC ~4-5 h [estimated], in 3-4 PRs (engine steps; viewer
 
 ### Section 3: Security and threat model
 
-- **New input:** `brio.build.v0` from localStorage is untrusted. Parse it in a try block, require `{ layout: string, index: integer }`, and clamp `index` (scope 5). Likelihood low, impact low, mitigated.
+- **New input:** `generic.build.v0` from localStorage is untrusted. Parse it in a try block, require `{ layout: string, index: integer }`, and clamp `index` (scope 5). Likelihood low, impact low, mitigated.
 - **No new network access, secrets or dependencies.** Wake Lock and print are browser APIs.
 - **Injection:** part names come from the library and submitted parts, and are rendered as React text, not HTML. Mitigated by the existing pattern.
 
@@ -317,7 +317,7 @@ No issues found beyond S1-c.
   real browser                      scripted    one pass per PR (3D review D15): tablet viewport,
                                                 two-level layout, 60cm legibility screenshot
 ```
-Every test pin records a mutation that was actually run (project rule). **The 2am test:** walk a two-level layout's whole step list and assert no raised piece comes before what holds it, and no floor piece under a bridge comes after the bridge. **The hostile test:** the twice-welded piece and the two-group bridge, which break a naive `joins.length >= 2` rule. **Chaos:** reload mid-build with corrupted `brio.build.v0`.
+Every test pin records a mutation that was actually run (project rule). **The 2am test:** walk a two-level layout's whole step list and assert no raised piece comes before what holds it, and no floor piece under a bridge comes after the bridge. **The hostile test:** the twice-welded piece and the two-group bridge, which break a naive `joins.length >= 2` rule. **Chaos:** reload mid-build with corrupted `generic.build.v0`.
 
 ### Section 7: Performance
 
@@ -330,7 +330,7 @@ No new issues.
 
 ### Section 8: Observability
 
-This is a client-only app with no server. Failures go to the console, with a named sentence each (D12 and the panel states). A bug report can be reproduced from the saved layout plus `brio.build.v0`. No dashboards or alerts apply.
+This is a client-only app with no server. Failures go to the console, with a named sentence each (D12 and the panel states). A bug report can be reproduced from the saved layout plus `generic.build.v0`. No dashboards or alerts apply.
 
 No issues found.
 
@@ -408,7 +408,7 @@ REALITY: already-done pass origin/main has assemblyOrder (3a8279b) and no build 
 REALITY: surface-check pass no CLI or HTTP surfaces; browser APIs only; history API unused today app/src/View3DPanel.tsx:16 (the only lazy entry, no pushState anywhere)
 REALITY: binding-decisions pass G1, G2, 13A (amended by D7), R21 (kept, App.tsx:29), 3D D2/D3, chunk budget (scripts/chunkBudget.ts)
 REALITY: numbers pass 128.13/129.07 kB [measured: scripts/chunkBudget.ts:17]; 3D rebuild time [estimated, re-measure before gate]; ~12 files [estimated]
-REALITY: deferred-asks pass no linked issue; backlog entry docs/plan/brio-TODOS.md:383
+REALITY: deferred-asks pass no linked issue; backlog entry docs/plan/generic-TODOS.md:383
 REALITY: pr-count pass 4 PRs (engine steps, viewer props, build screen, sheet), each independently safe; order at docs/plan/2026-10-31-build-mode.md:334
 PLAN_REALITY: phase=ceo rows=7/7 missing=none unverified=0 verdict=complete
 ```
@@ -424,7 +424,7 @@ PLAN_REALITY: phase=ceo rows=7/7 missing=none unverified=0 verdict=complete
 | `bendWords` (verdict sentence) | yes (D14) |
 | `usedCounts`, `computeShortfalls`, `adapterShortfall` (App.tsx:1188) | yes (E1, D16) |
 | Join-target ring sizing (DESIGN.md rule 11) | yes (E2) |
-| storageKeys pattern | yes; new `brio.build.v0` |
+| storageKeys pattern | yes; new `generic.build.v0` |
 
 ### Dream state delta
 
@@ -501,7 +501,7 @@ These are synthesized from this review's findings. Each task comes from a specif
   - Verify: dom test that numbers and bands are present; a greyscale print-preview screenshot
 - [ ] **T5 (P2, human: ~2h / CC: ~10min)** — docs — DESIGN.md rule for build mode (G1 hierarchy, ring, note); TODO "3D viewer, build mode…" marked done
   - Surfaced by: S11; the backlog entry
-  - Files: DESIGN.md, docs/plan/brio-TODOS.md
+  - Files: DESIGN.md, docs/plan/generic-TODOS.md
   - Verify: read-through
 
 Effort assumption: features at ~30x and tests at ~50x human to CC.
@@ -569,7 +569,7 @@ Target: `docs/plan/2026-10-31-build-mode.md`, fixed. Report file: this plan. Que
 - **Search:**
   - **[Layer 1]** Screen Wake Lock needs a secure context and Safari 16.4 or later. The browser drops it when the tab is hidden.
   - **[Layer 2]** WebKit requires a user gesture to request the lock, so re-requesting from `visibilitychange` fails on iOS with NotAllowedError ([WebKit 254545](https://bugs.webkit.org/show_bug.cgi?id=254545), [WebKit 255363](https://bugs.webkit.org/show_bug.cgi?id=255363), [Vaadin docs](https://vaadin.com/docs/next/flow/advanced/wake-lock-api)). This contradicts accepted scope item 6.
-- **TODOs:** the backlog entry "P2 — 3D viewer, build mode and the printable sheet" (brio-TODOS.md:383) is what this plan closes. It is not blocked by anything.
+- **TODOs:** the backlog entry "P2 — 3D viewer, build mode and the printable sheet" (generic-TODOS.md:383) is what this plan closes. It is not blocked by anything.
 - **Prior learning applied:** run-every-mutation-comment-do-not-predict-it (confidence 10/10, from 2026-10-15). Every pin in this plan records a mutation that was actually run.
 
 ### Scope Challenge B: scope record
@@ -737,7 +737,7 @@ REALITY: already-done pass no build-mode code on origin/main; assemblyOrder only
 REALITY: surface-check pass no CLI or HTTP surface; browser APIs only; vitest projects per vitest.config.ts:24
 REALITY: binding-decisions pass CEO D1-D19 carried; R21 kept app/src/App.tsx:29; chunk budget scripts/chunkBudget.ts:17
 REALITY: numbers pass 128.13/129.07 kB [measured: scripts/chunkBudget.ts:17]; per-step latency [estimated, re-measure before gate per D31]; 4 new modules [estimated]
-REALITY: deferred-asks pass no linked issue; backlog entry docs/plan/brio-TODOS.md:383
+REALITY: deferred-asks pass no linked issue; backlog entry docs/plan/generic-TODOS.md:383
 REALITY: pr-count pass 4 PRs, one per lane step; queue cost one CI run and one merge each [estimated]; order at docs/plan/2026-10-31-build-mode.md:336
 PLAN_REALITY: phase=eng rows=7/7 missing=none unverified=0 verdict=complete
 ```
@@ -808,7 +808,7 @@ These replace the CEO list above. Each task comes from a finding or decision.
   - Files: app/src/BuildSheet.tsx, app/src/app.css (@media print), tests alongside
   - Verify: DOM tests (bands, numbers, table, impossible layout); dense fixture with no overlapping label boxes; greyscale print preview
 - [ ] **T5 (P2, human: ~2h / CC: ~10min)** — docs — DESIGN.md build-mode rule; close the backlog entry
-  - Files: DESIGN.md, docs/plan/brio-TODOS.md
+  - Files: DESIGN.md, docs/plan/generic-TODOS.md
   - Verify: read-through
 
 Assumption: features at ~30x and tests at ~50x human to CC.

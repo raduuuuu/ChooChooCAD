@@ -51,7 +51,7 @@ describe('the settle (15A)', () => {
   });
 
   it('nothing settles on the first render of a stored layout', () => {
-    localStorage.setItem('brio.graph.v1', JSON.stringify({ pieces: [{ pieceId: 'a', partId: 'A' }], welds: [], anchors: [] }));
+    localStorage.setItem('generic.graph.v1', JSON.stringify({ pieces: [{ pieceId: 'a', partId: 'A' }], welds: [], anchors: [] }));
     openApp();
     expect(settling()).toBe(0);
   });

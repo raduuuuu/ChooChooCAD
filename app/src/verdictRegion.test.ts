@@ -74,10 +74,10 @@ const EXPECTED: Record<VerdictKind, { tone: Tone; mark: string | null; lead: Reg
 
 const KINDS = Object.keys(EXPECTED) as VerdictKind[];
 
-/** Bend words for a plausible all-BRIO run, from the engine's own builder (D7). */
+/** Bend words for a plausible all-Generic run, from the engine's own builder (D7). */
 const wordsFor = (status: 'closes' | 'beyond', lambda: number) =>
   bendWords(
-    { pieces: ['p1'], status, lambda, stretchMm: 1, leftoverMm: 0, turnedSteps: 0, why: null, work: 0, movesMm: 3, others: [], brio: true, atLeast: false },
+    { pieces: ['p1'], status, lambda, stretchMm: 1, leftoverMm: 0, turnedSteps: 0, why: null, work: 0, movesMm: 3, others: [], generic: true, atLeast: false },
     { deg: 2.7, status: 'inferred', source: 'test', marginDeg: 0 },
     status === 'beyond' ? 1 : 0,
     1,
@@ -298,7 +298,7 @@ describe('a layout with a switch', () => {
         expect(html, kind).not.toContain('verdict-basis');
       }
       if (kind === 'NEEDS_GIVE' || kind === 'EXCEEDS') {
-        expect(html, kind).toContain('<p class="verdict-limits">A built loop needed BRIO joints to bend 2.7°.</p>');
+        expect(html, kind).toContain('<p class="verdict-limits">A built loop needed Generic joints to bend 2.7°.</p>');
         expect(region(html).inner, kind).not.toContain('verdict-limits');
       }
     }

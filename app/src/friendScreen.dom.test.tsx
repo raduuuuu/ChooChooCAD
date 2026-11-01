@@ -61,9 +61,9 @@ describe('a shared link', () => {
    */
   it('opens, builds a few steps and comes back without touching any key but its own build progress', async () => {
     localStorage.setItem(GRAPH_STORAGE_KEY, OWN);
-    localStorage.setItem('brio.view.v0', '3d');
-    localStorage.setItem('brio.build.v0', JSON.stringify({ layout: 'own-build', index: 3 }));
-    localStorage.setItem('brio.inventory.v0', JSON.stringify({ A: 4 }));
+    localStorage.setItem('generic.view.v0', '3d');
+    localStorage.setItem('generic.build.v0', JSON.stringify({ layout: 'own-build', index: 3 }));
+    localStorage.setItem('generic.inventory.v0', JSON.stringify({ A: 4 }));
     const before = everything();
     const user = userEvent.setup();
     open(STADIUM);

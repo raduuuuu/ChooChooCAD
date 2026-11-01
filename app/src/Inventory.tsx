@@ -218,7 +218,7 @@ export function InventoryPanel({
 
       <p className="inventory-note">
         These quick-fills are described in terms of this catalogue. They are{' '}
-        <strong>not official BRIO set contents</strong>, which are not transcribed here.
+        <strong>not official Generic set contents</strong>, which are not transcribed here.
         Whatever you pick becomes a set of counts you can edit; nothing remembers which
         quick-fill you used.
       </p>

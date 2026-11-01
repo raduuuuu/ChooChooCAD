@@ -3,7 +3,7 @@
  * (CALIBRATION.md, "After the afternoon"; task V3).
  *
  * Value: protects=a blank sheet changes nothing; a filled Q2 becomes the give
- * every BRIO part shares, marked measured only when both of its numbers were
+ * every Generic part shares, marked measured only when both of its numbers were
  * read; a reading that cannot be right stops the load, naming the field; each
  * answer is read against the contingency row CALIBRATION.md decided in
  * advance; the Q1 loop is checked against the engine's own verdict
@@ -11,7 +11,7 @@
  * is understated (the bound it backs is only sound as an upper bound), a half
  * measured budget claims 'measured', or a contingency row is misread
  * Value: why_new=the measurement afternoon had a prose sheet and no path from
- * a caliper reading to `engine/data/brio.ts` other than hand-editing it
+ * a caliper reading to `engine/data/generic.ts` other than hand-editing it
  * Value: seam=the pure derivation in `calibration.ts`, fed built Measurements;
  * the shipped `measurements.ts` only through `checkMeasurements`
  * Value: no_claim=that the derivation's reading of Q2 is the right physics.

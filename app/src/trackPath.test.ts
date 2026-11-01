@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { getPart } from '../../engine/data/brio.js';
+import { getPart } from '../../engine/data/generic.js';
 import { walkFloat, type Segment } from '../../engine/src/geom/fk.js';
 import { centrelineRadiusMm } from '../../engine/src/parts/schema.js';
 import type { Layout, Part } from '../../engine/src/parts/schema.js';

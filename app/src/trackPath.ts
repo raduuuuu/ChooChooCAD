@@ -211,7 +211,7 @@ export function gapAnnotations(
 }
 
 /**
- * WHERE A REFUSED JOINT IS MARKED (brio-TODOS.md P2, "The polarity marker,
+ * WHERE A REFUSED JOINT IS MARKED (generic-TODOS.md P2, "The polarity marker,
  * and three things it does not yet do", limits 1 and 3).
  *
  * At BOTH ends of the weld. The ends of a tree weld coincide and one mark is
@@ -264,7 +264,7 @@ export interface SeamLine {
  * The track is painted layer by layer across every segment so a joint shows
  * no seam that is not there (see TrackCanvas). Three straights in a row then
  * read as one long plank, and the user could not see where each ended. Real
- * BRIO joints are visible, so each one gets a line straight across the plank.
+ * Generic joints are visible, so each one gets a line straight across the plank.
  *
  * At end `a` of the weld, across the NARROWER of the two planks, so the line
  * never pokes out past the thinner piece. A weld is skipped when its ends do

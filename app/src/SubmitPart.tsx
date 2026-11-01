@@ -13,7 +13,7 @@
  * because that is what a person with a ruler can actually measure: the
  * centreline is a line through the middle of the wood with nothing to put a
  * ruler against. The engine derives the centreline. Getting this backwards is
- * the exact mistake that shipped in this project's own BRIO data.
+ * the exact mistake that shipped in this project's own Generic data.
  *
  * It refuses non-finite and non-positive numbers at the INPUT rather than on
  * save, because a strict loader plus an unguarded input is how an earlier
@@ -24,9 +24,9 @@ import { useState } from 'react';
 import { newSubmissionId, RESERVED_ID_PREFIX, userMeasured, type Submission } from '../../engine/data/library.js';
 import type { Brand, Part, Polarity } from '../../engine/src/parts/schema.js';
 
-const BRANDS: readonly Brand[] = ['BRIO', 'IKEA', 'PLAYTIVE', 'HAPE', 'THOMAS', 'MELISSA_DOUG'];
+const BRANDS: readonly Brand[] = ['GENERIC', 'IKEA', 'PLAYTIVE', 'HAPE', 'THOMAS', 'MELISSA_DOUG'];
 const BRAND_LABEL: Record<Brand, string> = {
-  BRIO: 'BRIO',
+  GENERIC: 'Generic',
   IKEA: 'IKEA Lillabo',
   PLAYTIVE: 'Lidl Playtive',
   HAPE: 'Hape',
@@ -34,7 +34,7 @@ const BRAND_LABEL: Record<Brand, string> = {
   MELISSA_DOUG: 'Melissa & Doug',
 };
 
-/** Published BRIO profile, used as the default for a brand nobody has measured. */
+/** Published Generic profile, used as the default for a brand nobody has measured. */
 const PROFILE_DEFAULTS = { gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12 };
 
 export interface SubmitPartProps {

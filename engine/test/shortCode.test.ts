@@ -11,8 +11,8 @@ describe('shortCode', () => {
   });
 
   it('leaves a bare id alone', () => {
-    const brio = BUILT_IN.find((p) => p.id === 'A2')!;
-    expect(shortCode(brio)).toBe('A2');
+    const generic = BUILT_IN.find((p) => p.id === 'A2')!;
+    expect(shortCode(generic)).toBe('A2');
   });
 
   /*

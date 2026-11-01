@@ -1,11 +1,11 @@
 /**
- * BRIO switches, as UNVERIFIED seeds measured off 3D-print reproductions.
+ * Generic switches, as UNVERIFIED seeds measured off 3D-print reproductions.
  *
  * READ THIS BEFORE TRUSTING ANYTHING IN HERE.
  *
  * No manufacturer figure exists for a switch's diverging leg (see
  * `SWITCH_GEOMETRY_ABSENT` in sources.ts and `CALIBRATION.md` Q6). What exists
- * are MakerWorld models that reproduce BRIO switches. On 2026-10-22 their 3MF
+ * are printed models that reproduce Generic switches. On 2026-10-22 their 3MF
  * files were downloaded and the geometry read straight off the meshes: each
  * connector's end face was located, giving a position and an outward
  * direction, and the relation between two end faces gives the straight
@@ -26,12 +26,12 @@
  *           E1). The two fits are 109.3 and 110.2, so the far end sits about
  *           0.2mm off a true E1 arc.
  *
- * The through lengths and inner radii also agree with woodenrailway.info's
- * piece table (`BRIO_PIECE_TABLE` in sources.ts: L/M 144 and 182, O1/P1 108
+ * The through lengths and inner radii also agree with the published guide's
+ * piece table (`GENERIC_PIECE_TABLE` in sources.ts: L/M 144 and 182, O1/P1 108
  * and 90). The ARC and the HEEL OFFSET come from the reproductions alone.
  *
  * WHY THIS IS `unverified` AND NOT `community`. These are one designer's model
- * (Cactus 973). A reproduction is a copy of the part, not a measurement of
+ * . A reproduction is a copy of the part, not a measurement of
  * it, and a designer who assumed "switch = A plus E" would have drawn exactly
  * these files, so their agreement with the catalogue may be circular rather
  * than confirmation. A user who measures a real switch submits the figure
@@ -43,7 +43,7 @@
  * ends (eng review D4; switchRegression.test.ts holds them to commit
  * 86e3eaa).
  *
- * THE H CROSSING (eng review D3) comes from the same Cactus 973 set,
+ * THE H CROSSING (eng review D3) comes from the same reproduction set,
  * `cross_h`: two 108 straights crossing at both midpoints at 90 degrees, ends
  * read at (108, 0), (54, -54) and (54, 54) to 0.1mm, peg at the start of each
  * road and socket at its end. The 108 agrees with A1.
@@ -70,12 +70,12 @@ const ESTIMATED_SLOP: SlopBudget = {
 const REPRODUCTION: DimensionSource = {
   status: 'unverified',
   source:
-    'MakerWorld 1001504 "Brio Train Track Replicas" by Cactus 973 (switch_curved_l, ' +
+    'a printed reproduction (switch_curved_l, ' +
     'switch_curved_m, switch_short_curved_o1, switch_short_curved_p1), measured off ' +
     'the 3MF meshes on 2026-10-22',
   note:
     'A 3D-print reproduction, not a measurement of a real switch. Through length and ' +
-    'radius agree with the woodenrailway.info piece table; the 45-degree arc and the ' +
+    'radius agree with the published piece table; the 45-degree arc and the ' +
     'shared heel come only from the reproduction. Upgrade when someone measures a ' +
     'real switch (CALIBRATION.md Q6).',
 };
@@ -119,7 +119,7 @@ function curvedSwitch(
 ): MultiRoadPart {
   const road = other(heel);
   return {
-    id, brand: 'BRIO', kind: 'multi-road', name,
+    id, brand: 'GENERIC', kind: 'multi-road', name,
     ports: [
       { at: { pos: ORIGIN, heading: 8 }, polarity: heel, name: 'heel', kind: 'heel' },
       { at: { pos: xy(throughMm, 0), heading: 0 }, polarity: road, name: 'straight road' },
@@ -148,7 +148,7 @@ export const SWITCH_SEEDS: readonly MultiRoadPart[] = [
 const CROSSING_SOURCE: DimensionSource = {
   status: 'unverified',
   source:
-    'MakerWorld 1001504 "Brio Train Track Replicas" by Cactus 973 (cross_h), ' +
+    'a printed reproduction (cross_h), ' +
     'measured off the 3MF mesh on 2026-10-29',
   note:
     'A 3D-print reproduction, not a measurement of a real crossing. Ends at (108, 0), ' +
@@ -163,7 +163,7 @@ const CROSSING_SOURCE: DimensionSource = {
  */
 export const CROSSING_SEEDS: readonly MultiRoadPart[] = [
   {
-    id: 'H', brand: 'BRIO', kind: 'multi-road', name: 'Crossing',
+    id: 'H', brand: 'GENERIC', kind: 'multi-road', name: 'Crossing',
     ports: [
       { at: { pos: ORIGIN, heading: 8 }, polarity: 'peg', name: "first road's near end" },
       { at: { pos: xy(108, 0), heading: 0 }, polarity: 'socket', name: "first road's far end" },
@@ -186,8 +186,8 @@ const reproduction = (source: string, note: string): DimensionSource => ({
   note: `A 3D-print reproduction, not a measurement of the real piece. ${note}`,
 });
 
-const cactus = (file: string, note: string): DimensionSource =>
-  reproduction(`MakerWorld 1001504 "Brio Train Track Replicas" by Cactus 973 (${file})`, note);
+const replica = (file: string, note: string): DimensionSource =>
+  reproduction(`a printed reproduction (${file})`, note);
 
 /** E's far end, 45 degrees left, at a 202 centreline: 202 * (zeta^4 - zeta^6). */
 const E_LEFT: Cyc = [0, 0, 0, 0, 202, 0, -202, 0];
@@ -214,7 +214,7 @@ const BEND = { label: 'Bend the other way', verb: 'bend it the other way', after
 function threeWay(id: string, name: string, heel: Polarity, file: string): MultiRoadPart {
   const road = other(heel);
   return {
-    id, brand: 'BRIO', kind: 'multi-road', name,
+    id, brand: 'GENERIC', kind: 'multi-road', name,
     ports: [
       { at: { pos: ORIGIN, heading: 8 }, polarity: heel, name: 'heel', kind: 'heel' },
       { at: { pos: xy(144, 0), heading: 0 }, polarity: road, name: 'straight road' },
@@ -227,7 +227,7 @@ function threeWay(id: string, name: string, heel: Polarity, file: string): Multi
       { from: 0, to: 3, shape: { kind: 'arc', innerRadiusMm: 182, arcSteps: 2, side: 'right' } },
     ],
     sizeLabel: 'r202',
-    dimensions: cactus(file, 'Ends at (144, 0) and (142.9, +/-59.2) heading +/-45: an E either side of an A, to 0.2mm.'),
+    dimensions: replica(file, 'Ends at (144, 0) and (142.9, +/-59.2) heading +/-45: an E either side of an A, to 0.2mm.'),
     slop: ESTIMATED_SLOP, ...PROFILE,
   };
 }
@@ -236,7 +236,7 @@ function threeWay(id: string, name: string, heel: Polarity, file: string): Multi
 function ySwitch(id: string, name: string, heel: Polarity, file: string): MultiRoadPart {
   const road = other(heel);
   return {
-    id, brand: 'BRIO', kind: 'multi-road', name,
+    id, brand: 'GENERIC', kind: 'multi-road', name,
     ports: [
       { at: { pos: ORIGIN, heading: 8 }, polarity: heel, name: 'heel', kind: 'heel' },
       { at: { pos: E1_LEFT, heading: 2 }, polarity: road, name: 'curved road' },
@@ -247,18 +247,18 @@ function ySwitch(id: string, name: string, heel: Polarity, file: string): MultiR
       { from: 0, to: 2, shape: { kind: 'arc', innerRadiusMm: 90, arcSteps: 2, side: 'right' } },
     ],
     sizeLabel: 'r110',
-    dimensions: cactus(file, 'Ends at (77.8, +/-32.2) heading +/-45: an E1 either side, to 0.2mm.'),
+    dimensions: replica(file, 'Ends at (77.8, +/-32.2) heading +/-45: an E1 either side, to 0.2mm.'),
     slop: ESTIMATED_SLOP, ...PROFILE,
   };
 }
 
 /**
- * Every other multi-road piece found on MakerWorld that sits exactly on the
+ * Every other multi-road piece found on printed reproductions that sits exactly on the
  * grid (eng review D3, PR B).
  */
 export const MULTI_ROAD_SEEDS: readonly MultiRoadPart[] = [
   {
-    id: 'H1', brand: 'BRIO', kind: 'multi-road', name: 'Crossing, 116',
+    id: 'H1', brand: 'GENERIC', kind: 'multi-road', name: 'Crossing, 116',
     // One road socket to socket, the other peg to peg, as measured.
     ports: [
       { at: { pos: ORIGIN, heading: 8 }, polarity: 'socket', name: CROSSING_ENDS[0] },
@@ -271,14 +271,14 @@ export const MULTI_ROAD_SEEDS: readonly MultiRoadPart[] = [
       { from: 2, to: 3, shape: { kind: 'straight', lengthMm: 116 } },
     ],
     sizeLabel: '116×116',
-    dimensions: cactus(
+    dimensions: replica(
       'cross_h1',
       'Ends at (116, 0) and (58, +/-58); one road two sockets, the other two pegs. 116 agrees with the piece table.',
     ),
     slop: ESTIMATED_SLOP, ...PROFILE,
   },
   {
-    id: 'H2', brand: 'BRIO', kind: 'multi-road', name: 'Criss-cross',
+    id: 'H2', brand: 'GENERIC', kind: 'multi-road', name: 'Criss-cross',
     // The diagonal crosses the straight at its middle at 45 degrees:
     // 72 -/+ 72 * zeta^2.
     ports: [
@@ -294,7 +294,7 @@ export const MULTI_ROAD_SEEDS: readonly MultiRoadPart[] = [
     sizeLabel: '144×144',
     // The diagonal leans one way; turned over it leans the other.
     flip: TURN_OVER,
-    dimensions: cactus(
+    dimensions: replica(
       'criss_cross_h2',
       'Ends at (144, 0), (21.1, -50.9) and (122.9, 50.9): a 144 diagonal through the middle at 45 degrees, to 0.1mm.',
     ),
@@ -305,7 +305,7 @@ export const MULTI_ROAD_SEEDS: readonly MultiRoadPart[] = [
   ySwitch('O', 'Y switch', 'socket', 'switch_short_curved_o'),
   ySwitch('P', 'Y switch, peg heel', 'peg', 'switch_short_curved_p'),
   {
-    id: 'T', brand: 'BRIO', kind: 'multi-road', name: 'T switch',
+    id: 'T', brand: 'GENERIC', kind: 'multi-road', name: 'T switch',
     // A 216 straight and a quarter circle at a 108 centreline: 108 * (1 + zeta^4).
     ports: [
       { at: { pos: ORIGIN, heading: 8 }, polarity: 'socket', name: 'heel', kind: 'heel' },
@@ -319,16 +319,16 @@ export const MULTI_ROAD_SEEDS: readonly MultiRoadPart[] = [
     sizeLabel: 'r108',
     flip: BRANCH,
     dimensions: reproduction(
-      'MakerWorld 904802 "BRIO T-Switch T" by AU3D (T-Switch 216mm)',
-      'Ends at (216, 0) and (108, 108) heading 90 to 0.1mm: a 108 centreline (88 inner). RyeBread ' +
-        '526629 and kolar.majkl 688457 put the arc in the same place but disagree on polarity (all ' +
-        "sockets; socket, socket, peg); AU3D's socket heel, peg straight and socket arc are used.",
+      'a printed reproduction (T-Switch 216mm)',
+      'Ends at (216, 0) and (108, 108) heading 90 to 0.1mm: a 108 centreline (88 inner). Two other ' +
+        'printed models put the arc in the same place but disagree on polarity (all ' +
+        "sockets; socket, socket, peg); the reproduction's socket heel, peg straight and socket arc are used.",
     ),
     slop: ESTIMATED_SLOP, ...PROFILE,
   },
   /*
-   * THE TWO-WAY T-JUNCTION (plan 2026-11-01, T3; owner's answer "Add Flame's
-   * T Rail as measured"). MakerWorld's only two-way T: a stem that splits
+   * THE TWO-WAY T-JUNCTION (plan 2026-11-01, T3; owner's answer "Add the printed
+   * T Rail as measured"). the only printed two-way T: a stem that splits
    * into two quarter curves, left and right, with a straight bar across their
    * ends. A printable design with its own sizes, not a copy of a shop piece,
    * so its name says "printed". Symmetric, so it has no `flip` and Flip (F)
@@ -339,7 +339,7 @@ export const MULTI_ROAD_SEEDS: readonly MultiRoadPart[] = [
    * lands at (75, -75) and its peg at (75, 75).
    */
   {
-    id: 'TJ', brand: 'BRIO', kind: 'multi-road', name: 'T-junction, printed',
+    id: 'TJ', brand: 'GENERIC', kind: 'multi-road', name: 'T-junction, printed',
     ports: [
       { at: { pos: ORIGIN, heading: 8 }, polarity: 'socket', name: 'stem', kind: 'heel' },
       { at: { pos: xy(75, 75), heading: 4 }, polarity: 'peg', name: 'left end' },
@@ -353,7 +353,7 @@ export const MULTI_ROAD_SEEDS: readonly MultiRoadPart[] = [
     sizeLabel: 'r75',
     dimensions: {
       status: 'unverified',
-      source: 'MakerWorld 3225419 "T Rail compatible with multiple brands" by Flame (instance 3652740), measured off the 3MF mesh on 2026-11-01',
+      source: 'a printed reproduction, measured off the 3MF mesh on 2026-11-01',
       note:
         'A printable design with its own sizes, not a measurement of a shop piece. Stem to each bar end: 75mm ' +
         'along and 75mm across, turning 90 degrees, to 0.04mm: two quarter curves at a 75mm centreline ' +
@@ -363,7 +363,7 @@ export const MULTI_ROAD_SEEDS: readonly MultiRoadPart[] = [
     slop: ESTIMATED_SLOP, ...PROFILE,
   },
   {
-    id: 'X', brand: 'BRIO', kind: 'multi-road', name: 'Star switch',
+    id: 'X', brand: 'GENERIC', kind: 'multi-road', name: 'Star switch',
     ports: [
       { at: { pos: ORIGIN, heading: 8 }, polarity: 'peg', name: 'heel', kind: 'heel' },
       { at: { pos: xy(216, 0), heading: 0 }, polarity: 'socket', name: 'straight road' },
@@ -379,14 +379,14 @@ export const MULTI_ROAD_SEEDS: readonly MultiRoadPart[] = [
     // Its two curved roads end differently, so turned over it is another piece.
     flip: TURN_OVER,
     dimensions: reproduction(
-      'MakerWorld 795599 "Brio Compatible Switches" by Fantastic Plastic Person (X)',
+      'a printed reproduction (X)',
       'Ends at (216, 0) and (108, +/-108) to 0.1mm: a 108 centreline (88 inner). Peg heel, socket ' +
         'straight, one curved road ending in a socket and the other in a peg.',
     ),
     slop: ESTIMATED_SLOP, ...PROFILE,
   },
   {
-    id: 'EE', brand: 'BRIO', kind: 'multi-road', name: 'Large double curve',
+    id: 'EE', brand: 'GENERIC', kind: 'multi-road', name: 'Large double curve',
     // Two concentric 45-degree curves 46 apart: the inner an E (202), the
     // outer at 248, starting 46 to the right (-46 * zeta^4).
     ports: [
@@ -402,7 +402,7 @@ export const MULTI_ROAD_SEEDS: readonly MultiRoadPart[] = [
     sizeLabel: 'r202/248',
     flip: BEND,
     dimensions: reproduction(
-      'MakerWorld 887239 "BRIO Double Curved Track EE & EE1" by AU3D (Double Curved Track - left)',
+      'a printed reproduction (Double Curved Track - left)',
       'Outer start at (0, -46); ends at (142.8, 59.2) and (175.4, 26.6) heading 45, centrelines 202 ' +
         'and 248, to 0.1mm. Sockets in, pegs out.',
     ),
@@ -410,14 +410,14 @@ export const MULTI_ROAD_SEEDS: readonly MultiRoadPart[] = [
   },
 
   /*
-   * F AND G, the straight fork and merge (Isaxon 3121622). Each road is an
+   * F AND G, the straight fork and merge . Each road is an
    * S-bend; their ends sit 23.5 either side of the heel's line, 47 apart.
    * ROUNDED to the grid (owner, 2026-10-30): F's ends at +24 and -23, so
    * they stay 47 apart and the heel sits 0.5mm off their middle. G is F run
    * backwards, so the 0.5 lands on its single end.
    */
   {
-    id: 'F', brand: 'BRIO', kind: 'multi-road', name: 'Fork switch',
+    id: 'F', brand: 'GENERIC', kind: 'multi-road', name: 'Fork switch',
     ports: [
       { at: { pos: ORIGIN, heading: 8 }, polarity: 'socket', name: 'heel', kind: 'heel' },
       { at: { pos: xy(150, 24), heading: 0 }, polarity: 'peg', name: 'road' },
@@ -429,7 +429,7 @@ export const MULTI_ROAD_SEEDS: readonly MultiRoadPart[] = [
     ],
     sizeLabel: '150mm',
     dimensions: reproduction(
-      'MakerWorld 3121622 "BRIO straight switching track (F & G) Replica" by Isaxon (Brio F)',
+      'a printed reproduction (Generic F)',
       'Ends at (150, +/-23.5) to 0.1mm, ROUNDED to +24 and -23 for the whole-millimetre grid: ' +
         'still 47 apart, with the heel 0.5mm off their middle. Each road is an S-bend, drawn as ' +
         'two arcs: the drawing and its overlap footprint are approximate, the ends exact.',
@@ -437,7 +437,7 @@ export const MULTI_ROAD_SEEDS: readonly MultiRoadPart[] = [
     slop: ESTIMATED_SLOP, ...PROFILE,
   },
   {
-    id: 'G', brand: 'BRIO', kind: 'multi-road', name: 'Merge switch',
+    id: 'G', brand: 'GENERIC', kind: 'multi-road', name: 'Merge switch',
     ports: [
       { at: { pos: ORIGIN, heading: 8 }, polarity: 'socket', name: "one road's start" },
       { at: { pos: xy(0, -47), heading: 8 }, polarity: 'socket', name: "other road's start" },
@@ -451,7 +451,7 @@ export const MULTI_ROAD_SEEDS: readonly MultiRoadPart[] = [
     // Turned over, the second road starts on the other side.
     flip: TURN_OVER,
     dimensions: reproduction(
-      'MakerWorld 3121622 "BRIO straight switching track (F & G) Replica" by Isaxon (Brio G)',
+      'a printed reproduction (Generic G)',
       'Starts 47 apart, joined end at (150, -23.5) to 0.1mm, ROUNDED to -23 for the ' +
         'whole-millimetre grid. Each road is an S-bend, drawn as two arcs: the drawing and its ' +
         'overlap footprint are approximate, the ends exact.',
@@ -460,7 +460,7 @@ export const MULTI_ROAD_SEEDS: readonly MultiRoadPart[] = [
   },
   ...(['socket', 'peg'] as const).map((heel): MultiRoadPart => ({
     id: heel === 'socket' ? 'F1' : 'G1',
-    brand: 'BRIO',
+    brand: 'GENERIC',
     kind: 'multi-road',
     name: heel === 'socket' ? 'Parallel switch' : 'Parallel switch, peg heel',
     // A straight road, and a road that ends beside it, 46 over, facing the same way.
@@ -476,7 +476,7 @@ export const MULTI_ROAD_SEEDS: readonly MultiRoadPart[] = [
     sizeLabel: '144mm',
     flip: BRANCH,
     dimensions: reproduction(
-      `MakerWorld 892305 "BRIO Parallel Switches F1 G1" by AU3D (Parallel Switch ${heel === 'socket' ? 'F1' : 'G1'} 144mm)`,
+      `a printed reproduction (Parallel Switch ${heel === 'socket' ? 'F1' : 'G1'} 144mm)`,
       'Ends at (144, 0) and (144, 46) heading 0, to 0.1mm: exact. The parallel road is an ' +
         'S-bend, drawn as two arcs: the drawing and its overlap footprint are approximate.',
     ),

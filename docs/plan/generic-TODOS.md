@@ -1,7 +1,7 @@
-# TODOS — BRIO Track Designer
+# TODOS — Generic Track Designer
 
 Created 2026-10-06 by /plan-ceo-review. The repo is `raduuuuu/ChooChooCAD`
-(renamed from `brio-designer`; public, deployed to woodentrain.world); this is
+(renamed from `ChooChooCAD`; public, deployed to woodentrain.world); this is
 the exported copy that lives in the tree, and `docs/plan/README.md` says where
 the canonical one is.
 
@@ -48,18 +48,18 @@ over 225mm needs about 234mm of slope), which is why one re-measure comes first.
 `bun run calibration` prints the Q4 result. Part in engine/data/rampSeeds.ts.
 **Depends on:** the re-measure.
 
-## DONE — Every BRIO piece from MakerWorld (owner, 2026-10-29)
+## DONE — Every Generic piece from printed reproductions (owner, 2026-10-29)
 
 **DONE (2026-11-01).** All phases shipped: Lillabo (#64), the multi-road type
 and H (#65), nine more multi-road pieces (#66), buffer stops (#67, #68), the
 off-grid pieces (#69), and the printed T-junction (#103). They are unverified
 seeds until measured; the measuring is its own entries below.
 
-Plan and measurements: `docs/plan/2026-10-29-makerworld-pieces.md`. Scope
-chosen by the owner: phased, all BRIO types.
+Plan and measurements: `docs/plan/2026-10-29-printed-pieces.md`. Scope
+chosen by the owner: phased, all Generic types.
 
 - PR 1, DONE in this branch: the Lillabo set (five straights, curves of 22.5,
-  45 and 90 degrees) from the Vamuss reproduction.
+  45 and 90 degrees) from a printed reproduction.
 - DONE (eng-reviewed 2026-10-30, D2-D14 in the plan doc): PR A (#65), one
   multi-road part type that replaced `SwitchPart` (ports at exact poses with
   their own polarity and names, plus straight or arc roads checked exactly
@@ -68,7 +68,7 @@ chosen by the owner: phased, all BRIO types.
 - DONE: R and S buffer stops, as a one-ended `buffer` kind (unverified; body 40mm from the
   piece table). The canvas caps its far end with a solid ink beam (DESIGN.md rule 11).
 - DONE in PR B: T and X are exact at a 108 centreline (three reproductions
-  agree), and `BRIO_PIECE_TABLE` no longer calls them approximate.
+  agree), and `GENERIC_PIECE_TABLE` no longer calls them approximate.
 
 ## DONE — Multi-road pieces that sit off the whole-millimetre grid (filed by /plan-eng-review 2026-10-30)
 
@@ -80,9 +80,9 @@ two "y" files turned out to be an ordinary switch read from its far end. The
 were left out.
 
 **What:** Decide how to model, and then add, the measured multi-road pieces
-that the exact lattice cannot hold: BRIO F1/G1 (a 144 straight plus a branch
+that the exact lattice cannot hold: Generic F1/G1 (a 144 straight plus a branch
 ending parallel 46mm over: the branch is an S-bend, and no pair of 22.5 degree
-arcs reaches 46 over in 144), BRIO F/G (a fork to two tracks 47mm apart, so
+arcs reaches 46 over in 144), Generic F/G (a fork to two tracks 47mm apart, so
 each end sits 23.5 off the heel's line), and the Lillabo crossing (145 x 145,
 so the second road's ends are at x = 72.5) plus the two Lillabo "Y" files,
 whose readings do not match a Y of two 45 degree curves (`y-fmm.step`: a road
@@ -90,17 +90,17 @@ ending at (40.6, 43.3) heading 135; `y-fmm-tt.step`: a road ending at (83.9,
 83.9) heading 90, about r84).
 
 **Why:** Deferred by eng review decisions D2 and D13
-(`docs/plan/2026-10-29-makerworld-pieces.md`): the multi-road type ships with
+(`docs/plan/2026-10-29-printed-pieces.md`): the multi-road type ships with
 straight and arc roads only, all exact.
 
-**Pros:** Four more BRIO pieces and Lillabo's multi-road set.
+**Pros:** Four more Generic pieces and Lillabo's multi-road set.
 
 **Cons:** Needs either a drawn-only road shape with an approximate footprint
 (touching render, overlap, trackPath and tableModel) or a stated rounding of
 half millimetres; both introduce the engine's first inexact geometry.
 
-**Context:** Measurements are in the plan doc's table and in the MakerWorld
-3MF files (Isaxon 3121622 for F/G, AU3D 892305 for F1/G1, Vamuss 2181560 for
+**Context:** Measurements are in the plan doc's table and in the printed reproductions
+3MF files (a printed reproduction for F/G, a printed reproduction for F1/G1, a printed reproduction for
 Lillabo). Re-measure the Lillabo Ys first.
 
 **Depends on / blocked by:** the multi-road type (PR A of the plan).
@@ -206,7 +206,7 @@ while its ghost is out. Pinned by `app/src/pickedCard.dom.test.tsx`.
 back to meaning only a layout that cannot be built.
 
 **What:** `.piece.is-unverified` draws its dotted border and asterisk in `--fail`, and the brand shelves' "unverified" word is `--fail` too.
-**Why:** DESIGN.md rule 1: the palette gets no colour; `--fail` means a layout cannot be built. Most new BRIO parts are unverified seeds, so the red now dominates the list.
+**Why:** DESIGN.md rule 1: the palette gets no colour; `--fail` means a layout cannot be built. Most new Generic parts are unverified seeds, so the red now dominates the list.
 **Pros:** "This size is a guess" stops reading as "this layout fails". **Cons:** A visible change to a long-standing look.
 **Context:** Fix idea: the same dotted border and asterisk in `--ink`. Decide the shelf word with it.
 **Depends on:** nothing.
@@ -246,7 +246,7 @@ under a bridge. **Effort:** human ~2h / CC ~10min. **Priority:** P3.
 **What:** Let the part database accept community-defined parametric parts, so
 users can register 3D-printed track pieces and design with them.
 
-**Why:** A large ecosystem of printable BRIO-compatible parts already exists and
+**Why:** A large ecosystem of printable Generic-compatible parts already exists and
 is in active use — 45-degree short curves, 60-degree IKEA-compatible curves,
 flexible sections, ramps, and a parametric generator. No design tool can touch
 any of them. This is the clearest platform play available: each registered part
@@ -289,7 +289,7 @@ pipeline (in scope, must be working first)
 
 These were surfaced as delight opportunities during the expansion ceremony but
 not presented as individual decisions. Full context lives in
-`ceo-plans/2026-10-06-brio-track-designer.md` under "NOT in scope".
+`ceo-plans/2026-10-06-generic-track-designer.md` under "NOT in scope".
 
 - **E7 Kid mode** (S) — big targets, no menus, drive-the-train only, layout locked
 - **E8 Table / room bounds** (S) — declare your table or rug, warn on overhang
@@ -310,14 +310,14 @@ is public and the app is live at woodentrain.world. The questions are still
 open and still need counsel.
 
 **What:** two questions needing counsel, not engineering.
-1. The part database is a wholesale transcription of woodenrailway.info's curated
+1. The part database is a wholesale transcription of the published guide's curated
    measurement tables. Raw measurements of physical objects are facts, but a
    curated compilation of them may be protected. Determine whether permission is
    needed, or whether the data should be independently re-derived from physical
    measurement (which T16's corpus work partly does anyway).
-2. BRIO is a live trademark. No product name has actually been chosen yet — the
+2. Generic is a live trademark. No product name has actually been chosen yet — the
    plan document's title is the reviewer's working label, not a decision — so
-   settle whether the eventual name may reference BRIO, or whether it must be
+   settle whether the eventual name may reference Generic, or whether it must be
    descriptive with a compatibility statement instead.
 
 **Why:** the plan carries a full COPPA and GDPR-K posture and had zero lines on
@@ -338,16 +338,15 @@ legal.
 
 **A third question, added 2026-10-22 by /plan-ceo-review (owner's answer to
 D2).** The four switch seeds (L, M, O1, P1 in `engine/data/switchSeeds.ts`) are
-dimensions read off the 3MF files of MakerWorld model 1001504 by Cactus 973,
-licensed Creative Commons Attribution-NonCommercial-ShareAlike. Other MakerWorld
-models were used only to compare against, and one (784269, Fantastic Plastic
-Person) to confirm which end of B and C carries the pegs. The licences seen on
-those pages were CC BY-NC-SA, CC BY-NC and MakerWorld's "Standard Digital File";
-784269's own licence was not checked. A dimension is
+dimensions read off the 3MF files of one printed replica set,
+licensed Creative Commons Attribution-NonCommercial-ShareAlike. Other printed
+models were used only to compare against, and one to confirm which end of B and C carries the pegs. The licences seen on
+those pages were CC BY-NC-SA, CC BY-NC and the hosting site's "Standard Digital File";
+one model's own licence was not checked. A dimension is
 probably a fact rather than a work, but the NonCommercial terms matter if the
 product is ever sold, and nobody has checked whether reading measurements off a
 licensed model is use of the model. This does not unblock K9 (set manifests),
-which waits on the woodenrailway.info question above; MakerWorld supplies no
+which waits on the published guide question above; printed reproductions supply no
 box contents.
 
 **Effort:** human ~1 day of counsel time / CC: not compressible, not an AI task
@@ -364,7 +363,7 @@ Nine decisions, W1-W9. Six blocks of work were deferred here. **Nothing below
 was cut.** Each item keeps the design decisions already made about it; only its
 delivery was resequenced behind the minimum viable core (K1-K8: correct cited
 tolerances, free placement with multi-cycle solve, levels and bridges with the
-traversal checker, full BRIO catalogue, save/load, tests, undo/redo, planar
+traversal checker, full Generic catalogue, save/load, tests, undo/redo, planar
 overlap).
 
 Reason the core comes first: the engine's slop budgets were a guess roughly 3x
@@ -373,7 +372,7 @@ features built on top of that would have distributed the error.
 
 ## P1 — Inventory, manifests, constrained palette and buy list
 
-**What:** Declare which BRIO sets you own; constrain the palette to owned pieces;
+**What:** Declare which Generic sets you own; constrain the palette to owned pieces;
 produce a shortfall buy list when a layout needs more.
 
 **Why:** Answers "can I build this with what I own", and the buy list is the most
@@ -590,7 +589,7 @@ CONFIRM them. No pre-launch gate was attached. Deferred at D7 on 2026-10-07.
 **Priority:** P2 for the ops; the corpus should be P1 before any public launch
 claim of accuracy
 **Depends on:** K1 derived budgets existing to validate against. Owning or
-borrowing a substantial amount of real BRIO track.
+borrowing a substantial amount of real Generic track.
 
 ---
 
@@ -834,7 +833,7 @@ the model for a small persisted value.
 **Depends on:** the metric grid (PR 1 of the 2026-10-22 editing plan)
 
 > **DONE 2026-10-23.** Owner ruling: the outline is centred on the track and only its size is saved
-> (`brio.table.v0`), so the "origin or draggable" question closed as neither. "Your table" sits beside
+> (`generic.table.v0`), so the "origin or draggable" question closed as neither. "Your table" sits beside
 > "Your box"; the outline draws over the grid and under the track, red when the track hangs over, and
 > a caption names the overhang against the table's own sides. The fit is measured on the plank edges
 > and curve bulges (`trackExtent` in `app/src/tableModel.ts`), not on `renderBounds`, and the table is
@@ -893,7 +892,7 @@ Measured inflation for the real parts:
   D straight (216x40) at 45deg              3.79x
 ```
 
-BRIO headings are multiples of 22.5 degrees, so the inflated cases are the common
+Generic headings are multiples of 22.5 degrees, so the inflated cases are the common
 ones, and a check whose job is to REFUSE layouts would refuse buildable ones. An
 exact arc-and-segment narrowphase is the likely answer: arc-against-arc reduces
 to a centre-distance test against the radii plus an angular-interval check.
@@ -982,7 +981,7 @@ ever likely, widen BEFORE any file exists.
 runs be supported, and pier footprints participating in the same-level overlap
 test so a pier landing on lower track is a short.
 
-**Why:** Raised BRIO track does not float. It rests on risers or stacked track,
+**Why:** Raised Generic track does not float. It rests on risers or stacked track,
 and those occupy floor footprint. In the user's own example, a loop crossing over
 a track that continues underneath, the pier frequently lands on the lower track.
 
@@ -1069,7 +1068,7 @@ counsel question gates both.
 
 **MOSTLY DONE (2026-10-30, PR #72).** The afternoon happened. Joint stretch
 and the train's height are measured and in `engine/data/measurements.ts`; the
-Q1 loop closed and carried a train, which is where the BRIO bend limit now
+Q1 loop closed and carried a train, which is where the Generic bend limit now
 comes from (`engine/data/bendLimit.ts`, status `inferred`). Still `null`, and
 each read as published or estimated until someone measures it: the bend
 itself (Q2, `bendDeg` or `bendSidewaysMm`/`bendOverMm`), the ramp rise and
@@ -1097,7 +1096,7 @@ width, plank thickness, the ramp rise, vehicle height, the 216mm datum, and the
 bridge clearance margin.
 
 **Why:** Every non-exact verdict the product gives is arithmetic on a guess.
-`engine/data/brio.ts` labels every slop budget `estimated`. The bound's hedged
+`engine/data/generic.ts` labels every slop budget `estimated`. The bound's hedged
 middle band, the footprint overlap tier and the whole elevation feature all read
 numbers nobody has measured.
 
@@ -1131,7 +1130,7 @@ and it was taken with the consequences stated. What follows from it:
   decision D9 (2026-10-08) switches are accepted as approximate, with a stated
   per-switch error. You cannot state an error you have not measured, so the
   switch's diverging-leg angle and lateral offset must be obtained before
-  switches ship. Published BRIO dimensions may answer it without calipers.
+  switches ship. Published Generic dimensions may answer it without calipers.
 
 **Effort:** human ~1 afternoon / CC ~0 (this one does not compress)
 **Priority:** P1
@@ -1314,20 +1313,20 @@ clearest boundary and already has its key constants in `storageKeys.ts`.
 **Depends on / blocked by:** E2 landing first. Best done when no switch work is
 in flight.
 
-## P2 — Measure a real BRIO switch (filed by T1, under the calibration deferral)
+## P2 — Measure a real Generic switch (filed by T1, under the calibration deferral)
 
 **Still open, no longer blocking (2026-11-01).** Switches shipped as
-unverified seeds read off MakerWorld models, so the catalogue row this entry
+unverified seeds read off printed models, so the catalogue row this entry
 said could not ship did. A measured switch would turn its seed into a
 verified part; Q6 on the calibration sheet asks for the three figures.
 
-**What:** With a physical BRIO switch and calipers, record its through-road
+**What:** With a physical Generic switch and calipers, record its through-road
 length, diverging-leg radius and arc, and the heel offset. Then compute the
 rounding residual against the 22.5-degree lattice.
 
 **Why:** Task T1 (2026-10-13) searched four source classes and found no citable
 figure: manufacturer pages for 33344 and 33346, retailer specs, patent and
-dimensioned drawings, and woodenrailway.info's track guide, which is the
+dimensioned drawings, and the published track guide, which is the
 citation behind every other dimension in the catalogue. The full enumeration is
 in `CALIBRATION.md` Q6. Without a number, the switch catalogue row cannot ship
 and the engine's switch support stays reachable only from tests.
@@ -1338,7 +1337,7 @@ tested; this is the only missing input.
 
 **Cons:** Needs a physical part and calipers, so it cannot be done from a
 keyboard. The residual may turn out to exceed E1's ceiling, in which case the
-honest answer is that a BRIO switch is not modellable on this lattice.
+honest answer is that a Generic switch is not modellable on this lattice.
 
 **Context:** Filed under the EXISTING calibration deferral rather than as new
 scope, because the user deferred measurement work on 2026-10-07 and the fifth
@@ -1349,7 +1348,7 @@ point, not an extra.
 
 **Effort:** human S (one afternoon with the part) / CC: cannot be done by CC.
 **Priority:** P2.
-**Depends on / blocked by:** owning a BRIO switch. Blocks task T2 entirely.
+**Depends on / blocked by:** owning a Generic switch. Blocks task T2 entirely.
 
 ## DONE — Deploy the app to a URL (filed by the CEO review, 2026-10-13)
 
@@ -1436,7 +1435,7 @@ deliberate deferral rather than a gap.
 ## P3 — Five dead exports, and a test keeping one alive (filed by /ship, 2026-10-14)
 
 **What:** `walkFloat`, `bounds` and `nominalFinalHeading` (`engine/src/geom/fk.ts`),
-`breakWeld` (`app/src/layoutModel.ts`) and `VEHICLE` (`engine/data/brio.ts`) have
+`breakWeld` (`app/src/layoutModel.ts`) and `VEHICLE` (`engine/data/generic.ts`) have
 no production caller anywhere in `app/`, `engine/` or `try.ts`.
 
 **Why it is worth a line:** `walkFloat`'s only remaining caller is its own test,
@@ -1502,7 +1501,7 @@ the loop over `orphans` that I wrote in the first draft of the fix.
 ### P1 — No remote, no backup, no CI
 **Completed:** 2026-10-14 (tasks X1 and X1b)
 
-`raduuuuu/brio-designer`, created private and verified `PRIVATE` by
+`raduuuuu/ChooChooCAD`, created private and verified `PRIVATE` by
 `gh repo view --json visibility` BEFORE anything was pushed, which is the order
 this entry's own Cons section asked for: a public remote would have touched the
 counsel-gated provenance question, a private one carries none of it. A fresh
@@ -1806,18 +1805,18 @@ enforces it.
   list is duplicated as `BRAND_ORDER` / `BRANDS` with the same six members in the
   same order. Adding a brand is a compile error in both; RENAMING one's label
   silently diverges the palette heading from the form's dropdown.
-- The BRIO profile (40 / 12 / 26 / 6) exists three times: named but unexported in
-  `brio.ts`, as bare literals on every `thirdParty.ts` seed, and again as
+- The Generic profile (40 / 12 / 26 / 6) exists three times: named but unexported in
+  `generic.ts`, as bare literals on every `thirdParty.ts` seed, and again as
   `PROFILE_DEFAULTS` in `SubmitPart.tsx`. The slop budget is duplicated the same
   way (`ESTIMATED_SLOP`, `UNMEASURED_SLOP`, an inline literal). A corrected
   measurement has to be applied in three files and nothing fails if one is missed
   -- which is exactly how `gaugeWidthMm` held the plank width for three days.
   **Needs:** a decision on where shared data constants live. `schema.ts` owns
-  `Brand`; `brio.ts` owns the figures.
+  `Brand`; `generic.ts` owns the figures.
 
 **B. Dead exports, and one test keeping a function alive.** `walkFloat`, `bounds`,
 `nominalFinalHeading` (`geom/fk.ts`), `breakWeld` (`layoutModel.ts`), `VEHICLE`
-(`brio.ts`), `IKEA_CONNECTOR` (`thirdParty.ts`), `KNOWN_ABSENT`,
+(`generic.ts`), `IKEA_CONNECTOR` (`thirdParty.ts`), `KNOWN_ABSENT`,
 `SWITCH_GEOMETRY_ABSENT`, `STRAIGHT_CITATION`, `CURVE_ARC_CITATION` (`sources.ts`),
 `INITIAL_SELECTION` (`editorReducer.ts`), `weldsTouching` (`graph/edit.ts`),
 `presetLayout` (`presets.ts`). **Check U5 before deleting `breakWeld`:** it is in
@@ -2433,8 +2432,8 @@ a joint is only as loose as its tighter half (`engine/src/solver/residual.ts`
 `Joint` docblock, eng review D10); an upper bound is no longer what is
 needed. (2) No caveat retires on `calibrationStatus` any more: the
 `estimated-give` rule is retired, and every verdict that leans on bend carries
-the limits note, which always says where the BRIO figure came from: measured,
-"A built loop needed BRIO joints to bend …", or estimated
+the limits note, which always says where the Generic figure came from: measured,
+"A built loop needed Generic joints to bend …", or estimated
 (`engine/src/joints/bendWords.ts`). What is left is the honest residue, not a
 defect: the inferred figure comes from one loop on one set of track, and the
 note names its source on every verdict rather than going quiet. A Q2
@@ -2489,7 +2488,7 @@ old-format load whose copy failed saves on the first edit).
 while `raw` is null, i.e. `GRAPH_STORAGE_KEY` held nothing. `App.tsx` turns
 that into `noRescueCopy: !graphLoad.rescued`, which gates the graph save.
 
-**The failure:** a user upgrading from the old `brio.chain.v0` format with a
+**The failure:** a user upgrading from the old `generic.chain.v0` format with a
 full quota. The rescue write fails, `noRescueCopy` is true, and graph saves
 are held until an explicit Dismiss -- protecting bytes that do not exist,
 because `saveGraph` writes `GRAPH_STORAGE_KEY` and never touches the chain
@@ -2762,12 +2761,12 @@ layout containing E1 discloses that its curve geometry is partly inferred.
 
 ## P3 — The track profile has a third, unpinned copy in thirdParty.ts (filed by /ship's adversarial pass, 2026-10-20)
 
-**What:** K2 made `engine/data/brio.ts` and `engine/data/sources.ts` two
+**What:** K2 made `engine/data/generic.ts` and `engine/data/sources.ts` two
 independent transcriptions, compared in `engine/test/sources.test.ts`. A third
 copy exists: `engine/data/thirdParty.ts` restates `gaugeWidthMm: 26`,
 `plankWidthMm: 40` and `plankThicknessMm: 12` as literals in its seeds, and
-those seeds are merged into the catalogue lookup map (`engine/data/brio.ts:173`).
-The pins iterate `BRIO_PARTS` only, so the seed copies are covered by nothing.
+those seeds are merged into the catalogue lookup map (`engine/data/generic.ts:173`).
+The pins iterate `GENERIC_PARTS` only, so the seed copies are covered by nothing.
 
 **Why it matters.** A drifted `plankWidthMm` in a seed shifts
 `centrelineRadiusMm` for that part by half the drift, with no spec failing. The
@@ -2776,7 +2775,7 @@ caps the damage but does not remove it.
 
 ## P3 — Remaining holes in the catalogue/source independence guard (filed by /ship's adversarial pass, 2026-10-20)
 
-**What:** `engine/test/sources.test.ts` asserts `brio.ts` does not import
+**What:** `engine/test/sources.test.ts` asserts `generic.ts` does not import
 `sources.ts`, because if it did, every pin in that file would compare one
 constant with itself and the suite would stay green. The guard is now a
 TypeScript AST walk with filesystem resolution, proven against 19 probes. Four
@@ -2787,7 +2786,7 @@ coupling forms still escape it, each listed in the spec's own docblock:
   `tsconfig.json` and no vite or vitest alias exists today, so nothing uses it.
 - an indirected require, `const r = require; r('./sources.js')`.
 - `import.meta.glob('./sources*')`.
-- a transitive coupling through another module. `brio.ts`'s only value import is
+- a transitive coupling through another module. `generic.ts`'s only value import is
   `./thirdParty.js`, which imports nothing but `../src/parts/schema.js`.
 
 **Why it matters.** This one spec protects every other pin in the file, so its
@@ -2925,10 +2924,10 @@ no-rescue-copy exception checked by failing the rescue write. Twenty mutations
 of the wiring were run and every one fails a spec, including the four graph-gate
 mutations that only the text check used to catch.
 
-## P2 — What the MakerWorld switch seeds left open (filed 2026-10-22)
+## P2 — What the printed reproductions switch seeds left open (filed 2026-10-22)
 
-**What landed:** four BRIO switches (L, M, O1, P1) in the library as
-`unverified` seeds, measured off the 3MF meshes of Cactus 973's MakerWorld
+**What landed:** four Generic switches (L, M, O1, P1) in the library as
+`unverified` seeds, measured off the 3MF meshes of one designer's printed reproductions
 reproductions (`engine/data/switchSeeds.ts`). In the same change the heel
 stopped being exempt from give and polarity: port 0 is the plank's end face
 and carries a peg or a socket, and the exemption came from an earlier model
@@ -2942,10 +2941,10 @@ in which the heel was a point inside the piece.
 2. ~~**T3b's switch disclosure has not landed**, so a layout with a seed switch
    carries only the generic unverified-size note.~~ **Done 2026-10-22**: a
    layout with a switch now says its geometry is modelled, not measured.
-3. **`BRIO_PIECE_TABLE` is stale for these four.** Its rows for L/M and O1/P1
+3. **`GENERIC_PIECE_TABLE` is stale for these four.** Its rows for L/M and O1/P1
    still say `needs-graph`; they are now present as seeds, and the graph has
    existed since the rewrite.
-4. **The seeds rest on one designer.** AU3D independently agrees on the O/P
+4. **The seeds rest on one designer.** Another designer's reproduction independently agrees on the O/P
    Y-switch geometry, but nobody else modelled L/M. A real measurement (the
    entry above, and `CALIBRATION.md` Q6) replaces them through the normal
    submission override.

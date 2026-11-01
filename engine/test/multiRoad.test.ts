@@ -1,5 +1,5 @@
 /**
- * MULTI-ROAD PIECES (eng review of 2026-10-30, docs/plan/2026-10-29-makerworld-pieces.md).
+ * MULTI-ROAD PIECES (eng review of 2026-10-30, docs/plan/2026-10-29-printed-pieces.md).
  *
  * Value: protects=every built-in multi-road piece's roads land EXACTLY on the
  * ends it lists (D9); the mirror is exact; a crossing draws two roads between
@@ -12,7 +12,7 @@
  * Value: seam=none: the real catalogue, placement, renderer and solver; the
  * double-track piece below is test-local because the real one (EE) is in
  * the next change
- * Value: no_claim=that any reproduction matches real BRIO track
+ * Value: no_claim=that any reproduction matches real Generic track
  */
 
 import { describe, expect, it } from 'vitest';
@@ -41,7 +41,7 @@ describe('every road lands exactly on the end it names (D9)', () => {
 
   /*
    * THE PRINTED T-JUNCTION AGAINST ITS 3MF (plan 2026-11-01, T3). The mesh of
-   * MakerWorld 3225419, turned so the stem faces back: a socket stem, a peg
+   * a printed reproduction, turned so the stem faces back: a socket stem, a peg
    * at (75, 75) facing +y, a socket at (75, -75) facing -y, two quarter
    * curves at 55 inner and a 150mm bar. Symmetric, so no flip (design DR7).
    *

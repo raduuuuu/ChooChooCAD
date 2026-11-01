@@ -165,7 +165,7 @@ describe('the put-aside notice (22A)', () => {
 describe('another tab changed the layout (D37)', () => {
   /*
    * MUTATION PROOF, run: the autosave without `|| staleTab`: `expected [ [
-   * 'brio.graph.v1', …(1) ] ] to have a length of +0 but got 1`.
+   * 'generic.graph.v1', …(1) ] ] to have a length of +0 but got 1`.
    */
   it('this tab stops saving the layout and says so', async () => {
     const writes = vi.spyOn(Storage.prototype, 'setItem');
@@ -184,7 +184,7 @@ describe('another tab changed the layout (D37)', () => {
   it('another key changing is not the layout changing', () => {
     openEditor();
     act(() => {
-      window.dispatchEvent(new StorageEvent('storage', { key: 'brio.view.v0', storageArea: localStorage }));
+      window.dispatchEvent(new StorageEvent('storage', { key: 'generic.view.v0', storageArea: localStorage }));
     });
     expect(screen.queryByText('This layout was changed in another tab. Reload to see the latest.')).toBe(null);
   });

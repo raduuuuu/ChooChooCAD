@@ -37,7 +37,7 @@ const half = (id: string) => resolve(id).plankWidthMm / 2;
 const START: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null };
 
 /*
- * Every BRIO curve turns 45 degrees, so a run laid from the origin always
+ * Every Generic curve turns 45 degrees, so a run laid from the origin always
  * ends a curve on a compass point or a diagonal, and no arc's extreme falls
  * mid-piece. Turning a run by one step (22.5 degrees, as R does to a selected
  * run) is what puts one there, so this turns real segments the same way.
@@ -134,7 +134,7 @@ describe('the track extent is where the wood reaches', () => {
 
   it('one straight is exactly its length by its plank width', () => {
     const e = trackExtent(segmentsOf([['A', 'left']]), half)!;
-    // A medium straight is 144 mm long (engine/data/brio.ts).
+    // A medium straight is 144 mm long (engine/data/generic.ts).
     expect(e.maxX - e.minX).toBeCloseTo(144, 6);
     expect(e.maxY - e.minY).toBeCloseTo(resolve('A').plankWidthMm, 6);
   });

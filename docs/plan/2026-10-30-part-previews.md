@@ -12,8 +12,8 @@ Owner, 2026-10-30: "in the library, can we show a small preview of the part"
   code, name, size (`app/src/App.tsx` `renderBrand`, `app/src/app.css`
   `.piece-main`). The one-row card was a deliberate fix: two-row cards
   clipped the list before the brand shelves.
-- The catalogue has grown to 52 cards (BRIO plus the IKEA and Playtive
-  shelves), and the BRIO list already scrolls inside a 45vh tray.
+- The catalogue has grown to 52 cards (Generic plus the IKEA and Playtive
+  shelves), and the Generic list already scrolls inside a 45vh tray.
 - Ramps already carry a tiny ink chevron after their size: the canvas's
   rise mark, reused as an icon (design 12A).
 - DESIGN.md rule 1: colour is spent only on verdicts; "thumbnails, chrome,

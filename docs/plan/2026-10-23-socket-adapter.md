@@ -8,7 +8,7 @@ connection requires an adapter". Reviewed with /plan-ceo-review.
 A joint where two sockets (female ends) meet is "Can't be built" everywhere today: the verdict,
 the placing preview, auto-join, palette drops and run moves. Real builders join two sockets with a
 double-peg ("male-male") adapter, sold commercially (e.g. Orbrium's adapter pack) and widely 3D
-printed; no official BRIO part number was found. So layouts people can build read as impossible.
+printed; no official Generic part number was found. So layouts people can build read as impossible.
 
 ## System audit (evidence)
 
@@ -23,8 +23,8 @@ printed; no official BRIO part number was found. So layouts people can build rea
 | Auto-join skips, moveRun refuses "two ends of the same kind would meet" | app/src/layoutModel.ts:410, 558 |
 | Canvas marker on a refused joint | app/src/TrackCanvas.tsx:167, 1047; app/src/App.tsx:692-709 |
 
-Physical facts (web, unverified against BRIO): peg 11.5 mm on a 7 mm neck, socket throat 5 mm
-(woodenrailway.info track guide). The owner states male-male adapters exist that add no length
+Physical facts (web, unverified against Generic): peg 11.5 mm on a 7 mm neck, socket throat 5 mm
+(the published track guide). The owner states male-male adapters exist that add no length
 (R2), so a socket-to-socket joint is modelled as exact.
 
 ## Dream state
@@ -130,7 +130,7 @@ Everything below follows R1-R3 and X1-X3. A same-kind joint means one of two thi
    drag, stepGhost, moveGhost), keeps the previous turn only among fits that need no adapter, else
    `defaultFit` (eng review OV5, inside X1); `defaultFit` (layoutModel.ts:376-385) skips any fit whose `adapters` list is
    non-empty unless no other fit is left, so closing a gap never chooses an adapter over an
-   alternating fit. A two-socket part (C, C1, C2; engine/data/brio.ts:142, 173, 189) placed on a
+   alternating fit. A two-socket part (C, C1, C2; engine/data/generic.ts:142, 173, 189) placed on a
    free socket has ONLY socket-to-socket ways: those are offered with '!' (allowed by R1), and
    `refused` is true only when every way would put peg on peg. Rotate (R, the visible button)
    reaches every adapter way round, last in its cycle, whatever the turn: today `rotated` keeps
@@ -194,7 +194,7 @@ GraphListing.tsx, app.css) plus tests.
 - The legacy chain engine (engine/src/feasible.ts:145, solver/result.ts:151,
   joints/evaluate.ts:88) keeps reporting a same-kind joint as a violation. That is an
   intentional DISAGREEMENT with the graph engine, not an impossibility: a chain can hold a
-  socket-to-socket joint (A appended after C2, whose far end is a socket, engine/data/brio.ts:139;
+  socket-to-socket joint (A appended after C2, whose far end is a socket, engine/data/generic.ts:139;
   fromChain.ts:28 joins port 1 to port 0), and the legacy engine would call it a violation while
   the app calls it buildable. Only the crash repro's "legacy chain" debug line
   (app/src/repro.ts:189) and two test harnesses read it; no user-facing verdict does (outside
@@ -417,7 +417,7 @@ is in accepted work.
 | dedupe key ignores polarity | X1 would be a no-op unchanged | app/src/layoutModel.ts:215 | verified |
 | give assumes one fit per weld | R4 question | engine/src/graph/model.ts:239 | verified |
 | zero-length male-male adapters exist | R2 | owner statement, 2026-10-23 | unverified (owner-attested) |
-| peg 11.5 mm, socket throat 5 mm | context only | woodenrailway.info track guide | unverified (web) |
+| peg 11.5 mm, socket throat 5 mm | context only | the published track guide | unverified (web) |
 
 REALITY: premise-table finding unverified=2 (owner-attested adapter length; web peg figures) docs/plan/2026-10-23-socket-adapter.md:409
 REALITY: already-done pass no commits since 2026-10-23 on the touched files, none mention adapter ac4791a
@@ -463,7 +463,7 @@ See Section 2's tables: 4 codepaths, 0 GAPS; every rescue is an existing, user-v
 
 ## Scope Expansion Decisions
 
-CEO plan: ~/.gstack/projects/brio-designer/ceo-plans/2026-10-23-socket-adapter.md
+CEO plan: ~/.gstack/projects/ChooChooCAD/ceo-plans/2026-10-23-socket-adapter.md
 - Accepted: X1 (adapter way in the preview), X2 (adapters in Your box), X3 (named in the list)
 - Deferred: none
 - Skipped: none
@@ -476,7 +476,7 @@ rollback: one static build; rollback = revert the PR (Section 9), no sequence to
 
 ## Stale Diagram Audit
 
-- engine/src/parts/schema.ts:185-200 ("Real BRIO track has one male and one female end per
+- engine/src/parts/schema.ts:185-200 ("Real Generic track has one male and one female end per
   piece... peg-to-peg is one click away"): accurate; add one sentence that socket-to-socket is
   buildable with a male-male adapter.
 - engine/src/graph/model.ts:239 (`weldGiveMm`: "Every weld is a peg in a socket"): now false for
@@ -576,7 +576,7 @@ source files [estimated, 2 comment-only], 0 new classes; pending remedies: none.
 
 A. Reuse: every sub-problem maps to existing code (see "What already exists"). Minimum change:
 the plan as approved. Search check: no new architectural pattern, infrastructure or concurrency,
-so no search. TODOS cross-reference: nothing in docs/plan/brio-TODOS.md blocks this; the overlap
+so no search. TODOS cross-reference: nothing in docs/plan/generic-TODOS.md blocks this; the overlap
 and D7 entries it touches are DONE. Distribution: none (static build).
 Findings: complexity (15 files) resolved by D1. No other Scope Challenge findings.
 Result: scope accepted as-is.
@@ -622,7 +622,7 @@ Comparison grid:
 
 Question D2:
 D2 - E1: One weld classifier, or two separate loops?
-Project: brio-designer, main, eng review of docs/plan/2026-10-23-socket-adapter.md.
+Project: ChooChooCAD, main, eng review of docs/plan/2026-10-23-socket-adapter.md.
 ELI10: The engine will sort same-kind joints into "impossible" (two pegs) and "needs an adapter" (two sockets). The plan does that with two functions that each walk every joint and read both ends. If someone later changes how one of them reads an end (a switch heel, say), the two lists can disagree, and a joint could be both impossible and adapter, or neither. One function that sorts each joint into exactly one list cannot drift that way.
 Stakes if we pick wrong: a future edit makes a socket joint vanish from the adapter count while the verdict still calls it fine.
 Recommendation: A) One classifier, because one read per joint makes "exactly one list" true by construction, at the same cost.
@@ -761,7 +761,7 @@ Comparison grid:
 
 Question D3:
 D3 - E2: Enforce the reserved inventory key?
-Project: brio-designer, main, eng review of docs/plan/2026-10-23-socket-adapter.md.
+Project: ChooChooCAD, main, eng review of docs/plan/2026-10-23-socket-adapter.md.
 ELI10: Your box will store the adapter count under a special name, `__adapter_male_male`, next to the part counts. The plan assumed no part could ever have that name. Codex found one could: the "Correcting an existing part?" field in Add a part accepts any text as the part's id. Someone typing that exact name would make a track part and the adapters share one count, and that part's shortfall would be hidden.
 Stakes if we pick wrong: an unlikely but silent mix-up of two counts in Your box.
 Recommendation: A) Apply, because it makes the plan's guarantee true at the two places a name can enter, for minutes of work.
@@ -832,7 +832,7 @@ shortfall line), so merge B first and rebase A.
 
 Unresolved decisions: none.
 
-Test plan artifact: ~/.gstack/projects/brio-designer/radudiaconescu-main-eng-review-test-plan-20261023-110710.md
+Test plan artifact: ~/.gstack/projects/ChooChooCAD/radudiaconescu-main-eng-review-test-plan-20261023-110710.md
 
 ### Eng completion summary
 
@@ -887,7 +887,7 @@ Decisions (each its own question, owner answers 2026-10-23):
 - DR10 (D9: 9A) Your box intro: "...Fill any number in, or start from a quick-fill." (no "below").
 - DR11 (D10: 10A) The adapter note starts with an aria-hidden ◇ in ink: the key to the canvas mark.
 - DR12 (D11: 11B) The diamond keeps its drawing size; on-screen sizing for all marks is a TODO
-  (D12: A, added to docs/plan/brio-TODOS.md).
+  (D12: A, added to docs/plan/generic-TODOS.md).
 
 Ratings after: Pass 1 8/10; Pass 2 8/10; Pass 3 8/10; Pass 4 9/10; Pass 5 9/10 (the red marks'
 shared stroke defect remains, TODO); Pass 6 9/10. Overall (lowest pass) 4/10 -> 8/10.

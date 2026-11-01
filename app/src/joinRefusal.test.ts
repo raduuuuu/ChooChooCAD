@@ -1,5 +1,5 @@
 /**
- * A JOIN THAT CAN NEVER BE BUILT IS NOT OFFERED (brio-TODOS.md P2, "Offer only
+ * A JOIN THAT CAN NEVER BE BUILT IS NOT OFFERED (generic-TODOS.md P2, "Offer only
  * polarity-compatible free ends in the editor").
  *
  * Value: protects=with an end selected, a peg cannot be joined to a peg, nor

@@ -8,7 +8,7 @@ Mode: Builder
 
 ## Problem Statement
 
-The owner measured real BRIO track (CALIBRATION.md, `engine/data/measurements.ts`,
+The owner measured real Generic track (CALIBRATION.md, `engine/data/measurements.ts`,
 2026-10-30). The decisive reading is Q1: the loop E E E E D E E E E A has an exact
 72mm gap, the app reports it EXCEEDS the give, and on the floor it **closes with every
 joint seated (strained) and a train runs round it**.
@@ -126,15 +126,15 @@ Approach B.
 
 - Per connected run: **closes within the modelled give iff lambda <= 1.001 AND the
   exact leftover after refinement is <= 0.5mm.** lambda is dimensionless (needed bend
-  as a fraction of each weld's own limit), so mixed BRIO and third-party runs compare
-  in one unit. For an all-BRIO run the needed bend in degrees is lambda x LIMIT,
+  as a fraction of each weld's own limit), so mixed Generic and third-party runs compare
+  in one unit. For an all-Generic run the needed bend in degrees is lambda x LIMIT,
   displayed to 0.1 degrees.
 - `totalGiveMm` is retired from the verdict; stretch lives inside the LP as the
   0-2mm per-joint variables. Its necessary-condition docblock is replaced by this rule.
 - Copy, two tiers, never a claim that track will not fit:
-  - within (all BRIO): "Closes: needs 2.4° of bend per joint at most; real joints were
+  - within (all Generic): "Closes: needs 2.4° of bend per joint at most; real joints were
     shown to bend {LIMIT}°."
-  - beyond (all BRIO): "Needs 4.1° of bend per joint, beyond what real joints were
+  - beyond (all Generic): "Needs 4.1° of bend per joint, beyond what real joints were
     shown to do ({LIMIT}°). It may still close on the floor." This replaces "exceeds
     the modelled give". The limit is a LOWER bound, so above it the app makes no
     failure claim.
@@ -142,9 +142,9 @@ Approach B.
     so the figure is lambda as a percentage of each joint's own limit, and the copy
     lists EVERY third-party part kind in the run with its limit and status, sorted by
     part id. No weld is singled out as binding (that is not unique). Examples:
-    within: "Closes: needs 80% of each joint's bend. BRIO joints were shown to bend
+    within: "Closes: needs 80% of each joint's bend. Generic joints were shown to bend
     {LIMIT}°; joints to IKEA C45 can bend an estimated 1.5°."
-    beyond: "Needs 130% of each joint's bend. BRIO joints were shown to bend
+    beyond: "Needs 130% of each joint's bend. Generic joints were shown to bend
     {LIMIT}°; joints to IKEA C45 can bend an estimated 1.5°. It may still close on
     the floor."
     An estimated third-party bound is never described as shown by real joints. The
@@ -157,7 +157,7 @@ Approach B.
 ### Report fields
 
 - The verdict is run-level only. The run result carries `lambda`, `neededBendDeg`
-  (all-BRIO runs) and `leftoverMm`; lambda is unique even when the optimal bends are
+  (all-Generic runs) and `leftoverMm`; lambda is unique even when the optimal bends are
   not, so it is order-independent.
 - Per loop, `CycleReport` gains `standaloneLambda`: that loop's own min-max solved
   alone, a deterministic diagnostic that ranks `worst`. It never decides the verdict.
@@ -193,7 +193,7 @@ never pooled".
 - `calibrationStatus` gains `'inferred'`. Precedence: a valid Q2 bend reading
   (`measured`) wins; else the Q1-inferred value (`inferred`); else the 1.5° estimate
   (`estimated`).
-- One global limit for BRIO-to-BRIO welds. A weld touching a third-party part keeps
+- One global limit for Generic-to-Generic welds. A weld touching a third-party part keeps
   that part's own `slop.angularDeg` (still estimated) as its `limit_w`; lambda is the
   common scale on all of them.
 - LIMIT is the refined result of the same pipeline the verdict runs (LP plus
@@ -223,7 +223,7 @@ The design's "If refinement leaves more than 0.5mm, the run reads beyond" is sup
 
 **4A. Stretch only:** when the bend rounds to 0.0°, the tight line reads "Tight. Closes by stretch: the joints pull apart up to 1.6mm." Exact stays for loops needing no give at all.
 
-**5A. Provenance by status** (notes block): measured "BRIO joints were measured to bend 2.8°."; inferred "A built loop needed BRIO joints to bend 2.8°."; estimated "BRIO joint bend is estimated at 1.5°; nobody has measured it." Other brands listed the same way. A joint whose part has no bend figure sends its run to the grey "Could not check the bend".
+**5A. Provenance by status** (notes block): measured "Generic joints were measured to bend 2.8°."; inferred "A built loop needed Generic joints to bend 2.8°."; estimated "Generic joint bend is estimated at 1.5°; nobody has measured it." Other brands listed the same way. A joint whose part has no bend figure sends its run to the grey "Could not check the bend".
 
 **6A. Mixed-brand runs:** "Tight. Closes with bend: no joint past 80% of its limit." / "Beyond the tested bend: some joint needs 130% of its limit." Percent is a whole number.
 
@@ -314,17 +314,17 @@ Stop: MAX_ITERATIONS
 
 **Problem**
 
-> Mixed runs use 'the same two tiers', whose text quotes a needed bend in degrees ('needs 2.4° of bend per joint at most'), but `neededBendDeg` is defined only for all-BRIO runs and lambda is dimensionless. For a mixed run each weld's needed bend is lambda x limit_w, so there is no single 'needed bend per joint' figure; what number the mixed-run copy shows is unspecified.
+> Mixed runs use 'the same two tiers', whose text quotes a needed bend in degrees ('needs 2.4° of bend per joint at most'), but `neededBendDeg` is defined only for all-Generic runs and lambda is dimensionless. For a mixed run each weld's needed bend is lambda x limit_w, so there is no single 'needed bend per joint' figure; what number the mixed-run copy shows is unspecified.
 
 **Remedy**
 
-> Specify the mixed-run figure: e.g. show per-kind needed bend (lambda x LIMIT for BRIO welds, lambda x limit_w for the named third-party weld) or show lambda as a percentage of each joint's limit, and give full example strings for mixed within and beyond.
+> Specify the mixed-run figure: e.g. show per-kind needed bend (lambda x LIMIT for Generic welds, lambda x limit_w for the named third-party weld) or show lambda as a percentage of each joint's limit, and give full example strings for mixed within and beyond.
 
 ### R3-3 — clarity (minor)
 
 **Problem**
 
-> Open Question 2 still asks about copy when the needed bend lies between 'the old 1.5 and the limit' without saying why the 1.5 estimate matters once LIMIT is inferred for BRIO welds, and it is phrased in degrees although the rule is now lambda.
+> Open Question 2 still asks about copy when the needed bend lies between 'the old 1.5 and the limit' without saying why the 1.5 estimate matters once LIMIT is inferred for Generic welds, and it is phrased in degrees although the rule is now lambda.
 
 **Remedy**
 
@@ -393,7 +393,7 @@ Stop: MAX_ITERATIONS
 ### Unresolved at the cap
 
 1. R3-1 — consistency (blocking): The mixed-run copy names 'the binding joint' with its own limit and status, but Report fields now state that 'which welds bind is not unique across optimal solutions, so naming them would depend on solver order' and drop the worst-joints list for that reason. The copy therefore requires exactly the non-deterministic quantity the design just ruled out, and a mixed run's message could change with traversal order, breaking the order-independence success criterion.
-2. R3-2 — clarity (blocking): Mixed runs use 'the same two tiers', whose text quotes a needed bend in degrees ('needs 2.4° of bend per joint at most'), but `neededBendDeg` is defined only for all-BRIO runs and lambda is dimensionless. For a mixed run each weld's needed bend is lambda x limit_w, so there is no single 'needed bend per joint' figure; what number the mixed-run copy shows is unspecified.
+2. R3-2 — clarity (blocking): Mixed runs use 'the same two tiers', whose text quotes a needed bend in degrees ('needs 2.4° of bend per joint at most'), but `neededBendDeg` is defined only for all-Generic runs and lambda is dimensionless. For a mixed run each weld's needed bend is lambda x limit_w, so there is no single 'needed bend per joint' figure; what number the mixed-run copy shows is unspecified.
 
 issues verified: 2 of 2
 

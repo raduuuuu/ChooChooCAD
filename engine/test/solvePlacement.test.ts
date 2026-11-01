@@ -1,5 +1,5 @@
 /**
- * THE VERDICT READS THE PLACEMENT IT IS HANDED (brio-TODOS.md P1, "`solveGraph`
+ * THE VERDICT READS THE PLACEMENT IT IS HANDED (generic-TODOS.md P1, "`solveGraph`
  * computes a second placement").
  *
  * Value: protects=`solveGraph` places nothing itself: where it finds a clash

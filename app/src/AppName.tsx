@@ -1,5 +1,5 @@
 /**
- * The app's name at the top of the parts rail (brio-TODOS.md, "The app's name
+ * The app's name at the top of the parts rail (generic-TODOS.md, "The app's name
  * is not on screen"). Screenshots and first visits showed a track tool without
  * saying which one.
  *

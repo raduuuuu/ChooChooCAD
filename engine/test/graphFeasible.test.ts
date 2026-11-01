@@ -360,7 +360,7 @@ describe('free ends meeting are an invitation, not a clash', () => {
  * parts only -- so no guard anywhere objects: 1,000 pieces 85ms, 5,000
  * seconds by ten thousand, on a 1MB stored layout that still reported "ok"
  * -- the figures themselves live in the DONE entry in
- * `docs/plan/brio-TODOS.md`, so this docblock cannot drift from them.
+ * `docs/plan/generic-TODOS.md`, so this docblock cannot drift from them.
  * A freeze is not a throw, so nothing caught it and every reload repeated it.
  * Value: seam=none
  * Value: no_claim=nothing about pieces crossing mid-span, which this never

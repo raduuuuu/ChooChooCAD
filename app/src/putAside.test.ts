@@ -137,11 +137,11 @@ describe("inside a shared link's read-only session (D35)", () => {
    */
   it('the import writes its two keys, and afterwards the session holds again', () => {
     data.set(GRAPH_STORAGE_KEY, MINE);
-    storage.startReadOnlySession(['brio.build.link.v0']);
+    storage.startReadOnlySession(['generic.build.link.v0']);
     expect(m.openInEditor(LINK)).toEqual({ kind: 'opened' });
     expect(slots()).toEqual({ saved: LINK, aside: MINE });
     expect(storage.write(GRAPH_STORAGE_KEY, 'later')).toBe('skipped');
-    expect(storage.write('brio.view.v0', '3d')).toBe('skipped');
+    expect(storage.write('generic.view.v0', '3d')).toBe('skipped');
   });
 
   it('a failed import also leaves the session holding', () => {
@@ -150,7 +150,7 @@ describe("inside a shared link's read-only session (D35)", () => {
     full.add(GRAPH_PREVIOUS_KEY);
     expect(m.openInEditor(LINK)).toEqual({ kind: 'failed' });
     full.clear();
-    expect(storage.write('brio.view.v0', '3d')).toBe('skipped');
+    expect(storage.write('generic.view.v0', '3d')).toBe('skipped');
     expect(slots()).toEqual({ saved: MINE, aside: null });
   });
 });

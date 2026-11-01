@@ -30,7 +30,7 @@
  * field again. Until then it says what it knows.
  */
 
-import { getPart } from '../../data/brio.js';
+import { getPart } from '../../data/generic.js';
 import { computeResidual, type Joint } from './residual.js';
 import { BEND_BUDGET, pieceMove, solveRun, type RunBend } from '../graph/bendRun.js';
 import type { BendStep } from '../graph/bend.js';
@@ -137,7 +137,7 @@ export function solveLayout(
     sign: 1,
   }));
   const sideOf = (part: Part): { limitRad: number; stretchMm: number } => {
-    const deg = part.brand === 'BRIO' ? bendLimit().deg : part.slop.angularDeg;
+    const deg = part.brand === 'GENERIC' ? bendLimit().deg : part.slop.angularDeg;
     return {
       limitRad: typeof deg === 'number' && Number.isFinite(deg) && deg > 0 ? (deg * Math.PI) / 180 : Number.NaN,
       stretchMm: part.slop.axialMm,
@@ -151,7 +151,7 @@ export function solveLayout(
   const turnedSteps = Math.min(res.headingMismatchSteps, 16 - res.headingMismatchSteps);
   const pieceIds = layout.placements.map((_, i) => String(i));
   const bend: RunBend = res.closesExactly
-    ? { pieces: pieceIds, status: 'exact', lambda: 0, stretchMm: 0, leftoverMm: 0, turnedSteps: 0, why: null, work: 0, movesMm: 0, others: [], brio: true, atLeast: false }
+    ? { pieces: pieceIds, status: 'exact', lambda: 0, stretchMm: 0, leftoverMm: 0, turnedSteps: 0, why: null, work: 0, movesMm: 0, others: [], generic: true, atLeast: false }
     : solveRun(pieceIds, { joints, loops: [steps] }, turnedSteps, BEND_BUDGET);
 
   if (bend.status === 'unchecked') {

@@ -3,7 +3,7 @@
  * answer "A) Show part notes while open").
  *
  * Value: protects=a layout that is not a loop yet shows the part notes a
- * closed one would: brands that do not join BRIO, sizes nobody measured
+ * closed one would: brands that do not join Generic, sizes nobody measured
  * Value: fails_when=the failure branch passes an empty register again, as it
  * did since X2a, so the IKEA shelf's "the verdict says what that means" was
  * false until the loop closed
@@ -15,7 +15,7 @@
  * is the joint's geometry and stays as it is
  */
 
-// Regression: ISSUE-002 — a Lillabo piece on a BRIO switch got no note while the layout was open
+// Regression: ISSUE-002 — a Lillabo piece on a Generic switch got no note while the layout was open
 // Found by /qa on 2026-11-01
 // Report: .gstack/qa-reports/run-20261101T084601Z/qa-report-woodentrain.world-2026-11-01.md
 
@@ -62,7 +62,7 @@ describe('a layout that is not a loop yet', () => {
    * `expected '<div class="verdict verdict-unknown" …' to match /do not
    * physically join/`.
    */
-  it('a BRIO straight with a Lillabo straight: says they do not join, and the size is unmeasured', () => {
+  it('a Generic straight with a Lillabo straight: says they do not join, and the size is unmeasured', () => {
     const html = verdictHtml(pair('A', 'IKEA-150'));
     expect(html).toMatch(/Not a loop yet/);
     expect(html).toMatch(/do not physically join/);

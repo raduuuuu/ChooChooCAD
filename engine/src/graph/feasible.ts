@@ -384,7 +384,7 @@ export function findVertexClashes(
    * quota, which `loadGraph` accepts with nothing discarded: the whole engine
    * is 576ms and `TrackCanvas` alone is 3,153ms for 1.2M SVG elements, and
    * that is `renderToStaticMarkup`, which is a FLOOR for what the browser
-   * then does. Filed as its own P0 in `docs/plan/brio-TODOS.md`; it is not
+   * then does. Filed as its own P0 in `docs/plan/generic-TODOS.md`; it is not
    * this function's problem any more, which is exactly why it needs saying
    * here, next to the figure someone would otherwise quote.
    */

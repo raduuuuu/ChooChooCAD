@@ -28,12 +28,12 @@
 
 export interface ReproInput {
   /** Raw `localStorage` values, exactly as read. `null` when the key is absent. */
-  /** The live layout (`brio.graph.v1`). The one blob that reproduces a geometry crash. */
+  /** The live layout (`generic.graph.v1`). The one blob that reproduces a geometry crash. */
   readonly graph: string | null;
   /** The retired pre-graph chain. Kept so an old blob is still sent, never the only one. */
   readonly chain: string | null;
   /**
-   * The refused bytes `loadGraph` copied aside (`brio.graph.v1.rejected`).
+   * The refused bytes `loadGraph` copied aside (`generic.graph.v1.rejected`).
    *
    * It carries the ONE blob that is already known to have broken something,
    * and `ErrorBoundary`'s clear button deletes it. Before this field, the

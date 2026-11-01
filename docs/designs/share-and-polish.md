@@ -163,19 +163,19 @@ Approach B, in this order:
        the editor.
      - Tests cover a reload after Open in editor and a `hashchange`.
    - Storage, in a link session:
-     - It may write one key only: `brio.build.link.v0`, the build progress of
+     - It may write one key only: `generic.build.link.v0`, the build progress of
        the link being built. This is a single slot, keyed by `layoutKey`, so
        the next link replaces it. Nothing piles up.
      - It never writes the saved layout, the rescue slot, the recipient's own
-       build progress (`brio.build.v0`), the view mode, the inventory or the
+       build progress (`generic.build.v0`), the view mode, the inventory or the
        table.
      - The success-criteria test snapshots every key, opens a link, runs
        Build it for a few steps and exits. Then it compares every key except
-       `brio.build.link.v0`.
+       `generic.build.link.v0`.
    - Open in editor:
      - If the recipient's saved layout is empty, the link replaces it.
      - Otherwise the saved layout is first written to a put-aside slot,
-       `brio.graph.v1.previous`. It is separate from the rescue slot.
+       `generic.graph.v1.previous`. It is separate from the rescue slot.
      - The slot is read back and compared byte for byte before the link's
        layout replaces the saved one. If the write or the check fails (for
        example, full storage), nothing changes, and one sentence says the

@@ -16,7 +16,7 @@ import { StrictMode } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { getPart } from '../../engine/data/brio.js';
+import { getPart } from '../../engine/data/generic.js';
 import { App } from './App.js';
 
 const card = (id: string) =>

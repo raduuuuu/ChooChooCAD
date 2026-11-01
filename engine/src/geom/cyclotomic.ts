@@ -2,7 +2,7 @@
  * Exact arithmetic in Z[zeta16], the ring of 16th cyclotomic integers.
  *
  * zeta = e^(i*pi/8) is a primitive 16th root of unity, so rotation by 22.5
- * degrees is multiplication by zeta, and every BRIO heading is some zeta^h.
+ * degrees is multiplication by zeta, and every Generic heading is some zeta^h.
  * The minimal polynomial is x^8 + 1, hence zeta^8 = -1 and every element is
  *
  *     a0 + a1*zeta + a2*zeta^2 + ... + a7*zeta^7      with integer a_i.

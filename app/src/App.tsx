@@ -123,16 +123,16 @@ import './app.css';
  * DISCARDED WHOLE and the user is told, because repairing it would change the
  * layout's geometry without saying so.
  *
- * It also recognises an old `brio.chain.v0` blob and says the layout could
+ * It also recognises an old `generic.chain.v0` blob and says the layout could
  * not be carried over, rather than starting empty with no explanation. A
  * chain has no way to record which ends were joined, so there is nothing
  * faithful to migrate.
  */
 
-/** BRIO first, because it is the only brand whose dimensions are published. */
-const BRAND_ORDER: readonly Brand[] = ['BRIO', 'IKEA', 'PLAYTIVE', 'HAPE', 'THOMAS', 'MELISSA_DOUG'];
+/** Generic first, because it is the only brand whose dimensions are published. */
+const BRAND_ORDER: readonly Brand[] = ['GENERIC', 'IKEA', 'PLAYTIVE', 'HAPE', 'THOMAS', 'MELISSA_DOUG'];
 const BRAND_LABEL: Record<Brand, string> = {
-  BRIO: 'BRIO',
+  GENERIC: 'Generic',
   IKEA: 'IKEA Lillabo',
   PLAYTIVE: 'Lidl Playtive',
   HAPE: 'Hape',
@@ -142,7 +142,7 @@ const BRAND_LABEL: Record<Brand, string> = {
 /**
  * A brand's parts in library order, except that a ramp sits right after the
  * long straight it shares a length with (design 12A): the ascending track is
- * a seed outside `BRIO_PARTS`, so library order would put it after the curves.
+ * a seed outside `GENERIC_PARTS`, so library order would put it after the curves.
  */
 /** A part's size on its palette card: a length, a radius, or a multi-road piece's own label (eng review D8). */
 function paletteSize(part: Part): string {
@@ -164,7 +164,7 @@ const partsByBrand = (lib: readonly Part[], b: Brand) => {
 /**
  * A brand's shelf in the palette.
  *
- * BRIO is a plain open group. Every other brand is a `<details>` that starts
+ * Generic is a plain open group. Every other brand is a `<details>` that starts
  * CLOSED, so its pieces cost one line until you want them.
  *
  * The first attempt capped the palette and let it scroll, which gave the
@@ -174,13 +174,13 @@ const partsByBrand = (lib: readonly Part[], b: Brand) => {
  * better than clipping, because a closed row still says the brand is there
  * and still carries its warning.
  *
- * It also matches the actual hierarchy. BRIO is the only brand whose
+ * It also matches the actual hierarchy. Generic is the only brand whose
  * dimensions are published, so it is the default; the others are opt-in, and
  * their summary line states that their sizes are unverified before you can
  * reach a single one of their pieces.
  */
 function BrandGroup({ brand, children }: { brand: Brand; children: ReactNode }) {
-  if (brand === 'BRIO') return <div className="brand-group">{children}</div>;
+  if (brand === 'GENERIC') return <div className="brand-group">{children}</div>;
   return (
     <details className="brand-group is-collapsible">{children}</details>
   );
@@ -1409,11 +1409,11 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
   const adaptersUsed = result ? result.adapterJoints.length : 0;
   const adapterShort = adapterShortfall(inventory, adaptersUsed);
 
-  /* One brand's shelf. Used twice: BRIO inside the scrolling region, the
+  /* One brand's shelf. Used twice: Generic inside the scrolling region, the
      rest pinned below it. See the comment at the call site. */
   const renderBrand = (brand: Brand) => (
     <BrandGroup key={brand} brand={brand}>
-          {brand !== 'BRIO' && (
+          {brand !== 'GENERIC' && (
             /*
               * ONE LINE, not a paragraph, and it doubles as the group's
               * disclosure control.
@@ -1425,7 +1425,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
               *
               * Nothing is hidden that matters. The summary keeps both facts
               * that change what you click, the sizes are unverified and
-              * whether the brand joins BRIO, and it says them BEFORE you can
+              * whether the brand joins Generic, and it says them BEFORE you can
               * reach one of the pieces. Provenance and the pieces themselves
               * are one click away. The full consequence still arrives
               * unprompted at the moment it matters: place one and the
@@ -1452,9 +1452,9 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
               * that makes you look.
               */}
             <p className="brand-detail">
-              {brandFit('BRIO', brand).fit === 'does-not-join'
-                ? 'These do not physically join BRIO track.'
-                : 'Whether these join BRIO track is undocumented.'}{' '}
+              {brandFit('GENERIC', brand).fit === 'does-not-join'
+                ? 'These do not physically join Generic track.'
+                : 'Whether these join Generic track is undocumented.'}{' '}
               Nobody publishes dimensions for them; the figures come from 3D-print
               reproductions. Place one and the verdict says what that means for your
               layout.
@@ -1877,11 +1877,11 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         {/*
           * GROUPED BY BRAND, because the brands are not interchangeable.
           *
-          * This is not organisation for its own sake. BRIO and IKEA connectors
+          * This is not organisation for its own sake. Generic and IKEA connectors
           * are documented as not fitting each other, and no manufacturer
           * publishes piece dimensions for IKEA or Playtive at all, so those
           * parts carry unverified sizes. Mixing them in one undifferentiated row
-          * would say they are equivalent, and they are not. Each non-BRIO group
+          * would say they are equivalent, and they are not. Each non-Generic group
           * states its provenance once, above its pieces.
           */}
         {/*
@@ -1892,15 +1892,15 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
           * of sight are worse than a tall palette, so only this region can.
           */}
         {/*
-          * BRIO SCROLLS; THE OTHER SHELVES DO NOT.
+          * Generic SCROLLS; THE OTHER SHELVES DO NOT.
           *
           * Two attempts got this wrong. Capping the palette hid IKEA and
           * Playtive below an invisible fold. Collapsing them to one line each
           * helped but they were still inside the scrolling region, so with the
-          * full BRIO list above them they were still off-screen, and styling
+          * full Generic list above them they were still off-screen, and styling
           * the scrollbar was decorating the problem rather than fixing it.
           *
-          * The scrolling region now holds ONE homogeneous list, the BRIO
+          * The scrolling region now holds ONE homogeneous list, the Generic
           * catalogue, which is the only one long enough to need scrolling and
           * the one a user expects to scroll. The other brands are navigation,
           * one line each, pinned where they are always visible.
@@ -1911,10 +1911,10 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
               Placing is paused: too much track to draw. Remove pieces in the layout list to continue.
             </p>
           )}
-          {renderBrand('BRIO')}
+          {renderBrand('GENERIC')}
         </div>
         <div className="palette-shelves">
-          {BRAND_ORDER.filter((b) => b !== 'BRIO' && partsByBrand(library, b).length > 0)
+          {BRAND_ORDER.filter((b) => b !== 'GENERIC' && partsByBrand(library, b).length > 0)
             .map(renderBrand)}
         </div>
 

@@ -1,6 +1,6 @@
 /**
  * A REFUSED JOINT IS MARKED WHERE IT IS, AND SAID WITH EVERYTHING ELSE RED
- * (brio-TODOS.md P2, "The polarity marker, and three things it does not yet
+ * (generic-TODOS.md P2, "The polarity marker, and three things it does not yet
  * do").
  *
  * Value: protects=both ends of a refused weld are marked when they are apart,

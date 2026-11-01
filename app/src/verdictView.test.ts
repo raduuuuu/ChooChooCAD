@@ -50,7 +50,7 @@ import type { RunBend } from '../../engine/src/graph/bendRun.js';
 import type { VertexClash, WeldPolarityViolation } from '../../engine/src/graph/feasible.js';
 import type { GraphResult } from '../../engine/src/graph/solve.js';
 import { viewOf, type VerdictKind } from './verdictView.js';
-import { getPart } from '../../engine/data/brio.js';
+import { getPart } from '../../engine/data/generic.js';
 import type { StraightPart } from '../../engine/src/parts/schema.js';
 
 const ZERO_CYC = [0, 0, 0, 0, 0, 0, 0, 0] as const;
@@ -305,7 +305,7 @@ describe('the figures name ONE loop, never a total', () => {
     work: 0,
     movesMm: 1,
     others: [],
-    brio: true,
+    generic: true,
     atLeast: false,
   });
 

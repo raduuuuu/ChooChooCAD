@@ -1,19 +1,19 @@
-# Every piece on MakerWorld (2026-10-29)
+# Every piece on printed reproductions (2026-10-29)
 
-Owner asked to "scrape makerworld and add every single piece you can find to
+Owner asked to "scrape printed and add every single piece you can find to
 the library, including special pieces, switches, etc." Scope chosen: **phased,
-all BRIO types**. PR 1 adds every piece that fits today's part kinds, and after
+all Generic types**. PR 1 adds every piece that fits today's part kinds, and after
 that there is one PR per new kind. Every figure here is `unverified`: it was
 read off a 3D-print reproduction's mesh, not a real piece.
 
 ## How the data was gathered
 
-- **Search.** 34 keyword searches of the MakerWorld search API returned 2,435
+- **Search.** 34 keyword searches of the printed reproductions search API returned 2,435
   models. 844 of them are wooden-railway track: the title or tags name
-  BRIO/Lillabo/wooden, and the title names a track piece. They break down as
+  Generic/Lillabo/wooden, and the title names a track piece. They break down as
   177 ramps/bridges/spirals, 105 adapters, 75 crossings, 68 switches, 51
   curves, 47 straights, 41 flex pieces and 17 buffer stops; the rest are mixed.
-- **Download.** 77 models were chosen to cover every BRIO type, plus the IKEA,
+- **Download.** 77 models were chosen to cover every Generic type, plus the IKEA,
   Lidl and Hape reproductions. 135 3MF instances were downloaded; 5 were
   restricted. A logged-in session is needed, and a captcha appears after
   about 46 downloads in quick succession.
@@ -25,35 +25,35 @@ read off a 3D-print reproduction's mesh, not a real piece.
 
 ## Scope: what counts as a piece
 
-- **In:** reproductions of a brand's real pieces (Cactus 973, AU3D, Isaxon for
-  BRIO; Vamuss for Lillabo).
+- **In:** reproductions of a brand's real pieces (several printed sets for
+  Generic; one for Lillabo).
 - **Out, each with its own sizing rather than a copy of a brand's part:**
-  - designers' own track systems: TerTerro (145/100/50 straights, curves at a
-    206 centreline), JJ 3D printing (50/100/150/200, curves at about 127 and
-    200), KYZ, CavemanDesigns, and oymate's customizer;
+  - designers' own track systems (for example 145/100/50 straights with
+    curves at a 206 centreline, or 50/100/150/200 with curves at about 127
+    and 200), and track customizers;
   - flex and wobbly track;
   - spirals;
-  - the M.verbeke 90° bridge ramps.
+  - 90° bridge ramps.
 - **Out because the lattice cannot hold them:** angles off the 22.5° grid,
-  namely the AU3D and ph_neutral 60° three-way splits and the Lidl curves in
+  namely 60° three-way splits and the Lidl curves in
   10° steps.
 
-TerTerro's straights happen to match the Lillabo lengths below. That is noted,
-but not counted as corroboration, because nothing says TerTerro copied
+One designer's own straights happen to match the Lillabo lengths below. That
+is noted, but not counted as corroboration, because nothing says they copied
 Lillabo.
 
 ## PR 1: fits today's kinds (this PR)
 
 | Piece | Source | Measured | Modelled |
 |---|---|---|---|
-| IKEA-50/100/145/205/240 straights | Vamuss 2181560 | 50.0, 100.0, 145.0, 205.0, 240.0 | as measured |
-| IKEA-C22 / C45 / C90 curves | Vamuss 2181560 | centreline 202.1–202.6 | 202 (inner 182), arcSteps 1/2/4 |
+| IKEA-50/100/145/205/240 straights | a printed reproduction | 50.0, 100.0, 145.0, 205.0, 240.0 | as measured |
+| IKEA-C22 / C45 / C90 curves | a printed reproduction | centreline 202.1–202.6 | 202 (inner 182), arcSteps 1/2/4 |
 
 IKEA-150 stays because layouts and tests use its id. Its note now says it was
 a customizer default and that the reproduction has a 145 and no 150.
 
-BRIO has nothing new that fits today's kinds. The T switch fits the shape of
-`SwitchPart`, but AU3D's reproduction has a socket on the arc end and a peg on
+Generic has nothing new that fits today's kinds. The T switch fits the shape of
+`SwitchPart`, but the reproduction has a socket on the arc end and a peg on
 the straight end, and `PartEnds` gives both roads one polarity. It therefore
 waits for the multi-road kind.
 
@@ -69,27 +69,27 @@ next engine PR adds **one** general kind:
 After that, each family below is a data-only PR. Buffer stops need a second,
 smaller change: a part with one port.
 
-| BRIO | Shape, as measured | Polarity (heel first) | Source |
+| Generic | Shape, as measured | Polarity (heel first) | Source |
 |---|---|---|---|
-| H | 108 × 108 cross at 90°, crossing at both midpoints | each road peg/socket | Cactus 973 `cross_h` |
-| H1 | 116 × 116 cross at 90°, midpoints | one road socket/socket, the other peg/peg | Cactus 973 `cross_h1` |
-| H2 | 144 straight crossed by a 144 diagonal at 45°, midpoints | each road peg/socket | Cactus 973 `criss_cross_h2` |
-| I, J | 144 straight plus an E arc (202) each side from one heel | I socket heel / pegs; J the reverse | Cactus 973 `switch_double_curved_i/j` |
-| O, P | Y: two E1 arcs (110), ±45° from one heel | O socket heel / pegs; P the reverse | Cactus 973 `switch_short_curved_o/p` |
-| T | 216 straight plus a 90° arc at a 108 centreline (inner 88) | AU3D: socket heel, peg on the straight, socket on the arc | AU3D 904802, RyeBread 526629, kolar.majkl 688457 agree |
-| X (star) | 216 straight plus 90° arcs at 108 each side | peg heel, socket on the straight and one arc, peg on the other arc (Fantastic Plastic Person; corrected 2026-10-30 from the reading) | 795599 |
-| EE | two concentric 45° curves 46 apart, centrelines 202 and 248 | sockets in, pegs out | AU3D 887239 |
-| F1, G1 | 144 straight plus a branch ending parallel, 46 over | F1 socket heel / pegs; G1 the reverse | AU3D 892305 |
-| F, G | symmetric fork to two tracks 47 apart over 150 | F socket heel / pegs; G two sockets in, peg out | Isaxon 3121622 |
-| R, S | buffer stop: one end | — | TerTerro 55130, CUBEUNi 1732324, Petr Bartusek 778196 |
+| H | 108 × 108 cross at 90°, crossing at both midpoints | each road peg/socket | a printed reproduction |
+| H1 | 116 × 116 cross at 90°, midpoints | one road socket/socket, the other peg/peg | a printed reproduction |
+| H2 | 144 straight crossed by a 144 diagonal at 45°, midpoints | each road peg/socket | a printed reproduction |
+| I, J | 144 straight plus an E arc (202) each side from one heel | I socket heel / pegs; J the reverse | a printed reproduction |
+| O, P | Y: two E1 arcs (110), ±45° from one heel | O socket heel / pegs; P the reverse | a printed reproduction |
+| T | 216 straight plus a 90° arc at a 108 centreline (inner 88) | the reproduction: socket heel, peg on the straight, socket on the arc | three printed reproductions agree |
+| X (star) | 216 straight plus 90° arcs at 108 each side | peg heel, socket on the straight and one arc, peg on the other arc (a reproduction; corrected 2026-10-30 from the reading) | a printed reproduction |
+| EE | two concentric 45° curves 46 apart, centrelines 202 and 248 | sockets in, pegs out | a printed reproduction |
+| F1, G1 | 144 straight plus a branch ending parallel, 46 over | F1 socket heel / pegs; G1 the reverse | a printed reproduction |
+| F, G | symmetric fork to two tracks 47 apart over 150 | F socket heel / pegs; G two sockets in, peg out | a printed reproduction |
+| R, S | buffer stop: one end | — | three printed reproductions |
 
-Lillabo has its own multi-road pieces in the same Vamuss set: a crossing of two
+Lillabo has its own multi-road pieces in the same reproduction set: a crossing of two
 145 straights, a Y of two 45° curves, and a 45° curve plus straight.
 
 ### Facts these change
 
-- **T and X are NOT approximate.** `BRIO_PIECE_TABLE` marks them
-  `approximate-radius` on woodenrailway.info's footnote ("within 2mm of E1").
+- **T and X are NOT approximate.** `GENERIC_PIECE_TABLE` marks them
+  `approximate-radius` on the published guide's footnote ("within 2mm of E1").
   Three independent reproductions put the arc at a 108 centreline, which is
   an integer and therefore exact. That correction belongs in the T/X PR.
 - **F and G need a half millimetre.** The fork's two ends sit ±23.5 off the
@@ -100,10 +100,10 @@ Lillabo has its own multi-road pieces in the same Vamuss set: a crossing of two
   ends are exact; the road between them is drawing only. The overlap check
   needs a footprint for it, which the general kind must provide.
 
-### Not found on MakerWorld
+### Not found on printed reproductions
 
 F2/G2 (triple parallel), H3 (curved crossing), K, K1, L1/M1, Q (five-point),
-U/V (car ramps), and EE1 (in AU3D's set but not in the instances downloaded).
+U/V (car ramps), and EE1 (in the reproduction's set but not in the instances downloaded).
 These stay as table rows until someone finds a reproduction or measures one.
 
 ## Eng review of the multi-road type (2026-10-30)
@@ -116,7 +116,7 @@ multi-road part type). Reviewer: /plan-eng-review, Claude, at main 86e3eaa.
 feature answers: D2 = defer F1/G1 and F/G (only straight and arc roads in the
 new type; both families get a TODO naming the S-bend and the 23.5mm offset);
 D3 = PR A ships the multi-road type plus the H crossing, PR B ships H1, H2, I,
-J, O, P, T, X, EE and the three Lillabo pieces plus the T/X `BRIO_PIECE_TABLE`
+J, O, P, T, X, EE and the three Lillabo pieces plus the T/X `GENERIC_PIECE_TABLE`
 correction; structure: D4 = B, smaller arrangement (the new type replaces
 `SwitchPart`; L, M, O1 and P1 become its data with ports heel 0, straight 1,
 curved 2; three part kinds: straight, curve, multi-road); accepted scope: PR A
@@ -411,7 +411,7 @@ under D4/D9 and the plan's per-port polarity; nothing else pending.
   model.ts:5-9 and :181-187 (two-ended catalogue), render.ts:13-16 ("A switch
   draws two"), pose.ts:36-46 (refusal names switches), trust.ts:65-76. Update
   in the same commits.
-- [INFORMATIONAL] (confidence: 8/10) engine/data/sources.ts `BRIO_PIECE_TABLE`
+- [INFORMATIONAL] (confidence: 8/10) engine/data/sources.ts `GENERIC_PIECE_TABLE`
   rows for L/M and O1/P1 still say `needs-graph` (TODO P2 item 3); PR A
   touches those parts, so it corrects them; T/X stay for PR B (D3).
 - Shared code: no extraction beyond D6/D8's `portsOf(part).length` and
@@ -495,7 +495,7 @@ Required tests (PR A), each with its value card:
 1. engine/test/multiRoad.test.ts, D9 walk: every built-in multi-road part,
    each road walked from its start port lands EXACTLY on its end port, port 0
    is the entry pose, at least 3 ports.
-   Value: protects=each road agrees exactly with its listed end; fails_when=a port pose or road length/radius/steps is mistyped; why_new=no multi-road data exists; seam=none; no_claim=that the reproduction matches real BRIO track
+   Value: protects=each road agrees exactly with its listed end; fails_when=a port pose or road length/radius/steps is mistyped; why_new=no multi-road data exists; seam=none; no_claim=that the reproduction matches real Generic track
 2. engine/test/multiRoad.test.ts, mirror: H and L under turn 'right' equal
    the conj of turn 'left' port by port, and conj(zeta^k) = zeta^-k for k in
    0..15 with toXY giving (x, -y).
@@ -661,7 +661,7 @@ Comparison grid (whole-candidate scope):
 | Choice | Current disposition | A Include | B Defer | C Cut | D Hold |
 |---|---|---|---|---|---|
 | R9 Lillabo crossing, Y, curve-plus-straight | in PR B (D3) | stays in PR B, needs fractional or rounded ports | moved to the off-grid TODO from D2, to be re-measured and decided there | dropped from the plan | stop and discuss |
-| PR B BRIO pieces (H1, H2, I, J, O, P, T, X, EE) | in PR B | unchanged | unchanged | unchanged | unchanged |
+| PR B Generic pieces (H1, H2, I, J, O, P, T, X, EE) | in PR B | unchanged | unchanged | unchanged | unchanged |
 | R1-R8 | approved | unchanged | unchanged | unchanged | unchanged |
 Question D13:
 D13 — Take the three Lillabo multi-road pieces out of PR B and add them to the off-grid TODO?
@@ -682,7 +682,7 @@ Options:
 A) Include
 Keep them in PR B; the crossing needs rounding 72.5 or fractional ports, and the Ys are written from files whose shape is unclear. (human: ~1 day / CC: ~1h)
 B) Defer (recommended)
-PR B carries the nine BRIO pieces only. The Lillabo three join D2's off-grid TODO, with the 72.5 offset and the odd Y readings written down. (human: ~10min / CC: ~3min)
+PR B carries the nine Generic pieces only. The Lillabo three join D2's off-grid TODO, with the 72.5 offset and the odd Y readings written down. (human: ~10min / CC: ~3min)
 C) Cut
 Drop them from the plan entirely; nothing records the measurements. (human: 0 / CC: 0)
 D) Hold
@@ -690,7 +690,7 @@ Stop here and discuss before deciding. (human: — / CC: —)
 
 State: approved
 Actual answer: B, "Defer" (D13, 2026-10-30)
-Accepted scope: PR B carries the nine BRIO pieces only (H1, H2, I, J, O, P, T, X, EE) plus the T/X table correction; the Lillabo crossing, Y and curve-plus-straight join D2's off-grid TODO with the 72.5 offset and the Y readings recorded.
+Accepted scope: PR B carries the nine Generic pieces only (H1, H2, I, J, O, P, T, X, EE) plus the T/X table correction; the Lillabo crossing, Y and curve-plus-straight join D2's off-grid TODO with the 72.5 offset and the Y readings recorded.
 History: D3 had put the three Lillabo pieces in PR B.
 
 ### R10: Which end building continues from after a multi-road piece (OV4)
@@ -842,11 +842,11 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
   - Surfaced by: OV4 (D14)
   - Files: app/src/layoutModel.ts, app/src/layoutModel.test.ts
   - Verify: H joined by port 2 selects 3; L unchanged
-- [ ] **T10 (P1, human: ~2h / CC: ~15min)** — engine/data — The H crossing (Cactus 973 `cross_h`) and its validator pins
+- [ ] **T10 (P1, human: ~2h / CC: ~15min)** — engine/data — The H crossing (from a printed reproduction) and its validator pins
   - Surfaced by: D3
   - Files: engine/data/switchSeeds.ts (or a renamed multi-road seed file), engine/data/library.ts, engine/test/multiRoad.test.ts, engine/test/graphModel.test.ts
   - Verify: D9 walk test; loop through H closes EXACT
-- [ ] **T11 (P2, human: ~1h / CC: ~10min)** — docs and sources — Update stale docblocks; BRIO_PIECE_TABLE rows for L/M/O1/P1
+- [ ] **T11 (P2, human: ~1h / CC: ~10min)** — docs and sources — Update stale docblocks; GENERIC_PIECE_TABLE rows for L/M/O1/P1
   - Surfaced by: Section 2
   - Files: schema.ts, model.ts, render.ts, pose.ts, trust.ts, engine/data/sources.ts
   - Verify: sources.test.ts green
@@ -874,13 +874,13 @@ None.
 - Parallelization: 2 lanes, 1 parallel / 1 sequential
 - Lake Score: 9/10 (D5-D12 and D14 picked their 10/10 option; D2 picked 8/10; D1, D3, D4 and D13 were unscored)
 
-REALITY: premise-table finding 6 premises, 2 FALSE (lattice, Lillabo), unverified=0 docs/plan/2026-10-29-makerworld-pieces.md:62
+REALITY: premise-table finding 6 premises, 2 FALSE (lattice, Lillabo), unverified=0 docs/plan/2026-10-29-printed-pieces.md:62
 REALITY: already-done pass git log origin/main since 2026-10-29 over the seven named files and --grep multi-road/crossing: no hits 86e3eaa
 REALITY: surface-check pass the one command named, `bun run test`, exists as "test": "vitest run --config vitest.config.ts" package.json:6
 REALITY: binding-decisions pass socket-to-socket stays an adapter joint and Frame.level stays optional; nothing here reintroduces an overruled default engine/src/parts/schema.ts:200-202
-REALITY: numbers finding D2's "12 of 16" re-derived as 13 of 17 from the measured table; effort figures are [estimated] docs/plan/2026-10-29-makerworld-pieces.md:72-84
-REALITY: deferred-asks pass owner asked for every piece; F/G, F1/G1, Lillabo multi-road and buffer stops are each deferred with a reason docs/plan/brio-TODOS.md:31
-REALITY: pr-count finding plan implied about 9 PRs; D3 makes it 2 plus the later buffer-stop PR; no .gstack/ship-policy.json docs/plan/2026-10-29-makerworld-pieces.md:69
+REALITY: numbers finding D2's "12 of 16" re-derived as 13 of 17 from the measured table; effort figures are [estimated] docs/plan/2026-10-29-printed-pieces.md:72-84
+REALITY: deferred-asks pass owner asked for every piece; F/G, F1/G1, Lillabo multi-road and buffer stops are each deferred with a reason docs/plan/generic-TODOS.md:31
+REALITY: pr-count finding plan implied about 9 PRs; D3 makes it 2 plus the later buffer-stop PR; no .gstack/ship-policy.json docs/plan/2026-10-29-printed-pieces.md:69
 
 ### Suppressed findings (appendix)
 - (confidence 4/10) Two multi-road pieces sharing two places across DIFFERENT

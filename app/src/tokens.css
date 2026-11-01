@@ -41,7 +41,7 @@
  * prevent. `optional` either has the font by first paint or does not use it at
  * all this load, so the columns never move.
  *
- * Latin only: the entire corpus is millimetre figures, BRIO part codes and
+ * Latin only: the entire corpus is millimetre figures, Generic part codes and
  * English UI copy. Shipping glyphs the product cannot render is dead weight.
  *
  * Provenance: @fontsource/ibm-plex-sans and @fontsource/ibm-plex-mono, both

@@ -312,7 +312,7 @@ export function sharingGraph(
  * to change before a large layout stopped freezing the tab: the all-pairs
  * overlap scan in `feasible.ts`, which ran BEFORE every bound here and cost
  * seconds at ten thousand pieces, and `App.tsx`'s scanning `slop` callback
- * (both measured in the overlap-scan DONE entry of `docs/plan/brio-TODOS.md`,
+ * (both measured in the overlap-scan DONE entry of `docs/plan/generic-TODOS.md`,
  * which is the one place those figures live). Any
  * claim in this file that the enumeration fix closed the freeze means the
  * enumeration's share of it.

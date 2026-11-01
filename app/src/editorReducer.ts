@@ -164,7 +164,7 @@ export interface EditorState {
    * set by `dispatch` on every action: arming an end, clicking an armed end
    * again, `clear` on an empty board. Each of those changes nothing and was
    * still read as consent to write over a layout that loaded with losses
-   * (brio-TODOS.md, "A no-op edit counts as consent to overwrite"; decision
+   * (generic-TODOS.md, "A no-op edit counts as consent to overwrite"; decision
    * D17 of the 2026-10-22 editing plan). Computed inside the updater, from
    * the exact state the action ran on, so a batch of clicks cannot read a
    * stale value.

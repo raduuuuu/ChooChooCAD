@@ -15,22 +15,22 @@ may pass over floor track. Ramps join the two.
 - The owner chose two layers at D9 of the 2026-10-07 CEO review, down from an
   instructed cap of three. The third layer is a filed P2 TODO with the upgrade
   trigger "the first layout that needs a bridge over a bridge"
-  (`docs/plan/brio-TODOS.md:652`).
+  (`docs/plan/generic-TODOS.md:652`).
 - The whole layer feature was deferred on 2026-10-08 with the calibration
   afternoon: "The layer work cannot start without that number"
-  (`docs/plan/brio-TODOS.md:789-792`). The number is the clearance margin,
+  (`docs/plan/generic-TODOS.md:789-792`). The number is the clearance margin,
   CALIBRATION.md Q5: ramp rise minus plank thickness minus tallest vehicle.
   Plank is published (12mm). Rise (64mm) and vehicle (44mm,
-  `engine/data/brio.ts:239`) are estimates. Margin today: 64 - 12 - 44 = 8mm
+  `engine/data/generic.ts:239`) are estimates. Margin today: 64 - 12 - 44 = 8mm
   [estimated].
 - CALIBRATION.md Q4: is the ascending track's 216mm its run or its slope
   length? If slope, the run is about 206.34mm, irrational, and exact closure
-  dies for any layout with a ramp. `engine/data/brio.ts:12` asserts "216 run";
+  dies for any layout with a ramp. `engine/data/generic.ts:12` asserts "216 run";
   unmeasured. A retailer lists the two-piece set at 21.6cm long and 6cm high,
   which fits "216 run" but does not settle it.
 - Supports: the 2026-10-07 review chose to STATE that supports are not checked
   rather than check them (decision 2f1af71e, TODO "Support and pier
-  modelling", `docs/plan/brio-TODOS.md:681`).
+  modelling", `docs/plan/generic-TODOS.md:681`).
 - The ascending track N/N1 is not in the catalogue: "needs a rise field the
   schema does not have" (`engine/data/sources.ts:247`, `:347`).
 - `Part.heightMm` exists, continuous by decision 12A
@@ -87,7 +87,7 @@ Evidence | retailer: set 21.6cm long, 6cm high | | fits a 216 run | | contradict
 Question: D2 — L2: Do we take the ramp's 216mm as the ground it covers?
 Header: Ramp run
 A) Take 216 as the run (recommended)
-Treat the ascending track as a 216mm straight on the floor plan that rises one level; label it estimated and leave Q4 open on the calibration sheet. Effort S, risk low. ✅ Exact closure survives ramps; the ramp is a plain straight to the engine ✅ Matches brio.ts:12 and a retailer's 21.6cm box length ❌ If the tape says slope, every ramp layout is off by about 9.7mm per ramp
+Treat the ascending track as a 216mm straight on the floor plan that rises one level; label it estimated and leave Q4 open on the calibration sheet. Effort S, risk low. ✅ Exact closure survives ramps; the ramp is a plain straight to the engine ✅ Matches generic.ts:12 and a retailer's 21.6cm box length ❌ If the tape says slope, every ramp layout is off by about 9.7mm per ramp
 B) Wait for the tape measure
 Do not start layers until Q4 is measured on real track. Effort S (zero implementation), risk low. ✅ Nothing built on an unmeasured number ✅ One tape measure settles it ❌ Layers wait on an afternoon that has been deferred since 2026-10-08
 C) Slope: round the run to 206
@@ -113,7 +113,7 @@ Measure the rise and your tallest train before any bridge is allowed. Effort S (
 
 ## Planned file changes (estimate, for mode selection)
 
-engine: parts/schema.ts (ramp rise), data/brio.ts (N ramp), data/sources.ts
+engine: parts/schema.ts (ramp rise), data/generic.ts (N ramp), data/sources.ts
 (unblock N), graph/levels.ts (new: level walk and rise-equals-fall),
 graph/overlap.ts (same level only), graph/solve.ts (verdict fields).
 app: layoutModel.ts (ghost and drop fit by level), TrackCanvas.tsx (draw
@@ -129,7 +129,7 @@ Provenance: actual question answer, "Scope reduction (recommended)", 2026-10-23.
 
 ## Proposed minimum core (pending per-item decisions below)
 
-1. Ramp part N (BRIO 33332) in the catalogue: 216mm run, rises one level, estimated.
+1. Ramp part N (Generic 33332) in the catalogue: 216mm run, rises one level, estimated.
 2. Level walk over the spanning forest: ramps step +1/-1, everything else inherits; rise equals fall checked at closing welds; level outside 0..1 refused.
 3. Overlap only within a level; a ramp clashes with both levels.
 4. Verdict: crossings between levels allowed; a note names the 8mm estimate and that supports are not checked; IMPOSSIBLE for a loop that does not rise as it falls and for a third level.
@@ -139,7 +139,7 @@ Provenance: actual question answer, "Scope reduction (recommended)", 2026-10-23.
 
 ## NOT in scope
 
-- A distinct raised look: deferred (R1, D4), filed in brio-TODOS.md.
+- A distinct raised look: deferred (R1, D4), filed in generic-TODOS.md.
 - Bridge pieces, supports and piers: TODO "Support and pier modelling" stands (decision 2f1af71e).
 - A third level: TODO "A third layer" stands; its trigger has not fired.
 - Curved ascending track: not in the catalogue.
@@ -147,7 +147,7 @@ Provenance: actual question answer, "Scope reduction (recommended)", 2026-10-23.
 
 | ID and owner | Contract and evidence | Current | Proposed | Status | Exact approval and scope |
 |---|---|---|---|---|---|
-| R1 (owner) | A raised look for raised track (DESIGN.md rule 2: shape carries meaning) | DEFERRED to brio-TODOS.md (P1, design pass) | B keep: declined | deferred | D4 answer "A) Defer to TODOS.md", 2026-10-23 |
+| R1 (owner) | A raised look for raised track (DESIGN.md rule 2: shape carries meaning) | DEFERRED to generic-TODOS.md (P1, design pass) | B keep: declined | deferred | D4 answer "A) Defer to TODOS.md", 2026-10-23 |
 | R2 (owner) | Level in the piece list and announcements | KEPT: "raised" in the list, the level in placing announcements | B defer: declined | approved | D5 answer "A) Keep it in scope", 2026-10-23 |
 
 ## Section 1: Architecture
@@ -380,7 +380,7 @@ unanswered rows.
 # Accepted plan (what to build)
 
 Engine
-1. Ramp N (BRIO 33332) in the built-in catalogue: a 216mm straight in plan,
+1. Ramp N (Generic 33332) in the built-in catalogue: a 216mm straight in plan,
    `Port.rise` 1 at its far end, `estimated` (L2). `sources.ts` stops listing
    N as blocked.
 2. `Frame.level`: `compose` adds the local port's rise; `IDENTITY.level` 0;
@@ -417,7 +417,7 @@ App
 
 ## NOT in scope
 
-- A distinct raised look: deferred to brio-TODOS.md (D4 A).
+- A distinct raised look: deferred to generic-TODOS.md (D4 A).
 - Custom and third-party ramps: skipped (D15 B); S1 keeps rise built-in only.
 - A storage guard against a revert: declined (D14 A), logged as an accepted
   shortcut (decision 4483263e).
@@ -487,7 +487,7 @@ lands; no other diagram in the touched files describes positions only.
 
 ## Reality rows
 
-REALITY: premise-table   pass     12 claims, all with receipts (brio-TODOS.md:652, :789; CALIBRATION.md:138-180; brio.ts:12, :239; schema.ts:273; sources.ts:247; overlap.ts:164; feasible.ts:166; library.ts:103-104, :160; layoutStore.ts:493), unverified=2 (ramp rise 64mm, vehicle 44mm: estimates by design)
+REALITY: premise-table   pass     12 claims, all with receipts (generic-TODOS.md:652, :789; CALIBRATION.md:138-180; generic.ts:12, :239; schema.ts:273; sources.ts:247; overlap.ts:164; feasible.ts:166; library.ts:103-104, :160; layoutStore.ts:493), unverified=2 (ramp rise 64mm, vehicle 44mm: estimates by design)
 REALITY: already-done    pass     git log origin/main --since=2026-10-20 -i --grep "level|layer|ramp|elevat|bridge": 4 hits (791f278, 494469e, 57963c1, 4ee00ba), none implement levels (wording only)
 REALITY: surface-check   pass     no CLI command, flag or route is added; commands used (bun run test/typecheck/build) exist in package.json:6
 REALITY: binding-decisions finding D19:A (remove never moves surviving track) forced I1 and OV2; D2 of 2026-10-22 (one spot key) forced A1; D9 cap of two kept; decision 2f1af71e (state, don't check supports) kept in L3
@@ -503,7 +503,7 @@ Ratios assumed: features ~30x, tests ~50x.
 
 - [ ] **T1 (P1, human: ~1 day / CC: ~30min)** — engine — Frame.level, Port.rise, ramp N, level-normalised placeAll
   - Surfaced by: L1, L2, A1, I1
-  - Files: engine/src/graph/model.ts, engine/src/graph/frames.ts, engine/data/brio.ts, engine/data/sources.ts, engine/src/parts/schema.ts
+  - Files: engine/src/graph/model.ts, engine/src/graph/frames.ts, engine/data/generic.ts, engine/data/sources.ts, engine/src/parts/schema.ts
   - Verify: levels.test.ts bridge loop and down-ramp re-level; mutation run per CLAUDE.md
 - [ ] **T2 (P1, human: ~4h / CC: ~15min)** — engine — level in residuals, level faults, spot key, overlap filter
   - Surfaced by: OV2, E1, A1, core 3
@@ -603,7 +603,7 @@ faults; location unstated). Trips the 8-file gate.
 Search: no new infrastructure, concurrency or framework pattern; an integer
 field on an existing value type. Search not needed.
 
-TODOS cross-reference: "A third layer" (brio-TODOS.md) gets cheaper; "A raised
+TODOS cross-reference: "A third layer" (generic-TODOS.md) gets cheaper; "A raised
 look" (filed by the CEO review) depends on this; "Canvas marks keep their
 screen size" applies to the new fault marks. Nothing blocks this plan.
 
@@ -710,19 +710,19 @@ Framework: vitest, two projects (CLAUDE.md "Testing"): node `*.test.ts`,
 dom `*.dom.test.tsx`.
 
 Finding T1: [P1] (confidence: 9/10) engine/test/differential.test.ts:67 —
-`const BRIO = BUILT_IN.filter((p) => p.brand === 'BRIO' && p.kind !== 'switch').map((p) => p.id);`
-feeds `randomChain` (`:74`), which draws `BRIO[Math.floor(rand() * BRIO.length)]`.
+`const Generic = BUILT_IN.filter((p) => p.brand === 'Generic' && p.kind !== 'switch').map((p) => p.id);`
+feeds `randomChain` (`:74`), which draws `Generic[Math.floor(rand() * Generic.length)]`.
 Adding N to the catalogue (a) puts a ramp into chain layouts the legacy
 engine cannot express (every chain piece is laid entry first, so every ramp in
 a chain climbs and a closed chain with one never comes back down), and (b)
-changes BRIO.length, so every seeded random layout in the corpus changes. The
+changes Generic.length, so every seeded random layout in the corpus changes. The
 plan's regression promise, "every existing layout gives the same verdict",
 would be tested against a different corpus than today's.
 
 Finding T2 (factual mapping, no behaviour change): the schema's dimension
 status has no "estimated" value (`published | community-measured |
 unverified`), and engine/test/analytic.test.ts:714-726 requires every part
-outside BRIO_PARTS to be unverified. L2's "labelled estimated" therefore
+outside GENERIC_PARTS to be unverified. L2's "labelled estimated" therefore
 lands as `dimensions.status: 'unverified'` with the source naming CALIBRATION
 Q4, which surfaces through the existing unverified channel (13A dotted
 outline and the trust note). No question: it is the only label the schema has
@@ -736,7 +736,7 @@ Runtime evidence: differential.test.ts:67 and :74 as quoted.
 Comparison grid:
 Commitment | Current | A freeze corpus + ramp suite | B ramps in the chain corpus
 ---|---|---|---
-Legacy corpus | BRIO non-switch parts | same list minus rising parts, so byte-identical draws | N added; every seeded layout changes
+Legacy corpus | Generic non-switch parts | same list minus rising parts, so byte-identical draws | N added; every seeded layout changes
 Ramp coverage | none | new graph-only seeded enumeration: random runs with up and down ramps, asserting closes iff rise = fall and faults iff > 2 levels | chains with ramps vs a legacy verdict reduced by "a closed chain with a ramp never comes back down"
 Regression promise | n/a | proven on today's exact corpus | proven on a new corpus
 Question D3:
@@ -747,7 +747,7 @@ A) Freeze corpus, add ramp suite (recommended)
 B) Ramps in the chain corpus
 State: approved
 Actual answer: A) Freeze corpus, add ramp suite (eng D3, 2026-10-23)
-Accepted scope: differential.test.ts excludes parts with a rise from `BRIO`, with a comment naming why, so the seeded corpus is byte-identical; a new engine/test/levels.test.ts seeded enumeration builds runs with up and down ramps and asserts the level residual of each closing weld is zero iff the signed rises around its loop balance (planar closure still also needs gap 0 and heading 0), a level fault iff any world-space PORT sits outside levels 0..1 after normalisation (so an anchored raised run plus an up ramp is a fault), and level-blind verdict fields equal to the same run with each ramp swapped for a D straight. Corrected 2026-10-23 per eng outside voice EOV1/EOV4: the approved D3 wording ("closes only when it rises as much as it falls", "a third level is flagged") was right; this formalisation had widened it.
+Accepted scope: differential.test.ts excludes parts with a rise from `Generic`, with a comment naming why, so the seeded corpus is byte-identical; a new engine/test/levels.test.ts seeded enumeration builds runs with up and down ramps and asserts the level residual of each closing weld is zero iff the signed rises around its loop balance (planar closure still also needs gap 0 and heading 0), a level fault iff any world-space PORT sits outside levels 0..1 after normalisation (so an anchored raised run plus an up ramp is a fault), and level-blind verdict fields equal to the same run with each ramp swapped for a D straight. Corrected 2026-10-23 per eng outside voice EOV1/EOV4: the approved D3 wording ("closes only when it rises as much as it falls", "a third level is flagged") was right; this formalisation had widened it.
 History: none
 
 ### Coverage diagram
@@ -908,7 +908,7 @@ Ratios assumed: features ~30x, tests ~50x.
 
 - [ ] **T1 (P1, human: ~1 day / CC: ~30min)** — engine — Frame.level (optional, SC1), Port.rise, ramp N (unverified, T2 finding), normalised placeAll
   - Surfaced by: CEO L1, L2, A1, I1; eng SC1
-  - Files: engine/src/graph/model.ts, engine/src/graph/frames.ts, engine/src/parts/schema.ts, engine/data/brio.ts, engine/data/sources.ts
+  - Files: engine/src/graph/model.ts, engine/src/graph/frames.ts, engine/src/parts/schema.ts, engine/data/generic.ts, engine/data/sources.ts
   - Verify: levels.test.ts; the 820 existing specs unchanged; mutation runs per CLAUDE.md
 - [ ] **T2 (P1, human: ~4h / CC: ~15min)** — engine — level residual, level faults beside it (ports 0..1), spot key, overlap filter
   - Surfaced by: CEO OV2, E1, A1; eng D1, EOV1
@@ -1066,7 +1066,7 @@ Ratios assumed: features ~30x, tests ~50x.
   - Verify: palette spec finds "Ascending track" with the chevron class
 - [ ] **DT8 (P2, human: ~15min / CC: ~2min)** — docs — DESIGN.md rule 7 height-word sentence; narrow the raised-look TODO
   - Surfaced by: design 7A, 1A
-  - Files: DESIGN.md, docs/plan/brio-TODOS.md
+  - Files: DESIGN.md, docs/plan/generic-TODOS.md
   - Verify: read the diff
 
 ## Design Review Completion Summary

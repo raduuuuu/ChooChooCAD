@@ -11,9 +11,9 @@
  * Four separate reasons these numbers may be wrong, each from a source:
  *
  * 1. There is no standard, deliberately. "There is no established standard for
- *    wooden track gauges, and while just about everyone uses the BRIO system as
+ *    wooden track gauges, and while just about everyone uses the Generic system as
  *    their guide, to avoid patent issues each has small deviations in their
- *    measurements." (woodenrailway.info/track/third-party-track)
+ *    measurements." (the published track guide)
  *
  * 2. Advertised lengths are unreliable even from manufacturers. "The 3-inch
  *    straights advertised by Maxim, for example, are actually 82mm long."
@@ -23,25 +23,25 @@
  *    tracks may differ a little bit from the commonly known." (the track
  *    generator author, who measured IKEA stock from Germany and Poland)
  *
- * 4. The brands do not physically join BRIO anyway. "the most popular systems
- *    are incompatible... fitting IKEA track plug (shorter) to BRIO track nest
+ * 4. The brands do not physically join Generic anyway. "the most popular systems
+ *    are incompatible... fitting IKEA track plug (shorter) to Generic track nest
  *    (longer) may be impossible without braking or damaging one of the parts."
  *    (same author). IKEA's own reviews agree: "the pegs and holes are smaller
- *    and does not fit the Brio".
+ *    and does not fit the Generic".
  *
  * IKEA CURVES, AND WHY THERE ARE STILL NONE FOR PLAYTIVE. A curve needs a
  * radius and nobody PUBLISHES one for either brand. Until 2026-10-29 this file
  * held straights only for that reason. One reproduction now gives a radius
- * for Lillabo: MakerWorld 2181560 by Vamuss, whose description says the
+ * for Lillabo: a printed reproduction whose description says the
  * pieces were modelled "zu 100% den IKEA Lillabo Schienen (gekauft 2025)
  * nachempfunden", copied from Lillabo track bought in 2025, rather than
- * drawn as a compromise between IKEA and BRIO. Read off its 3MF meshes the
+ * drawn as a compromise between IKEA and Generic. Read off its 3MF meshes the
  * way `switchSeeds.ts` reads switches, its curves come out at a centreline
  * radius of 202.1 to 202.6mm in three angles, 22.5, 45 and 90 degrees. That
- * is BRIO E's 202 to within the scatter, and the lattice holds integers
+ * is Generic E's 202 to within the scatter, and the lattice holds integers
  * only, so the seeds use 202 (inner 182). The rounding moves the far end of a
  * 45-degree curve by about 0.4mm, half the estimated joint slop. Playtive
- * still has no curve: the Lidl reproductions found (MakerWorld 1045052) come
+ * still has no curve: the Lidl reproductions found (a printed reproduction) come
  * in 10-degree steps, which the 22.5-degree lattice cannot hold, and their
  * two arc fits disagree by 15mm, so they are not a radius anyone could cite.
  *
@@ -61,7 +61,7 @@ import type {
   BrandFit, Brand, CurvePart, DimensionSource, MultiRoadPart, Part, PartEnds, Polarity, StraightPart,
 } from '../src/parts/schema.js';
 
-/** Same slop placeholder as BRIO. Nobody has measured these joints either. */
+/** Same slop placeholder as Generic. Nobody has measured these joints either. */
 const UNMEASURED_SLOP = {
   axialMm: 0.8,
   angularDeg: 1.5,
@@ -72,7 +72,7 @@ const STANDARD_ENDS: PartEnds = { start: 'socket', end: 'peg' };
 
 const IKEA_UNVERIFIED: DimensionSource = {
   status: 'unverified',
-  source: '3D-print reproductions (MakerWorld, Printables, the torwanbukaj OpenSCAD generator)',
+  source: '3D-print reproductions and an OpenSCAD generator',
   note:
     'IKEA publishes no piece dimensions. The 150 is a customizer default, not a copy of ' +
     'a real piece: the Lillabo reproduction in IKEA_REPRODUCTION has a 145 and no 150. ' +
@@ -85,13 +85,13 @@ const IKEA_UNVERIFIED: DimensionSource = {
  * The Lillabo reproduction, measured off its 3MF on 2026-10-29.
  *
  * Better than `IKEA_UNVERIFIED` because its author says it copies bought
- * track rather than splitting the difference with BRIO, and still
+ * track rather than splitting the difference with Generic, and still
  * `unverified`, because a copy of a part is not a measurement of it.
  */
 const IKEA_REPRODUCTION: DimensionSource = {
   status: 'unverified',
   source:
-    'MakerWorld 2181560 "IKEA Lillabo 100% kompatible Schienen" by Vamuss, modelled on ' +
+    'a printed reproduction, modelled on ' +
     'Lillabo track bought in 2025, measured off the 3MF meshes on 2026-10-29',
   note:
     'A 3D-print reproduction, not a measurement of real track. Straights read 50.0, ' +
@@ -102,7 +102,7 @@ const IKEA_REPRODUCTION: DimensionSource = {
 
 const PLAYTIVE_UNVERIFIED: DimensionSource = {
   status: 'unverified',
-  source: '3D-print reproductions (Printables model titles for Lidl Playtive compatible track)',
+  source: '3D-print reproductions (printed reproduction titles for Lidl Playtive compatible track)',
   note:
     'Lidl publishes no piece dimensions. NOTE ON THE BRAND: Lidl wooden railway ' +
     'is PLAYTIVE, sometimes Playtive Junior. Lupilu is Lidl\'s baby and clothing ' +
@@ -115,17 +115,17 @@ const PLAYTIVE_UNVERIFIED: DimensionSource = {
  *
  * Recorded because they resolve an open question in `CALIBRATION.md`, which
  * lists "6.25 vs 6.4mm" as one of two unexplained plug/nest pairs sitting 23x
- * away from the other. These are the IKEA figures, as RADII, against BRIO's
+ * away from the other. These are the IKEA figures, as RADII, against Generic's
  * 11.5mm peg and 15-17mm socket as DIAMETERS. Different brand and different
  * convention, which is why they looked irreconcilable.
  */
 export const IKEA_CONNECTOR = {
   plugRadiusMm: 6.25,
   nestRadiusMm: 6.4,
-  source: 'torwanbukaj/ikea-brio-others-compatible-train-tracks-generator, author measurements',
+  source: 'an OpenSCAD track generator, author measurements',
 } as const;
 
-/** Profile read off the same meshes: 40 wide, 12 thick, as on BRIO. Grooves unmeasured. */
+/** Profile read off the same meshes: 40 wide, 12 thick, as on Generic. Grooves unmeasured. */
 const LILLABO_PROFILE = { heightMm: 0, gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12 } as const;
 
 const lillaboStraight = (lengthMm: number): StraightPart => ({
@@ -149,7 +149,7 @@ const LILLABO_CURVES: readonly CurvePart[] = [
 ];
 
 /**
- * THE LILLABO SWITCH AND CROSSING, from the same Vamuss set.
+ * THE LILLABO SWITCH AND CROSSING, from the same reproduction set.
  *
  * The two "y" files (`y-fmm`, `y-mff`) are an ordinary switch read from the
  * other end: with their shared end taken as the heel, one road is a 145
@@ -231,7 +231,7 @@ export const THIRD_PARTY_SEEDS: readonly Part[] = [
     lengthMm: 150,
     dimensions: IKEA_UNVERIFIED,
     slop: UNMEASURED_SLOP, ends: STANDARD_ENDS, heightMm: 0,
-    // Profile assumed to match the de facto BRIO cross section. Also unverified:
+    // Profile assumed to match the de facto Generic cross section. Also unverified:
     // IKEA's own reviews say the connectors differ, so the profile may too.
     gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12,
   },
@@ -282,13 +282,13 @@ export const THIRD_PARTY_SEEDS: readonly Part[] = [
  * either order. Anything absent is 'unknown' rather than assumed to work.
  */
 const FIT: ReadonlyArray<readonly [Brand, Brand, BrandFit, string]> = [
-  ['BRIO', 'BRIO', 'joins', 'Same system.'],
+  ['GENERIC', 'GENERIC', 'joins', 'Same system.'],
   ['IKEA', 'IKEA', 'joins', 'Same system.'],
   ['PLAYTIVE', 'PLAYTIVE', 'joins', 'Same system.'],
-  ['BRIO', 'IKEA', 'does-not-join',
-    'The IKEA plug is shorter and the BRIO nest longer; forcing them "may be impossible without braking or damaging one of the parts". IKEA reviews report the pegs and holes are smaller and do not fit BRIO.'],
-  ['BRIO', 'PLAYTIVE', 'unknown',
-    'Playtive is advertised as BRIO-compatible and some owners report it works, but no measurement supports it and the reference says every brand deviates deliberately.'],
+  ['GENERIC', 'IKEA', 'does-not-join',
+    'The IKEA plug is shorter and the Generic nest longer; forcing them "may be impossible without braking or damaging one of the parts". IKEA reviews report the pegs and holes are smaller and do not fit Generic.'],
+  ['GENERIC', 'PLAYTIVE', 'unknown',
+    'Playtive is advertised as Generic-compatible and some owners report it works, but no measurement supports it and the reference says every brand deviates deliberately.'],
   ['IKEA', 'PLAYTIVE', 'unknown', 'No source either way.'],
 ];
 

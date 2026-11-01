@@ -21,7 +21,7 @@ Mode: HOLD SCOPE (owner's answer to the mode question, 2026-11-01).
 | P1–P4 (0A) | Premises above | as table | — | approved | Premise question answers, 2026-11-01 |
 | R1 (Sec 11) | How removal becomes discoverable and the selection visible | thin 2px edge; no hint | A: a heavier --ink outline plus a tint on the selected piece (tokens only); one strip line while pieces exist and none is selected — "Click a piece to select it; Remove piece or Delete takes it out." — gone after the first selection in this tab; DOM + CSS tests with run mutations | approved | D4 answer "Stronger selection + a one-line hint (recommended)", 2026-11-01; scope: selection styling and the hint only |
 | R2 (Sec 4) | How a click reaches the second of two stacked ends | top dot takes every click | A: while an end is armed its own hit circle takes no pointer events, so the next click reaches the end beneath and joins (through the existing `joinRefusal`); Esc, Cancel or a floor click disarms. DOM test with a run mutation | approved | D2 answer "Armed dot lets clicks through (recommended)", 2026-11-01; scope: the armed end's hit target and its disarm routes only |
-| R3 (Sec 1) | Where the T-junction's geometry and end polarity come from | no such part | C: read a MakerWorld two-way T-junction 3MF in the logged-in browser session; add as unverified with the source cited. If no two-way model exists, stop and bring it back to the owner (no silent fallback to A) | approved | D1 answer "Read a MakerWorld model", 2026-11-01; scope: the T-junction's geometry and polarity only |
+| R3 (Sec 1) | Where the T-junction's geometry and end polarity come from | no such part | C: read a printed two-way T-junction 3MF in the logged-in browser session; add as unverified with the source cited. If no two-way model exists, stop and bring it back to the owner (no silent fallback to A) | approved | D1 answer "Read a printed model", 2026-11-01; scope: the T-junction's geometry and polarity only |
 | R4 (Sec 3, reopened by OV2) | How analytics is wired so a shared layout never leaves the browser | none | GoatCounter (replaces Cloudflare): a pinned, reviewed copy of `count.js` committed and served from the site (no remote script); `window.goatcounter.path` reports `location.pathname`, and `/shared-link` for any address the link route takes (`LINK_FRAGMENT`), so link visits count and no fragment is ever sent; production builds only (none in dev); owner creates the free non-commercial GoatCounter site and supplies its code (public); tests: the path function for normal, #v1. and #v9. addresses, one script in production and none in dev, and a scripted browser check that no count request carries a fragment | approved | D3 answer A (production only), then reopened by outside voice OV2: D5 "Investigate first" (beacon read: it strips hash today), then the owner's question and "yes, switch to GoatCounter", 2026-11-01; scope: analytics provider, loading and its privacy contract |
 
 ## Answered: R3 (D1 → C)
@@ -30,7 +30,7 @@ Commitment comparison:
 | Commitment | Source/approval or pending | Current | A | B | C |
 |---|---|---|---|---|---|
 | A two-way T-junction in the palette | P3 approved | none | yes, unverified, now | yes, after measuring | yes, unverified, after a 3MF read |
-| Geometry (stem + two r108 quarter curves, 216 across) | pending | — | derived from the existing T (switchSeeds.ts:308) and the Bigjigs 21 × 13 cm listing | the owner's calipers | a MakerWorld 3MF |
+| Geometry (stem + two r108 quarter curves, 216 across) | pending | — | derived from the existing T (switchSeeds.ts:308) and the Bigjigs 21 × 13 cm listing | the owner's calipers | a printed reproduction's 3MF |
 | End polarity (stem, left, right) | pending | — | stated as unknown in the part's note; stem socket, arms peg as the labelled guess | measured | read from the 3MF |
 | Verification | pending | — | measurement page with engineering diagram queued (memory: measurements need diagrams) | done before ship | none until measured |
 
@@ -40,7 +40,7 @@ A) Unverified now, measure later (recommended)
 Add it now as an unverified piece built from the existing T switch's 108mm curve mirrored both ways (216mm across, matching the Bigjigs 21 × 13 cm listing), with the end types marked as a guess; a measuring page with a drawing follows. Effort S, risk low: it shows the "unverified size" badge like the other 20 switches.
 B) Measure my piece first
 I own one: you send a measuring page with an engineering drawing, I fill it in, and the piece ships with checked numbers. Effort S now plus my time, risk lowest, but the piece waits for me.
-C) Read a MakerWorld model
+C) Read a printed model
 Find a printable two-way T-junction and read its 3MF in the logged-in browser session, as with the other switches. Effort M, risk medium: none was found by search, and a printed model may not match a shop-bought piece.
 
 ## Answered: R2 (D2 → A)
@@ -141,7 +141,7 @@ Approval readiness: PASS — MODE (mode answer), P1–P4 (premise answers), R1 (
 
 ## Section findings
 
-- **Section 1 (Architecture):** no new components. Four independent changes, one per area; R3 needed a source decision (MakerWorld 3MF).
+- **Section 1 (Architecture):** no new components. Four independent changes, one per area; R3 needed a source decision (a printed reproduction's 3MF).
 - **Section 2 (Errors):** see the registry below. One gap closed by the plan: a missing GoatCounter code must leave the production build without a counter, not with a broken tag.
 - **Section 3 (Security):** the only real threat is a shared layout (the `#v…` fragment) reaching a third party. Closed by R4: self-hosted script, explicit path, `/shared-link` for links, browser check. Likelihood low, impact high. No secrets: the GoatCounter code is public. No new dependency (the script is a committed file, reviewed once).
 - **Section 4 (Edge cases):** two and three stacked ends (R2, OV4); a click on the armed spot with nothing beneath lands on the piece or floor (floor disarms); keyboard joining unchanged; touch uses the same pointer rule. The hint: shown only with pieces and none selected, gone after a selection, never on the friend's or phone screen (those are read-only).
@@ -162,7 +162,7 @@ Approval readiness: PASS — MODE (mode answer), P1–P4 (premise answers), R1 (
 | Analytics path function | address is a shared link | Y | reports `/shared-link`, never the fragment | nothing |
 | Analytics in production | GoatCounter code missing at build | Y | build omits the counter (test pins it) | nothing |
 | count.js request | blocked by an ad blocker or offline | Y | fails silently, no retry; app unaffected | nothing |
-| T-junction import | no two-way model on MakerWorld | Y | stop and return to the owner (R3) | nothing ships |
+| T-junction import | no two-way model on printed reproductions | Y | stop and return to the owner (R3) | nothing ships |
 
 ## Failure Modes Registry
 
@@ -185,7 +185,7 @@ No CRITICAL GAPS.
      │                        │            └─ pieces (R1: .piece-selected heavier + tint)
      │                        └─ selection strip (R1: hint line when none selected)
      └─ analytics.ts (R4): sets window.goatcounter.path, loads /count.js (production only)
-  engine/data/switchSeeds.ts ── + T-junction (R3, from a MakerWorld 3MF)
+  engine/data/switchSeeds.ts ── + T-junction (R3, from a printed reproduction's 3MF)
 ```
 2. Data flow, analytics:
 ```
@@ -219,8 +219,8 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
   - Surfaced by: R2 (Section 4), OV1, OV4
   - Files: app/src/TrackCanvas.tsx, app/src/app.css, a DOM test
   - Verify: DOM test for the reducer path; a scripted headless-Chrome check (two and three stacked ends: click the same point, assert joined) recorded in the PR (OV3)
-- [ ] **T3 (P1, human: ~3h / CC: ~30min)** — catalogue — Add a two-way T-junction read from a MakerWorld 3MF
-  - Surfaced by: R3 (Section 1) — owner chose "Read a MakerWorld model"
+- [ ] **T3 (P1, human: ~3h / CC: ~30min)** — catalogue — Add a two-way T-junction read from a printed reproduction's 3MF
+  - Surfaced by: R3 (Section 1) — owner chose "Read a printed model"
   - Files: engine/data/switchSeeds.ts, engine/data/sources.ts (source entry), seed tests
   - Verify: the seed's ports match the 3MF's ends to 0.1mm, shown unverified; if no two-way model exists, stop and report to the owner
 - [ ] **T4 (P1, human: ~3h / CC: ~25min)** — analytics — GoatCounter with a committed count.js and a link-safe path
@@ -392,7 +392,7 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
   - Surfaced by: E1 (eng D2 A), X1, X2, X4, R2, OV3
   - Files: app/src/TrackCanvas.tsx, app/src/App.tsx, app/src/stackedEnds.dom.test.tsx, scripts/browserChecks.ts
   - Verify: DOM tests (two stacked, three with refused middle, lone refused keeps message + tooltip, lone armed un-selects, hidden floor end never picked, nearest of two joinable wins, floor click clears through the real App); joinRefusal.test.ts stays green; browser check per X4 recorded in the PR
-- [ ] **T3 (P1, human: ~3h / CC: ~30min)** — catalogue — Two-way T-junction from a MakerWorld 3MF
+- [ ] **T3 (P1, human: ~3h / CC: ~30min)** — catalogue — Two-way T-junction from a printed reproduction's 3MF
   - Surfaced by: R3 (CEO D1 C), X6
   - Files: engine/data/switchSeeds.ts, engine/data/sources.ts, engine/test/switchSeeds.test.ts
   - Verify: ports equal the 3MF ends within the seeds' whole-mm rounding policy (stated in the note); shown unverified; stop and report if no model or not representable
@@ -458,7 +458,7 @@ DESIGN.md: present (13 rules); all decisions calibrated against it. Mockups: non
 | DR4 | 2 | "Say it and offer Undo (recommended)" | After Remove piece, the strip shows "Removed piece N, <name>." with Undo, from the existing announcement words; beats the hint; clears on the next action. DOM test |
 | DR5 | 3 | "Strip names the join (recommended)" | After a join the strip shows which ends joined (from `endWords` / the announcement) with Undo; clears on the next action; no new canvas mark. DOM test |
 | DR6 | 5 | "3px ink with a paper halo (recommended)" — replaces R1's tint | No tint. `.piece-selected` 3px --ink (the heaviest piece mark, equal to the armed ring) over a slightly wider --paper halo (as `.mark-halo`); `.piece-run` stays 1px --ink-soft. Checked in a real browser on a dense layout (straight, curve, junction, keyboard focus). DESIGN.md rule 11 updated to name the halo |
-| DR7 | 5 | "\"T-junction\" beside the T switch (recommended)" | Named "T-junction"; the existing piece stays "T switch"; card right after it in BRIO's switches; ink schematic with stem, two curves, peg discs/socket rings per the 3MF; unverified dotted border and "*"; Flip (F) hidden while placing it; no card if T3 stops |
+| DR7 | 5 | "\"T-junction\" beside the T switch (recommended)" | Named "T-junction"; the existing piece stays "T switch"; card right after it in Generic's switches; ink schematic with stem, two curves, peg discs/socket rings per the 3MF; unverified dotted border and "*"; Flip (F) hidden while placing it; no card if T3 stops |
 | DR8 | 6 | "Mouse and touch wording (recommended)" | Fine pointer: "Click a piece to select it; Remove piece or Delete takes it out." Touch: "Tap a piece to select it; Remove piece takes it out." Chosen by `(pointer: coarse)`; both strings under copyPosition.test.ts |
 | DR9 | 6 | "44px floor on touch (recommended)" | On coarse pointers an end's click area is max(26mm, 22px radius), shared by the drawn hit circle and E1's pick rule; dots unchanged; mouse unchanged. Test at a zoom where 26mm is under 44px |
 
@@ -527,7 +527,7 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
   - Surfaced by: E1, X1, X2, X4, DR5, DR9
   - Files: app/src/TrackCanvas.tsx, app/src/App.tsx, app/src/stackedEnds.dom.test.tsx, scripts/browserChecks.ts
   - Verify: eng T2's tests, plus the joined line + Undo and the coarse-pointer radius at a zoom where 26mm < 44px
-- [x] **T3 (P1, human: ~3h / CC: ~30min)** — catalogue — Two-way "T-junction" from a MakerWorld 3MF (stop rule fired: the only two-way model, Flame's 3225419, has its own sizes; owner answered "Add Flame's T Rail as measured"; shipped as "T-junction, printed" in PR #103)
+- [x] **T3 (P1, human: ~3h / CC: ~30min)** — catalogue — Two-way "T-junction" from a printed reproduction's 3MF (stop rule fired: the only two-way printed model has its own sizes; owner answered "Add the printed T Rail as measured"; shipped as "T-junction, printed" in PR #103)
   - Surfaced by: R3, X6, DR7
   - Files: engine/data/switchSeeds.ts, engine/data/sources.ts, engine/test/switchSeeds.test.ts, app/src (Flip hidden for symmetric parts)
   - Verify: eng T3's checks; card order and drawing; F hidden while placing it
