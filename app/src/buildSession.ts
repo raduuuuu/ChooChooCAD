@@ -15,6 +15,7 @@
 import type { Graph } from '../../engine/src/graph/model.js';
 import { storedGraphOf } from './layoutStore.js';
 import { BUILD_STORAGE_KEY } from './storageKeys.js';
+import { remove, stored, write } from '../../engine/data/storage.js';
 
 /* ------------------------------------------------------------------------- */
 /* Resume (scope 5, D18, D35)                                                */
@@ -72,20 +73,12 @@ export function loadResume(graph: Graph, itemCount: number): ResumeState {
 
 /** Whether the browser kept it. False is said once, quietly (D12, D36). */
 export function saveResume(graph: Graph, index: number): boolean {
-  try {
-    localStorage.setItem(BUILD_STORAGE_KEY, JSON.stringify({ layout: layoutKey(graph), index }));
-    return true;
-  } catch {
-    return false;
-  }
+  return stored(write(BUILD_STORAGE_KEY, JSON.stringify({ layout: layoutKey(graph), index })));
 }
 
 export function clearResume(): void {
-  try {
-    localStorage.removeItem(BUILD_STORAGE_KEY);
-  } catch {
-    // Nothing to clear when storage is blocked.
-  }
+  // Nothing to clear when storage is blocked.
+  remove(BUILD_STORAGE_KEY);
 }
 
 /* ------------------------------------------------------------------------- */

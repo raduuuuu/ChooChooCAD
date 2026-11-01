@@ -40,6 +40,7 @@ import { portsOf } from '../src/graph/model.js';
 import { BRIO_PARTS } from './brio.js';
 import { RAMP_SEEDS } from './rampSeeds.js';
 import { BUFFER_SEEDS } from './bufferSeeds.js';
+import { stored, write } from './storage.js';
 import { CROSSING_SEEDS, MULTI_ROAD_SEEDS, SWITCH_SEEDS } from './switchSeeds.js';
 import { THIRD_PARTY_SEEDS } from './thirdParty.js';
 
@@ -400,15 +401,10 @@ export function loadSubmissions(): readonly Submission[] {
 
 /** Whether the browser stored them. The caller says so when it did not (see saveNotice.ts). */
 export function saveSubmissions(subs: readonly Submission[]): boolean {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(subs));
-    return true;
-  } catch {
-    // Private browsing and full quotas both throw. Losing persistence is not
-    // worth losing the session over, but unlike the chain this IS data the user
-    // cannot trivially recreate, so the caller surfaces the failure.
-    return false;
-  }
+  // Private browsing and full quotas both fail. Losing persistence is not
+  // worth losing the session over, but unlike the chain this IS data the user
+  // cannot trivially recreate, so the caller surfaces the failure.
+  return stored(write(STORAGE_KEY, JSON.stringify(subs)));
 }
 
 /** Stable enough to dedupe on a server without coordinating ids. */

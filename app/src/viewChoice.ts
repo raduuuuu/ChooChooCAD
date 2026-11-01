@@ -5,6 +5,7 @@
  */
 
 import { VIEW_STORAGE_KEY } from './storageKeys.js';
+import { write } from '../../engine/data/storage.js';
 
 export type View = '2d' | '3d';
 
@@ -17,11 +18,8 @@ export function loadView(): View {
 }
 
 export function saveView(view: View): void {
-  try {
-    localStorage.setItem(VIEW_STORAGE_KEY, view);
-  } catch {
-    // Remembering the view is a convenience; nothing is lost without it.
-  }
+  // Remembering the view is a convenience; nothing is lost without it.
+  write(VIEW_STORAGE_KEY, view);
 }
 
 /** The view to open with: the remembered one, except that an empty layout opens 2D (design 11A). */
