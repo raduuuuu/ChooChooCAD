@@ -558,3 +558,71 @@ export function pastEdges(m: SeamLine, byMm: number): readonly [readonly [number
     [m.to[0] + ux, m.to[1] + uy],
   ];
 }
+
+/** A free end a click can reach: where it is drawn, and its place in the drawing order. */
+export interface ClickableEnd {
+  readonly ref: PortRef;
+  readonly x: number;
+  readonly y: number;
+  /** Drawing order: higher is drawn later, so it is the one on top. */
+  readonly order: number;
+}
+
+/** A free end's click radius, in mm (the drawn `.port-hit` circle). */
+export const END_HIT_MM = 26;
+
+/**
+ * WHICH END A CLICK MEANS (plan 2026-11-01; eng E1, X1; design DR9).
+ *
+ * Two ends on one spot used to be unjoinable by pointer: the end drawn on top
+ * took both clicks, and the second click on the armed end disarmed it. So a
+ * click is resolved against every reachable end within `radiusMm` of it:
+ *
+ *   an end is armed? ─no─▶ the nearest end (ties: the one on top)
+ *        │yes
+ *        ├─ a joinable end (not armed, not refused) in reach ─▶ the nearest one
+ *        ├─ else the armed end in reach ─▶ it (the click un-selects it, as before)
+ *        └─ else a refused end in reach ─▶ the nearest one (its refusal is said, as before)
+ *
+ * `ends` holds only ends a pointer can reach: a floor end under raised wood is
+ * left out by the caller, as it always was. Null when nothing is in reach.
+ */
+export function pickEnd(
+  at: readonly [number, number],
+  ends: readonly ClickableEnd[],
+  radiusMm: number,
+  armed: PortRef | null,
+  refused: (ref: PortRef) => boolean,
+): PortRef | null {
+  const same = (a: PortRef, b: PortRef) => a.pieceId === b.pieceId && a.port === b.port;
+  const near = ends
+    .map((e) => ({ e, d: Math.hypot(e.x - at[0], e.y - at[1]) }))
+    .filter(({ d }) => d <= radiusMm)
+    .sort((p, q) => p.d - q.d || q.e.order - p.e.order);
+  if (near.length === 0) return null;
+  if (armed === null) return near[0]!.e.ref;
+  const joinable = near.find(({ e }) => !same(e.ref, armed) && !refused(e.ref));
+  if (joinable) return joinable.e.ref;
+  const self = near.find(({ e }) => same(e.ref, armed));
+  if (self) return self.e.ref;
+  return near[0]!.e.ref;
+}
+
+/**
+ * The free ends a click can reach, in drawing order: floor, then raised, so a
+ * later one is drawn on top. `hidden` holds the `pieceId#port` keys of floor
+ * ends under raised wood, which the wood covers (eng X1).
+ */
+export function clickableEndsOf(ports: readonly RenderedPort[], hidden: ReadonlySet<string>): ClickableEnd[] {
+  const free = ports.filter((p) => p.free && !hidden.has(`${p.pieceId}#${p.port}`));
+  return [...free.filter((p) => (p.level ?? 0) < 1), ...free.filter((p) => (p.level ?? 0) >= 1)].map((p, order) => ({
+    ref: { pieceId: p.pieceId, port: p.port },
+    x: p.x,
+    y: p.y,
+    order,
+  }));
+}
+
+/** An end's click radius in mm: 26, and on a touch screen never under 44px across (design DR9, rule 10). */
+export const endHitRadiusMm = (coarse: boolean, pxPerMm: number): number =>
+  coarse ? Math.max(END_HIT_MM, 22 / pxPerMm) : END_HIT_MM;

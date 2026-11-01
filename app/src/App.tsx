@@ -454,22 +454,23 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
    * inside an updater would be a side effect React may repeat.
    */
   const saidNext = useRef<string | null>(null);
-  // Which action wrote `saidNext`, so a removal can also be said on screen (design DR4).
-  const saidKind = useRef<EditorAction['kind'] | null>(null);
+  // Whether the action that wrote `saidNext` removed a piece or made a joint, so it is also said on screen (design DR4, DR5).
+  const saidKind = useRef<'removed' | 'joined' | null>(null);
   const [said, setSaid] = useState('');
   /*
-   * WHAT THE LAST REMOVAL DID, ON SCREEN (plan 2026-11-01, design DR4). The
-   * announcement only reached a screen reader; this shows the same sentence
-   * in the canvas strip with Undo, for as long as the layout is the one the
-   * removal left. Any later change to the layout clears it.
+   * WHAT THE LAST REMOVAL OR JOIN DID, ON SCREEN (plan 2026-11-01, design DR4,
+   * DR5). The announcement only reached a screen reader; this shows the same
+   * sentence in the canvas strip with Undo, for as long as the layout is the
+   * one the action left. A join names the two ends, so a wrong pick between
+   * stacked ends shows at once. Any later change to the layout clears it.
    */
-  const [removedNote, setRemovedNote] = useState<{ readonly text: string; readonly graph: Graph } | null>(null);
+  const [lastNote, setLastNote] = useState<{ readonly text: string; readonly graph: Graph } | null>(null);
   // Set by a pick made in 3D, so its announcement first says the view changed (design 12A).
   const backIn2d = useRef(false);
   useEffect(() => {
     if (saidNext.current !== null) {
       setSaid((backIn2d.current ? 'Back in 2D to place the piece. ' : '') + saidNext.current);
-      if (saidKind.current === 'removePiece') setRemovedNote({ text: saidNext.current, graph: editor.graph });
+      if (saidKind.current !== null) setLastNote({ text: saidNext.current, graph: editor.graph });
       saidNext.current = null;
       saidKind.current = null;
       backIn2d.current = false;
@@ -717,7 +718,12 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
       // updater is the one place that sees it (see `said` below). Pure, so
       // StrictMode calling this twice writes the same sentence twice.
       saidNext.current = describeAction(e, action, next, resolve);
-      saidKind.current = action.kind;
+      saidKind.current =
+        action.kind === 'removePiece'
+          ? 'removed'
+          : (action.kind === 'clickPort' || action.kind === 'joinEnds') && next.graph.welds.length > e.graph.welds.length
+            ? 'joined'
+            : null;
       return next;
     });
   };
@@ -1293,11 +1299,11 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
       </div>
     ) : null;
 
-  // The removal, said on screen until the layout changes again (design DR4).
-  const removedStrip =
-    removedNote !== null && removedNote.graph === graph ? (
+  // The removal or join, said on screen until the layout changes again (design DR4, DR5).
+  const lastStrip =
+    lastNote !== null && lastNote.graph === graph ? (
       <div className="mode-strip" role="group" aria-label="Last move">
-        <p className="mode-strip-text">{removedNote.text}</p>
+        <p className="mode-strip-text">{lastNote.text}</p>
         <button onClick={undo}>Undo</button>
       </div>
     ) : null;
@@ -1708,9 +1714,13 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             selectedRun={selectedRun}
             onPieceSelect={selectPiece}
             onPieceRemove={removePiece}
-            onFloorClick={() => selected !== null && selectPiece(null)}
+            onFloorClick={() => {
+              // The floor un-selects a piece, and an end being joined (plan 2026-11-01, eng R2, X2).
+              if (selected !== null) selectPiece(null);
+              if (armed !== null || joiningStarted) cancelJoin();
+            }}
             pieceName={canvasPieceName}
-            strip={placingStrip ?? joinStrip ?? selectionStrip ?? dropStrip ?? removedStrip ?? hintStrip}
+            strip={placingStrip ?? joinStrip ?? selectionStrip ?? dropStrip ?? lastStrip ?? hintStrip}
             ghost={ghostView ? { render: ghostView.render, red: ghostView.red, reach: ghostView.reach } : null}
             onRunMove={(d, radius) => moveRunBy(d.pieceId, d.dx, d.dy, d.turns, radius)}
             runOf={runOf}
