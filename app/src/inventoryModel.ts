@@ -30,6 +30,7 @@
 import { BRIO_PARTS } from '../../engine/data/brio.js';
 import { RESERVED_ID_PREFIX } from '../../engine/data/library.js';
 import { INVENTORY_STORAGE_KEY } from './storageKeys.js';
+import { remove, stored, write } from '../../engine/data/storage.js';
 
 /**
  * Male-male adapters owned, kept in the same blob as the part counts (socket
@@ -239,13 +240,7 @@ export function loadInventory(knownPartIds: ReadonlySet<string>): LoadResult<Inv
 
 /** Whether the browser stored it. The caller says so when it did not (see saveNotice.ts). */
 export function saveInventory(inventory: Inventory): boolean {
-  try {
-    if (inventory === null) localStorage.removeItem(STORAGE_KEY);
-    else localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory));
-    return true;
-  } catch {
-    // Private browsing and full quotas both throw. Losing persistence is not
-    // worth losing the session over, but the user is told (saveNotice.ts).
-    return false;
-  }
+  // Private browsing and full quotas both fail. Losing persistence is not
+  // worth losing the session over, but the user is told (saveNotice.ts).
+  return stored(inventory === null ? remove(STORAGE_KEY) : write(STORAGE_KEY, JSON.stringify(inventory)));
 }

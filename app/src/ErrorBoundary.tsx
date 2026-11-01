@@ -26,6 +26,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { SUBMISSIONS_STORAGE_KEY } from '../../engine/data/library.js';
 import { reproText } from './repro.js';
+import { remove } from '../../engine/data/storage.js';
 import {
   CHAIN_STORAGE_KEY,
   GRAPH_RESCUE_KEY,
@@ -83,11 +84,8 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
       INVENTORY_STORAGE_KEY,
       SUBMISSIONS_STORAGE_KEY,
     ]) {
-      try {
-        localStorage.removeItem(key);
-      } catch {
-        // Nothing useful to do; the reload below is still worth attempting.
-      }
+      // A failure leaves nothing useful to do; the reload is still worth attempting.
+      remove(key);
     }
     location.reload();
   };

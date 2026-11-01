@@ -19,6 +19,7 @@
 
 import type { Segment } from '../../engine/src/geom/fk.js';
 import { TABLE_STORAGE_KEY } from './storageKeys.js';
+import { remove, stored, write } from '../../engine/data/storage.js';
 import type { LoadResult } from './inventoryModel.js';
 
 /** Width and depth in whole millimetres, as entered. `null` is no table. */
@@ -228,12 +229,10 @@ export function loadTable(): LoadResult<Table> {
 
 /** Whether the browser stored it; see saveInventory. */
 export function saveTable(table: Table): boolean {
-  try {
-    if (table === null) localStorage.removeItem(STORAGE_KEY);
-    else localStorage.setItem(STORAGE_KEY, JSON.stringify({ widthMm: table.widthMm, depthMm: table.depthMm }));
-    return true;
-  } catch {
-    // Private browsing and full quotas both throw; see saveInventory.
-    return false;
-  }
+  // Private browsing and full quotas both fail; see saveInventory.
+  return stored(
+    table === null
+      ? remove(STORAGE_KEY)
+      : write(STORAGE_KEY, JSON.stringify({ widthMm: table.widthMm, depthMm: table.depthMm })),
+  );
 }

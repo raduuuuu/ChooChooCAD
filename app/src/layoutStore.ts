@@ -42,6 +42,7 @@ import { scale, toXY, zetaPow, type Cyc } from '../../engine/src/geom/cyclotomic
 import { placeAll, portFrame, type PortsOf } from '../../engine/src/graph/frames.js';
 import { CHAIN_STORAGE_KEY, GRAPH_RESCUE_KEY, GRAPH_STORAGE_KEY } from './storageKeys.js';
 import { EMPTY_GRAPH, RUN_SPACING_MM } from './layoutModel.js';
+import { stored, write } from '../../engine/data/storage.js';
 
 
 
@@ -150,12 +151,7 @@ function isAnchorLevel(v: unknown): v is number | undefined {
 
 /** Copy the refused bytes aside, untouched. Never throws; losing the rescue is not worth losing the session. */
 function rescue(raw: string): boolean {
-  try {
-    localStorage.setItem(GRAPH_RESCUE_KEY, raw);
-    return true;
-  } catch {
-    return false;
-  }
+  return write(GRAPH_RESCUE_KEY, raw) === 'ok';
 }
 
 /**
@@ -606,14 +602,9 @@ export function storedGraphOf(graph: Graph): StoredGraph {
 
 /** Whether the browser stored it. The caller says so when it did not (see saveNotice.ts). */
 export function saveGraph(graph: Graph): boolean {
-  try {
-    localStorage.setItem(GRAPH_STORAGE_KEY, JSON.stringify(storedGraphOf(graph)));
-    return true;
-  } catch {
-    // Private browsing and full quotas both throw. Losing persistence is not
-    // worth losing the session over, but the user is told (saveNotice.ts).
-    return false;
-  }
+  // Private browsing and full quotas both fail. Losing persistence is not
+  // worth losing the session over, but the user is told (saveNotice.ts).
+  return stored(write(GRAPH_STORAGE_KEY, JSON.stringify(storedGraphOf(graph))));
 }
 
 /**
