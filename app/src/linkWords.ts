@@ -62,3 +62,27 @@ export const STRANDED =
   "Storage is full, so your previous layout is only in this tab now. Download a copy to keep it safe. ChooChooCAD can't open these files yet, so keep this tab open until you've freed some space.";
 export const RESTORE_WAITS = "Restore waits until your changes are saved.";
 export const STALE_TAB = 'This layout was changed in another tab. Reload to see the latest.';
+
+/** Share, in the canvas corner (eng D9, D10, D14, D16, D26; design 5A, 7A, 12A). */
+export const NOTHING_TO_SHARE = 'Nothing to share yet.';
+export const COPIED = 'Link copied';
+export const COPY_BY_HAND = 'Copy it from here.';
+export const SHARING_NEEDS_NEWER = 'Sharing needs a newer browser.';
+export const USES_CORRECTIONS = 'The link uses standard part sizes; your corrected sizes stay with you.';
+/** What the share sheet sends before the link (12A). */
+export const SHARE_TEXT = 'A wooden railway for you to build:';
+const SHARE_FAILED = "This layout couldn't be turned into a link.";
+const SHARE_TOO_BIG = `This layout is too big for a link: links carry 500 pieces at most.`;
+/** Share decodes its own link first (D16); a refusal says why, from the sender's side. */
+export const SHARE_REFUSED: Record<LinkRefusal, string> = {
+  'unknown-part': "This layout uses a part you added, and links can only carry the catalogue's parts.",
+  'old-browser': SHARING_NEEDS_NEWER,
+  'too-many-pieces': SHARE_TOO_BIG,
+  'too-long': SHARE_TOO_BIG,
+  'too-large': SHARE_TOO_BIG,
+  version: SHARE_FAILED,
+  'bad-encoding': SHARE_FAILED,
+  corrupt: SHARE_FAILED,
+  malformed: SHARE_FAILED,
+  invalid: SHARE_FAILED,
+};
