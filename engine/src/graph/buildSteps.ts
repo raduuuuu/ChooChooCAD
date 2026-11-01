@@ -1,9 +1,9 @@
 /**
  * THE BUILD, AS ONE LIST (build mode plan, docs/plan/2026-10-31-build-mode.md).
  *
- * Build mode and the printable sheet both render this list and nothing else,
- * so the order, the band changes, which step closes a loop and what each step
- * has to say are decided once, here, where node tests reach them (eng review
+ * Build mode renders this list and nothing else, so the order, the band
+ * changes, which step closes a loop and what each step has to say are
+ * decided once, here, where node tests reach them (eng review
  * design-twice, Shape A).
  *
  *   pull ─▶ piece 1 … ─▶ band card ─▶ piece … ─▶ … ─▶ last
@@ -19,8 +19,8 @@
  *   groups has two joins and closes nothing.
  * - THE RUN NOTE sits at the step that closes the run's LAST loop, when the
  *   whole run is down to judge (D15): bend results are per run of track,
- *   solved together, never per loop. The note is data; the screen and the
- *   sheet put it in the verdict's own words (D14).
+ *   solved together, never per loop. The note is data; the screen puts it
+ *   in the verdict's own words (D14).
  * - AN ADAPTER STEP is one that seats a socket-to-socket joint (D16).
  */
 

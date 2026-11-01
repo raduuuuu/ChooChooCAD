@@ -1,5 +1,7 @@
 # Build mode and the printable sheet
 
+> **2026-11-01:** the printable sheet (PR #88) was removed, because it overlapped build mode (`docs/plan/2026-10-31-share-and-polish.md`, OH-cut). Build mode stays. The sheet's decisions below are kept as the record of what was built.
+
 Status: CEO review in progress (2026-10-31). Source spec: `docs/plan/2026-10-06-brio-track-designer.md:1779-1820` (D3, G1, G2, printed sheet). Backlog entry: `docs/plan/brio-TODOS.md` "P2 — 3D viewer, build mode and the printable sheet".
 
 ## What it is

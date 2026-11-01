@@ -105,6 +105,8 @@ Lillabo). Re-measure the Lillabo Ys first.
 
 ## P3 — The printed sheet's type and spacing are not tokens (filed by /design-review 2026-10-31, D2)
 
+**CLOSED (2026-11-01): the printed sheet was removed** (`docs/plan/2026-10-31-share-and-polish.md`, OH-cut: "too much overlap with build mode"). Kept as written.
+
 **What:** The print block in app.css sets 18pt/12pt/10pt/9pt and mm spacing directly; only `--sheet-paper` is a token.
 **Why:** DESIGN.md: every type role and spacing value lives in tokens.css.
 **Pros:** The sheet joins the system. **Cons:** Print units (pt, mm) next to screen tokens need a short note on why.
@@ -112,6 +114,8 @@ Lillabo). Re-measure the Lillabo Ys first.
 **Effort:** human S / CC S. **Depends on:** nothing.
 
 ## P3 — "Sheet n of m" can undercount when a list runs past one page (filed by /design-review 2026-10-31, D3)
+
+**CLOSED (2026-11-01): the printed sheet was removed** (`docs/plan/2026-10-31-share-and-polish.md`, OH-cut: "too much overlap with build mode"). Kept as written.
 
 **What:** `BuildSheet.tsx` counts one page each for the parts list and the step list; a long list breaks onto more physical pages than the header says.
 **Why:** A header that miscounts pages makes a loose sheet look missing.
@@ -432,7 +436,7 @@ IP questions below should be settled before anything is published publicly
 
 ## P2 — 3D viewer, build mode and the printable sheet
 
-**DONE (2026-10-31).** Build mode and the printable sheet shipped in PRs #85 to #88, as planned in `docs/plan/2026-10-31-build-mode.md` (CEO, eng and design reviewed, D1-D53). The 3D viewer shipped earlier. The text below is kept as written.
+**DONE (2026-10-31).** Build mode and the printable sheet shipped in PRs #85 to #88, as planned in `docs/plan/2026-10-31-build-mode.md` (CEO, eng and design reviewed, D1-D53). The 3D viewer shipped earlier. The text below is kept as written. The printable sheet was removed again on 2026-11-01 (share-and-polish plan, OH-cut): build mode covers it.
 
 **Split 2026-10-31 (/plan-ceo-review, D2/D3).** The 3D viewer itself is planned in
 `docs/plan/2026-10-31-3d-viewer.md`. Build mode and the printable sheet stay here,

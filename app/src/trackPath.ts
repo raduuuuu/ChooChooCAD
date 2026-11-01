@@ -407,8 +407,8 @@ export function plankEdges(s: Segment, half: number): readonly [string, string] 
 
 /**
  * The middle of a piece along its centreline, and the normal there: to the
- * left of a straight, away from a curve's centre. The selection label and the
- * printed sheet's step numbers both sit off it.
+ * left of a straight, away from a curve's centre. The selection label sits
+ * off it.
  */
 export function segmentMid(s: Segment): { readonly x: number; readonly y: number; readonly nx: number; readonly ny: number } {
   if (s.kind === 'straight') {

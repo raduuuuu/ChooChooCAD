@@ -1,6 +1,6 @@
 /**
  * THE ORDER TO BUILD A LAYOUT IN, piece by piece (K3's assembly order, the
- * last thing the 3D viewer, build mode and the printable sheet wait on).
+ * last thing the 3D viewer and build mode wait on).
  *
  * Two rules come from the plan, and both are about wood that has to be there
  * before other wood can go on it:
