@@ -143,8 +143,33 @@ describe('the canvas draws a selection', () => {
   it('two strong edges on the piece, two quiet edges on each other piece of its run', () => {
     const h = html(graph.pieces[0]!.pieceId);
     expect(count(h, 'class="piece-selected"')).toBe(2);
+    expect(count(h, 'class="piece-selected-halo"')).toBe(2);
     expect(count(h, 'class="piece-run"')).toBe(2 * (graph.pieces.length - 1));
     expect(h).toContain('name of p0');
+  });
+
+  /*
+   * UNDER A BRIDGE (plan 2026-11-01, design DR1): a selected floor piece used
+   * to be outlined inside the floor layer, so raised wood drawn over it hid
+   * the outline. It is now drawn after both levels.
+   *
+   * MUTATION PROOF, run: `{selectionTop}` moved before `{levelLayer(true)}`:
+   * `expected 10051 to be greater than 12224`.
+   */
+  it('a selected floor piece is outlined after the raised layer', () => {
+    const raisedId = graph.pieces[5]!.pieceId;
+    const lifted = { ...render, segments: render.segments.map((sg) => (sg.pieceId === raisedId ? { ...sg, level: 1 } : sg)) };
+    const h = renderToStaticMarkup(
+      createElement(TrackCanvas, {
+        render: lifted,
+        resolve,
+        selected: graph.pieces[0]!.pieceId,
+        onPieceSelect: () => undefined,
+        pieceName: (id: string) => `name of ${id}`,
+      }),
+    );
+    expect(h.indexOf('class="piece-selected"')).toBeGreaterThan(h.indexOf(`aria-label="name of ${raisedId}"`));
+    expect(h.indexOf(`aria-label="name of ${raisedId}"`)).toBeGreaterThan(-1);
   });
 
   it('nothing at all with no selection, and one focusable button per piece, one tab stop', () => {
@@ -174,17 +199,22 @@ const last = (selector: string, prop: string): string | undefined => {
 
 describe('each selection mark owns its channel', () => {
   /*
+   * The selected piece went from 2px to 3px over a paper halo by the owner's
+   * answer (plan 2026-11-01, design DR6): 2px was too thin to find in a busy
+   * layout. 3px equals the armed ring, still the heaviest mark.
+   *
    * MUTATION PROOFS, run:
-   * - `.piece-selected` at 3px, the armed ring's weight: `expected '3' to be
-   *   '2'`.
+   * - `.piece-selected` back at 2px: `expected '2' to be '3'`.
    * - `.piece-run` dashed (the cursor's channel): `expected '3 3' to be
    *   undefined`. Survived until that assertion was added.
    * - the `:focus-visible` rule deleted: `expected undefined to be
    *   'visible'`.
    */
-  it('selected: 2px solid ink; run: 1px solid ink-soft; neither dashed, both fixed size', () => {
+  it('selected: 3px solid ink over a 7px paper halo; run: 1px solid ink-soft; neither dashed, both fixed size', () => {
     expect(last('.piece-selected', 'stroke')).toBe('var(--ink)');
-    expect(last('.piece-selected', 'stroke-width')).toBe('2');
+    expect(last('.piece-selected', 'stroke-width')).toBe('3');
+    expect(last('.piece-selected-halo', 'stroke')).toBe('var(--paper)');
+    expect(last('.piece-selected-halo', 'stroke-width')).toBe('7');
     expect(last('.piece-run', 'stroke')).toBe('var(--ink-soft)');
     expect(last('.piece-run', 'stroke-width')).toBe('1');
     expect(last('.piece-selected', 'stroke-dasharray')).toBeUndefined();

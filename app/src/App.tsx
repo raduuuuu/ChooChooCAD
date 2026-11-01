@@ -94,6 +94,7 @@ import { LINK_FRAGMENT } from './linkFragment.js';
 import { EXAMPLE_PRESET, exampleTitle, exitLabel, LINK_HELD, ownTitle, STALE_TAB } from './linkWords.js';
 import { screenMode } from './screenMode.js';
 import { NARROW_QUERY, useMatchMedia } from './useMatchMedia.js';
+import { HINT_MOUSE, HINT_TOUCH, hintSeen, rememberHintSeen } from './selectHint.js';
 import { FriendScreen } from './FriendScreen.js';
 import { leaveLink } from './leaveLink.js';
 import { BUILD_LINK_STORAGE_KEY, GRAPH_STORAGE_KEY } from './storageKeys.js';
@@ -453,13 +454,24 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
    * inside an updater would be a side effect React may repeat.
    */
   const saidNext = useRef<string | null>(null);
+  // Which action wrote `saidNext`, so a removal can also be said on screen (design DR4).
+  const saidKind = useRef<EditorAction['kind'] | null>(null);
   const [said, setSaid] = useState('');
+  /*
+   * WHAT THE LAST REMOVAL DID, ON SCREEN (plan 2026-11-01, design DR4). The
+   * announcement only reached a screen reader; this shows the same sentence
+   * in the canvas strip with Undo, for as long as the layout is the one the
+   * removal left. Any later change to the layout clears it.
+   */
+  const [removedNote, setRemovedNote] = useState<{ readonly text: string; readonly graph: Graph } | null>(null);
   // Set by a pick made in 3D, so its announcement first says the view changed (design 12A).
   const backIn2d = useRef(false);
   useEffect(() => {
     if (saidNext.current !== null) {
       setSaid((backIn2d.current ? 'Back in 2D to place the piece. ' : '') + saidNext.current);
+      if (saidKind.current === 'removePiece') setRemovedNote({ text: saidNext.current, graph: editor.graph });
       saidNext.current = null;
+      saidKind.current = null;
       backIn2d.current = false;
     }
   }, [editor]);
@@ -705,6 +717,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
       // updater is the one place that sees it (see `said` below). Pure, so
       // StrictMode calling this twice writes the same sentence twice.
       saidNext.current = describeAction(e, action, next, resolve);
+      saidKind.current = action.kind;
       return next;
     });
   };
@@ -1280,6 +1293,36 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
       </div>
     ) : null;
 
+  // The removal, said on screen until the layout changes again (design DR4).
+  const removedStrip =
+    removedNote !== null && removedNote.graph === graph ? (
+      <div className="mode-strip" role="group" aria-label="Last move">
+        <p className="mode-strip-text">{removedNote.text}</p>
+        <button onClick={undo}>Undo</button>
+      </div>
+    ) : null;
+
+  /*
+   * THE "CLICK A PIECE" HINT (plan 2026-11-01, design DR2, DR3, DR8): the
+   * strip's lowest priority, in the 2D editor only, with a piece on the floor
+   * (the empty floor draws its own panel and no strip) and none being placed. Any selection, from the canvas, the keyboard or the
+   * layout list, retires it in this browser for good. Plain text: the strip is
+   * not a live region, so it is never announced.
+   */
+  const [hintDone, setHintDone] = useState(hintSeen);
+  useEffect(() => {
+    if (selected === null || hintDone) return;
+    rememberHintSeen();
+    setHintDone(true);
+  }, [selected, hintDone]);
+  const coarsePointer = useMatchMedia('(pointer: coarse)');
+  const hintStrip =
+    !hintDone && !ghost ? (
+      <div className="mode-strip" role="group" aria-label="Tip">
+        <p className="mode-strip-text">{coarsePointer ? HINT_TOUCH : HINT_MOUSE}</p>
+      </div>
+    ) : null;
+
   /*
    * THE JOINING STRIP (design review 27A): what is happening and how to stop.
    * Escape cancels too (useEditorKeys).
@@ -1667,7 +1710,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             onPieceRemove={removePiece}
             onFloorClick={() => selected !== null && selectPiece(null)}
             pieceName={canvasPieceName}
-            strip={placingStrip ?? joinStrip ?? selectionStrip ?? dropStrip}
+            strip={placingStrip ?? joinStrip ?? selectionStrip ?? dropStrip ?? removedStrip ?? hintStrip}
             ghost={ghostView ? { render: ghostView.render, red: ghostView.red, reach: ghostView.reach } : null}
             onRunMove={(d, radius) => moveRunBy(d.pieceId, d.dx, d.dy, d.turns, radius)}
             runOf={runOf}
