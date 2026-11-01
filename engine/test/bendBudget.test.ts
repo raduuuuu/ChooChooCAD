@@ -57,6 +57,36 @@ describe('interlocking loops that close on the floor get a verdict (R1, OV-B)', 
     expect((r.lead?.lambda ?? 0) * bendLimit().deg).toBeCloseTo(2.53, 2);
   });
 
+  /*
+   * WHEREVER IT SITS ON THE FLOOR. The live site, in Chrome, said "the model
+   * still leaves 0.8mm" for the layout above, which closes in Bun and Node:
+   * a rounding difference picked another of many equally good linear answers
+   * on each refinement. Moving the whole layout makes the same kind of
+   * rounding difference here, so these positions stand in for other engines.
+   *
+   * MUTATION PROOF, run: the answer close to the last one not taken
+   * (`nearAt` skipped): `expected [ …(4) ] to deeply equal []` under the
+   * suite's Node, 4 of the 36 positions; under Bun it was 24.
+   */
+  it('closes wherever the layout sits on the floor', () => {
+    const misses: string[] = [];
+    for (const dx of [0, 1e-9, 1e-6, 0.001, 0.37, 10, 123.456, 1000, -77.7]) {
+      for (const dy of [0, 1e-9, 0.5, 333.3]) {
+        const g = owner(fixture.joins.length);
+        const anchors = new Map([...g.anchors!].map(([id, f]) => {
+          const pos = [...f.pos] as unknown as number[];
+          pos[0]! += dx;
+          pos[1]! += dy;
+          return [id, { ...f, pos: pos as unknown as Frame['pos'] }];
+        }));
+        const r = solve({ ...g, anchors });
+        if (!r.ok || r.lead?.status !== 'closes') misses.push(r.ok ? `${r.lead?.status}` : `${r.reason} ${r.detail}`);
+      }
+    }
+    expect(misses).toEqual([]);
+    // 36 full solves of a 60-piece layout: about 3s alone, 6s beside the suite.
+  }, 30_000);
+
   it('the budget is 200M units of work', () => {
     expect(BEND_BUDGET.maxWork).toBe(200_000_000);
   });

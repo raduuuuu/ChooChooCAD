@@ -99,6 +99,8 @@ const REFINEMENTS = 3;
 /** Past this lambda the first, linear answer is reported as it stands: refinement is for the borderline. */
 const SURELY_BEYOND = 2;
 const BISECTIONS = 40;
+/** A refinement's box, as a fraction of each joint's limit and stretch. */
+const NEAR_FRAC = 0.25;
 /**
  * The largest lambda the solve looks for. A loop that needs more than this
  * many times its joints' limits is reported as needing AT LEAST this
@@ -451,6 +453,24 @@ function minMax(run: BendRun, lin: Linear, maxWork: number): MinMax {
   return { kind: 'solved', lambda: hi, z: best!.x, work };
 }
 
+/**
+ * At a lambda already found, an answer within a box around `z`: each joint's
+ * turn within NEAR_FRAC of its limit, its stretch within NEAR_FRAC of its
+ * stretch. Null when the box holds none.
+ */
+function nearAt(run: BendRun, lin: Linear, lambda: number, z: readonly number[], maxWork: number): Feasible | null {
+  const nJ = run.joints.length;
+  const { lo, hi } = boundsAt(run, lambda);
+  for (let i = 0; i < lo.length; i++) {
+    const j = run.joints[i % nJ]!;
+    const r = NEAR_FRAC * (i < nJ ? j.limitRad : j.stretchMm);
+    lo[i] = Math.max(lo[i]!, z[i]! - r);
+    hi[i] = Math.min(hi[i]!, z[i]! + r);
+    if (lo[i]! > hi[i]!) return null;
+  }
+  return feasible(lin.A, lin.b, lo, hi, maxWork);
+}
+
 function worstLeftover(run: BendRun, loops: readonly number[], turns: readonly number[], stretches: readonly number[]): { mm: number; rad: number } {
   let mm = 0;
   let rad = 0;
@@ -494,8 +514,27 @@ function solveLoops(
     }
     lambda = r.lambda;
     if (pass === 0) first = r.lambda;
-    turns = r.z.slice(0, nJ);
-    stretches = r.z.slice(nJ);
+    /*
+     * A REFINEMENT STAYS NEAR WHERE IT STARTED (found on the live site,
+     * 2026-11-01). At the smallest lambda many joints sit at their limit and
+     * the linear rows have many equally good answers. A rounding difference
+     * far below a millimetre (Chrome's Math.hypot against Bun's) picked a
+     * different one on each pass, far from where the rows were linearised,
+     * and the owner's layout circled at 0.7mm left over instead of closing.
+     * At the same lambda, an answer close to the last one keeps the linear
+     * model true, so each pass shrinks the leftover. Lambda itself is
+     * unchanged; with no answer in the box, the bisection's answer stands.
+     */
+    let z = r.z;
+    if (pass > 0) {
+      const near = nearAt(run, lin, lambda, [...turns, ...stretches], maxWork - work);
+      if (near) {
+        work += near.work;
+        if (near.kind === 'feasible') z = near.x;
+      }
+    }
+    turns = z.slice(0, nJ);
+    stretches = z.slice(nJ);
     left = worstLeftover(run, loops, turns, stretches);
     if (left.mm <= 1e-6 && left.rad <= 1e-9) break;
     // Far past the limits, refining cannot bring a loop back under them: a
