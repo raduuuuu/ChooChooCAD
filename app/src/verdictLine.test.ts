@@ -65,7 +65,6 @@ const runBend = (status: RunBend['status'], lambda: number, over: Partial<RunBen
   stretchMm: 1,
   leftoverMm: 0,
   turnedSteps: 0,
-  standalone: [lambda],
   why: null,
   work: 0,
   movesMm: 3,
@@ -376,5 +375,60 @@ describe('the gap in pieces', () => {
 
   it('is absent when the engine proved nothing', () => {
     expect(render(exceedsResult())).not.toContain('This loop is');
+  });
+});
+
+/*
+ * THE CHECKER'S OWN LIMIT IS SAID AS ONE (plan 2026-11-01, R2, D6). When the
+ * bend check ran out of work, or got close but not all the way, that is a
+ * fact about the checker, not the track, so the sentence says so and ends
+ * with "build it and see" itself: no second action follows it. Any other
+ * reason the bend could not be checked keeps the old form, reason and all.
+
+ *
+ * MUTATION PROOF, run: `uncheckedSentence` never called fails with
+ * `expected '<div class="verdict verdict-unknown" …' to contain 'The bend
+ * check ran out of time before…'`; the old action kept under the new sentence
+ * fails with `… not to contain 'Change a piece and check again'`.
+ */
+describe('a bend the checker could not settle', () => {
+  const unchecked = (detail: string): string =>
+    render({
+      ok: false,
+      reason: 'BEND_UNCHECKED',
+      detail,
+      rank: 1,
+      clashes: [],
+      overlaps: [],
+      polarityViolations: [],
+      adapterJoints: [],
+      levelMismatches: [],
+      thirdLevels: [],
+      bridges: [],
+      raised: false,
+      runs: { count: 1, open: 0, loops: [{ firstPiece: 1, pieces: [], headingBroken: false }] },
+      residuals: [],
+    });
+
+  it('out of work: says the check ran out of time, and nothing against the track', () => {
+    const html = unchecked('out of work');
+    expect(html).toContain('The bend check ran out of time before it could finish. That says nothing against the track: build it and see.');
+    expect(html).not.toContain('Could not check the bend');
+    expect(html).not.toContain('Change a piece and check again');
+    expect(html).not.toMatch(CLAIMS_PHYSICAL_NON_FIT);
+  });
+
+  it('a leftover gap: says how close it got, in millimetres', () => {
+    const html = unchecked('the model still leaves 4.4mm');
+    expect(html).toContain('The bend check got within 4.4mm of closing but not all the way. It may still go together: build it and see.');
+    expect(html).not.toContain('Change a piece and check again');
+    expect(html).not.toMatch(CLAIMS_PHYSICAL_NON_FIT);
+  });
+
+  it('any other reason keeps the old sentence and its action', () => {
+    const html = unchecked('a loop could not be followed round');
+    expect(html).toContain('Could not check the bend:');
+    expect(html).toContain('<span class="verdict-detail">a loop could not be followed round</span>');
+    expect(html).toContain('Change a piece and check again, or build it and see.');
   });
 });

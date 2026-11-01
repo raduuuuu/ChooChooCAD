@@ -140,6 +140,24 @@ export const FAILURE_COPY: Record<FailureKind, string> = {
  */
 export const isFailure = (k: VerdictKind): k is FailureKind => Object.hasOwn(FAILURE_COPY, k);
 
+/**
+ * WHEN THE BEND CHECK CANNOT FINISH, SAY IT IS THE CHECKER (plan 2026-11-01,
+ * R2, OV-D, eng X3). "Could not check the bend: out of work" read as the
+ * track failing. These say only what the engine knows: it ran out, or got
+ * this close; nothing about the cause, and nothing against the track. Null
+ * for the other reasons, which keep the headline and detail as before.
+ */
+export function uncheckedSentence(detail: string): string | null {
+  if (detail === 'out of work') {
+    return 'The bend check ran out of time before it could finish. That says nothing against the track: build it and see.';
+  }
+  const near = /^the model still leaves (\d+(?:\.\d+)?)mm$/.exec(detail);
+  if (near) {
+    return `The bend check got within ${near[1]}mm of closing but not all the way. It may still go together: build it and see.`;
+  }
+  return null;
+}
+
 export const ACTION_FOR_FAILURE: Record<FailureKind, string> = {
   NO_CYCLE: 'Click the two free ends you want joined.',
   TOO_MANY_LOOPS: 'Break this into fewer loops, or check them a few at a time.',

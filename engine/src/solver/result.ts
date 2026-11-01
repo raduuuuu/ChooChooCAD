@@ -151,7 +151,7 @@ export function solveLayout(
   const turnedSteps = Math.min(res.headingMismatchSteps, 16 - res.headingMismatchSteps);
   const pieceIds = layout.placements.map((_, i) => String(i));
   const bend: RunBend = res.closesExactly
-    ? { pieces: pieceIds, status: 'exact', lambda: 0, stretchMm: 0, leftoverMm: 0, turnedSteps: 0, standalone: [0], why: null, work: 0, movesMm: 0, others: [], brio: true, atLeast: false }
+    ? { pieces: pieceIds, status: 'exact', lambda: 0, stretchMm: 0, leftoverMm: 0, turnedSteps: 0, why: null, work: 0, movesMm: 0, others: [], brio: true, atLeast: false }
     : solveRun(pieceIds, { joints, loops: [steps] }, turnedSteps, BEND_BUDGET);
 
   if (bend.status === 'unchecked') {

@@ -301,7 +301,6 @@ describe('the figures name ONE loop, never a total', () => {
     stretchMm: 0,
     leftoverMm: 0,
     turnedSteps: 0,
-    standalone: [lambda],
     why: null,
     work: 0,
     movesMm: 1,
