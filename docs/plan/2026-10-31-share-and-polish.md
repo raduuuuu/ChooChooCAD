@@ -812,7 +812,7 @@ Classifier: OPERATE (app UI) for the editor and the friend's screen. Hard reject
 
 ### Design: Implementation Tasks
 
-- [ ] **DT1 (P1, human: ~2 days / CC: ~2h)**: look PR: the identity line out of the rail (2A), warmth (14A: the page-title role, --s5 stage), the verdict fold (4A), the settle motion (15A), the rule 7 copy fix and guard (16A), the DESIGN.md amendments (17A), the first-visit example (3A) and the phone first visit (19A)
+- [x] **DT1 (P1, human: ~2 days / CC: ~2h)**: look PR: the identity line out of the rail (2A), warmth (14A: the page-title role, --s5 stage), the verdict fold (4A), the settle motion (15A), the rule 7 copy fix and guard (16A), the DESIGN.md amendments (17A), the first-visit example (3A) and the phone first visit (19A)
   - Surfaced by: Passes 1, 4, 5, 6
   - Files: app/src/App.tsx, app/src/AppName.tsx, app/src/VerdictLine.tsx, app/src/TrackCanvas.tsx, app/src/app.css, app/src/tokens.css, DESIGN.md
   - Verify: DOM tests for the fold (a not-checked note stays visible), for the example (shown only when nothing is stored; nothing written until edited), and for reduced motion; then /design-review on the live site

@@ -22,11 +22,16 @@
  * Under 620px the same order stacks in one column (app.css, the phone friend
  * screen, design 18A); the editor's "needs a larger screen" message is not
  * shown for a link.
+ *
+ * THE SAME COMPOSITION ON A PHONE WITH NO LINK (design 19A, eng D65): `own`
+ * swaps the title, the build label and the announcement, drops the catalogue
+ * line, Open in editor and the exit, and says where to design instead. It
+ * shows the first-visit example, or the user's own layout read-only.
  */
 
 import { useEffect, useRef, type ReactNode } from 'react';
 import { AppName } from './AppName.js';
-import { CATALOGUE_SIZES, linkTitle } from './linkWords.js';
+import { CATALOGUE_SIZES, linkTitle, PHONE_DESIGN_ELSEWHERE } from './linkWords.js';
 import { OpenInEditor } from './OpenInEditor.js';
 
 export interface FriendPartRow {
@@ -54,7 +59,19 @@ export interface FriendScreenProps {
   readonly onExit: () => void;
 }
 
-export function FriendScreen(props: FriendScreenProps) {
+/** The phone screen for this browser's own layout or the example (19A). */
+export interface OwnScreenWords {
+  readonly title: string;
+  readonly build: string;
+  readonly status: string;
+}
+
+export type PhoneScreenProps = Omit<FriendScreenProps, 'linkBytes' | 'exitLabel' | 'onExit'> & { readonly own: OwnScreenWords };
+
+const isOwn = (p: FriendScreenProps | PhoneScreenProps): p is PhoneScreenProps => 'own' in p;
+
+export function FriendScreen(props: FriendScreenProps | PhoneScreenProps) {
+  const own = isOwn(props) ? props.own : null;
   const title = useRef<HTMLHeadingElement | null>(null);
   // Focus starts at the title, so a screen reader arriving from a chat hears what this is (20A).
   useEffect(() => title.current?.focus(), []);
@@ -66,7 +83,7 @@ export function FriendScreen(props: FriendScreenProps) {
       </header>
       <main className="friend-main">
         <h1 className="friend-title" ref={title} tabIndex={-1}>
-          {linkTitle(props.pieces)}
+          {own ? own.title : linkTitle(props.pieces)}
         </h1>
         <div className="friend-picture" role="img" aria-label={props.planLabel}>
           <div className="friend-picture-inner" inert>
@@ -75,13 +92,13 @@ export function FriendScreen(props: FriendScreenProps) {
         </div>
         <div className="friend-verdict">
           {props.verdict}
-          <p className="friend-sizes">{CATALOGUE_SIZES}</p>
+          {!own && <p className="friend-sizes">{CATALOGUE_SIZES}</p>}
         </div>
         <div className="friend-actions">
           <button className="friend-build" onClick={props.onBuild}>
-            Build it
+            {own ? own.build : 'Build it'}
           </button>
-          <OpenInEditor linkBytes={props.linkBytes} />
+          {isOwn(props) ? <p className="friend-own-note">{PHONE_DESIGN_ELSEWHERE}</p> : <OpenInEditor linkBytes={props.linkBytes} />}
           <details className="friend-parts">
             <summary>
               Parts: <span className="num">{total}</span> {total === 1 ? 'piece' : 'pieces'}
@@ -109,13 +126,13 @@ export function FriendScreen(props: FriendScreenProps) {
             <button onClick={() => props.onView(props.view === '2d' ? '3d' : '2d')}>
               {props.view === '2d' ? 'See it in 3D' : 'Back to the plan'}
             </button>
-            <button onClick={props.onExit}>{props.exitLabel}</button>
+            {!isOwn(props) && <button onClick={props.onExit}>{props.exitLabel}</button>}
           </div>
         </div>
       </main>
       <p className="sr-only" role="status" aria-live="polite">
         {/* The verdict line announces itself in its own region; this names what arrived. */}
-        {`Shared railway, ${props.pieces} ${props.pieces === 1 ? 'piece' : 'pieces'}.`}
+        {own ? own.status : `Shared railway, ${props.pieces} ${props.pieces === 1 ? 'piece' : 'pieces'}.`}
       </p>
     </div>
   );

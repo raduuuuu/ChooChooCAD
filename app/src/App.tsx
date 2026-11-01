@@ -81,7 +81,7 @@ import { previews } from './previewGeometry.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
 import { JoinStart, VerdictLine, VerdictScope } from './VerdictLine.js';
 import { markLists } from './markLists.js';
-import { ghostFit, joinRefusal, otherLevelEndNear, shiftMm, snapRunMove, type JoinRefusal } from './layoutModel.js';
+import { EMPTY_GRAPH, ghostFit, joinRefusal, otherLevelEndNear, shiftMm, snapRunMove, type JoinRefusal } from './layoutModel.js';
 import { ghostKeys } from './ghostKeys.js';
 import { InventoryPanel } from './Inventory.js';
 import { TablePanel } from './TablePanel.js';
@@ -91,7 +91,9 @@ import { View3DPanel } from './View3DPanel.js';
 import { BuildModeLoader } from './BuildModeLoader.js';
 import { loadView, openingView, saveView, type View } from './viewChoice.js';
 import { LINK_FRAGMENT } from './linkFragment.js';
-import { exitLabel, LINK_HELD, STALE_TAB } from './linkWords.js';
+import { EXAMPLE_PRESET, exampleTitle, exitLabel, LINK_HELD, ownTitle, STALE_TAB } from './linkWords.js';
+import { screenMode } from './screenMode.js';
+import { NARROW_QUERY, useMatchMedia } from './useMatchMedia.js';
 import { FriendScreen } from './FriendScreen.js';
 import { leaveLink } from './leaveLink.js';
 import { BUILD_LINK_STORAGE_KEY, GRAPH_STORAGE_KEY } from './storageKeys.js';
@@ -197,7 +199,12 @@ const NO_POINTS: readonly (readonly [number, number])[] = [];
  * every graph change is refused in `dispatch`, and the screen is the friend's
  * (design 1A) rather than the editor.
  */
-export function App({ link }: { readonly link?: Graph } = {}) {
+/*
+ * `offerExample`: this is a real visit, so a browser with no layout of its own
+ * opens on the first-visit example (design 3A). main.tsx passes it; a test
+ * that wants the plain empty editor leaves it out.
+ */
+export function App({ link, offerExample = false }: { readonly link?: Graph; readonly offerExample?: boolean } = {}) {
   /*
    * ORDER MATTERS HERE. The library includes parts this user submitted, so it
    * cannot be a module constant any more. Submissions load first, the library
@@ -256,6 +263,12 @@ export function App({ link }: { readonly link?: Graph } = {}) {
       ? { value: link, droppedAnchors: 0, rescued: false, uncopied: false }
       : loadGraph(libraryIds, (piece: GPiece) => portsOf(resolve(piece.partId), piece.turn)),
   );
+  /*
+   * WHETHER THIS BROWSER HAD A LAYOUT AT MOUNT (design 3A): a layout, a rescue
+   * copy or legacy data. Without one, the floor starts with the example,
+   * which is not saved until it is yours (eng D66, D68).
+   */
+  const [hadLayout] = useState(() => link !== undefined || !offerExample || holdsOwnLayout());
   const [inventoryLoad] = useState(() => loadInventory(libraryIds));
   const [tableLoad] = useState(loadTable);
 
@@ -392,17 +405,34 @@ export function App({ link }: { readonly link?: Graph } = {}) {
    * "armed for a weld" sent the next piece off to start its own run whenever
    * anything cleared it.
    */
-  const [editor, setEditor] = useState<EditorState>(() =>
+  const [editor, setEditor] = useState<EditorState>(() => {
     /*
      * The cursor is DERIVED from the restored graph, not left null. Same
      * inline `ports` shape `loadGraph` uses above, because the memoised one is
      * declared below and this initializer runs once.
      */
-    initialEditor(graphLoad.value, (piece: GPiece) =>
-      portsOf(resolve(piece.partId), piece.turn),
-    ),
-  );
+    const at = (piece: GPiece) => portsOf(resolve(piece.partId), piece.turn);
+    if (hadLayout) return initialEditor(graphLoad.value, at);
+    // The example, laid as its preset button lays it, with no history and not yet "edited".
+    const { edited: _, ...example } = reduce(initialEditor(EMPTY_GRAPH, at), { kind: 'preset', ids: presetByLabel(EXAMPLE_PRESET).pieces }, at);
+    return example;
+  });
   const { graph, cursor, armed } = editor;
+  /*
+   * WHICH SCREEN (eng D65, D70): derived every render from the link, what was
+   * stored, the width and whether the example has been made yours. Turning a
+   * tablet across 620px changes the screen, never the layout.
+   */
+  const [exampleGraph] = useState(() => (hadLayout ? null : editor.graph));
+  const [adopted, setAdopted] = useState(false);
+  const narrow = useMatchMedia(NARROW_QUERY);
+  const screen = screenMode({ link: link !== undefined, stored: hadLayout, narrow, adopted });
+  const canEditNow = useRef(screen.canEdit);
+  canEditNow.current = screen.canEdit;
+  // The first change to the example's layout makes it yours, and from then on it saves (D66).
+  useEffect(() => {
+    if (exampleGraph !== null && graph !== exampleGraph) setAdopted(true);
+  }, [graph, exampleGraph]);
   const selected = editor.selected ?? null;
 
   const graphSaveBlocked = savesSuppressed({
@@ -517,10 +547,19 @@ export function App({ link }: { readonly link?: Graph } = {}) {
    * anchor-stripped graph over the one that still had them. `loadGraph` also
    * rescues the raw bytes, so this is belt and braces.
    */
+  /*
+   * The example is never saved until it is yours (D68: only this key waits;
+   * the box, table and parts save as always). An empty floor nobody has saved
+   * yet is not written either, so Start my own leaves storage as it found it.
+   */
+  const layoutWritten = useRef(hadLayout);
   useEffect(() => {
-    if (graphSaveBlocked || staleTab) return;
-    saved('layout', saveGraph(graph) || graph.pieces.length === 0);
-  }, [graph, graphSaveBlocked, staleTab, saved]);
+    if (graphSaveBlocked || staleTab || !screen.saveLayout) return;
+    if (graph.pieces.length === 0 && !layoutWritten.current) return;
+    const ok = saveGraph(graph);
+    if (ok) layoutWritten.current = true;
+    saved('layout', ok || graph.pieces.length === 0);
+  }, [graph, graphSaveBlocked, staleTab, screen.saveLayout, saved]);
 
   useEffect(() => {
     if (inventorySaveBlocked) return;
@@ -657,8 +696,8 @@ export function App({ link }: { readonly link?: Graph } = {}) {
        * throw where no boundary looks. Pinned by editFailure.dom.test.tsx.
        */
       const next = reduce(e, action, ports, { resolve, placed: { graph, placement, render } });
-      // A shared link is read-only (eng D21): THE one place the layout changes refuses it.
-      if (link && next.graph !== e.graph) {
+      // A shared link, or a phone's view, is read-only (eng D21, D65): THE one place the layout changes refuses it.
+      if (!canEditNow.current && next.graph !== e.graph) {
         saidNext.current = null;
         return e;
       }
@@ -801,16 +840,23 @@ export function App({ link }: { readonly link?: Graph } = {}) {
     </div>
   );
   // Into build mode (build mode plan scope 1): any layout with a piece, whatever the verdict (D9).
+  const startBuild = () => {
+    if (ghost) cancelGhost();
+    if (joining) cancelJoin();
+    setBuilding(true);
+  };
+  // Start my own (design 3A): an empty editor of your own; nothing is written until you place a piece.
+  const startOwn = () => {
+    setEditor(initialEditor(EMPTY_GRAPH, ports));
+    setAdopted(true);
+  };
+  // In the example, "Build this" in its label line takes Build it's place (design 3A).
   const buildIt =
-    graph.pieces.length > 0 ? (
+    graph.pieces.length > 0 && screen.mode !== 'example' ? (
       <button
         ref={buildItButton}
         className="build-it"
-        onClick={() => {
-          if (ghost) cancelGhost();
-          if (joining) cancelJoin();
-          setBuilding(true);
-        }}
+        onClick={startBuild}
       >
         Build it
       </button>
@@ -1482,12 +1528,18 @@ export function App({ link }: { readonly link?: Graph } = {}) {
         ceiling={CANVAS_SEGMENT_CEILING}
         allSaved={allSaved}
         onExit={exitBuild}
-        resumeKey={link ? BUILD_LINK_STORAGE_KEY : undefined}
+        resumeKey={screen.ownBuild ? undefined : BUILD_LINK_STORAGE_KEY}
       />
     );
   }
 
-  if (link) {
+  /*
+   * A PHONE WITH NO LINK (design 19A): the friend's composition, read-only,
+   * showing the example or this browser's own layout. The editor is for a
+   * tablet or computer.
+   */
+  const phone = screen.mode === 'view' || (screen.mode === 'example' && narrow);
+  if (link || phone) {
     const verdictLine = (
       <VerdictLine
         view={verdictView}
@@ -1497,45 +1549,53 @@ export function App({ link }: { readonly link?: Graph } = {}) {
         polarityUnmarked={refusedMarks.hidden}
       />
     );
+    const n = graph.pieces.length;
+    const shared = {
+      pieces: n,
+      picture:
+        view === '3d' && sceneInput ? (
+          <View3DPanel
+            input={sceneInput}
+            pieceCount={n}
+            segmentCount={render.segments.length}
+            ceiling={CANVAS_SEGMENT_CEILING}
+            allSaved
+            emptyAction={null}
+            tableNote={null}
+            label={sceneLabel}
+            resetSignal={resetSignal}
+            corner={null}
+          />
+        ) : (
+          <TrackCanvas
+            render={drawn}
+            resolve={resolve}
+            seams={seams}
+            clashes={clashMarks}
+            gaps={gaps}
+            badJoints={badJoints}
+            adapterJoints={adapterMarks}
+            levelMismatches={levelMarks.mismatches}
+            thirdLevels={levelMarks.thirds}
+            pieceName={canvasPieceName}
+          />
+        ),
+      planLabel: `Plan of the railway, ${n} ${n === 1 ? 'piece' : 'pieces'}.`,
+      verdict: verdictLine,
+      parts: Object.entries(counts).map(([partId, count]) => ({ partId, name: resolve(partId).name, count })),
+      adapters: adaptersUsed,
+      view,
+      onView: setViewState,
+      onBuild: () => setBuilding(true),
+    };
+    if (!link) {
+      const example = screen.mode === 'example';
+      const title = example ? exampleTitle(n) : ownTitle(n);
+      return <FriendScreen {...shared} own={{ title, build: example ? 'Build this' : 'Build it', status: `${title.replace(' · ', ', ')}.` }} />;
+    }
     return (
       <FriendScreen
-        pieces={graph.pieces.length}
-        picture={
-          view === '3d' && sceneInput ? (
-            <View3DPanel
-              input={sceneInput}
-              pieceCount={graph.pieces.length}
-              segmentCount={render.segments.length}
-              ceiling={CANVAS_SEGMENT_CEILING}
-              allSaved
-              emptyAction={null}
-              tableNote={null}
-              label={sceneLabel}
-              resetSignal={resetSignal}
-              corner={null}
-            />
-          ) : (
-            <TrackCanvas
-              render={drawn}
-              resolve={resolve}
-              seams={seams}
-              clashes={clashMarks}
-              gaps={gaps}
-              badJoints={badJoints}
-              adapterJoints={adapterMarks}
-              levelMismatches={levelMarks.mismatches}
-              thirdLevels={levelMarks.thirds}
-              pieceName={canvasPieceName}
-            />
-          )
-        }
-        planLabel={`Plan of the railway, ${graph.pieces.length} ${graph.pieces.length === 1 ? 'piece' : 'pieces'}.`}
-        verdict={verdictLine}
-        parts={Object.entries(counts).map(([partId, count]) => ({ partId, name: resolve(partId).name, count }))}
-        adapters={adaptersUsed}
-        view={view}
-        onView={setViewState}
-        onBuild={() => setBuilding(true)}
+        {...shared}
         linkBytes={JSON.stringify(storedGraphOf(graph))}
         exitLabel={exitLabel(ownLayout)}
         onExit={leaveLink}
@@ -1553,6 +1613,23 @@ export function App({ link }: { readonly link?: Graph } = {}) {
       <header className="identity">
         <AppName />
         <PutAsideNotice allSaved={allSaved} />
+        {screen.mode === 'example' && (
+          /*
+           * THE FIRST-VISIT EXAMPLE (design 3A): labelled as one, with its
+           * verdict below as always. Build this is the solid action; Start my
+           * own clears to an empty editor and writes nothing. Editing the
+           * example makes it yours instead.
+           */
+          <div className="example-line" role="group" aria-label="An example">
+            <span className="example-title">{exampleTitle(graph.pieces.length)}</span>
+            <button ref={buildItButton} className="example-build" onClick={startBuild}>
+              Build this
+            </button>
+            <button className="example-own" onClick={startOwn}>
+              Start my own
+            </button>
+          </div>
+        )}
       </header>
       <main className="stage">
         {view === '3d' && sceneInput ? (

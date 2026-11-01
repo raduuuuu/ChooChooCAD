@@ -2018,6 +2018,15 @@
 .friend-said { margin: 0; }
 /* Not a failure: nothing is wrong, so the rule colour and text buttons, no red (design 22A). */
 .notice.put-aside { border-color: var(--rule); }
+/* The first-visit example's label line (design 3A): one solid action, one text button. */
+.example-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s4); margin-top: var(--s2); }
+.example-title { font-weight: 600; }
+.example-build { min-height: 44px; padding: 0 var(--s4); background: var(--ink); color: var(--paper); border: 1px solid var(--ink); border-radius: 3px; font: inherit; font-weight: 600; cursor: pointer; }
+.example-build:hover { background: var(--ink-soft); border-color: var(--ink-soft); }
+.example-own { min-height: 44px; background: none; border: none; padding: 0; color: var(--ink); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.example-own:hover { text-decoration-thickness: 2px; }
+/* On a phone with no link, where to design instead (design 19A). */
+.friend-own-note { margin: 0; color: var(--ink-soft); }
 .put-aside-buttons { display: flex; gap: var(--s4); flex: none; }
 .put-aside-button { min-height: 44px; background: none; border: none; padding: 0; color: var(--ink); font: inherit; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .put-aside-button:hover { text-decoration-thickness: 2px; }
