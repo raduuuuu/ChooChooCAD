@@ -18,8 +18,8 @@
  * `saveLayout` gates ONLY the saved-layout key (D68): the example is not
  * saved until it is yours, while the box, the table and your parts save as
  * always. `ownBuild` picks the build-progress slot by ownership, never by
- * width (D71): your own layout uses brio.build.v0, a link or the example
- * not yet adopted uses brio.build.link.v0.
+ * width (D71): your own layout uses generic.build.v0, a link or the example
+ * not yet adopted uses generic.build.link.v0.
  */
 
 export type ScreenMode = 'edit' | 'link' | 'example' | 'view';

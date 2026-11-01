@@ -47,7 +47,7 @@ export interface Joint {
   readonly between: readonly [string, string];
   /** Pull-apart stretch at this joint, millimetres: the weaker of the pair. Reported; the bend model reads parts directly. */
   readonly axialMaxMm: number;
-  /** Bend at this joint, degrees: the weaker of the pair's own figures. Reported only; BRIO joints use the bend limit. */
+  /** Bend at this joint, degrees: the weaker of the pair's own figures. Reported only; Generic joints use the bend limit. */
   readonly angularMaxDeg: number;
 }
 

@@ -19,7 +19,7 @@ import type { BendLimit } from '../../data/bendLimit.js';
 export type BendTier = 'exact' | 'closes' | 'beyond';
 
 export type BendFigure =
-  /** All-BRIO run: the worst joint's bend, degrees. */
+  /** All-Generic run: the worst joint's bend, degrees. */
   | { readonly unit: 'deg'; readonly value: number }
   /** Mixed brands: the worst joint's bend as a share of its own limit, percent. */
   | { readonly unit: 'pct'; readonly value: number }
@@ -30,7 +30,7 @@ export type BendFigure =
 export type LineSegment = string | { readonly num: string };
 
 export interface LimitNote {
-  /** 'BRIO' or a part id. */
+  /** 'GENERIC' or a part id. */
   readonly who: string;
   readonly text: string;
 }
@@ -51,7 +51,7 @@ export interface BendWords {
   readonly turned: string | null;
   /** "In 1 of 3 track runs." or null (design 3A). */
   readonly runs: string | null;
-  /** Where the limits come from, BRIO first then other brands by part id (design 5A). */
+  /** Where the limits come from, Generic first then other brands by part id (design 5A). */
   readonly limits: readonly LimitNote[];
   /** For a run that needs bend: overlaps were checked on the catalogue shape, not the bent one the canvas draws (design 11A). */
   readonly overlapNote: string | null;
@@ -68,15 +68,15 @@ function degText(d: number): string {
 
 const HEDGE = 'It may still go together; only building it will tell.';
 
-function brioNote(limit: BendLimit): string {
+function genericNote(limit: BendLimit): string {
   const d = `${(Math.round(limit.deg * 10) / 10).toFixed(1)}°`;
   switch (limit.status) {
     case 'measured':
-      return `BRIO joints were measured to bend ${d}.`;
+      return `Generic joints were measured to bend ${d}.`;
     case 'inferred':
-      return `A built loop needed BRIO joints to bend ${d}.`;
+      return `A built loop needed Generic joints to bend ${d}.`;
     case 'estimated':
-      return `BRIO joint bend is estimated at ${d}; nobody has measured it.`;
+      return `Generic joint bend is estimated at ${d}; nobody has measured it.`;
   }
 }
 
@@ -121,7 +121,7 @@ export function bendWords(lead: RunBend, limit: BendLimit, runsBeyond: number, l
   const runs = loopRuns > 1 && tier === 'beyond' ? `In ${runsBeyond} of ${loopRuns} track runs.` : null;
   const limits: LimitNote[] = [];
   if (tier !== 'exact') {
-    if (lead.pieces.length > 0 && lead.brio) limits.push({ who: 'BRIO', text: brioNote(limit) });
+    if (lead.pieces.length > 0 && lead.generic) limits.push({ who: 'GENERIC', text: genericNote(limit) });
     for (const o of lead.others) {
       limits.push({
         who: o.partId,

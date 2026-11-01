@@ -16,7 +16,7 @@
     ],
   };
   localStorage.clear();
-  localStorage.setItem('brio.hint.select.v0', '1');
-  localStorage.setItem('brio.graph.v1', JSON.stringify(window.FIXTURE === 'three' ? three : two));
+  localStorage.setItem('generic.hint.select.v0', '1');
+  localStorage.setItem('generic.graph.v1', JSON.stringify(window.FIXTURE === 'three' ? three : two));
   return `fixture ${window.FIXTURE === 'three' ? 'three' : 'two'} stored`;
 })()

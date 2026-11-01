@@ -13,7 +13,7 @@
  * Value: why_new=no bend model existed; the give was a sum of axial stretch
  * Value: seam=none for the engine specs; the oracle is a second, independent
  * solver kept only here (eng review D5)
- * Value: no_claim=that 2.7 degrees is what every BRIO joint does: it is a
+ * Value: no_claim=that 2.7 degrees is what every Generic joint does: it is a
  * lower bound inferred from one loop (CALIBRATION.md Q1), and Q1b on the
  * calibration sheet's follow-up page is the next reading
  */
@@ -21,7 +21,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../data/library.js';
 import { bendLimit, deriveBendLimit, q1BendDeg, Q1_LOOP } from '../data/bendLimit.js';
-import { getPart } from '../data/brio.js';
+import { getPart } from '../data/generic.js';
 import { MEASUREMENTS } from '../data/measurements.js';
 import { solveBend, walkEnd, type BendRun, type BendStep } from '../src/graph/bend.js';
 import { BEND_BUDGET, bendRuns, pieceMove, solveRun, statusOf } from '../src/graph/bendRun.js';
@@ -71,7 +71,7 @@ describe('the floor loop and the limit it implies', () => {
    * MUTATION PROOF, run: `const UNIT_DEG = 1` in bendLimit.ts fails with
    * `expected 'estimated' to be 'inferred'`.
    */
-  it('the BRIO bend limit is inferred from Q1: about 2.69 degrees', () => {
+  it('the Generic bend limit is inferred from Q1: about 2.69 degrees', () => {
     const b = bendLimit();
     expect(b.status).toBe('inferred');
     expect(b.deg).toBeCloseTo(2.687, 2);

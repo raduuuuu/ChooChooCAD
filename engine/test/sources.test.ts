@@ -12,7 +12,7 @@
  * things were wrong:
  *
  *  1. The three shared profile figures were NOT pinned to a citation. 40, 12
- *     and 26 lived in `brio.ts` as private consts and in `analytic.test.ts` as
+ *     and 26 lived in `generic.ts` as private consts and in `analytic.test.ts` as
  *     literal expectations, while `sources.ts` held them only as PROSE inside
  *     `RESOLVED[2].conflict.note`. Nothing compared the catalogue to a source,
  *     and correcting a published figure had no single place to be corrected.
@@ -20,7 +20,7 @@
  *     local literals, so it pinned those two numbers to themselves.
  *  3. The comparison was scattered. `trustBoundary.test.ts` restated 182 in a
  *     six-case provenance loop and `switches.test.ts` restated 108 in a
- *     fixture, so a dimension change in `brio.ts` failed several files and a
+ *     fixture, so a dimension change in `generic.ts` failed several files and a
  *     working pin was indistinguishable from collateral damage.
  *
  * The relation tests in `analytic.test.ts` stay where they are and are not a
@@ -32,7 +32,7 @@
  *
  *  1. The published figures live ONCE, in `engine/data/sources.ts`, with a
  *     citation each.
- *  2. `brio.ts` keeps its OWN private copies and does NOT import them.
+ *  2. `generic.ts` keeps its OWN private copies and does NOT import them.
  *
  * Half 2 looks like duplication and is the thing that makes the pin bite. If
  * the catalogue imported the source constants, both sides of every comparison
@@ -42,13 +42,13 @@
  *
  * The comparison lives here and NOWHERE else, so that a failure names the
  * defect. `analytic.test.ts` previously carried these assertions with 40, 12
- * and 26 written out as literals, which meant mutating a dimension in `brio.ts`
+ * and 26 written out as literals, which meant mutating a dimension in `generic.ts`
  * failed that file whether or not any pin worked, and confounded this task's
  * own proof. Those assertions moved here; `trustBoundary.test.ts` lost its
  * literal 182 the same way.
  *
  * MUTATION PROOF, thirteen runs on 2026-10-20, failures as OBSERVED. Catalogue
- * side, editing `engine/data/brio.ts`:
+ * side, editing `engine/data/generic.ts`:
  *
  *   E `innerRadiusMm` 182 -> 183     2 specs, both here
  *   `PLANK_WIDTH_MM` 40 -> 41        2 specs, both here
@@ -67,7 +67,7 @@
  *   `TRACK_PROFILE.grooveSpacingMm` 20 -> 21    2 specs, both here
  *   `TRACK_PROFILE.grooveDepthMm` 3 -> 4        1 spec, here
  *
- * And the structural one, editing `engine/data/brio.ts` to `import
+ * And the structural one, editing `engine/data/generic.ts` to `import
  * { TRACK_PROFILE } from './sources.js'` and read `plankWidthMm` from it, which
  * is how a future tidy-up would most plausibly arrive:
  *
@@ -110,14 +110,14 @@
  * provenance test told you nothing about the radius being pinned, and the
  * centreline check that failed alongside them declared `INNER` and `OUTER` as
  * its own local literals. The profile figures were worse off: 40, 12 and 26
- * existed in `brio.ts` as private consts and in `analytic.test.ts` as literal
+ * existed in `generic.ts` as private consts and in `analytic.test.ts` as literal
  * expectations, and in `sources.ts` only as PROSE inside a conflict note, so
  * there was no single place to correct one and nothing compared the catalogue
  * to a citation at all.
  *
  * NOTHING HERE IS A MEASUREMENT. Every figure is a published third-party
  * number, status `published` at best, and the provenance question flagged over
- * `brio.ts` applies to all of it. This file proves transcription fidelity, not
+ * `generic.ts` applies to all of it. This file proves transcription fidelity, not
  * that real track has these dimensions.
  */
 
@@ -126,7 +126,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-import { BRIO_PARTS, getPart } from '../data/brio.js';
+import { GENERIC_PARTS, getPart } from '../data/generic.js';
 import {
   CONFLICTS,
   CURVE_ARC_CITATION,
@@ -145,9 +145,9 @@ type Straight = Extract<Part, { kind: 'straight' }>;
 type Curve = Extract<Part, { kind: 'curve' }>;
 
 const straights = (): readonly Straight[] =>
-  BRIO_PARTS.filter((p): p is Straight => p.kind === 'straight');
+  GENERIC_PARTS.filter((p): p is Straight => p.kind === 'straight');
 const curves = (): readonly Curve[] =>
-  BRIO_PARTS.filter((p): p is Curve => p.kind === 'curve');
+  GENERIC_PARTS.filter((p): p is Curve => p.kind === 'curve');
 
 describe('every catalogue dimension is pinned to its cited source', () => {
   it("every straight's length matches the published figure exactly", () => {
@@ -176,7 +176,7 @@ describe('every catalogue dimension is pinned to its cited source', () => {
   });
 
   it('every part carries the published profile figures from the source', () => {
-    for (const p of BRIO_PARTS) {
+    for (const p of GENERIC_PARTS) {
       expect(p.plankWidthMm, p.id).toBe(TRACK_PROFILE.plankWidthMm);
       expect(p.plankThicknessMm, p.id).toBe(TRACK_PROFILE.plankThicknessMm);
       expect(p.gaugeWidthMm, p.id).toBe(TRACK_PROFILE.gaugeWidthMm);
@@ -186,7 +186,7 @@ describe('every catalogue dimension is pinned to its cited source', () => {
 
   /*
    * COVERAGE, not a formality. Every assertion above iterates the CATALOGUE and
-   * looks each part up in the source, so a part added to `brio.ts` with no
+   * looks each part up in the source, so a part added to `generic.ts` with no
    * source entry fails by looking up `undefined`. This closes the other
    * direction: a figure deleted from `sources.ts` while the catalogue keeps its
    * own private copy would otherwise leave nothing to notice.
@@ -204,12 +204,12 @@ describe('the catalogue and the source stay independent', () => {
   /*
    * THE ONE ASSERTION THAT PROTECTS EVERY OTHER ASSERTION IN THIS FILE.
    *
-   * Every comparison here works by reading a figure from `brio.ts` and the same
+   * Every comparison here works by reading a figure from `generic.ts` and the same
    * figure from `sources.ts` and checking they agree. That only means something
-   * while the two are transcribed independently. The moment `brio.ts` imports
+   * while the two are transcribed independently. The moment `generic.ts` imports
    * `TRACK_PROFILE` or `STRAIGHT_LENGTHS` from here, both sides of every
    * comparison resolve to one constant, every spec in this file passes by
-   * identity, and so does every mutation proof run against `brio.ts`, because
+   * identity, and so does every mutation proof run against `generic.ts`, because
    * the catalogue would simply read the edited value back.
    *
    * That change would look like an obvious tidy-up, and it would be invisible:
@@ -228,8 +228,8 @@ describe('the catalogue and the source stay independent', () => {
    * that it checked neither, and the second version named only the first gap
    * below while implying it was the whole list.
    *
-   *   1. A TRANSITIVE coupling. It reads `brio.ts`'s own import lines only.
-   *      `brio.ts` imports `./thirdParty.js` (its only non-type import), so if
+   *   1. A TRANSITIVE coupling. It reads `generic.ts`'s own import lines only.
+   *      `generic.ts` imports `./thirdParty.js` (its only non-type import), so if
    *      that module, or anything it imports, ever re-exported from here, this
    *      spec would stay green. Checked 2026-10-20: `thirdParty.ts` imports
    *      only `../src/parts/schema.js`, so no such path exists today.
@@ -283,11 +283,11 @@ describe('the catalogue and the source stay independent', () => {
    * handles the rest: a specifier assembled at runtime, such as
    * `import(base + '/sources.js')`, has no literal to read; and a TRANSITIVE
    * coupling through another module is out of scope, since this reads one
-   * file's own import list. `brio.ts`'s only value import is `./thirdParty.js`,
+   * file's own import list. `generic.ts`'s only value import is `./thirdParty.js`,
    * checked 2026-10-20 to import nothing but `../src/parts/schema.js`.
    *
    * PROVED BY ATTACK, 19 probes RUN against this spec on 2026-10-20, each one
-   * injected into `brio.ts` and then reverted. All sixteen couplings are
+   * injected into `generic.ts` and then reverted. All sixteen couplings are
    * caught, including every form that beat a regex version:
    *
    *   plain static import, a comment between `from` and the quote, `/*` opened
@@ -303,9 +303,9 @@ describe('the catalogue and the source stay independent', () => {
    * `./resources.js`, `./datasources.js` and the real sibling
    * `../src/parts/schema.js` are not flagged.
    */
-  it('brio.ts has no import of this file, in any syntactic form', () => {
+  it('generic.ts has no import of this file, in any syntactic form', () => {
     const cataloguePath = fileURLToPath(
-      new URL('../data/brio.ts', import.meta.url),
+      new URL('../data/generic.ts', import.meta.url),
     );
     const source = ts.createSourceFile(
       cataloguePath,
@@ -352,7 +352,7 @@ describe('the catalogue and the source stay independent', () => {
     visit(source);
 
     // If this ever reads zero, the parse silently failed and the spec proves
-    // nothing. brio.ts has imports; a count of zero is the broken-scan signal.
+    // nothing. generic.ts has imports; a count of zero is the broken-scan signal.
     expect(specifiers.length, 'parsed no imports at all, so this spec is blind')
       .toBeGreaterThan(0);
 
@@ -362,7 +362,7 @@ describe('the catalogue and the source stay independent', () => {
      * yields `index`, and turning `sources.ts` into `sources/index.ts` is an
      * ordinary refactor that would have walked straight past such a check.
      *
-     * So each specifier is resolved relative to `brio.ts`, lowercased (because
+     * So each specifier is resolved relative to `generic.ts`, lowercased (because
      * `./Sources.js` is the same file on a case-insensitive filesystem),
      * stripped of any query or fragment and of any JS/TS extension, and then
      * compared with THIS module's own resolved path. A hit is the exact file or
@@ -379,7 +379,7 @@ describe('the catalogue and the source stay independent', () => {
         resolved === target || resolved.startsWith(`${target}/`);
       expect(
         isThisModule,
-        `brio.ts must transcribe the figures, never import them (${raw})`,
+        `generic.ts must transcribe the figures, never import them (${raw})`,
       ).toBe(false);
     }
   });
@@ -511,13 +511,13 @@ describe('the published sentences are self-consistent', () => {
 });
 
 describe('every figure declares where it came from', () => {
-  it('every BRIO part is published, and says which pages', () => {
-    for (const p of BRIO_PARTS) {
+  it('every Generic part is published, and says so', () => {
+    for (const p of GENERIC_PARTS) {
       // The pin that matters for the verdict: `published` is the best status
       // anything here can claim, and the trust register reads this field to
       // decide whether a layout's answer may be called exact.
       expect(p.dimensions.status, p.id).toBe('published');
-      expect(p.dimensions.source, p.id).toContain('woodenrailway.info');
+      expect(p.dimensions.source, p.id).toContain('the published track guide');
     }
   });
 
@@ -526,12 +526,12 @@ describe('every figure declares where it came from', () => {
     // this file has had calipers on it, and `user-measured` outranks
     // `published` in DIMENSION_TRUST, so a stray upgrade here would silently
     // promote a third-party transcription above a real measurement.
-    for (const p of BRIO_PARTS) {
+    for (const p of GENERIC_PARTS) {
       expect(p.dimensions.status, p.id).not.toBe('user-measured');
       /*
        * Pinned to the exact value, not merely away from 'measured'.
        * `CalibrationStatus` has THREE members ('measured' | 'published' |
-       * 'estimated'), so `not.toBe('measured')` let a BRIO part's give drift to
+       * 'estimated'), so `not.toBe('measured')` let a Generic part's give drift to
        * 'published' with nothing failing. Nothing in the verdict path treats
        * 'published' give as measured, so that was not an outright upgrade, but
        * the spec read as a protection it only half provided.
@@ -540,10 +540,10 @@ describe('every figure declares where it came from', () => {
     }
   });
 
-  it('each citation names its page and its convention', () => {
+  it('each citation says it was published, and its convention', () => {
     for (const c of [STRAIGHT_CITATION, CURVE_ARC_CITATION, PROFILE_CITATION]) {
       expect(c.status).toBe('published');
-      expect(c.source).toContain('woodenrailway.info');
+      expect(c.source).toContain('the published track guide');
       // A figure without a stated convention is not re-checkable: 182 means
       // nothing until you know it is an inner radius and not a centreline,
       // which is exactly the error that shipped on 2026-10-08.
@@ -567,7 +567,7 @@ describe('the resolved conflicts keep their verbatim evidence', () => {
     expect(RESOLVED.length).toBe(3);
     for (const r of RESOLVED) {
       expect(r.status).toBe('published');
-      expect(r.source).toContain('woodenrailway.info');
+      expect(r.source).toContain('the published track guide');
       expect(r.conflict!.ours).not.toBe(r.conflict!.theirs);
       expect(r.conflict!.note).toMatch(/RESOLVED/);
       // The quoted sentence is the evidence. A resolution that paraphrases is

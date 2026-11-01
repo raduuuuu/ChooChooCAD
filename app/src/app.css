@@ -578,7 +578,7 @@
    * A ceiling, not a target. See .shell.
    *
    * 34vh was the first try and it was too tight once the brand shelves
-   * collapsed: it clipped BRIO's own rows. The tray takes the height it needs
+   * collapsed: it clipped Generic's own rows. The tray takes the height it needs
    * up to 45vh, and `.shell`'s `minmax(320px, 1fr)` is what protects the
    * canvas. Below that, on a short window, the parts region scrolls. That is
    * the last resort it was always meant to be rather than the normal case.
@@ -633,9 +633,9 @@
 }
 
 /*
- * The brand shelves, pinned under the scrolling BRIO list. One line each, so
+ * The brand shelves, pinned under the scrolling Generic list. One line each, so
  * a user can always see that IKEA and Playtive exist and what is wrong with
- * their data, whatever the BRIO list is doing above.
+ * their data, whatever the Generic list is doing above.
  */
 .palette-shelves {
   display: flex;
@@ -669,7 +669,7 @@
   display: grid;
   /*
    * The id column grows. It was a flat 2.6ch, which fit "A2" and "E1" exactly
-   * because BRIO was the only brand. The multi-brand library then put
+   * because Generic was the only brand. The multi-brand library then put
    * "PLAYTIVE-200" in it, the text wrapped inside the 2.6ch track and printed
    * on top of the part name. The card now shows `shortCode(part)` (the brand
    * prefix lives in the group heading, not on every card), and this floor-plus-
@@ -903,7 +903,7 @@
 /*
  * BRAND GROUPS.
  *
- * A heading-plus-rule per non-BRIO brand, so the separation is structural rather
+ * A heading-plus-rule per non-Generic brand, so the separation is structural rather
  * than a colour the user has to interpret. The warning is text, not a badge: the
  * reason these pieces are different needs a sentence, and a sentence cannot be
  * mistaken for decoration.
@@ -1546,7 +1546,7 @@
    * Six columns so each control can take the width it needs.
    *
    * Left to wrap, these took 229px of a 641px rail, which is what kept the
-   * BRIO curves below the fold. Two even columns did not help: "Remove last"
+   * Generic curves below the fold. Two even columns did not help: "Remove last"
    * and the three presets still landed on four separate rows. Six columns
    * lets the pair of edit buttons halve the row and the three presets thirds
    * of it, which is three rows instead of five.

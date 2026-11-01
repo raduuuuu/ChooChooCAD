@@ -1,5 +1,5 @@
 /**
- * HOW FAR A BRIO JOINT IS CREDITED WITH BENDING (docs/designs/joint-bend.md).
+ * HOW FAR A Generic JOINT IS CREDITED WITH BENDING (docs/designs/joint-bend.md).
  *
  * Three sources, in this order (eng review, "The limit: one value, defined by
  * the solver"):
@@ -23,7 +23,7 @@
  * estimate).
  *
  * LAZY, BECAUSE OF LOAD ORDER (eng review D15). Q1's pieces live in the
- * catalogue, and the catalogue's own slop is computed while brio.ts loads, so
+ * catalogue, and the catalogue's own slop is computed while generic.ts loads, so
  * deriving this at load would read a half-built list. It is computed on the
  * first call, after loading has finished, and remembered.
  */
@@ -32,7 +32,7 @@ import { solveBend, type BendStep } from '../src/graph/bend.js';
 import { pieceMove } from '../src/graph/bendRun.js';
 import { portsOf } from '../src/graph/model.js';
 import { ESTIMATES, measuredBendDeg, type Measurements } from './calibration.js';
-import { getPart } from './brio.js';
+import { getPart } from './generic.js';
 import { MEASUREMENTS } from './measurements.js';
 
 export type BendLimitStatus = 'measured' | 'inferred' | 'estimated';
@@ -91,7 +91,7 @@ export function deriveBendLimit(m: Measurements, stretchMm: number): BendLimit {
 
 let cached: BendLimit | null = null;
 
-/** The BRIO bend limit, derived on first use from the readings and remembered. */
+/** The Generic bend limit, derived on first use from the readings and remembered. */
 export function bendLimit(): BendLimit {
   if (cached === null) cached = deriveBendLimit(MEASUREMENTS, getPart('A').slop.axialMm);
   return cached;

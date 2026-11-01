@@ -83,7 +83,7 @@ describe('the gap in pieces', () => {
     expect(r.repair).not.toBeNull();
     expect(r.repair!.direction).toBe('short');
     expect(r.repair!.part.id).toBe('A3');
-    // A3 is the one BRIO straight with no part number.
+    // A3 is the one Generic straight with no part number.
     expect(r.repair!.partNumber).toBeNull();
   });
 
@@ -180,8 +180,8 @@ describe('the gap in pieces', () => {
   });
 
   /*
-   * A BRIO-and-Playtive loop 60mm short, where PLAYTIVE-60 is exactly 60mm.
-   * BRIO-to-Playtive is 'unknown', not 'joins', so nothing is suggested.
+   * A Generic-and-Playtive loop 60mm short, where PLAYTIVE-60 is exactly 60mm.
+   * Generic-to-Playtive is 'unknown', not 'joins', so nothing is suggested.
    *
    * MUTATION PROOF, run: delete the `brandFit` filter in `pieceRepair`.
    * Fails with `expected { direction: 'short', …(2) } to be null`.

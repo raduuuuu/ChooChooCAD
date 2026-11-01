@@ -4,6 +4,7 @@ import { startReadOnlySession } from '../../engine/data/storage.js';
 import { App } from './App.js';
 import { ErrorBoundary } from './ErrorBoundary.js';
 import { LINK_FRAGMENT } from './linkFragment.js';
+import { moveOldNames } from './oldNames.js';
 import { BUILD_LINK_STORAGE_KEY } from './storageKeys.js';
 
 /*
@@ -15,6 +16,9 @@ import { BUILD_LINK_STORAGE_KEY } from './storageKeys.js';
  * this browser has no layout of its own (design 3A).
  */
 const LinkRoute = lazy(() => import('./LinkRoute.js').then((m) => ({ default: m.LinkRoute })));
+
+// Saved data under the old key names moves first, before anything reads it.
+moveOldNames();
 
 const root = createRoot(document.getElementById('root')!);
 if (LINK_FRAGMENT.test(location.hash)) {

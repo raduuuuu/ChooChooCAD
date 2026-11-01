@@ -7,7 +7,7 @@
  * collapsed into one.
  *
  * The switch here is DECLARED LOCALLY, not taken from the catalogue. Nobody
- * publishes BRIO's switch geometry in a citable form, and this project does
+ * publishes Generic's switch geometry in a citable form, and this project does
  * not write down a dimension it cannot source. These numbers are chosen to
  * make the arithmetic exact and claim nothing about real track; the point
  * under test is the model, not the millimetres.
@@ -76,7 +76,7 @@ const eCurve = (): { arcSteps: number; innerRadiusMm: number } => {
  * 108, and the spec it feeds claims the switch's straight road matches "a plain
  * straight of the same length" -- a claim that must hold for whatever length A1
  * is, not only for 108. Pinning the number here meant a dimension change in
- * `brio.ts` failed this file too, which is the collateral noise task K2 set out
+ * `generic.ts` failed this file too, which is the collateral noise task K2 set out
  * to remove: the catalogue is pinned in `engine/test/sources.test.ts` and
  * nowhere else.
  */
@@ -94,7 +94,7 @@ const HEEL: Frame = { pos: ZERO, heading: 8 };
  */
 const SW: MultiRoadPart = {
   id: 'TEST-SWITCH',
-  brand: 'BRIO',
+  brand: 'GENERIC',
   kind: 'multi-road',
   name: 'Test switch',
   ports: [

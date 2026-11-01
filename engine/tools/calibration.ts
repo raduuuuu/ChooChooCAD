@@ -8,7 +8,7 @@
  * engine calls a definite no, against what the floor said.
  */
 
-import { BRIO_SLOP } from '../data/brio.js';
+import { GENERIC_SLOP } from '../data/generic.js';
 import { CLEARANCE } from '../data/rampSeeds.js';
 import { ESTIMATES, findings, type Measurements } from '../data/calibration.js';
 import { MEASUREMENTS } from '../data/measurements.js';
@@ -19,7 +19,7 @@ import { solveLayout } from '../src/solver/result.js';
 /** The engine's verdict on the Q1 loop (E E E E D E E E E A, a 72mm residual), with the bend in use now. */
 export function engineOnQ1(): Pick<LayoutEvaluation, 'verdict' | 'gapMm' | 'lambda'> {
   const r = solveLayout({ placements: Q1_LOOP.map((partId) => ({ partId, turn: 'left' as const })), closed: true });
-  return evaluateLayout(r, BRIO_SLOP.calibrationStatus);
+  return evaluateLayout(r, GENERIC_SLOP.calibrationStatus);
 }
 
 /** The engine's word on the Q1 loop beside the floor's. */
@@ -42,7 +42,7 @@ export function q1Finding(m: Measurements, e = engineOnQ1()): string {
 }
 
 /**
- * The BRIO bend limit in use, where it came from, and, when it was inferred
+ * The Generic bend limit in use, where it came from, and, when it was inferred
  * from Q1, how far the solver's refinement could have moved it above the true
  * minimum (eng review D13).
  */
@@ -54,7 +54,7 @@ export function bendLine(): string {
 
 export function report(m: Measurements): string[] {
   return [
-    `Joint stretch: ${BRIO_SLOP.axialMm}mm (${m.q2.pullApartMm === null ? 'still the estimate' : `measured ${m.measuredOn}`}; estimate ${ESTIMATES.axialMm}mm).`,
+    `Joint stretch: ${GENERIC_SLOP.axialMm}mm (${m.q2.pullApartMm === null ? 'still the estimate' : `measured ${m.measuredOn}`}; estimate ${ESTIMATES.axialMm}mm).`,
     `Train height: ${CLEARANCE.trainMm}mm (${CLEARANCE.trainMeasured ? 'measured' : 'still the estimate'}).`,
     bendLine(),
     '',

@@ -21,7 +21,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { getPart } from '../data/brio.js';
+import { getPart } from '../data/generic.js';
 import {
   BUILT_IN,
   loadSubmissions,
@@ -104,7 +104,7 @@ describe('a stored submission cannot forge provenance', () => {
        *
        * This line has now been wrong twice, in opposite directions. It first
        * carried the literal 182, which failed on any dimension change in
-       * `brio.ts` and so drowned a real pin in `sources.test.ts` under six
+       * `generic.ts` and so drowned a real pin in `sources.test.ts` under six
        * collateral failures. The K2 repair compared against `getPart('E')`
        * instead, which was WORSE: when the forgery is rejected `resolveLibrary`
        * returns the same object `getPart` returns, verified by execution
@@ -115,7 +115,7 @@ describe('a stored submission cannot forge provenance', () => {
        * forged part that replaces E reads a different radius and fails. A
        * resolver that mutated the shared built-in in place also fails, because
        * the captured copy still holds the old value. And a dimension change in
-       * `brio.ts` moves the captured value with the part, so this file stays
+       * `generic.ts` moves the captured value with the part, so this file stays
        * quiet and the pin in `sources.test.ts` is the only thing that speaks.
        * The trade is deliberate: a swap of E for another part with the same id
        * and a different radius also passes here, and only `sources.test.ts`

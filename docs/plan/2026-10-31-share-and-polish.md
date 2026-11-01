@@ -58,7 +58,7 @@ them without that split.
 | P-d | Main chunk limit 134.02 kB | scripts/chunkBudget.ts:20-21 | verified |
 | P-e | `segmentMid` is used outside the sheet | app/src/trackPath.ts:445 | verified: it stays |
 | P-f | `savesSuppressed` can suspend autosave in a link view | app/src/layoutStore.ts:661-664 | **finding**: it is a predicate over the loss notice (`notice`, `dismissed`), not a general switch. A link view needs a new input or its own guard. |
-| P-g | The custom-parts TODO blocks sharing custom parts | docs/plan/brio-TODOS.md:2140 | verified |
+| P-g | The custom-parts TODO blocks sharing custom parts | docs/plan/generic-TODOS.md:2140 | verified |
 | P-h | No sharing code exists yet | grep for CompressionStream/navigator.share/clipboard in app/src: no hits | verified |
 | P-i | `CompressionStream('deflate-raw')` works in current Safari, Chrome and Firefox | external (MDN); not checked here | unverified |
 | P-j | Messaging apps truncate links around 2 KB | design doc, Open Questions | unverified (to be measured) |
@@ -102,7 +102,7 @@ hours, D1.
 | OH-D2 (user) | Design doc | docs/designs/share-and-polish.md | — | approved | office-hours D2 "A) Approve (recommended)" |
 | OH-cut (user) | Printable sheet | removed | — | approved | "1 but also remove the print sheet. too much overlap with build mode" |
 | MODE (user) | Review mode | SCOPE REDUCTION | — | approved | D3 "Scope reduction (recommended)" |
-| R-1 (S0) | Layout-file fallback | deferred to TODOs (brio-TODOS.md:383) | — | approved (defer) | D4 "Defer to TODOs (recommended)": the file fallback only |
+| R-1 (S0) | Layout-file fallback | deferred to TODOs (generic-TODOS.md:383) | — | approved (defer) | D4 "Defer to TODOs (recommended)": the file fallback only |
 | R-2 (S0) | System share sheet on touch | kept; copy is the fallback; a cancelled sheet does nothing | — | approved (keep) | D5 "Keep the share sheet (recommended)" |
 | A1 (S1) | Where the read-only view lives (App.tsx is 1,749 lines, pipeline inline) | — | App with a link source, or a separate LinkView | unresolved (owner: /plan-eng-review) | D6 "Decide in eng review": the view's home only; every isolation invariant stands either way |
 | A2 (S1) | A crashing link reaches ErrorBoundary.clearAndReload (ErrorBoundary.tsx:78-92) | link sessions get their own boundary: "This link couldn't be shown." + Back to my layout (clears the fragment, reloads into the editor); never the clear | — | approved | D7 "Own crash screen (recommended)" |
@@ -148,9 +148,9 @@ Kept:
 ## NOT in scope
 
 - Layout-file fallback (.choochoo): deferred (D4) until link lengths are
-  measured. TODO at docs/plan/brio-TODOS.md:383.
+  measured. TODO at docs/plan/generic-TODOS.md:383.
 - Sharing custom parts or sender corrections: blocked by
-  docs/plan/brio-TODOS.md:2140. Links use standard sizes (D14).
+  docs/plan/generic-TODOS.md:2140. Links use standard sizes (D14).
 - Inflate fallback for old browsers: rejected (D9). Old browsers get a
   sentence instead.
 - A separate part-code table: rejected (D11).
@@ -167,7 +167,7 @@ Kept:
 - The editor's plan, verdict, parts list, 3D view and build mode: reused by the
   read-only view (how, per A1).
 - `layoutKey` and resume (buildSession.ts:34-76): reused for
-  `brio.build.link.v0`.
+  `generic.build.link.v0`.
 - The `unsaved` set (App.tsx:427): reused to gate the hashchange reload (D15).
 - `BUILT_IN` (engine/data/library.ts): the catalogue links resolve against
   (D14).
@@ -237,7 +237,7 @@ summarised here:
                  │ok                              │refused
                  ▼                                ▼
            LinkBoundary ▶ read-only view     bad-link screen ── Back to my layout (replaceState → editor)
-                 ├─ Build it ─▶ build mode (brio.build.link.v0 only)
+                 ├─ Build it ─▶ build mode (generic.build.link.v0 only)
                  ├─ Open in editor ─▶ put-aside (read back) ─▶ saved ← link ─▶ editor + Restore
                  └─ Back to my layout ─▶ editor (unchanged)
 
@@ -484,7 +484,7 @@ Comparison grid:
 | Commitment | Current | A | B |
 |---|---|---|---|
 | Link sessions never write protected keys | CEO success criteria | same | same |
-| Mechanism | a flag in six App conditions | one `storage.ts` (write/remove), with a read-only session switch set by the link route before App mounts; it only allows `brio.build.link.v0` | as current |
+| Mechanism | a flag in six App conditions | one `storage.ts` (write/remove), with a read-only session switch set by the link route before App mounts; it only allows `generic.build.link.v0` | as current |
 | Guard against a new write path | all-keys test | + a parser-based test (TypeScript AST, per learning four-regex-versions-of-an-import-guard-all-got-defeated) failing if any other source calls localStorage.setItem/removeItem | all-keys test only |
 
 Question D31 (options as in the grid)
@@ -492,7 +492,7 @@ State: approved
 Actual answer: D31 "One storage module (recommended)"
 Accepted scope:
 - New app/src/storage.ts with write/remove. The seven call sites move to it, and so does ErrorBoundary's clear.
-- The link route turns on a read-only session before App mounts. During it, only `brio.build.link.v0` is written, and every other write returns "skipped", which callers treat as not failed, so no save-failure notice appears.
+- The link route turns on a read-only session before App mounts. During it, only `generic.build.link.v0` is written, and every other write returns "skipped", which callers treat as not failed, so no save-failure notice appears.
 - Open in editor is the one sanctioned exit: it ends the read-only session immediately before its put-aside and replace writes.
 - A parser-based test (TypeScript AST) fails if any other source calls localStorage.setItem/removeItem.
 - This replaces D21's "flag in six save conditions"; D21's setEditor guard stands.
@@ -512,7 +512,7 @@ Coverage diagram (proposed code; every path below is a planned test, nothing exi
 CODE PATHS                                              USER FLOWS
 [+] app/src/shareLink.ts                                 [+] Friend opens a link
   ├── encode(storedGraphOf(g))                             ├── [PLANNED ★★★] fresh load #v1. → read-only editor, every key unchanged [→E2E: live check]
-  │   ├── [PLANNED ★★★] round-trip every fixture+preset (D30) ├── [PLANNED ★★★] Build it a few steps → Back; only brio.build.link.v0 written
+  │   ├── [PLANNED ★★★] round-trip every fixture+preset (D30) ├── [PLANNED ★★★] Build it a few steps → Back; only generic.build.link.v0 written
   │   └── [PLANNED ★★★] 501 pieces refused (D22/D16)      ├── [PLANNED ★★★] Open in editor: empty / put-aside / ask / decline (D23, D29)
   ├── decode(fragment)                                     ├── [PLANNED ★★★] Open in editor double tap (D27); Back after (D28)
   │   ├── [PLANNED ★★★] each refusal class (table)         ├── [PLANNED ★★★] Restore swap; full storage on put-aside, on swap, on rollback (D24)
@@ -553,7 +553,7 @@ No issues found. Decode is milliseconds at the cap (an 8,192-character fragment,
 
 ### TODO choices
 
-No new TODO proposals. The existing layout-file TODO (docs/plan/brio-TODOS.md:383) gains D36's re-import reason. No other deferral was chosen.
+No new TODO proposals. The existing layout-file TODO (docs/plan/generic-TODOS.md:383) gains D36's re-import reason. No other deferral was chosen.
 
 Approval readiness (eng): PASS. Checked: D20 (feature), D21 (structure), D22, D23, D24 (amended by D36), D25, D26, D27, D28, D29, D30, D31 (amended by D35), D32, D33, D34 (amends CEO D15), D35, D36, D37, D38. Each carries its actual answer above. No pending rows.
 
@@ -570,7 +570,7 @@ Approval readiness (eng): PASS. Checked: D20 (feature), D21 (structure), D22, D2
 - loadGraph's checks (layoutStore.ts:305) become checkStored. The 52 tests in layoutStore.test.ts stay the contract, and their matrices become shared tables (D33).
 - App's `allSaved` expression (App.tsx:1408) becomes the one "safe to reload" value (D34).
 - joinWords.ts is the pattern for linkWords.ts (D32).
-- Build mode is reused unchanged for Build it from a link. Its resume moves to `brio.build.link.v0` via storage.ts.
+- Build mode is reused unchanged for Build it from a link. Its resume moves to `generic.build.link.v0` via storage.ts.
 
 ### Eng: Diagrams
 
@@ -579,7 +579,7 @@ Approval readiness (eng): PASS. Checked: D20 (feature), D21 (structure), D22, D2
  load ─▶ #v<n>.? ─no─▶ editor               storage.ts
            │yes                              ├─ write/remove ◀── 7 call sites (+ ErrorBoundary clear)
            ▼                                 ├─ readOnlySession: on before App mounts in link mode
-     storage.readOnly = on                   │     allows brio.build.link.v0 only; others → "skipped"
+     storage.readOnly = on                   │     allows generic.build.link.v0 only; others → "skipped"
      decode (caps 500 / 8,192 / 64 KB)       └─ withImport(fn): saved + put-aside keys, during fn only
      ── refused ─▶ linkWords sentence ─▶ Back (replaceState + reload)
      ── ok ─▶ LinkBoundary ▶ App(source=link)
@@ -710,7 +710,7 @@ Step 0: 3/10. Focus: all 7 dimensions (D40). Mockups: none (the designer has no 
 - 7A (D48): after the clipboard write resolves, Share reads "Link copied" for 2s at a fixed min-width, and the same sentence goes to the polite live region. On touch the share sheet is the feedback.
 - 8A (D49): the friend's screen always shows "Checked with standard part sizes." under the verdict, in --ink-soft meta type, never folded.
 - 9A (D50): Restore has a quiet "Discard" next to it. It confirms "Discard the put-aside layout (N pieces)? This can't be undone." with Discard / Keep it, then empties the slot and the entry goes.
-- R3-9 is settled by 3A: the example appears only with nothing stored and is never saved until edited or adopted. Build this may write build progress (`brio.build.v0`), never the layout.
+- R3-9 is settled by 3A: the example appears only with nothing stored and is never saved until edited or adopted. Build this may write build progress (`generic.build.v0`), never the layout.
 
 ```
   FEATURE            | LOADING                    | EMPTY                       | ERROR                                   | SUCCESS                        | PARTIAL
@@ -869,12 +869,12 @@ Target: the design review's D42-D63, especially 18A, 19A and 3A.
 | ID | Decision | Accepted scope | Answer |
 |---|---|---|---|
 | D65 | Structure | one pure `screenMode({fragment, stored, narrow, adopted})` → edit/link/example/view (plus ownership, D71) feeds `canEdit` and `canSave` to D21's setEditor guard and to storage.ts; a table test covers every combination | "Smaller arrangement (recommended)" |
-| D66 | Example storage | the example uses storage.ts's session; the first graph-changing edit adopts it (the session ends, the edit saves); Start my own clears to an empty editor with nothing written; Build this writes build progress to brio.build.link.v0 | "Reuse D31's read-only session (recommended)", narrowed by D68 |
+| D66 | Example storage | the example uses storage.ts's session; the first graph-changing edit adopts it (the session ends, the edit saves); Start my own clears to an empty editor with nothing written; Build this writes build progress to generic.build.link.v0 | "Reuse D31's read-only session (recommended)", narrowed by D68 |
 | D67 | Breakpoint | NARROW_QUERY '(max-width: 620px)' is one exported constant; a useMatchMedia hook feeds `narrow`; a CSS-parser test checks the gate's media query against it; rotation across 620px is tested | "One constant + CSS check (recommended)", scoped by D73 |
 | D68 (OV-R1) | Example blocks only the layout | example mode blocks only the saved-layout key (build progress goes to the link slot); box, table, submissions and view save as normal; test: example up, edit the box, reload → box kept, no layout saved | "Apply: block only the layout (recommended)" |
 | D69 (OV-R2) | Unverified honesty | 8A's line becomes "Checked with catalogue sizes."; when unverified parts are used, a visible, never-folded line "N pieces have sizes nobody has measured." in the editor and the friend's screen; details stay in "N notes"; named in 17A's rule 3 amendment | "Apply: say 'catalogue', count unverified (recommended)" |
 | D70 (OV-R3) | Mode timing | screenMode is derived on every render; the graph is kept across rotation; tests assert permissions after adopt and after rotating narrow and back | "Apply: derive per render (recommended)" |
-| D71 (OV-R4) | Build slot by ownership | your own layout (edit or phone view) uses brio.build.v0; links and the un-adopted example use brio.build.link.v0; width never changes the slot; the phone view of your own layout is not a storage session (the guard blocks graph changes); test: 3 steps on the phone view, widen, resume at 3 | "Apply: slot follows ownership (recommended)" |
+| D71 (OV-R4) | Build slot by ownership | your own layout (edit or phone view) uses generic.build.v0; links and the un-adopted example use generic.build.link.v0; width never changes the slot; the phone view of your own layout is not a storage session (the guard blocks graph changes); test: 3 steps on the phone view, widen, resume at 3 | "Apply: slot follows ownership (recommended)" |
 | D72 (OV-R5) | Ask rows (corrects 11A) | rows "Put aside earlier (will be replaced): N pieces" and "Your current layout (goes into its place): M pieces", each with a drawing; an unreadable layout shows "A layout that couldn't be read (kept exactly as saved)" with no drawing, in the ask and in the Restore notice (22A); test: corrupt slot bytes render | "Apply: show the two at stake (recommended)" |
 | D73 (OV-R6) | Guard scope | the copy guard checks visible prose for screen-position phrases and allows movement commands; the breakpoint guard checks only the media query marked `/* gate: NARROW_QUERY */`; build mode's 599px rule is untouched; each guard quotes a mutation run | "Apply: scope both (recommended)" |
 

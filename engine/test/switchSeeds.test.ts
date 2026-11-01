@@ -1,7 +1,7 @@
 /**
  * THE SWITCH SEEDS SAY WHAT THE REPRODUCTIONS SAY, AND NO MORE.
  *
- * Value: protects=the four switches read off MakerWorld reproductions stay
+ * Value: protects=the four switches read off printed reproductions stay
  * unverified, keep the road geometry that was measured, and keep the
  * peg/socket arrangement that was measured
  * Value: fails_when=a seed is promoted past `unverified` without a new source,
@@ -10,12 +10,12 @@
  * Value: seam=the measurements are in `engine/data/switchSeeds.ts`'s docblock;
  * the road witnesses are the PUBLISHED catalogue parts, so a road is checked
  * against a part this file does not define
- * Value: no_claim=nothing about real BRIO switches, which nobody has measured
+ * Value: no_claim=nothing about real Generic switches, which nobody has measured
  * (`CALIBRATION.md` Q6)
  */
 
 import { describe, expect, it } from 'vitest';
-import { getPart } from '../data/brio.js';
+import { getPart } from '../data/generic.js';
 import { BUILT_IN } from '../data/library.js';
 import { SWITCH_SEEDS } from '../data/switchSeeds.js';
 import { portsOf } from '../src/graph/model.js';

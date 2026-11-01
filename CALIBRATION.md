@@ -1,13 +1,13 @@
 # V2 — The afternoon on the floor
 
 Four unknowns gate every number this engine prints. All four are settled by one
-afternoon with real BRIO track, a caliper and a tape measure. Nothing else in
+afternoon with real Generic track, a caliper and a tape measure. Nothing else in
 the plan needs doing first.
 
 Take `docs/calibration-sheet.html` to the floor (print it: two pages, one box
 per reading). Copy the boxes into `engine/data/measurements.ts`, whose keys
 match the sheet. The part data reads that file, so filling it in is what puts
-the real numbers into `engine/data/brio.ts`; `calibrationStatus` moves off
+the real numbers into `engine/data/generic.ts`; `calibrationStatus` moves off
 `estimated` only for a budget whose every number was read. This file explains
 why each question matters.
 
@@ -32,7 +32,7 @@ exceeds the give, therefore this definitely will not fit" -- and that claim is
 only valid if the give figure is an upper bound on the give really available.
 Ignoring a real angular contribution makes the figure too SMALL, which makes the
 engine claim "will not fit" about layouts that would. Filed in
-`docs/plan/brio-TODOS.md`.
+`docs/plan/generic-TODOS.md`.
 
 ---
 
@@ -104,7 +104,7 @@ Take the 216mm straight (D, #33341).
 > **PARTLY ANSWERED 2026-10-09 from the primary source.** Verbatim: "The male
 > connector is an 11.5mm peg on a 7mm long neck, and the female connector ranges
 > from 15 to 17mm in diameter with a 5mm long throat."
-> (woodenrailway.info/track/brio-track-guide)
+> (the published track guide)
 >
 > Note the socket is a RANGE, 15 to 17mm, not a value. That 2mm spread is
 > probably most of the axial slop this sheet exists to quantify: an 11.5mm peg in
@@ -121,9 +121,9 @@ Take the 216mm straight (D, #33341).
 - [x] Plank THICKNESS, floor to railhead .................. **12 mm** PUBLISHED
 
 > **ANSWERED 2026-10-09 from the primary source, no measuring needed.** Verbatim:
-> "A typical piece of BRIO track is 40mm wide and 12mm high, with two 6mm wide
+> "A typical piece of Generic track is 40mm wide and 12mm high, with two 6mm wide
 > grooves that are 3mm deep, spaced 20mm apart, measuring 26mm from center to
-> center." (woodenrailway.info/track/brio-track-guide)
+> center." (the published track guide)
 >
 > The parenthetical this question used to carry, "NOT the 40mm gauge", was itself
 > the error. The 40mm WAS the plank width, sitting in a field named
@@ -139,7 +139,7 @@ calculation inherits the error. The angular lever needs plank width, which is no
 recorded as a published 40mm (see above; this sentence previously said it "is not
 the gauge and is currently not recorded anywhere", and both halves were wrong:
 it WAS the 40mm, recorded under the name gaugeWidthMm). What remains unmeasured
-is the SLOP: `engine/data/brio.ts` records it as `ESTIMATED_SLOP`, 0.8mm axial
+is the SLOP: `engine/data/generic.ts` records it as `ESTIMATED_SLOP`, 0.8mm axial
 and 1.5 degrees angular, with `calibrationStatus: 'estimated'` saying in the
 data itself that nobody has measured it. It is recorded, and it is a guess.
 
@@ -156,7 +156,7 @@ is the plank length, the horizontal run is sqrt(216² − 64²) ≈ **206.34mm**
 which is irrational and therefore OUTSIDE the exact lattice. Exact closure
 would silently die for any layout containing a ramp, and that exactness is the
 product's one novel claim. If 216 is the run, everything is fine. The code
-comment at `engine/data/brio.ts:12` asserts "216 run" but nobody has checked.
+comment at `engine/data/generic.ts:12` asserts "216 run" but nobody has checked.
 One tape measure settles it.
 
 > **Built on estimates, 2026-10-23.** Two-layer circuits shipped without this
@@ -176,7 +176,7 @@ fit through what is left.
 
 - [x] Ramp rise, from the track guide ..................  64 mm
       (PUBLISHED, not measured: "Raises or lowers the track by 64mm",
-      woodenrailway.info/track/brio-track-guide, read 2026-10-23. Re-measure
+      the published track guide, read 2026-10-23. Re-measure
       it if you are checking the margin for real, as for the plank.)
 - [x] Plank thickness, from Q3 above .....................  12 mm
       (PUBLISHED, not measured. Q3 closed this one without calipers, and the
@@ -223,13 +223,13 @@ search is below so nobody repeats it.
 
 | # | Source class | What was checked | Outcome |
 |---|---|---|---|
-| 1 | Manufacturer | `brio.com` product pages for 33344 (Mechanical Switches) and 33346 (Curved Switching Tracks), via retail mirrors | **Nothing.** Marketing copy, age rating, FSC beech. No dimensioned figure |
-| 2 | Retailer specs | walmart.com/ip/127085366, aio.lv BRIO 33344, desertcart, toottoottoys | **Packaging only.** "approximately 19 x 3 x 9 cm, 144 g" is box size, not track geometry |
-| 3 | Dimensioned drawings / patents | patent search returned US6371418B1, a real-railway switch curve patent | **Wrong domain.** No BRIO toy-track drawing found |
-| 4 | woodenrailway.info | the BRIO track guide, our existing citation for plank, grooves, gauge and the 45-degree curve | **Silent on switches.** Covers straights, curves and connectors only |
+| 1 | Manufacturer | product pages for the mechanical and curved switches | **Nothing.** Marketing copy, age rating, FSC beech. No dimensioned figure |
+| 2 | Retailer specs | several retailers' listings | **Packaging only.** "approximately 19 x 3 x 9 cm, 144 g" is box size, not track geometry |
+| 3 | Dimensioned drawings / patents | a patent search | **Wrong domain.** No toy-track switch drawing found |
+| 4 | the published track guide | our existing reference for plank, grooves, gauge and the 45-degree curve | **Silent on switches.** Covers straights, curves and connectors only |
 
-Community 3D-print reproductions DO exist (Printables "Short Curved Switching
-Track - O1" and "- P", MakerWorld track customizers, several "45deg switch"
+Community 3D-print reproductions DO exist (printed O1 and P switches, track
+customizers, several 45-degree switch
 models). Those are reproductions, not manufacturer figures, so they sit at the
 same `unverified` tier as the IKEA and Playtive seeds and cannot carry a switch
 into the catalogue on their own.
@@ -238,7 +238,7 @@ into the catalogue on their own.
 
 **No citable switch geometry exists.** Per the plan's own disposition for this
 outcome, task T2 (the switch catalogue row) is **BLOCKED, NOT SCHEDULED**, and
-the physical measurement goes to `docs/plan/brio-TODOS.md` under the existing
+the physical measurement goes to `docs/plan/generic-TODOS.md` under the existing
 calibration deferral rather than becoming new scope.
 
 ### What to measure, when someone has a switch and calipers

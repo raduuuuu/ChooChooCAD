@@ -7,7 +7,7 @@
  * no end anywhere near the crossing, and that layout was a live false pass:
  * two straights laid in a plus sign, or a curve run across a straight, drew
  * as one merged shape that read as a crossing piece or a switch, and the
- * verdict said nothing. BRIO track cannot cross itself on the flat; only a
+ * verdict said nothing. Generic track cannot cross itself on the flat; only a
  * crossing piece or a bridge does that, and both would be parts.
  *
  * THIS IS FLOAT GEOMETRY, deliberately, and the vertex check stays exact.
@@ -17,7 +17,7 @@
  *
  * HOW. Every plank is cut into convex quadrilaterals: a straight is one
  * rectangle; a curve is a run of thin annular slices, each the quad between
- * two radii, so the chord error is under 0.3 mm on the largest BRIO curve.
+ * two radii, so the chord error is under 0.3 mm on the largest Generic curve.
  * Two quads from different pieces are clipped against each other
  * (Sutherland-Hodgman, exact for convex shapes) and the shared area summed
  * per pair of pieces. A spatial hash keeps it near-linear: an all-pairs scan

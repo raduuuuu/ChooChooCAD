@@ -1,5 +1,5 @@
 /**
- * WHAT THE BROWSER REFUSED TO KEEP (brio-TODOS.md P1, "The three save
+ * WHAT THE BROWSER REFUSED TO KEEP (generic-TODOS.md P1, "The three save
  * functions swallow every failure").
  *
  * Each save returns whether `localStorage` took it. Private browsing and a

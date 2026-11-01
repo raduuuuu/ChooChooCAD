@@ -119,7 +119,7 @@ describe('a bridge on the canvas', () => {
    * track: supports are not checke…'`.
    *
    * The clearance is the MEASURED -3mm (CALIBRATION.md Q5, 2026-10-30); a
-   * warning for a train that does not fit is a TODO in docs/plan/brio-TODOS.md.
+   * warning for a train that does not fit is a TODO in docs/plan/generic-TODOS.md.
    * MUTATION PROOF, run: `vehicleHeightMm: 44` in measurements.ts fails with
    * `expected 'Grid: 10 cm · Shadow: raised?Not a lo…' to match /crosses other
    * track at\s*1\s*place; c…/`.

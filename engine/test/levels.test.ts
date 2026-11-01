@@ -401,7 +401,7 @@ describe('coming down on N1 needs no adapter (N1, two pegs)', () => {
 
 describe('a ramp flipped over comes down (owner, 2026-10-23: "flip in 3d")', () => {
   /*
-   * BRIO track is double-sided. Turned over (turn 'right'), an ascending
+   * Generic track is double-sided. Turned over (turn 'right'), an ascending
    * track keeps its ends where they were but its high end is the entry, so a
    * loop climbs on one N and comes down on another, face down, with every peg
    * in a socket: no N1, no two-socket piece, no adapter.

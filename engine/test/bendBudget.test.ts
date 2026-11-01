@@ -16,7 +16,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { getPart } from '../data/brio.js';
+import { getPart } from '../data/generic.js';
 import { BUILT_IN, makeResolver } from '../data/library.js';
 import { brandFit } from '../data/thirdParty.js';
 import { bendLimit, Q1_LOOP } from '../data/bendLimit.js';

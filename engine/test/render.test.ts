@@ -14,7 +14,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { getPart } from '../data/brio.js';
+import { getPart } from '../data/generic.js';
 import { BUILT_IN, makeResolver } from '../data/library.js';
 import { walkFloat } from '../src/geom/fk.js';
 import { placeAll } from '../src/graph/frames.js';

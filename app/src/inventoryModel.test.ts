@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { BRIO_PARTS } from '../../engine/data/brio.js';
+import { GENERIC_PARTS } from '../../engine/data/generic.js';
 import { BUILT_IN } from '../../engine/data/library.js';
 import {
   loadInventory,
@@ -31,7 +31,7 @@ describe('undeclared is not zero', () => {
   });
 
   it('an undeclared inventory never greys a palette piece', () => {
-    for (const p of BRIO_PARTS) {
+    for (const p of GENERIC_PARTS) {
       expect(wouldExceed(null, used, p.id), p.id).toBe(false);
     }
   });
@@ -84,13 +84,13 @@ describe('quick-fills write counts and are then forgotten (D6)', () => {
     }
   });
 
-  it('quick-fills stay BRIO-only, so a BRIO owner is not given other brands', () => {
+  it('quick-fills stay Generic-only, so a Generic owner is not given other brands', () => {
     // Added when the catalogue gained IKEA and Playtive. A "set you own" is
     // brand-specific, and the third-party sizes are unverified besides.
-    const brio = new Set(BRIO_PARTS.map((p) => p.id));
+    const generic = new Set(GENERIC_PARTS.map((p) => p.id));
     for (const q of QUICK_FILLS) {
       for (const id of Object.keys(q.counts)) {
-        expect(brio.has(id), `${q.label} names ${id}`).toBe(true);
+        expect(generic.has(id), `${q.label} names ${id}`).toBe(true);
       }
     }
   });
@@ -143,7 +143,7 @@ describe('usedCounts', () => {
  * message. One bad keystroke destroyed the lot.
  */
 describe('CR6: a non-finite count can never reach storage', () => {
-  const ids = new Set(BRIO_PARTS.map((p) => p.id));
+  const ids = new Set(GENERIC_PARTS.map((p) => p.id));
 
   it('REFUSES every input that used to become NaN or Infinity', () => {
     // Tests the real function the component calls, not a restatement of the

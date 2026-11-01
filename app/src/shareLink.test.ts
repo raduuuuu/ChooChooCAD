@@ -252,7 +252,7 @@ describe('the catalogue a link is read against', () => {
    * THE IDS SAVED LAYOUTS AND LINKS DEPEND ON (D11). A rename breaks every
    * saved layout and every link that names the part. Adding a part is fine;
    * removing or renaming one fails here, on purpose.
-   * MUTATION PROOF, run: 'E' renamed to 'E0' in brio.ts: `expected [ 'E' ] to
+   * MUTATION PROOF, run: 'E' renamed to 'E0' in generic.ts: `expected [ 'E' ] to
    * deeply equal []`.
    */
   it('still has every id it had on 2026-11-01', () => {

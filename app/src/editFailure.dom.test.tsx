@@ -5,7 +5,7 @@
  * its Reload and repro, instead of a frozen page
  * Value: fails_when=the next state is computed in the click handler rather
  * than inside the `setEditor` updater
- * Value: why_new=brio-TODOS.md filed "an engine throw from a handler is
+ * Value: why_new=generic-TODOS.md filed "an engine throw from a handler is
  * uncatchable" and decision D18 of the 2026-10-22 editing plan scheduled a
  * catch in `dispatch`. Building it showed the catch is not needed: React
  * computes an eager update inside its own try/catch, discards the throw, and

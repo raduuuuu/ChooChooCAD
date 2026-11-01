@@ -1,5 +1,5 @@
 /**
- * CANVAS MARKS KEEP THEIR SCREEN SIZE (brio-TODOS.md P2, filed by
+ * CANVAS MARKS KEEP THEIR SCREEN SIZE (generic-TODOS.md P2, filed by
  * /plan-design-review 2026-10-23).
  *
  * The canvas fits the whole layout into its box, and the fault marks and the

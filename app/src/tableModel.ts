@@ -94,7 +94,7 @@ export function trackExtent(
     const cy = s.from.y + Math.cos(s.from.h) * r * sign;
     const a0 = Math.atan2(s.from.y - cy, s.from.x - cx);
     const a1 = Math.atan2(s.to.y - cy, s.to.x - cx);
-    // Signed sweep from a0 to a1, the short way: no BRIO curve turns past 180.
+    // Signed sweep from a0 to a1, the short way: no Generic curve turns past 180.
     let span = a1 - a0;
     while (span > Math.PI) span -= 2 * Math.PI;
     while (span <= -Math.PI) span += 2 * Math.PI;

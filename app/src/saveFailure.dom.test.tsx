@@ -1,5 +1,5 @@
 /**
- * A SAVE THE BROWSER REFUSES IS SAID (brio-TODOS.md P1, "The three save
+ * A SAVE THE BROWSER REFUSES IS SAID (generic-TODOS.md P1, "The three save
  * functions swallow every failure").
  *
  * Value: protects=each save returns whether storage took it; App shows a

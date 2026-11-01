@@ -13,7 +13,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { BRIO_PARTS, getPart } from '../data/brio.js';
+import { GENERIC_PARTS, getPart } from '../data/generic.js';
 import {
   BUILT_IN,
   loadSubmissions,
@@ -25,7 +25,7 @@ import {
 } from '../data/library.js';
 import { brandFit } from '../data/thirdParty.js';
 import { layoutTrust } from '../src/joints/trust.js';
-import { BRIO_PIECE_TABLE } from '../data/sources.js';
+import { GENERIC_PIECE_TABLE } from '../data/sources.js';
 import { RAMP_SEEDS } from '../data/rampSeeds.js';
 import { BUFFER_SEEDS } from '../data/bufferSeeds.js';
 import { CROSSING_SEEDS, MULTI_ROAD_SEEDS, SWITCH_SEEDS } from '../data/switchSeeds.js';
@@ -68,7 +68,7 @@ describe('exact forward kinematics', () => {
   });
 
   it('published straight-length relations hold exactly', () => {
-    // A1 = 2*A2, D = 2*A1, 2*D = 3*A (woodenrailway Track Math). Along one
+    // A1 = 2*A2, D = 2*A1, 2*D = 3*A (the published track math). Along one
     // heading, n copies of a straight must equal the longer straight exactly,
     // so this is a check on the transcribed part data as much as the geometry.
     const run = (id: string, n: number) => scale(displacement(getPart(id), 0), n);
@@ -268,7 +268,7 @@ describe('bound contract', () => {
  * The K2 dimension pins MOVED OUT of this file, 2026-10-20.
  *
  * A `describe('catalogue data matches its published source')` block lived
- * here and compared `brio.ts` against `sources.ts`. It also wrote 40, 12, 26,
+ * here and compared `generic.ts` against `sources.ts`. It also wrote 40, 12, 26,
  * 182 and 222 out as literal expectations, so mutating a dimension in the
  * catalogue failed THIS file whether or not the pin worked, and there was no
  * way to tell a working pin from a collateral failure. The comparison now
@@ -294,7 +294,7 @@ describe('bound contract', () => {
  */
 describe('plank width is a part property, and is not the gauge', () => {
   it('every part records a plank strictly wider than its gauge', () => {
-    for (const p of BRIO_PARTS) {
+    for (const p of GENERIC_PARTS) {
       expect(Number.isFinite(p.plankWidthMm), p.id).toBe(true);
       expect(p.plankWidthMm, p.id).toBeGreaterThan(p.gaugeWidthMm);
     }
@@ -312,7 +312,7 @@ describe('plank width is a part property, and is not the gauge', () => {
   it('is still estimated, so nothing may derive a verdict from it', () => {
     // The guard is social, not mechanical: assert the slop budget this part
     // DOES carry is estimated, so the verdict path stays hedged either way.
-    for (const p of BRIO_PARTS) {
+    for (const p of GENERIC_PARTS) {
       expect(p.slop.calibrationStatus).not.toBe('measured');
     }
   });
@@ -321,7 +321,7 @@ describe('plank width is a part property, and is not the gauge', () => {
 /**
  * Multi-brand catalogue: provenance is enforced, not just written down.
  *
- * The catalogue holds BRIO parts whose figures are published and third-party
+ * The catalogue holds Generic parts whose figures are published and third-party
  * parts whose figures are not. The engine's exactness is arithmetic, not
  * evidence: a layout of unverified parts gets an exact answer about numbers
  * nobody stands behind. These tests make the distinction structural.
@@ -341,7 +341,7 @@ describe('the trust register: what the verdict is worth', () => {
   });
 
   /*
-   * A PURE BRIO LAYOUT HAS NOTHING TO DISTRUST HERE NOW (design review 8A).
+   * A PURE Generic LAYOUT HAS NOTHING TO DISTRUST HERE NOW (design review 8A).
    * It used to carry 'estimated-give' (the give total was a guess) and
    * 'axial-only-give' (joint rotation was not modelled). The total is gone and
    * rotation is modelled, so both would be false; where a joint's bend limit
@@ -351,7 +351,7 @@ describe('the trust register: what the verdict is worth', () => {
    * 'axial-only-give', ... })` in trust.ts fails with `expected [
    * 'axial-only-give' ] to deeply equal []`.
    */
-  it('a pure BRIO layout discloses nothing: the limits note carries provenance', () => {
+  it('a pure Generic layout discloses nothing: the limits note carries provenance', () => {
     expect(kinds(rep('E', 8))).toEqual([]);
   });
 
@@ -368,7 +368,7 @@ describe('the trust register: what the verdict is worth', () => {
     const issue = layoutTrust(layoutOf(['A', 'IKEA-150']), r, brandFit)
       .find((t) => t.kind === 'brands-do-not-join');
     expect(issue).toBeDefined();
-    expect(issue!.detail).toContain('BRIO');
+    expect(issue!.detail).toContain('GENERIC');
     expect(issue!.detail).toContain('IKEA');
     // The reason travels with the claim, not just the claim.
     expect(issue!.detail.length).toBeGreaterThan(60);
@@ -377,7 +377,7 @@ describe('the trust register: what the verdict is worth', () => {
   it('a brand pair with no source is NOT disclosed as not joining', () => {
     // 'unknown' must not be reported as a failure. Absence of evidence is not
     // evidence, in either direction.
-    expect(brandFit('BRIO', 'PLAYTIVE').fit).toBe('unknown');
+    expect(brandFit('GENERIC', 'PLAYTIVE').fit).toBe('unknown');
     expect(kinds(['A', 'PLAYTIVE-110'])).not.toContain('brands-do-not-join');
   });
 
@@ -496,13 +496,13 @@ describe('the library: tiers, and a seed a user can correct', () => {
     expect(got.lengthMm).toBe(149);
   });
 
-  it('a submission can NOT quietly beat a published BRIO figure by being newer', () => {
+  it('a submission can NOT quietly beat a published Generic figure by being newer', () => {
     // Trust ordering, not recency. A community submission must not silently
-    // replace a published reference figure for an existing BRIO part.
-    const brio = getPart('A') as Extract<Part, { kind: 'straight' }>;
+    // replace a published reference figure for an existing Generic part.
+    const generic = getPart('A') as Extract<Part, { kind: 'straight' }>;
     const lib = resolveLibrary([{
       submissionId: 'sub-x', at: '2030-01-01T00:00:00Z',
-      part: { ...brio, lengthMm: 999, dimensions: { status: 'community', source: 'test' } },
+      part: { ...generic, lengthMm: 999, dimensions: { status: 'community', source: 'test' } },
     }]);
     expect((lib.find((p) => p.id === 'A') as Extract<Part, { kind: 'straight' }>).lengthMm).toBe(144);
   });
@@ -538,10 +538,10 @@ describe('the library: tiers, and a seed a user can correct', () => {
   });
 });
 
-describe('the BRIO piece registry is complete and honest', () => {
+describe('the Generic piece registry is complete and honest', () => {
   it('records all 28 pieces from the source table', () => {
-    expect(BRIO_PIECE_TABLE).toHaveLength(28);
-    for (const r of BRIO_PIECE_TABLE) {
+    expect(GENERIC_PIECE_TABLE).toHaveLength(28);
+    for (const r of GENERIC_PIECE_TABLE) {
       expect(r.ids.length, r.ids).toBeGreaterThan(0);
       expect(r.name.length, r.ids).toBeGreaterThan(0);
       // Every piece has at least one dimension, or it is not a track piece.
@@ -552,14 +552,14 @@ describe('the BRIO piece registry is complete and honest', () => {
   it('every piece marked in-catalogue is actually in the catalogue', () => {
     // Guards the registry against drifting out of step with the data, which is
     // how a "complete" list quietly stops being one.
-    // The ramps, switches and the crossing are seeds outside BRIO_PARTS,
+    // The ramps, switches and the crossing are seeds outside GENERIC_PARTS,
     // unverified (rampSeeds.ts, switchSeeds.ts), and held all the same.
     const held = new Set(
-      [...BRIO_PARTS, ...RAMP_SEEDS, ...SWITCH_SEEDS, ...CROSSING_SEEDS, ...MULTI_ROAD_SEEDS, ...BUFFER_SEEDS].map(
+      [...GENERIC_PARTS, ...RAMP_SEEDS, ...SWITCH_SEEDS, ...CROSSING_SEEDS, ...MULTI_ROAD_SEEDS, ...BUFFER_SEEDS].map(
         (p) => p.id,
       ),
     );
-    for (const r of BRIO_PIECE_TABLE) {
+    for (const r of GENERIC_PIECE_TABLE) {
       if (r.blocker !== 'in-catalogue') continue;
       const ids = r.ids.split(',').map((x) => x.trim());
       // At least one id of the row is held. B/C variants are retired, and the
@@ -577,7 +577,7 @@ describe('the BRIO piece registry is complete and honest', () => {
    */
   it('T and X are exact at 88 inner, in the table and in the catalogue', () => {
     for (const id of ['T', 'X']) {
-      const row = BRIO_PIECE_TABLE.find((r) => r.ids === id)!;
+      const row = GENERIC_PIECE_TABLE.find((r) => r.ids === id)!;
       expect(row.blocker, id).toBe('in-catalogue');
       expect(row.innerRadiusMm, id).toBe(88);
       expect(row.note, id).toMatch(/EXACT/);
@@ -591,16 +591,16 @@ describe('the BRIO piece registry is complete and honest', () => {
 
   it('the pieces that break the 18mm rule are recorded as such', () => {
     // F/G at 150 and H1 at 116. Both exactly representable as integers, both
-    // off BRIO's own increment lattice, so a layout using them cannot be
-    // resolved with ordinary BRIO straights.
+    // off Generic's own increment lattice, so a layout using them cannot be
+    // resolved with ordinary Generic straights.
     for (const ids of ['F, G', 'H1']) {
-      const row = BRIO_PIECE_TABLE.find((r) => r.ids === ids);
+      const row = GENERIC_PIECE_TABLE.find((r) => r.ids === ids);
       expect(row, ids).toBeDefined();
       expect(row!.lengthMm! % 18, ids).not.toBe(0);
       expect(row!.note, ids).toMatch(/multiple of 18/);
     }
     // And every length the catalogue actually holds IS on the 18mm lattice.
-    for (const p of BRIO_PARTS) {
+    for (const p of GENERIC_PARTS) {
       if (p.kind === 'straight') expect(p.lengthMm % 18, p.id).toBe(0);
     }
   });
@@ -615,15 +615,15 @@ describe('multi-brand catalogue provenance', () => {
     }
   });
 
-  it('every catalogue BRIO part is published and every seed is not', () => {
-    const catalogue = new Set(BRIO_PARTS.map((p) => p.id));
+  it('every catalogue Generic part is published and every seed is not', () => {
+    const catalogue = new Set(GENERIC_PARTS.map((p) => p.id));
     for (const p of BUILT_IN) {
       if (catalogue.has(p.id)) {
         expect(p.dimensions.status, p.id).toBe('published');
         expect(isUnverified(p), p.id).toBe(false);
       } else {
         // The honest state of the world: nobody publishes piece dimensions for
-        // IKEA Lillabo or Lidl Playtive, or a BRIO switch's diverging leg. If
+        // IKEA Lillabo or Lidl Playtive, or a Generic switch's diverging leg. If
         // that ever changes, upgrade the part and this assertion changes with
         // it, deliberately.
         expect(isUnverified(p), p.id).toBe(true);
@@ -631,11 +631,11 @@ describe('multi-brand catalogue provenance', () => {
     }
   });
 
-  it('third-party ids are brand-prefixed, so nothing collides with BRIO', () => {
+  it('third-party ids are brand-prefixed, so nothing collides with Generic', () => {
     const ids = BUILT_IN.map((p) => p.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const p of BUILT_IN) {
-      if (p.brand !== 'BRIO') expect(p.id, p.id).toContain('-');
+      if (p.brand !== 'GENERIC') expect(p.id, p.id).toContain('-');
     }
   });
 
@@ -663,11 +663,11 @@ describe('multi-brand catalogue provenance', () => {
    * Fails with `IKEA-C22 far end: expected 3.8 to be less than 1`.
    */
   it('a third-party curve exists only where a reproduction measured its radius', () => {
-    const curves = BUILT_IN.filter((p) => p.brand !== 'BRIO' && p.kind === 'curve');
+    const curves = BUILT_IN.filter((p) => p.brand !== 'GENERIC' && p.kind === 'curve');
     expect(curves.map((p) => p.id).sort()).toEqual(['IKEA-C22', 'IKEA-C45', 'IKEA-C90']);
     for (const p of curves) {
       expect(isUnverified(p), p.id).toBe(true);
-      expect(p.dimensions.source, p.id).toContain('MakerWorld 2181560');
+      expect(p.dimensions.source, p.id).toContain('a printed reproduction');
     }
     expect(BUILT_IN.some((p) => p.brand === 'PLAYTIVE' && p.kind !== 'straight')).toBe(false);
 
@@ -692,21 +692,21 @@ describe('multi-brand catalogue provenance', () => {
    */
   it('the Lillabo straights are the lengths read off the reproduction', () => {
     const lengths = BUILT_IN.filter(
-      (p) => p.brand === 'IKEA' && p.kind === 'straight' && p.dimensions.source.includes('MakerWorld 2181560'),
+      (p) => p.brand === 'IKEA' && p.kind === 'straight' && p.dimensions.source.includes('a printed reproduction'),
     ).map((p) => (p as Extract<Part, { kind: 'straight' }>).lengthMm);
     expect(lengths).toEqual([50, 100, 145, 205, 240]);
   });
 
-  it('brand fit records that BRIO and IKEA do not join', () => {
+  it('brand fit records that Generic and IKEA do not join', () => {
     // The most useful fact the research produced, and the one a user actually
     // needs: these pieces do not physically connect.
-    expect(brandFit('BRIO', 'IKEA').fit).toBe('does-not-join');
-    expect(brandFit('IKEA', 'BRIO').fit).toBe('does-not-join');   // symmetric
-    expect(brandFit('BRIO', 'BRIO').fit).toBe('joins');
+    expect(brandFit('GENERIC', 'IKEA').fit).toBe('does-not-join');
+    expect(brandFit('IKEA', 'GENERIC').fit).toBe('does-not-join');   // symmetric
+    expect(brandFit('GENERIC', 'GENERIC').fit).toBe('joins');
     // Unsourced combinations are 'unknown', never optimistically 'joins'.
-    expect(brandFit('BRIO', 'PLAYTIVE').fit).toBe('unknown');
-    expect(brandFit('BRIO', 'HAPE').fit).toBe('unknown');
-    for (const a of ['BRIO', 'IKEA', 'PLAYTIVE'] as const) {
+    expect(brandFit('GENERIC', 'PLAYTIVE').fit).toBe('unknown');
+    expect(brandFit('GENERIC', 'HAPE').fit).toBe('unknown');
+    for (const a of ['GENERIC', 'IKEA', 'PLAYTIVE'] as const) {
       expect(brandFit(a, a).fit).toBe('joins');
       expect(brandFit(a, a).why.length).toBeGreaterThan(0);
     }
@@ -798,7 +798,7 @@ describe('verdicts depend on radius DIFFERENCES, not absolute radii', () => {
  * declared welds will make reachable by clicking.
  */
 describe('connector polarity', () => {
-  /** 'PP' has a peg at both ends. Everything else is a standard BRIO curve. */
+  /** 'PP' has a peg at both ends. Everything else is a standard Generic curve. */
   const doublePeg = (id: string): Part => {
     const base = getPart('E') as CurvePart;
     if (id !== 'PP') return base;
@@ -944,7 +944,7 @@ describe('coincident connectors are a definite refusal', () => {
 /**
  * Fix C3 / finding F1: a joint has two sides.
  *
- * Every BRIO part currently shares one ESTIMATED_SLOP, so a one-sided read and
+ * Every Generic part currently shares one ESTIMATED_SLOP, so a one-sided read and
  * a pair-wise read agree on every real fixture and no existing test could tell
  * them apart. These use an injected resolver with DIFFERING budgets, which is
  * the only way to see the difference, and they assert it BOTH WAYS ROUND: the
@@ -1123,7 +1123,7 @@ describe('submissions survive storage per ROW, because a measurement is not a la
  * number of millimetres is a lattice point by construction; the 18mm rule
  * above already holds every catalogue straight to it.
  *
- * MUTATION PROOF, run: give B `lengthMm: 147` (AU3D's "2000 spec" A). Three
+ * MUTATION PROOF, run: give B `lengthMm: 147` . Three
  * specs fail: this one with `B at heading 0: expected false to be true`, the
  * 18mm rule above with `B: expected 3 to be +0`, and `sources.test.ts` with
  * `B has no source entry: expected 144 to be 147` against the cited figure.

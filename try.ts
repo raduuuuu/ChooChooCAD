@@ -8,7 +8,7 @@
  * `estimated`.
  */
 
-import { getPart } from './engine/data/brio.js';
+import { getPart } from './engine/data/generic.js';
 import { solveLayout } from './engine/src/solver/result.js';
 import { evaluateLayout } from './engine/src/joints/evaluate.js';
 import { computeResidual } from './engine/src/solver/residual.js';

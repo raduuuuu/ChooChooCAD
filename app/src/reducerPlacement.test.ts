@@ -1,6 +1,6 @@
 /**
  * THE EDITOR REUSES THE PLACEMENT AND THE DRAWING APP ALREADY MADE
- * (brio-TODOS.md P1, "`solveGraph` computes a second placement", the
+ * (generic-TODOS.md P1, "`solveGraph` computes a second placement", the
  * `nextRunAnchor` half and its port scan; the drop's wood check).
  *
  * A palette pick with nothing selected put the new run beside the track by

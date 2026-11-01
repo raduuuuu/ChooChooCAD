@@ -43,7 +43,7 @@ export interface Measurements {
   readonly q6: { readonly throughMm: Num; readonly chordMm: Num; readonly offsetMm: Num };
 }
 
-/** The guesses every reading replaces. Not measured; see brio.ts CALIBRATION WARNING. */
+/** The guesses every reading replaces. Not measured; see generic.ts CALIBRATION WARNING. */
 export const ESTIMATES = {
   axialMm: 0.8,
   angularDeg: 1.5,
@@ -95,11 +95,11 @@ export function measuredBendDeg(m: Measurements): number | null {
 }
 
 /**
- * One joint's give, for every BRIO part.
+ * One joint's give, for every Generic part.
  *
  * Axial is the whole travel, pull-apart limit minus push-together stop: the
  * stretch the bend model lets a joint use (0 up to this, one-sided). A
- * missing stop counts as 0. The angular figure here is the PART's; BRIO
+ * missing stop counts as 0. The angular figure here is the PART's; Generic
  * joints take their bend limit from `bendLimit.ts`, which prefers this
  * reading when Q2's bend was measured.
  */
@@ -157,7 +157,7 @@ export function findings(m: Measurements): string[] {
   if (bend !== null) {
     out.push(
       `Q2: the bend limit is ${Math.round(bend * 100) / 100} degrees, against the ${ESTIMATES.angularDeg} estimate. ` +
-        'It is the BRIO bend limit every verdict uses (engine/data/bendLimit.ts), ahead of the one inferred from Q1.',
+        'It is the Generic bend limit every verdict uses (engine/data/bendLimit.ts), ahead of the one inferred from Q1.',
     );
   }
 

@@ -12,18 +12,18 @@
  * literals together kept the suite green.
  *
  * CORRECTED 2026-10-20 (task K2). The paragraph here used to claim that every
- * absolute dimension in `brio.ts` was pinned to nothing and that exactly one
+ * absolute dimension in `generic.ts` was pinned to nothing and that exactly one
  * test tells you the data moved. Both were out of date: `STRAIGHT_LENGTHS`,
  * `CURVE_RADII_OURS` and `CURVE_ARC_STEPS` already existed and the suite already
  * compared the catalogue against them. What was genuinely unpinned was the track
  * profile, whose figures lived here only as PROSE inside
  * `RESOLVED[2].conflict.note`. They are now exported as `TRACK_PROFILE`.
  *
- * A CORRECTION TAKES TWO EDITS, AND THAT IS DELIBERATE. `brio.ts` keeps its own
+ * A CORRECTION TAKES TWO EDITS, AND THAT IS DELIBERATE. `generic.ts` keeps its own
  * private copies of these figures and does NOT import them from here. If it did,
  * both sides of every comparison in `engine/test/sources.test.ts` would be the
  * same object and no assertion there could ever fail. So fix the figure here,
- * fix it in `brio.ts`, and that test stays red until the two agree. The header
+ * fix it in `generic.ts`, and that test stays red until the two agree. The header
  * used to say "one edit in one place", which was the opposite of the mechanism.
  *
  * WHAT IT ALSO RECORDS: three conflicts, ALL RESOLVED
@@ -36,7 +36,7 @@
  * left a reader believing 182 and 40 were still disputed.
  *
  * PROVENANCE: these are published third-party figures, not measurements anyone
- * here took. The same open legal question flagged pre-launch over `brio.ts`
+ * here took. The same open legal question flagged pre-launch over `generic.ts`
  * applies to this file, and nothing here is `measured`.
  */
 
@@ -83,7 +83,7 @@ export const STRAIGHT_LENGTHS: Readonly<Record<string, number>> = {
 };
 
 export const STRAIGHT_CITATION: Citation = {
-  source: 'woodenrailway.info/track/track-math',
+  source: 'the published track guide',
   status: 'published',
   convention: 'end to end along the piece',
 };
@@ -117,7 +117,7 @@ export const CURVE_ARC_STEPS: Readonly<Record<string, number>> = {
 };
 
 export const CURVE_ARC_CITATION: Citation = {
-  source: 'woodenrailway.info/track/brio-track-guide',
+  source: 'the published track guide',
   status: 'published',
   convention: 'curved track divides the circle into eight 45-degree arcs',
 };
@@ -140,17 +140,17 @@ export const CURVE_OUTER_RADII: Readonly<Record<string, number>> = {
  * figures published in the same breath.
  *
  * WHY THESE ARE HERE (task K2). They existed only as PROSE, inside
- * `RESOLVED[2].conflict.note`, while `brio.ts` held them as its own private
+ * `RESOLVED[2].conflict.note`, while `generic.ts` held them as its own private
  * consts and `analytic.test.ts` restated 40, 12 and 26 as literal expectations.
  * So the figures lived in three places and the test compared the catalogue
- * against a copy of itself: mutating `brio.ts` failed that test whether or not
+ * against a copy of itself: mutating `generic.ts` failed that test whether or not
  * any pin worked. Exported here, they have one home and one comparison.
  *
  * Source sentence, verbatim:
  *
- *   "A typical piece of BRIO track is 40mm wide and 12mm high, with two 6mm
+ *   "A typical piece of Generic track is 40mm wide and 12mm high, with two 6mm
  *    wide grooves that are 3mm deep, spaced 20mm apart, measuring 26mm from
- *    center to center."   -- woodenrailway.info/track/brio-track-guide
+ *    center to center."   -- the published track guide
  *
  * The sentence is self-consistent, which is most of why it is trustworthy:
  * 20mm apart + 6mm wide = 26mm centre to centre. `sources.test.ts` checks that
@@ -167,7 +167,7 @@ export const TRACK_PROFILE = {
 } as const;
 
 export const PROFILE_CITATION: Citation = {
-  source: 'woodenrailway.info/track/brio-track-guide',
+  source: 'the published track guide',
   status: 'published',
   convention:
     'plank width and thickness across the piece; gauge is groove spacing, ' +
@@ -177,13 +177,13 @@ export const PROFILE_CITATION: Citation = {
 /**
  * THE THREE CONFLICTS, ALL RESOLVED 2026-10-09 from the primary source.
  *
- * Read directly from woodenrailway.info/track/brio-track-guide rather than from
+ * Read directly from the published track guide rather than from
  * search summaries, because each one changed shipped geometry. The decisive
  * sentences are quoted verbatim below. All three resolved AGAINST our data.
  */
 export const RESOLVED: readonly Citation[] = [
   {
-    source: 'woodenrailway.info/track/brio-track-guide',
+    source: 'the published track guide',
     status: 'published',
     convention: 'inner radius; centreline = inner + plankWidth / 2',
     conflict: {
@@ -199,7 +199,7 @@ export const RESOLVED: readonly Citation[] = [
     },
   },
   {
-    source: 'woodenrailway.info/track/brio-track-guide',
+    source: 'the published track guide',
     status: 'published',
     convention: 'inner radius; centreline = inner + plankWidth / 2',
     conflict: {
@@ -215,14 +215,14 @@ export const RESOLVED: readonly Citation[] = [
     },
   },
   {
-    source: 'woodenrailway.info/track/brio-track-guide',
+    source: 'the published track guide',
     status: 'published',
     convention: 'groove spacing, centre to centre',
     conflict: {
       ours: 40,
       theirs: 26,
       note:
-        'RESOLVED. Verbatim: "A typical piece of BRIO track is 40mm wide and ' +
+        'RESOLVED. Verbatim: "A typical piece of Generic track is 40mm wide and ' +
         '12mm high, with two 6mm wide grooves that are 3mm deep, spaced 20mm ' +
         'apart, measuring 26mm from center to center." So gaugeWidthMm 40 WAS ' +
         'the plank width mislabelled, the real gauge is 26, and the 44mm ' +
@@ -255,7 +255,7 @@ export const KNOWN_ABSENT = [
  *
  * Four source classes were searched and enumerated in `CALIBRATION.md` Q6:
  * the manufacturer's own pages for 33344 and 33346, retailer specifications,
- * patent and dimensioned drawings, and woodenrailway.info's track guide, which
+ * patent and dimensioned drawings, and the published track guide, which
  * is the citation behind every other figure in this file. None publishes the
  * diverging-leg arc, its radius, or the heel offset. Retail listings give
  * packaging size (about 19 x 3 x 9 cm), which is a box, not a track.
@@ -276,10 +276,10 @@ export const KNOWN_ABSENT = [
 export const SWITCH_GEOMETRY_ABSENT = {
   searchedOn: '2026-10-13',
   sourceClasses: [
-    'manufacturer product pages (BRIO 33344, 33346)',
+    'manufacturer product pages',
     'retailer specifications',
     'patent and dimensioned drawings',
-    'woodenrailway.info track guide',
+    'the published track guide',
   ],
   outcome: 'no citable figure; measurement required',
   blocks: 'the switch catalogue row',
@@ -287,9 +287,9 @@ export const SWITCH_GEOMETRY_ABSENT = {
 } as const;
 
 /**
- * THE COMPLETE BRIO PIECE TABLE, and what blocks each one.
+ * THE COMPLETE Generic PIECE TABLE, and what blocks each one.
  *
- * All 28 pieces from woodenrailway.info/track/brio-track-guide, read 2026-10-09.
+ * All 28 pieces from the published track guide, read 2026-10-09.
  * The catalogue holds 9. This records the other 19 with the reason each cannot
  * be modelled yet, so the catalogue task in release three is a list to work
  * through rather than a guess at what exists.
@@ -300,12 +300,11 @@ export const SWITCH_GEOMETRY_ABSENT = {
  *    table footnote says "Approximate. These radii are within 2mm of E1" and
  *    lists 88 against E1's 90: the radius is not E1's, which is not the same
  *    as not being exact. 88 is a whole millimetre, and three independent
- *    reproductions put the arc at a 108 centreline (88 inner) to 0.1mm (AU3D
- *    904802, RyeBread 526629, kolar.majkl 688457). Both are held exactly as
+ *    reproductions put the arc at a 108 centreline (88 inner) to 0.1mm . Both are held exactly as
  *    multi-road seeds (switchSeeds.ts, 2026-10-30).
  * 2. F and G Switch has a linear length of 150, not the 144 of the A track it is
  *    otherwise based on, and H1 Cross is 116. Neither is a multiple of 18, so
- *    both break BRIO's own 18mm increment rule while staying exactly
+ *    both break Generic's own 18mm increment rule while staying exactly
  *    representable as integers.
  * 3. R and S Buffer Stops have ONE end. `PartEnds` assumes two, so they got a
  *    kind of their own, `buffer` (schema.ts, 2026-10-30).
@@ -315,7 +314,7 @@ export type PieceBlocker =
   | 'needs-graph'        // three or more ends, not yet added as a multi-road piece
   | 'needs-elevation';   // has a rise
 
-export const BRIO_PIECE_TABLE: ReadonlyArray<{
+export const GENERIC_PIECE_TABLE: ReadonlyArray<{
   readonly ids: string;
   readonly name: string;
   readonly lengthMm?: number;
@@ -342,7 +341,7 @@ export const BRIO_PIECE_TABLE: ReadonlyArray<{
   { ids: 'I, J', name: 'Curved Switch', lengthMm: 144, innerRadiusMm: 182, blocker: 'in-catalogue', note: 'Three directions. Both held as unverified multi-road seeds.' },
   { ids: 'K', name: 'Switching and Crossing', lengthMm: 216, blocker: 'needs-graph' },
   { ids: 'K1', name: 'Double Straight', lengthMm: 216, blocker: 'needs-graph', note: 'Two parallel straights in one piece: four ends.' },
-  { ids: 'L, L1, M, M1', name: 'Curved Switch', lengthMm: 144, innerRadiusMm: 182, blocker: 'in-catalogue', note: 'The quintessential BRIO switch. L and M held as unverified multi-road seeds (switchSeeds.ts); L1 and M1 not found on MakerWorld.' },
+  { ids: 'L, L1, M, M1', name: 'Curved Switch', lengthMm: 144, innerRadiusMm: 182, blocker: 'in-catalogue', note: 'The quintessential Generic switch. L and M held as unverified multi-road seeds (switchSeeds.ts); L1 and M1 not found on printed reproductions.' },
   { ids: 'N, N1', name: 'Ascending', lengthMm: 216, blocker: 'in-catalogue', note: 'Raises or lowers the track by 64mm. Both held as unverified seeds (rampSeeds.ts, two-layer plan): N with one peg and one socket, N1 with two pegs. 216 taken as the run, CALIBRATION.md Q4.' },
   { ids: 'O, P', name: 'Short Curved Switch', innerRadiusMm: 90, blocker: 'in-catalogue', note: 'The Y switch. Both held as unverified multi-road seeds.' },
   { ids: 'O1, P1', name: 'Short Curved Switch', lengthMm: 108, innerRadiusMm: 90, blocker: 'in-catalogue', note: 'Both held as unverified multi-road seeds (switchSeeds.ts).' },

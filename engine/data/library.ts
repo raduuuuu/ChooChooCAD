@@ -13,9 +13,9 @@
  *
  * So the library is now three tiers that resolve into one list:
  *
- *   BUILT-IN       BRIO, published figures from an established reference.
+ *   BUILT-IN       Generic, published figures from an established reference.
  *   SEEDS          parts whose dimensions are UNVERIFIED: third-party track, and
- *                  the BRIO switches read off 3D-print reproductions. Present so
+ *                  the Generic switches read off 3D-print reproductions. Present so
  *                  someone who owns the track has a row to correct rather than a
  *                  blank form. Any user submission overrides a seed.
  *   SUBMISSIONS    parts a user measured, or that reached the shared library from
@@ -37,7 +37,7 @@
 import type { DimensionSource, Part } from '../src/parts/schema.js';
 import { DIMENSION_TRUST, trustRank, type DimensionStatus } from '../src/parts/schema.js';
 import { portsOf } from '../src/graph/model.js';
-import { BRIO_PARTS } from './brio.js';
+import { GENERIC_PARTS } from './generic.js';
 import { RAMP_SEEDS } from './rampSeeds.js';
 import { BUFFER_SEEDS } from './bufferSeeds.js';
 import { stored, write } from './storage.js';
@@ -45,11 +45,11 @@ import { CROSSING_SEEDS, MULTI_ROAD_SEEDS, SWITCH_SEEDS } from './switchSeeds.js
 import { THIRD_PARTY_SEEDS } from './thirdParty.js';
 
 /**
- * Built-in parts: published BRIO, unverified BRIO switches measured off 3D-print
+ * Built-in parts: published Generic, unverified Generic switches measured off 3D-print
  * reproductions, and unverified third-party seeds.
  */
 export const BUILT_IN: readonly Part[] = [
-  ...BRIO_PARTS, ...RAMP_SEEDS, ...SWITCH_SEEDS, ...CROSSING_SEEDS, ...MULTI_ROAD_SEEDS, ...BUFFER_SEEDS,
+  ...GENERIC_PARTS, ...RAMP_SEEDS, ...SWITCH_SEEDS, ...CROSSING_SEEDS, ...MULTI_ROAD_SEEDS, ...BUFFER_SEEDS,
   ...THIRD_PARTY_SEEDS,
 ];
 
@@ -77,7 +77,7 @@ export interface Submission {
  * re-measuring their own piece is correcting themselves.
  *
  * Trust beats recency, never the other way round. A community submission cannot
- * overwrite a published BRIO figure by arriving later, because one stranger's
+ * overwrite a published Generic figure by arriving later, because one stranger's
  * word is weaker than a reference. An earlier draft of this had those two
  * reversed and a test caught it.
  *
@@ -181,7 +181,7 @@ export function userMeasured(note?: string): DimensionSource {
  * ones that parse, rather than discarding the whole set on one bad row.
  */
 /** Exported so the error boundary's repro reads the same key the app wrote. */
-export const SUBMISSIONS_STORAGE_KEY = 'brio.library.submissions.v1';
+export const SUBMISSIONS_STORAGE_KEY = 'generic.library.submissions.v1';
 
 /**
  * Ids starting with this are not part ids, ever (socket adapter plan, eng
@@ -264,7 +264,7 @@ function looksLikePart(v: unknown): v is Part {
    * styled as a pass.
    *
    * 5mm and 5 degrees are about 6x and 3x the published figures (0.8mm axial,
-   * 1.5 degrees in `brio.ts`). A BRIO joint's real slop is sub-millimetre, so
+   * 1.5 degrees in `generic.ts`). A Generic joint's real slop is sub-millimetre, so
    * this is already generous for somebody measuring their own worn track, and
    * 5mm across 9 joints is 45mm against that 216mm gap.
    *

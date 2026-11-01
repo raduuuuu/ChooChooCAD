@@ -10,7 +10,7 @@
  * 9.7mm per ramp. That is `CALIBRATION.md` Q4, still open, which is why this
  * part is `unverified` (eng review finding T2: the schema has no "estimated"
  * dimension status, and unverified is the honest one) and sits outside
- * `BRIO_PARTS`, whose parts are all published.
+ * `GENERIC_PARTS`, whose parts are all published.
  *
  * The rise of 64mm is estimated too, and only the clearance note uses it
  * (`CLEARANCE` below): to the engine a ramp climbs exactly one level.
@@ -22,13 +22,13 @@ import { MEASUREMENTS } from './measurements.js';
 
 const RAMP_SOURCE: DimensionSource = {
   status: 'unverified',
-  source: 'woodenrailway.info piece table: N, Ascending, 216mm; CALIBRATION.md Q4 (run or slope, unmeasured)',
+  source: 'the published piece table: N, Ascending, 216mm; CALIBRATION.md Q4 (run or slope, unmeasured)',
   note: '216mm taken as the floor run (owner decision L2, 2026-10-23). If it is the slope length, the run is about 206.34mm.',
 };
 
 export const RAMP_SEEDS: readonly Part[] = [
   {
-    id: 'N', brand: 'BRIO', kind: 'straight', name: 'Ramp',
+    id: 'N', brand: 'GENERIC', kind: 'straight', name: 'Ramp',
     partNumber: '33332', lengthMm: 216, rise: 1,
     dimensions: RAMP_SOURCE,
     slop: jointSlop(MEASUREMENTS),
@@ -38,7 +38,7 @@ export const RAMP_SEEDS: readonly Part[] = [
   /*
    * N1: "an N track with two male connectors. It was bundled with #33397, the
    * Reversible Bridge, a double track bridge with female connectors on both
-   * ends" (woodenrailway.info/track/brio-track-guide, read 2026-10-23). No
+   * ends" (the published track guide, read 2026-10-23). No
    * part number of its own. The letter was reassigned once: in 1997 N1 named a
    * double ascending track; this is the later meaning, as the site uses it.
    *
@@ -51,11 +51,11 @@ export const RAMP_SEEDS: readonly Part[] = [
    * differ.
    */
   {
-    id: 'N1', brand: 'BRIO', kind: 'straight', name: 'Ramp, two pegs',
+    id: 'N1', brand: 'GENERIC', kind: 'straight', name: 'Ramp, two pegs',
     lengthMm: 216, rise: 1,
     dimensions: {
       ...RAMP_SOURCE,
-      source: 'woodenrailway.info/track/brio-track-guide: N1 is an N track with two male connectors; CALIBRATION.md Q4 (run or slope, unmeasured)',
+      source: 'the published track guide: N1 is an N track with two male connectors; CALIBRATION.md Q4 (run or slope, unmeasured)',
     },
     slop: jointSlop(MEASUREMENTS),
     ends: { start: 'peg', end: 'peg' }, heightMm: 0,
@@ -67,7 +67,7 @@ export const RAMP_SEEDS: readonly Part[] = [
  * The clearance under a bridge, millimetres, for the verdict's note only
  * (decision L3): ramp rise minus plank thickness minus the tallest train.
  * The rise and the plank are published: "Raises or lowers the track by 64mm"
- * and "40mm wide and 12mm high" (woodenrailway.info/track/brio-track-guide).
+ * and "40mm wide and 12mm high" (the published track guide).
  * The train's height is the estimate, and the note names it as the one guess
  * in the figure until Q5 of `measurements.ts` is filled in (`trainMeasured`).
  */

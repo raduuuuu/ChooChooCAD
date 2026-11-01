@@ -2,8 +2,8 @@
  * Parametric part schema.
  *
  * Multi-brand from day one (eng review E5/D3): the schema enumerates every
- * brand. Only BRIO data is populated in the MVP; the solver is validated
- * against BRIO before other brands' measurements are added, so a wrong verdict
+ * brand. Only Generic data is populated in the MVP; the solver is validated
+ * against Generic before other brands' measurements are added, so a wrong verdict
  * is attributable to one unknown rather than six.
  *
  * This header used to claim the schema "carries connector geometry per part,
@@ -18,7 +18,7 @@
 
 import type { Cyc } from '../geom/cyclotomic.js';
 
-export type Brand = 'BRIO' | 'IKEA' | 'PLAYTIVE' | 'HAPE' | 'THOMAS' | 'MELISSA_DOUG';
+export type Brand = 'GENERIC' | 'IKEA' | 'PLAYTIVE' | 'HAPE' | 'THOMAS' | 'MELISSA_DOUG';
 
 /**
  * How much the DIMENSIONS of a part can be trusted. Separate from `SlopBudget`'s
@@ -109,9 +109,9 @@ export interface DimensionSource {
  * Whether two brands' connectors physically join.
  *
  * Recorded as data because the answer is "mostly no" and that is the single most
- * useful thing we learned about multi-brand track. From woodenrailway's
+ * useful thing we learned about multi-brand track. From the published guide's
  * third-party page: "There is no established standard for wooden track gauges,
- * and while just about everyone uses the BRIO system as their guide, to avoid
+ * and while just about everyone uses the Generic system as their guide, to avoid
  * patent issues each has small deviations in their measurements."
  */
 export type BrandFit = 'joins' | 'tight' | 'does-not-join' | 'unknown';
@@ -130,11 +130,11 @@ export type BrandFit = 'joins' | 'tight' | 'does-not-join' | 'unknown';
 export type CalibrationStatus = 'measured' | 'published' | 'estimated';
 
 /**
- * Per-joint give. BRIO's Vario System is deliberate slop, not manufacturing error.
+ * Per-joint give. Generic's Vario System is deliberate slop, not manufacturing error.
  *
  * BOTH NOW REACH A VERDICT (docs/designs/joint-bend.md). `axialMm` is the
  * stretch a joint may pull apart; `angularDeg` is how far it may turn, for
- * parts that are not BRIO. BRIO joints take their bend limit from
+ * parts that are not Generic. Generic joints take their bend limit from
  * `engine/data/bendLimit.ts` instead (measured, inferred from a loop that
  * closed on the floor, or estimated), and a joint takes the weaker of its two
  * sides. The bend model credits these as LOWER bounds on what joints do, so
@@ -168,7 +168,7 @@ export type PartKind = 'straight' | 'curve' | 'multi-road' | 'buffer';
  * Which half of a joint an end is. A joint mates a peg with a socket; peg to peg
  * and socket to socket are physically unjoinable.
  *
- * This is a MODELLING CONVENTION, not a measurement. Real BRIO track has one
+ * This is a MODELLING CONVENTION, not a measurement. Real Generic track has one
  * male and one female end per piece, and every part below is recorded the same
  * way round: `start` is the socket, `end` is the peg, where start and end are
  * the two ends in traversal order. Which way round a given physical piece
@@ -207,10 +207,10 @@ interface PartBase {
    * Track gauge: the spacing of the two rail grooves, centre to centre,
    * millimetres. PUBLISHED.
    *
-   * 26mm on BRIO. Source, verbatim: "A typical piece of BRIO track is 40mm wide
+   * 26mm on Generic. Source, verbatim: "A typical piece of Generic track is 40mm wide
    * and 12mm high, with two 6mm wide grooves that are 3mm deep, spaced 20mm
    * apart, measuring 26mm from center to center."
-   * (woodenrailway.info/track/brio-track-guide). 20 + 6 = 26 checks out.
+   * (the published track guide). 20 + 6 = 26 checks out.
    *
    * This field held 40 until 2026-10-09, which was the PLANK WIDTH under the
    * wrong name. Everything downstream that reasoned about "the 40mm gauge",
@@ -237,7 +237,7 @@ interface PartBase {
    */
   readonly plankThicknessMm: number;
   /**
-   * Width of each rail groove, millimetres. PUBLISHED for BRIO, absent
+   * Width of each rail groove, millimetres. PUBLISHED for Generic, absent
    * elsewhere.
    *
    * 6mm, from the same sentence as the gauge and the plank: "two 6mm wide
@@ -247,7 +247,7 @@ interface PartBase {
    *
    * OPTIONAL, and that is the point. Nobody publishes a groove width for IKEA
    * Lillabo or Lidl Playtive, so those parts leave it undefined and the canvas
-   * draws them as a bare plank with no grooves. Drawing BRIO's grooves on a
+   * draws them as a bare plank with no grooves. Drawing Generic's grooves on a
    * piece whose grooves nobody has measured would be the renderer inventing
    * data, which is the one thing this product must not do. Absent means
    * unknown and looks unknown.
@@ -256,7 +256,7 @@ interface PartBase {
   readonly slop: SlopBudget;
   /**
    * Height above the ground plane, millimetres, CONTINUOUS.
-   * Deliberately not an integer level index: BRIO's ascending track happens to
+   * Deliberately not an integer level index: Generic's ascending track happens to
    * rise 64mm, but books, bridge supports, other brands and printed risers do
    * not, and a level index would be a reversibility-1 mistake.
    */
@@ -315,7 +315,7 @@ export interface CurvePart extends PartBase {
   readonly innerRadiusMm: number;
   /**
    * Arc angle as a count of 22.5-degree steps, so it stays exact in Z[zeta16].
-   * A BRIO E curve is 45 degrees, i.e. 2 steps.
+   * A Generic E curve is 45 degrees, i.e. 2 steps.
    */
   readonly arcSteps: number;
 }
@@ -394,7 +394,7 @@ export interface Road {
  * `turn` at placement mirrors the piece, so a left-hand and a right-hand
  * switch are one record placed two ways.
  *
- * EVERY MULTI-ROAD PIECE IS MODELLED. Nobody has published BRIO's switch or
+ * EVERY MULTI-ROAD PIECE IS MODELLED. Nobody has published Generic's switch or
  * crossing geometry in a form this file could cite; the seeds are read off
  * 3D-print reproductions (`engine/data/switchSeeds.ts`), and whatever a
  * future source says about the numbers, the straight-and-arc shape is the
@@ -420,7 +420,7 @@ export interface MultiRoadPart extends PartBase {
 /**
  * A BUFFER STOP: one end, and a short body behind it that ends a track.
  *
- * The first part with ONE end (BRIO R and S). It has no road, because a
+ * The first part with ONE end (Generic R and S). It has no road, because a
  * train cannot run through it, but its body is real wood on the table, so it
  * is drawn and checked for overlap like a straight of `lengthMm` running back
  * from its end. R has a peg, S a socket.
@@ -477,7 +477,7 @@ export function isUncorroborated(part: Part): boolean {
  * every card in the IKEA group spelling out IKEA says nothing, and at
  * PLAYTIVE-200 it is long enough to break the card's two-column grid.
  *
- * BRIO parts carry bare ids (A2, E1) and come back unchanged.
+ * Generic parts carry bare ids (A2, E1) and come back unchanged.
  */
 export function shortCode(part: Part): string {
   const prefix = `${part.brand}-`;

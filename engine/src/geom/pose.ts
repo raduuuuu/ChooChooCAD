@@ -14,7 +14,7 @@
  *   curve right, s steps    disp = i*r*d*(zeta^-s - 1)         heading -= s
  *                                = r*(zeta^(4+h-s) - zeta^(4+h))
  *
- * Sanity check that falls out of this, for one BRIO E curve (r=182, s=2) from
+ * Sanity check that falls out of this, for one Generic E curve (r=182, s=2) from
  * the origin heading +x:
  *
  *   disp = 182*(zeta^4 - zeta^6)  =  (91*sqrt2, 182 - 91*sqrt2)

@@ -61,13 +61,13 @@ export interface RunBend {
   /** How far bending moves any joint from the drawn, unbent shape, mm (design 11A). */
   readonly movesMm: number;
   /**
-   * The run's parts that are not BRIO, one entry per part id, sorted by id,
+   * The run's parts that are not Generic, one entry per part id, sorted by id,
    * with each one's own bend figure: the limits note lists them (design 5A).
    * Filled by `solveGraph`, which knows the parts.
    */
   readonly others: readonly OtherPart[];
-  /** Whether the run holds any BRIO piece, for the BRIO limit note. Filled by `solveGraph`. */
-  readonly brio: boolean;
+  /** Whether the run holds any Generic piece, for the Generic limit note. Filled by `solveGraph`. */
+  readonly generic: boolean;
   /**
    * Each loop joint's turn and stretch at the solution, keyed by weld index,
    * so the canvas can draw the run the way it sits on the floor
@@ -239,7 +239,7 @@ export function statusOf(o: Extract<BendOutcome, { kind: 'solved' }>): Exclude<R
  * and the chain path (eng review D2), so both read the same rule.
  */
 export function solveRun(pieces: readonly string[], built: BendRun | BuiltRun | null, turnedSteps: number, budget: BendBudget): RunBend {
-  const none = { lambda: null, stretchMm: 0, leftoverMm: null, turnedSteps, movesMm: 0, others: [], brio: true, atLeast: false } as const;
+  const none = { lambda: null, stretchMm: 0, leftoverMm: null, turnedSteps, movesMm: 0, others: [], generic: true, atLeast: false } as const;
   if (!built) return { ...none, pieces, status: 'unchecked', why: 'a loop could not be followed round', work: 0 };
   const o: BendOutcome = solveBend(built, budget.maxCells, budget.maxWork);
   if (o.kind !== 'solved') {
@@ -264,7 +264,7 @@ export function solveRun(pieces: readonly string[], built: BendRun | BuiltRun | 
     work: o.work,
     movesMm: Math.max(0, ...built.loops.map((loop) => bendMovesMm(loop, o.turns, o.stretches))),
     others: [],
-    brio: true,
+    generic: true,
     atLeast: o.atLeast,
     ...('welds' in built ? { jointBend: new Map(built.welds.map((w, i) => [w, { turn: o.turns[i]!, stretch: o.stretches[i]! }])) } : {}),
   };
@@ -323,7 +323,7 @@ export function bendRuns(
     );
     const exact = closing.every((w) => residualBy.get(w)?.closes === true);
     if (exact) {
-      out.push({ pieces, status: 'exact', lambda: 0, stretchMm: 0, leftoverMm: 0, turnedSteps: 0, why: null, work: 0, movesMm: 0, others: [], brio: true, atLeast: false });
+      out.push({ pieces, status: 'exact', lambda: 0, stretchMm: 0, leftoverMm: 0, turnedSteps: 0, why: null, work: 0, movesMm: 0, others: [], generic: true, atLeast: false });
       continue;
     }
     const built = buildRun(graph, placement, closing.map((w) => fundamentalCycle(graph, forest, w)), portsOf, side);

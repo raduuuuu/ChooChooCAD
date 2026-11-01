@@ -53,7 +53,7 @@ import {
  * How many pieces this canvas will draw before it says there are too many.
  *
  * Exported so a spec can pin the boundary rather than restate the number, and
- * so the entry in `docs/plan/brio-TODOS.md` can cite one place. The measured
+ * so the entry in `docs/plan/generic-TODOS.md` can cite one place. The measured
  * cost behind the value is at the guard that uses it.
  */
 export const CANVAS_SEGMENT_CEILING = 10_000;
@@ -143,7 +143,7 @@ const EDGE_MM = 1.2;
 /**
  * How much wider than its plank a raised piece's bridge casing is, in total:
  * 4mm each side (eng re-run D2). Floor track running closer than that
- * alongside raised track would be nicked; BRIO's own spacing is wider.
+ * alongside raised track would be nicked; Generic's own spacing is wider.
  */
 const BRIDGE_CASING_MM = 8;
 
@@ -186,7 +186,7 @@ function rampShadow(seg: Segment, half: number): string {
 }
 
 /**
- * THE SMALLEST A MARK IS DRAWN, as pixels per drawing unit (brio-TODOS.md P2,
+ * THE SMALLEST A MARK IS DRAWN, as pixels per drawing unit (generic-TODOS.md P2,
  * "Canvas marks keep their screen size"). The fault marks and the adapter
  * diamond are sized in millimetres, and the canvas shrinks a big board to
  * fit, so on a 3m board at 0.3px/mm a clash ring was 17px across: a dot,
@@ -478,7 +478,7 @@ export function TrackCanvas({
    * the 62% was a number chosen to look right rather than to mean anything.
    *
    * Now every width comes from the part's published cross section, and the
-   * grooves land where BRIO says they land. A stroke of width W covers W/2
+   * grooves land where Generic says they land. A stroke of width W covers W/2
    * either side of the path, so concentric strokes paint annuli:
    *
    *   plankWidth          40mm   the dark plank edge
@@ -502,7 +502,7 @@ export function TrackCanvas({
    *
    * Taking it from segment 0 meant a chain that happened to start with an
    * IKEA straight (two layers, no published grooves) drew only two layers for
-   * everything, silently erasing the grooves from every BRIO piece behind it.
+   * everything, silently erasing the grooves from every Generic piece behind it.
    * Per-segment `layers()` still decides what each piece gets; this only sets
    * how many passes to make.
    */
@@ -747,7 +747,7 @@ export function TrackCanvas({
    * so in words and keeps the app usable -- the palette, the verdict and
    * Clear all still work, so this is recoverable where a freeze is not.
    *
-   * This is the CHEAP HALF of the P0 in `docs/plan/brio-TODOS.md`. The real
+   * This is the CHEAP HALF of the P0 in `docs/plan/generic-TODOS.md`. The real
    * half is virtualisation: draw what the viewport covers and no layout is
    * ever too big to open. Until then, refusing to draw is the honest answer,
    * and it is the one that never lies about what was checked -- the verdict is
@@ -1304,7 +1304,7 @@ export function TrackCanvas({
                   * adds no ink to a dense layout. A switch's heel is drawn the
                   * same way, because it is a peg or a socket too. Why the
                   * drawing exists at all: the DONE entry in
-                  * docs/plan/brio-TODOS.md.
+                  * docs/plan/generic-TODOS.md.
                   */}
                 <circle cx={p.x} cy={p.y} r={8} className={POLARITY_CLASS[p.polarity]} />
               </g>

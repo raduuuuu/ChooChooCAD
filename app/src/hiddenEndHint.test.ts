@@ -1,5 +1,5 @@
 /**
- * A FREE END UNDER A BRIDGE IS POINTED TO THE LIST (brio-TODOS.md P3).
+ * A FREE END UNDER A BRIDGE IS POINTED TO THE LIST (generic-TODOS.md P3).
  *
  * Raised track is drawn after the floor's ends, so where raised wood covers a
  * free floor end the wood takes the click, and the end is reachable only from

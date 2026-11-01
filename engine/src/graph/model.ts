@@ -208,7 +208,7 @@ export function portsOf(part: Part, turn: Turn = 'left'): readonly Port[] {
     }));
   }
   /*
-   * A RAMP FLIPPED OVER (turn 'right'). BRIO track is double-sided, which is
+   * A RAMP FLIPPED OVER (turn 'right'). Generic track is double-sided, which is
    * how one curve turns either way: `turn` already means "this face up". An
    * ascending track turned over keeps its ends where they were, socket and
    * peg, but its high end is now the entry: it comes down where it used to

@@ -115,14 +115,14 @@ describe('storage keys have one owner each', () => {
   /*
    * THE ONE PLACE A STORAGE-KEY LITERAL BELONGS.
    *
-   * MUTATION PROOF, run: bump every key's version while keeping the `brio.`
-   * prefix (`brio.graph.v1` -> `brio.graph.v2` and so on) and this is the only
+   * MUTATION PROOF, run: bump every key's version while keeping the `generic.`
+   * prefix (`generic.graph.v1` -> `generic.graph.v2` and so on) and this is the only
    * test in the suite that fails. Before it existed, that rename passed all
    * 333 tests -- measured -- and silently orphaned every saved track, every
    * declared inventory and every hand-measured submission on every existing
    * install.
    *
-   * `inventoryModel.test.ts` used to hold `'brio.inventory.v0'` as a literal.
+   * `inventoryModel.test.ts` used to hold `'generic.inventory.v0'` as a literal.
    * This branch replaced it with the constant, for single ownership, and in
    * doing so converted the last real pin in the repo into a circular one: a
    * test that reads the constant it claims to pin cannot fail when the
@@ -141,11 +141,11 @@ describe('storage keys have one owner each', () => {
       INVENTORY_STORAGE_KEY,
       SUBMISSIONS_STORAGE_KEY,
     }).toEqual({
-      CHAIN_STORAGE_KEY: 'brio.chain.v0',
-      GRAPH_STORAGE_KEY: 'brio.graph.v1',
-      GRAPH_RESCUE_KEY: 'brio.graph.v1.rejected',
-      INVENTORY_STORAGE_KEY: 'brio.inventory.v0',
-      SUBMISSIONS_STORAGE_KEY: 'brio.library.submissions.v1',
+      CHAIN_STORAGE_KEY: 'generic.chain.v0',
+      GRAPH_STORAGE_KEY: 'generic.graph.v1',
+      GRAPH_RESCUE_KEY: 'generic.graph.v1.rejected',
+      INVENTORY_STORAGE_KEY: 'generic.inventory.v0',
+      SUBMISSIONS_STORAGE_KEY: 'generic.library.submissions.v1',
     });
   });
 
@@ -158,7 +158,7 @@ describe('storage keys have one owner each', () => {
       SUBMISSIONS_STORAGE_KEY,
     ];
     expect(new Set(keys).size).toBe(5);
-    for (const k of keys) expect(k).toMatch(/^brio\./);
+    for (const k of keys) expect(k).toMatch(/^generic\./);
   });
 });
 

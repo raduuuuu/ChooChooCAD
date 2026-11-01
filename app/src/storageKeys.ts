@@ -25,7 +25,7 @@
  * blob and say the layout could not be carried over, rather than starting
  * empty with no explanation. Nothing writes it any more.
  */
-export const CHAIN_STORAGE_KEY = 'brio.chain.v0';
+export const CHAIN_STORAGE_KEY = 'generic.chain.v0';
 
 /**
  * The layout, as a graph: pieces, declared welds, and captured anchors.
@@ -35,13 +35,13 @@ export const CHAIN_STORAGE_KEY = 'brio.chain.v0';
  * and no blob that could be half-read as either. T3's owed storage bump,
  * settled here because this is the first time anchors are persisted at all.
  */
-export const GRAPH_STORAGE_KEY = 'brio.graph.v1';
+export const GRAPH_STORAGE_KEY = 'generic.graph.v1';
 
 /** What the user says they own. A map of part id to count. */
-export const INVENTORY_STORAGE_KEY = 'brio.inventory.v0';
+export const INVENTORY_STORAGE_KEY = 'generic.inventory.v0';
 
 /** The table or room the track must fit on: `{ widthMm, depthMm }` (backlog E4). */
-export const TABLE_STORAGE_KEY = 'brio.table.v0';
+export const TABLE_STORAGE_KEY = 'generic.table.v0';
 
 /**
  * The last layout blob this app REFUSED to load, kept verbatim (task T5, E1).
@@ -57,17 +57,17 @@ export const TABLE_STORAGE_KEY = 'brio.table.v0';
  * read by the app and never migrated; it exists so a user who loses a layout
  * has something to send, and so the loss is recoverable by hand.
  */
-export const GRAPH_RESCUE_KEY = 'brio.graph.v1.rejected';
+export const GRAPH_RESCUE_KEY = 'generic.graph.v1.rejected';
 
 /** Which view was last shown, '2d' or '3d' (3D plan, eng D10, design 11A). Per browser. */
-export const VIEW_STORAGE_KEY = 'brio.view.v0';
+export const VIEW_STORAGE_KEY = 'generic.view.v0';
 
 /**
  * Where a build was left (build mode plan, scope 5, D18): `{ layout, index }`,
  * the layout's hash and the position in build mode's one list. Only the latest
  * build is kept; reaching the last piece clears it.
  */
-export const BUILD_STORAGE_KEY = 'brio.build.v0';
+export const BUILD_STORAGE_KEY = 'generic.build.v0';
 
 /**
  * Where a build of a SHARED LINK was left (share plan, design D66, eng D71).
@@ -75,7 +75,7 @@ export const BUILD_STORAGE_KEY = 'brio.build.v0';
  * the recipient's own build; one slot, so the next link's build replaces it
  * and nothing piles up. The only key a link session may write.
  */
-export const BUILD_LINK_STORAGE_KEY = 'brio.build.link.v0';
+export const BUILD_LINK_STORAGE_KEY = 'generic.build.link.v0';
 
 /**
  * The friend's own layout, put aside when a shared link is opened in the
@@ -84,7 +84,7 @@ export const BUILD_LINK_STORAGE_KEY = 'brio.build.link.v0';
  * "Restore my previous layout" swaps back. The raw stored bytes, untouched, so
  * even a layout that could not be read is kept exactly as it was.
  */
-export const GRAPH_PREVIOUS_KEY = 'brio.graph.v1.previous';
+export const GRAPH_PREVIOUS_KEY = 'generic.graph.v1.previous';
 
 /**
  * Whether this browser has selected a piece once (plan 2026-11-01, design DR3).
@@ -92,4 +92,4 @@ export const GRAPH_PREVIOUS_KEY = 'brio.graph.v1.previous';
  * selected and removed; after it, never again. A missing or unreadable value
  * shows the hint, which is the safe direction.
  */
-export const SELECT_HINT_STORAGE_KEY = 'brio.hint.select.v0';
+export const SELECT_HINT_STORAGE_KEY = 'generic.hint.select.v0';

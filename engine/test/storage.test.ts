@@ -58,14 +58,14 @@ describe('a read-only session', () => {
    * be 'skipped' // Object.is equality`.
    */
   it('skips every key except the allowed ones, and a skip is not a failure', () => {
-    data.set('brio.graph.v1', 'mine');
-    storage.startReadOnlySession(['brio.build.link.v0']);
-    const r = storage.write('brio.graph.v1', 'theirs');
+    data.set('generic.graph.v1', 'mine');
+    storage.startReadOnlySession(['generic.build.link.v0']);
+    const r = storage.write('generic.graph.v1', 'theirs');
     expect(r).toBe('skipped');
     expect(storage.stored(r)).toBe(true);
-    expect(storage.remove('brio.graph.v1')).toBe('skipped');
-    expect(data.get('brio.graph.v1')).toBe('mine');
-    expect(storage.write('brio.build.link.v0', '3')).toBe('ok');
+    expect(storage.remove('generic.graph.v1')).toBe('skipped');
+    expect(data.get('generic.graph.v1')).toBe('mine');
+    expect(storage.write('generic.build.link.v0', '3')).toBe('ok');
     expect(storage.readOnly()).toBe(true);
   });
 
@@ -75,15 +75,15 @@ describe('a read-only session', () => {
    */
   it('an import writes its keys only during the call, and the session survives a throw (D35)', () => {
     storage.startReadOnlySession([]);
-    expect(storage.withImport(['brio.graph.v1'], () => storage.write('brio.graph.v1', 'link'))).toBe('ok');
-    expect(storage.write('brio.graph.v1', 'later')).toBe('skipped');
+    expect(storage.withImport(['generic.graph.v1'], () => storage.write('generic.graph.v1', 'link'))).toBe('ok');
+    expect(storage.write('generic.graph.v1', 'later')).toBe('skipped');
     expect(() =>
-      storage.withImport(['brio.graph.v1'], () => {
+      storage.withImport(['generic.graph.v1'], () => {
         throw new Error('quota');
       }),
     ).toThrow('quota');
-    expect(storage.write('brio.graph.v1', 'after a failed import')).toBe('skipped');
-    expect(storage.write('brio.view.v0', '3d')).toBe('skipped');
-    expect(data.get('brio.graph.v1')).toBe('link');
+    expect(storage.write('generic.graph.v1', 'after a failed import')).toBe('skipped');
+    expect(storage.write('generic.view.v0', '3d')).toBe('skipped');
+    expect(data.get('generic.graph.v1')).toBe('link');
   });
 });

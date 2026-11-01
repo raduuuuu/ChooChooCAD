@@ -57,7 +57,7 @@ const cycle = (over: Partial<CycleReport> = {}): CycleReport => ({
   ...over,
 });
 
-/** A looped run's bend, as the engine reports it. All BRIO unless `others` is given. */
+/** A looped run's bend, as the engine reports it. All Generic unless `others` is given. */
 const runBend = (status: RunBend['status'], lambda: number, over: Partial<RunBend> = {}): RunBend => ({
   pieces: ['p1', 'p2'],
   status,
@@ -69,13 +69,13 @@ const runBend = (status: RunBend['status'], lambda: number, over: Partial<RunBen
   work: 0,
   movesMm: 3,
   others: [],
-  brio: true,
+  generic: true,
   atLeast: false,
   ...over,
 });
 
 /**
- * A near miss beyond the tested bend: 72mm of gap, needing 1.6 times the BRIO
+ * A near miss beyond the tested bend: 72mm of gap, needing 1.6 times the Generic
  * limit at the worst joint.
  *
  * Returns the SOLVED branch, not the `GraphResult` union, so a caller can
@@ -291,9 +291,9 @@ describe('the action register suggests without restating the claim', () => {
  */
 describe('the limits note does not depend on the trust list', () => {
   const exceeds = exceedsResult();
-  const LIMITS = '<p class="verdict-limits">A built loop needed BRIO joints to bend 2.7°.</p>';
+  const LIMITS = '<p class="verdict-limits">A built loop needed Generic joints to bend 2.7°.</p>';
 
-  it('a pure BRIO layout has no disclosures, and still says where the limit comes from', () => {
+  it('a pure Generic layout has no disclosures, and still says where the limit comes from', () => {
     const html = render(exceeds, trustFor(['E', 'E', 'E', 'E']));
     expect(liCount(html)).toBe(0);
     expect(overflow(html)).toBeNull();

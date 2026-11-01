@@ -100,7 +100,7 @@ describe('raised track on a verdict that works (3A, 4A)', () => {
    *
    * THE CLEARANCE IS NEGATIVE AND THE NOTE DOES NOT WARN YET. -3mm is the
    * measured result (CALIBRATION.md Q5, 2026-10-30: 64 rise - 12 plank - 55
-   * train). A per-train warning is filed in docs/plan/brio-TODOS.md ("A 55mm
+   * train). A per-train warning is filed in docs/plan/generic-TODOS.md ("A 55mm
    * train may not fit under a one-level bridge"); this pins today's wording.
    */
   it('says what was not checked, past a long notes list, and never "Build it"', () => {

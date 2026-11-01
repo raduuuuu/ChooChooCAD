@@ -1,6 +1,6 @@
 # ChooChooCAD
 
-MVP of the engine for a BRIO wooden-track layout designer. Answers one question
+MVP of the engine for a Generic wooden-track layout designer. Answers one question
 no existing tool answers: **will this layout actually work?**
 
 ```
@@ -14,7 +14,7 @@ bun try.ts         # one layout from the command line; edit PIECES at the top
 
 The engine is two stages, and the split is the whole idea.
 
-**Stage 1, exact.** Every BRIO heading is a multiple of 22.5 degrees and every
+**Stage 1, exact.** Every Generic heading is a multiple of 22.5 degrees and every
 straight length is a whole number of millimetres, so every reachable pose is an
 exact element of `Z[zeta16]`, the 16th cyclotomic integers. The closure residual
 of a layout is therefore an exact algebraic constant and "does this loop close"
@@ -33,7 +33,7 @@ both zero, so exact closures exist and the tests find them.
 4E + D + 4E + A                  residual exactly 72mm  (216 - 144)
 ```
 
-**Stage 2, a bound, not an allocation.** BRIO's Vario System is deliberate give
+**Stage 2, a bound, not an allocation.** Generic's Vario System is deliberate give
 in every joint, so when a loop does not close exactly the remaining question is
 whether the joints can absorb the gap. This reports a **necessary condition**:
 
@@ -131,7 +131,7 @@ assembled from browser defaults.
 
 ## The numbers are not measured
 
-Every slop budget in `engine/data/brio.ts` is `calibrationStatus: 'estimated'`.
+Every slop budget in `engine/data/generic.ts` is `calibrationStatus: 'estimated'`.
 Nobody has put calipers on real track. They are plausible placeholders
 (0.8mm axial, 1.5 degrees angular) and they must be fitted against a physical
 corpus of built-and-measured layouts, split into a calibration set and a
@@ -161,7 +161,7 @@ pieces occupy the same floor. The overlap check is specified and unbuilt.
 
 ```
 engine/
-  data/brio.ts              part data + vehicle scalars, all 'estimated'
+  data/generic.ts              part data + vehicle scalars, all 'estimated'
   data/sources.ts           published figures + citations the catalogue is checked against
   src/parts/schema.ts       multi-brand parametric schema, continuous heightMm
   src/geom/cyclotomic.ts    exact Z[zeta16] arithmetic
@@ -171,7 +171,7 @@ engine/
   src/geom/fk.ts            float walker + drawable segments, shared
   src/joints/evaluate.ts    the ONE shared LAYOUT predicate
   test/analytic.test.ts     known-answer fixtures + solver contract properties
-  test/sources.test.ts      the one place brio.ts is compared against sources.ts
+  test/sources.test.ts      the one place generic.ts is compared against sources.ts
   test/render.test.ts       SVG arc centres, so arcs cannot silently bow wrong
 app/
   src/App.tsx               layout-as-home shell
@@ -190,7 +190,7 @@ drift is the product contradicting itself.
 The source code is MIT licensed. See `LICENSE`.
 
 **The MIT grant covers the code, not the part data.** Part dimensions in
-`engine/data/` are transcribed from the woodenrailway.info track guide and
+`engine/data/` are transcribed from the published track guide and
 Track Math pages. Individual measurements of physical objects are facts, but a
 curated compilation of them may be protected, and that question is open. It was
 filed as a pre-launch item before this went public and is still unresolved, so
@@ -198,12 +198,12 @@ the MIT licence should not be read as a grant over that compilation: it is not
 mine to give until the question is settled or the figures are re-derived from
 physical measurement.
 
-If you are the maintainer of woodenrailway.info and object to this use, open an
+If you are the maintainer of the published guide and object to this use, open an
 issue and I will take the data down.
 
 The self-hosted IBM Plex fonts are SIL Open Font License 1.1, and both notices
 ship with the build at `/fonts/`.
 
-BRIO is a live trademark of BRIO AB. This project is not affiliated with,
-endorsed by, or connected to BRIO. The name `woodentrain.world` is descriptive
+Generic is a live trademark of Generic AB. This project is not affiliated with,
+endorsed by, or connected to Generic. The name `woodentrain.world` is descriptive
 and deliberately does not reference the trademark.

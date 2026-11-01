@@ -44,7 +44,7 @@ export interface RenderedPort {
    * Which half of a joint this end is.
    *
    * Carried so the canvas can draw what the polarity check already knows;
-   * the history is in the DONE entry in `docs/plan/brio-TODOS.md`. Derived
+   * the history is in the DONE entry in `docs/plan/generic-TODOS.md`. Derived
    * with `portPolarity`, the same function the check calls. A switch's heel
    * is a peg or a socket like any end (see `PortKind`); this was `null` for
    * a heel until 2026-10-22, matching an exemption the check no longer makes.

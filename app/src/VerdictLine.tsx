@@ -104,7 +104,7 @@ function Unmeasured({ n }: { n: number }) {
 }
 
 /** The fold's open state, kept for the session so it does not snap shut on every edit (4A). */
-const FOLD_KEY = 'brio.verdict.notes.open';
+const FOLD_KEY = 'generic.verdict.notes.open';
 const foldWasOpen = () => {
   try {
     return sessionStorage.getItem(FOLD_KEY) === '1';
@@ -268,7 +268,7 @@ function BendLine({ words }: { words: BendWords | null }) {
 
 /**
  * WHERE THE LIMITS COME FROM, first in the notes and outside the trust cap
- * (design 2A, 5A): BRIO's limit with its provenance, then each other brand's
+ * (design 2A, 5A): Generic's limit with its provenance, then each other brand's
  * estimate by part id, then the overlap note for a run that needs bend
  * (11A), which says the drawing is unbent whether or not anything overlaps.
  */
@@ -543,7 +543,7 @@ export function VerdictLine({
   // Every failure is GREY. Never green, never styled as a near-pass.
   //
   // The part register rides here too (QA 2026-11-01, owner's answer A). It
-  // was empty on every failure, so a Lillabo piece on BRIO track said nothing
+  // was empty on every failure, so a Lillabo piece on Generic track said nothing
   // until the loop closed, though the IKEA shelf promises the verdict says
   // what it means. What the parts are is true whether or not a loop exists.
   if (isFailure(e.kind)) {
@@ -598,7 +598,7 @@ export function VerdictLine({
               {/*
                 * The clashes and crossings too, when there are both: the
                 * canvas draws every kind of red mark, and the words used to
-                * account for one (brio-TODOS.md P2, the polarity marker's
+                * account for one (generic-TODOS.md P2, the polarity marker's
                 * limit 2).
                 */}
               {e.clashCount > 0 && (

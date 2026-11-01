@@ -52,15 +52,15 @@ function lcg(seed: number) {
 
 function corpus(): Array<[string, Graph]> {
   const out: Array<[string, Graph]> = [];
-  // differential.test.ts: flat two-ended BRIO parts, seed 20261010, 600 chains.
-  const BRIO = BUILT_IN.filter(
-    (p) => p.brand === 'BRIO' && (p.kind === 'straight' || p.kind === 'curve') && !(p.kind === 'straight' && p.rise),
+  // differential.test.ts: flat two-ended Generic parts, seed 20261010, 600 chains.
+  const Generic = BUILT_IN.filter(
+    (p) => p.brand === 'GENERIC' && (p.kind === 'straight' || p.kind === 'curve') && !(p.kind === 'straight' && p.rise),
   ).map((p) => p.id);
   const rand = lcg(20261010);
   for (let i = 0; i < 600; i++) {
     const n = 1 + Math.floor(rand() * 12);
     const placements = Array.from({ length: n }, () => ({
-      partId: BRIO[Math.floor(rand() * BRIO.length)]!,
+      partId: Generic[Math.floor(rand() * Generic.length)]!,
       turn: (rand() < 0.5 ? 'left' : 'right') as Turn,
     }));
     const layout: Layout = { placements, closed: rand() < 0.7 };

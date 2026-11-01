@@ -37,11 +37,11 @@
 # They are in a test on purpose and must stay there. Replacing these literals
 # with the constants is exactly what broke the pin: a test that reads the
 # constant it claims to pin cannot fail when the constant changes. Measured
-# before the fix: renaming every key while keeping the `brio.` prefix passed
+# before the fix: renaming every key while keeping the `generic.` prefix passed
 # all 333 tests and would silently orphan every saved track, inventory and
 # hand-measured submission on every existing install.
-brio.chain.v0
-brio.graph.v1
-brio.graph.v1.rejected
-brio.inventory.v0
-brio.library.submissions.v1
+generic.chain.v0
+generic.graph.v1
+generic.graph.v1.rejected
+generic.inventory.v0
+generic.library.submissions.v1
