@@ -200,7 +200,20 @@ describe('build progress follows ownership, not width (D71)', () => {
     await user.click(button('Start'));
     await screen.findByTestId('viewer3d');
     await waitFor(() => expect(document.querySelector('.build-meta')?.textContent).toMatch(/^Step 1 of/));
-    for (let i = 1; i < n; i++) fireEvent.keyDown(document, { key: 'ArrowRight' });
+    /*
+     * A key is ignored until the step before it has drawn (BuildMode's
+     * `settled`), so press until each step shows; a press while unsettled
+     * moves nothing, so this never skips one. Pressing once per step failed
+     * on the slower CI runner: `expected 'Picking up at step 1.' to be
+     * 'Picking up at step 3.'`.
+     */
+    const meta = () => document.querySelector('.build-meta')?.textContent ?? '';
+    for (let k = 2; k <= n; k++) {
+      await waitFor(() => {
+        if (meta().startsWith(`Step ${k - 1} of`)) fireEvent.keyDown(document, { key: 'ArrowRight' });
+        expect(meta()).toMatch(new RegExp(`^Step ${k} of`));
+      });
+    }
     await user.keyboard('{Escape}');
   };
 
