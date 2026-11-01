@@ -298,6 +298,222 @@ function clearOfEveryFootprint(
   }
 }
 
+/**
+ * WHAT A STORED LAYOUT MAY CONTAIN, checked once for every reader (share plan,
+ * eng D33). `loadGraph` reads the browser's saved layout with it, and a shared
+ * link's decoder reads the link with it, so the two can never disagree about
+ * which bytes are a layout this engine could have written.
+ *
+ * PURE: no storage, no repair. It refuses a layout whole (`ok: false`) or
+ * hands back what it read plus what was unreadable in the anchors, and the
+ * caller decides. `loadGraph` re-lanes orphans and rescues the bytes; the link
+ * decoder refuses anything not perfectly read, because nothing on a friend's
+ * screen may be a guess (design doc, step 3).
+ *
+ * The checks, their order and their comments are the loader's, moved here
+ * unchanged.
+ */
+export type StoredCheck =
+  | { readonly ok: false; readonly reason: 'unreadable' }
+  | { readonly ok: false; readonly reason: 'unknown-part'; readonly partId: string }
+  | {
+      readonly ok: true;
+      readonly pieces: Piece[];
+      readonly welds: Weld[];
+      readonly anchors: Map<string, Frame>;
+      /** Pieces whose every anchor entry was unreadable. */
+      readonly unreadable: ReadonlySet<string>;
+      /** Anchor entries too broken to name a piece. */
+      readonly nameless: number;
+    };
+
+const UNREADABLE: StoredCheck = { ok: false, reason: 'unreadable' };
+
+export function checkStored(parsed: unknown, knownPartIds: ReadonlySet<string>, ports: PortsOf): StoredCheck {
+  if (typeof parsed !== 'object' || parsed === null) return UNREADABLE;
+  const { pieces, welds, anchors } = parsed as Partial<StoredGraph>;
+  if (!Array.isArray(pieces) || !Array.isArray(welds)) {
+    return UNREADABLE;
+  }
+
+  const ids = new Set<string>();
+  const out: Piece[] = [];
+  for (const p of pieces) {
+    if (typeof p !== 'object' || p === null) return UNREADABLE;
+    const { pieceId, partId, turn } = p as Record<string, unknown>;
+    if (typeof pieceId !== 'string' || typeof partId !== 'string') {
+      return UNREADABLE;
+    }
+    if (!knownPartIds.has(partId)) return { ok: false, reason: 'unknown-part', partId };
+    if (turn !== undefined && turn !== 'left' && turn !== 'right') {
+      return UNREADABLE;
+    }
+    if (ids.has(pieceId)) return UNREADABLE;
+    ids.add(pieceId);
+    out.push({ pieceId, partId, turn: turn as Piece['turn'] });
+  }
+
+  const outWelds: Weld[] = [];
+  /*
+   * One Map, built once. The first version called `out.find(...)` twice per
+   * weld inside this loop, which is O(pieces x welds): measured 0.7ms at 100
+   * pieces, 7.2ms at 1000, 340ms at 8000. Not a blocker at real layout
+   * sizes, and a gratuitous quadratic two lines from proof that the right
+   * structure was already in hand.
+   */
+  const pieceOf = new Map(out.map((p) => [p.pieceId, p]));
+  /*
+   * A PORT INDEX GETS THE SAME TREATMENT AS A HEADING (finding B1).
+   *
+   * `typeof port === 'number'` was the whole check here, which let every
+   * in-type integer through: `7` on a two-port straight, `-1`, `2.5`,
+   * `1e9`. None of them is repairable and none of them was refused. The
+   * loader reported a clean load -- no `discarded` sentence, no notice,
+   * `droppedAnchors: 0`, no rescue copy written -- and then `placeAll`
+   * threw `Cannot read properties of undefined (reading 'at')` inside
+   * render. `ErrorBoundary` caught it, `GRAPH_STORAGE_KEY` was never
+   * touched, so every reload reproduced it identically. The one button that
+   * broke the loop also removed the inventory and the submissions, which is
+   * the data `library.ts` singles out as impossible to recreate.
+   *
+   * MEASURED before this fix: ports 2, 7, -1 and 2.5 on a two-port part
+   * were all accepted, and all four threw in `placeAll` and `renderGraph`.
+   *
+   * `isHeading` right above was tightened for exactly this reason, and its
+   * comment states the rule this now follows: a value this engine did not
+   * write gets dropped rather than repaired. A weld is a declared intent
+   * about two specific ends; inventing a different end is worse than
+   * starting empty, which is why this refuses the whole layout rather than
+   * dropping the weld -- the same call the missing-piece check below makes.
+   */
+  const isPort = (v: unknown, pieceId: string): v is number => {
+    if (typeof v !== 'number' || !Number.isInteger(v) || v < 0) return false;
+    // Non-null is sound: `ids.has` gated this lookup, and `ids` and
+    // `pieceOf` are filled from the same array in lockstep.
+    return v < ports(pieceOf.get(pieceId)!).length;
+  };
+  /*
+   * A PORT HOLDS ONE WELD. `weldEnds` refuses a port that is not free and
+   * `addPiece` welds only free ports, so a second weld on the same end is a
+   * value this engine did not write -- and the loader was the one place
+   * that did not say so. It checked a port index's RANGE and never its
+   * OCCUPANCY.
+   *
+   * That hole was not cosmetic. Every duplicate weld becomes another
+   * closing weld, so it inflates the cycle rank, and a piece welded many
+   * times over sits in many fundamental cycles at once, which makes the
+   * fundamental-sharing graph dense. MEASURED through this loader before
+   * the check existed: a 303,940-byte layout of 3000 pieces with 20
+   * duplicate welds loaded with no discarded sentence at all, and the solve
+   * then blocked the main thread for 11,058ms. A freeze is not a throw, so
+   * `ErrorBoundary` never fired and the key was never cleared: every
+   * reload did it again.
+   *
+   * Refused whole rather than dropped, for the reason the comment above
+   * gives: a weld is a declared intent about two specific ends, and there
+   * is no way to tell WHICH of the duplicates was meant.
+   */
+  const claimed = new Set<string>();
+  for (const w of welds) {
+    const a = (w as Weld | undefined)?.a;
+    const b = (w as Weld | undefined)?.b;
+    if (!a || !b) return UNREADABLE;
+    // A weld naming a piece that is not here cannot be repaired: it is a
+    // declared intent about two specific ends, and inventing another is
+    // worse than starting empty.
+    if (!ids.has(a.pieceId) || !ids.has(b.pieceId)) {
+      return UNREADABLE;
+    }
+    if (!isPort(a.port, a.pieceId) || !isPort(b.port, b.pieceId)) {
+      return UNREADABLE;
+    }
+    const endA = `${a.pieceId}:${a.port}`;
+    const endB = `${b.pieceId}:${b.port}`;
+    // Also catches a weld joining one end to itself, which claims it twice.
+    if (endA === endB || claimed.has(endA) || claimed.has(endB)) {
+      return UNREADABLE;
+    }
+    claimed.add(endA);
+    claimed.add(endB);
+    // Only the two fields a weld end IS. The stored object may carry extra
+    // keys and the accepted graph should not inherit them.
+    outWelds.push({
+      a: { pieceId: a.pieceId, port: a.port },
+      b: { pieceId: b.pieceId, port: b.port },
+    });
+  }
+
+  /*
+   * The anchor loop. Every `continue` here is a COUNTED loss, not a silent
+   * one. The layout is kept whole; what is lost is a position, and the
+   * consequence is a component drawn somewhere it never was.
+   */
+  const anchorMap = new Map<string, Frame>();
+  /** Entries too broken to name a piece: each one is some piece's position. */
+  let nameless = 0;
+  /*
+   * Pieces whose anchor was unreadable. They are re-anchored AFTER the loop,
+   * to a lane beyond every surviving anchor, rather than left to fall to the
+   * identity (finding E2).
+   *
+   * THIS IS A DECIDED TRADE, not an oversight. Leaving them unanchored is
+   * what produces the false verdict: `placeAll` puts an unanchored root at
+   * the identity, so the orphan lands on top of the component that is
+   * legitimately at the origin, `findVertexClashes` reports an overlap the
+   * user never built, and the verdict reads "can't be built" about a track
+   * that is fine. Choosing a lane instead means the piece is drawn somewhere
+   * it probably was not — which is exactly what the notice says, in those
+   * words — and no verdict is manufactured. A wrong position the user can
+   * see and the notice explains beats a wrong verdict they cannot.
+   *
+   * The offset is an integer multiple of zeta^4, so it is an exact lattice
+   * point: closure stays exact in Z[zeta16] and no epsilon enters here.
+   */
+  const unreadable = new Set<string>();
+  for (const entry of anchors ?? []) {
+    if (!Array.isArray(entry) || entry.length !== 2) {
+      // No id to re-anchor: the entry itself is unreadable. Counted, because
+      // some piece has lost its position and we cannot say which.
+      nameless++;
+      continue;
+    }
+    const [id, frame] = entry as [unknown, unknown];
+    // An anchor for a piece that is not here is not a loss of position: the
+    // piece it described is already gone from the blob, so there is nothing
+    // to misplace. Not counted.
+    if (typeof id !== 'string' || !ids.has(id)) continue;
+    if (typeof frame !== 'object' || frame === null) {
+      unreadable.add(id);
+      continue;
+    }
+    const { pos, heading, level } = frame as Record<string, unknown>;
+    // Anchors are exact lattice points. A non-integer or absurdly large one
+    // is not an anchor this engine wrote, so it is dropped rather than
+    // rounded or truncated into place. Both checks live in `isCyc`.
+    if (!isCyc(pos)) {
+      unreadable.add(id);
+      continue;
+    }
+    if (!isHeading(heading)) {
+      unreadable.add(id);
+      continue;
+    }
+    if (!isAnchorLevel(level)) {
+      unreadable.add(id);
+      continue;
+    }
+    anchorMap.set(id, frameOf(pos, heading, level ?? 0));
+  }
+  /*
+   * PIECES, NOT ENTRIES, and a readable position wins (filed 2026-10-15).
+   * The stored anchors are an array from an untrusted blob and may name a
+   * piece twice. Counting entries told the user "2 had unreadable
+   * positions" about one piece, and a piece with one bad entry and one good
+   * one was re-laned anyway, throwing away a position that was right there.
+   */
+  return { ok: true, pieces: out, welds: outWelds, anchors: anchorMap, unreadable, nameless };
+}
+
 export function loadGraph(
   knownPartIds: ReadonlySet<string>,
   /**
@@ -337,193 +553,16 @@ export function loadGraph(
       }
       return { value: EMPTY_GRAPH, droppedAnchors: 0, rescued: false, uncopied: false };
     }
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== 'object' || parsed === null) return refuse(DISCARDED);
-    const { pieces, welds, anchors } = parsed as Partial<StoredGraph>;
-    if (!Array.isArray(pieces) || !Array.isArray(welds)) {
-      return refuse(DISCARDED);
+    const checked = checkStored(JSON.parse(raw), knownPartIds, ports);
+    if (!checked.ok) {
+      return refuse(
+        checked.reason === 'unknown-part'
+          ? `Your saved track used a part the library no longer has (${checked.partId}), ` +
+              'so the whole layout was cleared. Dropping one piece would have changed its shape.'
+          : DISCARDED,
+      );
     }
-
-    const ids = new Set<string>();
-    const out: Piece[] = [];
-    for (const p of pieces) {
-      if (typeof p !== 'object' || p === null) return refuse(DISCARDED);
-      const { pieceId, partId, turn } = p as Record<string, unknown>;
-      if (typeof pieceId !== 'string' || typeof partId !== 'string') {
-        return refuse(DISCARDED);
-      }
-      if (!knownPartIds.has(partId)) {
-        return refuse(
-          `Your saved track used a part the library no longer has (${partId}), ` +
-            'so the whole layout was cleared. Dropping one piece would have changed its shape.',
-        );
-      }
-      if (turn !== undefined && turn !== 'left' && turn !== 'right') {
-        return refuse(DISCARDED);
-      }
-      if (ids.has(pieceId)) return refuse(DISCARDED);
-      ids.add(pieceId);
-      out.push({ pieceId, partId, turn: turn as Piece['turn'] });
-    }
-
-    const outWelds: Weld[] = [];
-    /*
-     * One Map, built once. The first version called `out.find(...)` twice per
-     * weld inside this loop, which is O(pieces x welds): measured 0.7ms at 100
-     * pieces, 7.2ms at 1000, 340ms at 8000. Not a blocker at real layout
-     * sizes, and a gratuitous quadratic two lines from proof that the right
-     * structure was already in hand.
-     */
-    const pieceOf = new Map(out.map((p) => [p.pieceId, p]));
-    /*
-     * A PORT INDEX GETS THE SAME TREATMENT AS A HEADING (finding B1).
-     *
-     * `typeof port === 'number'` was the whole check here, which let every
-     * in-type integer through: `7` on a two-port straight, `-1`, `2.5`,
-     * `1e9`. None of them is repairable and none of them was refused. The
-     * loader reported a clean load -- no `discarded` sentence, no notice,
-     * `droppedAnchors: 0`, no rescue copy written -- and then `placeAll`
-     * threw `Cannot read properties of undefined (reading 'at')` inside
-     * render. `ErrorBoundary` caught it, `GRAPH_STORAGE_KEY` was never
-     * touched, so every reload reproduced it identically. The one button that
-     * broke the loop also removed the inventory and the submissions, which is
-     * the data `library.ts` singles out as impossible to recreate.
-     *
-     * MEASURED before this fix: ports 2, 7, -1 and 2.5 on a two-port part
-     * were all accepted, and all four threw in `placeAll` and `renderGraph`.
-     *
-     * `isHeading` right above was tightened for exactly this reason, and its
-     * comment states the rule this now follows: a value this engine did not
-     * write gets dropped rather than repaired. A weld is a declared intent
-     * about two specific ends; inventing a different end is worse than
-     * starting empty, which is why this refuses the whole layout rather than
-     * dropping the weld -- the same call the missing-piece check below makes.
-     */
-    const isPort = (v: unknown, pieceId: string): v is number => {
-      if (typeof v !== 'number' || !Number.isInteger(v) || v < 0) return false;
-      // Non-null is sound: `ids.has` gated this lookup, and `ids` and
-      // `pieceOf` are filled from the same array in lockstep.
-      return v < ports(pieceOf.get(pieceId)!).length;
-    };
-    /*
-     * A PORT HOLDS ONE WELD. `weldEnds` refuses a port that is not free and
-     * `addPiece` welds only free ports, so a second weld on the same end is a
-     * value this engine did not write -- and the loader was the one place
-     * that did not say so. It checked a port index's RANGE and never its
-     * OCCUPANCY.
-     *
-     * That hole was not cosmetic. Every duplicate weld becomes another
-     * closing weld, so it inflates the cycle rank, and a piece welded many
-     * times over sits in many fundamental cycles at once, which makes the
-     * fundamental-sharing graph dense. MEASURED through this loader before
-     * the check existed: a 303,940-byte layout of 3000 pieces with 20
-     * duplicate welds loaded with no discarded sentence at all, and the solve
-     * then blocked the main thread for 11,058ms. A freeze is not a throw, so
-     * `ErrorBoundary` never fired and the key was never cleared: every
-     * reload did it again.
-     *
-     * Refused whole rather than dropped, for the reason the comment above
-     * gives: a weld is a declared intent about two specific ends, and there
-     * is no way to tell WHICH of the duplicates was meant.
-     */
-    const claimed = new Set<string>();
-    for (const w of welds) {
-      const a = (w as Weld | undefined)?.a;
-      const b = (w as Weld | undefined)?.b;
-      if (!a || !b) return refuse(DISCARDED);
-      // A weld naming a piece that is not here cannot be repaired: it is a
-      // declared intent about two specific ends, and inventing another is
-      // worse than starting empty.
-      if (!ids.has(a.pieceId) || !ids.has(b.pieceId)) {
-        return refuse(DISCARDED);
-      }
-      if (!isPort(a.port, a.pieceId) || !isPort(b.port, b.pieceId)) {
-        return refuse(DISCARDED);
-      }
-      const endA = `${a.pieceId}:${a.port}`;
-      const endB = `${b.pieceId}:${b.port}`;
-      // Also catches a weld joining one end to itself, which claims it twice.
-      if (endA === endB || claimed.has(endA) || claimed.has(endB)) {
-        return refuse(DISCARDED);
-      }
-      claimed.add(endA);
-      claimed.add(endB);
-      // Only the two fields a weld end IS. The stored object may carry extra
-      // keys and the accepted graph should not inherit them.
-      outWelds.push({
-        a: { pieceId: a.pieceId, port: a.port },
-        b: { pieceId: b.pieceId, port: b.port },
-      });
-    }
-
-    /*
-     * The anchor loop. Every `continue` here is a COUNTED loss, not a silent
-     * one. The layout is kept whole; what is lost is a position, and the
-     * consequence is a component drawn somewhere it never was.
-     */
-    const anchorMap = new Map<string, Frame>();
-    /** Entries too broken to name a piece: each one is some piece's position. */
-    let nameless = 0;
-    /*
-     * Pieces whose anchor was unreadable. They are re-anchored AFTER the loop,
-     * to a lane beyond every surviving anchor, rather than left to fall to the
-     * identity (finding E2).
-     *
-     * THIS IS A DECIDED TRADE, not an oversight. Leaving them unanchored is
-     * what produces the false verdict: `placeAll` puts an unanchored root at
-     * the identity, so the orphan lands on top of the component that is
-     * legitimately at the origin, `findVertexClashes` reports an overlap the
-     * user never built, and the verdict reads "can't be built" about a track
-     * that is fine. Choosing a lane instead means the piece is drawn somewhere
-     * it probably was not — which is exactly what the notice says, in those
-     * words — and no verdict is manufactured. A wrong position the user can
-     * see and the notice explains beats a wrong verdict they cannot.
-     *
-     * The offset is an integer multiple of zeta^4, so it is an exact lattice
-     * point: closure stays exact in Z[zeta16] and no epsilon enters here.
-     */
-    const unreadable = new Set<string>();
-    for (const entry of anchors ?? []) {
-      if (!Array.isArray(entry) || entry.length !== 2) {
-        // No id to re-anchor: the entry itself is unreadable. Counted, because
-        // some piece has lost its position and we cannot say which.
-        nameless++;
-        continue;
-      }
-      const [id, frame] = entry as [unknown, unknown];
-      // An anchor for a piece that is not here is not a loss of position: the
-      // piece it described is already gone from the blob, so there is nothing
-      // to misplace. Not counted.
-      if (typeof id !== 'string' || !ids.has(id)) continue;
-      if (typeof frame !== 'object' || frame === null) {
-        unreadable.add(id);
-        continue;
-      }
-      const { pos, heading, level } = frame as Record<string, unknown>;
-      // Anchors are exact lattice points. A non-integer or absurdly large one
-      // is not an anchor this engine wrote, so it is dropped rather than
-      // rounded or truncated into place. Both checks live in `isCyc`.
-      if (!isCyc(pos)) {
-        unreadable.add(id);
-        continue;
-      }
-      if (!isHeading(heading)) {
-        unreadable.add(id);
-        continue;
-      }
-      if (!isAnchorLevel(level)) {
-        unreadable.add(id);
-        continue;
-      }
-      anchorMap.set(id, frameOf(pos, heading, level ?? 0));
-    }
-    /*
-     * PIECES, NOT ENTRIES, and a readable position wins (filed 2026-10-15).
-     * The stored anchors are an array from an untrusted blob and may name a
-     * piece twice. Counting entries told the user "2 had unreadable
-     * positions" about one piece, and a piece with one bad entry and one good
-     * one was re-laned anyway, throwing away a position that was right there.
-     */
+    const { pieces: out, welds: outWelds, anchors: anchorMap, unreadable, nameless } = checked;
     const orphans = [...unreadable].filter((id) => !anchorMap.has(id));
     const droppedAnchors = nameless + orphans.length;
 
