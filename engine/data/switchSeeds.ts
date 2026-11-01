@@ -326,6 +326,42 @@ export const MULTI_ROAD_SEEDS: readonly MultiRoadPart[] = [
     ),
     slop: ESTIMATED_SLOP, ...PROFILE,
   },
+  /*
+   * THE TWO-WAY T-JUNCTION (plan 2026-11-01, T3; owner's answer "Add Flame's
+   * T Rail as measured"). MakerWorld's only two-way T: a stem that splits
+   * into two quarter curves, left and right, with a straight bar across their
+   * ends. A printable design with its own sizes, not a copy of a shop piece,
+   * so its name says "printed". Symmetric, so it has no `flip` and Flip (F)
+   * never shows while placing it (design DR7).
+   *
+   * Read off the mesh, then turned half a circle so the stem sits at the
+   * origin facing back as every heel here does: the mesh's socket bar end
+   * lands at (75, -75) and its peg at (75, 75).
+   */
+  {
+    id: 'TJ', brand: 'BRIO', kind: 'multi-road', name: 'T-junction, printed',
+    ports: [
+      { at: { pos: ORIGIN, heading: 8 }, polarity: 'socket', name: 'stem', kind: 'heel' },
+      { at: { pos: xy(75, 75), heading: 4 }, polarity: 'peg', name: 'left end' },
+      { at: { pos: xy(75, -75), heading: 12 }, polarity: 'socket', name: 'right end' },
+    ],
+    roads: [
+      { from: 0, to: 1, shape: { kind: 'arc', innerRadiusMm: 55, arcSteps: 4, side: 'left' } },
+      { from: 0, to: 2, shape: { kind: 'arc', innerRadiusMm: 55, arcSteps: 4, side: 'right' } },
+      { from: 1, to: 2, shape: { kind: 'straight', lengthMm: 150 } },
+    ],
+    sizeLabel: 'r75',
+    dimensions: {
+      status: 'unverified',
+      source: 'MakerWorld 3225419 "T Rail compatible with multiple brands" by Flame (instance 3652740), measured off the 3MF mesh on 2026-11-01',
+      note:
+        'A printable design with its own sizes, not a measurement of a shop piece. Stem to each bar end: 75mm ' +
+        'along and 75mm across, turning 90 degrees, to 0.04mm: two quarter curves at a 75mm centreline ' +
+        '(55 inner). The bar ends are 150mm apart, to 0.01mm. The stem is a socket; one bar end is a peg ' +
+        '(17.8mm proud) and the other a socket. Whole millimetres, so nothing was rounded.',
+    },
+    slop: ESTIMATED_SLOP, ...PROFILE,
+  },
   {
     id: 'X', brand: 'BRIO', kind: 'multi-road', name: 'Star switch',
     ports: [
