@@ -549,6 +549,12 @@
    */
   max-height: 45vh;
   min-height: 0;
+  /*
+   * When the parts list's floor (below) and the control rows together need
+   * more than the 45vh ceiling, the tray scrolls as a whole rather than
+   * crushing the parts (QA 2026-11-01, ISSUE-003).
+   */
+  overflow-y: auto;
   background: var(--paper);
 }
 /*
@@ -557,7 +563,14 @@
  * cap was introduced to fix.
  */
 .palette-parts {
-  min-height: 0;
+  /*
+   * A FLOOR OF FIVE CARDS (QA 2026-11-01, ISSUE-003). With `min-height: 0`
+   * the stacked layout gave the parts whatever the control rows left of the
+   * 45vh tray: 145px on a portrait iPad (768x1024), under four of the 35
+   * cards, and 90px at 640px wide, two. Five and a half 36px cards with their
+   * gaps, so the sixth is cut mid-card and the list reads as scrollable.
+   */
+  min-height: calc(5.5 * 36px + 5 * var(--s1));
   overflow-y: auto;
   /*
    * A VISIBLE scrollbar, not the macOS overlay one.
