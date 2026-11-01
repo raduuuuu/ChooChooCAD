@@ -68,3 +68,11 @@ export const VIEW_STORAGE_KEY = 'brio.view.v0';
  * build is kept; reaching the last piece clears it.
  */
 export const BUILD_STORAGE_KEY = 'brio.build.v0';
+
+/**
+ * Where a build of a SHARED LINK was left (share plan, design D66, eng D71).
+ * A link is somebody else's layout, so its progress never takes the place of
+ * the recipient's own build; one slot, so the next link's build replaces it
+ * and nothing piles up. The only key a link session may write.
+ */
+export const BUILD_LINK_STORAGE_KEY = 'brio.build.link.v0';

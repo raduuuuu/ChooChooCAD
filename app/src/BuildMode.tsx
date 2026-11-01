@@ -62,6 +62,8 @@ export interface BuildModeProps {
   readonly ceiling: number;
   readonly allSaved: boolean;
   readonly onExit: () => void;
+  /** Where this build's progress lives: the layout's own slot, or a shared link's (eng D71). */
+  readonly resumeKey?: string;
 }
 
 type Piece = Extract<BuildItem, { kind: 'piece' }>;
@@ -85,7 +87,7 @@ export default function BuildMode(props: BuildModeProps) {
   const { graph, segments, result, scene, partName, onExit } = props;
   const items = useMemo(() => buildSteps(graph, segments, verdictOf(result)), [graph, segments, result]);
   const pieces = useMemo(() => items.filter((i): i is Piece => i.kind === 'piece'), [items]);
-  const [resume] = useState(() => loadResume(graph, items.length));
+  const [resume] = useState(() => loadResume(graph, items.length, props.resumeKey));
   // Always the pull list first; Continue goes to where the build was left (D35).
   const [target, setTarget] = useState(0);
   const [shown, setShown] = useState(0);
@@ -121,11 +123,11 @@ export default function BuildMode(props: BuildModeProps) {
   /* ---- where we are is saved; the end clears it ------------------------ */
   useEffect(() => {
     if (items[target]!.kind === 'last') {
-      clearResume();
+      clearResume(props.resumeKey);
       return;
     }
     if (target === 0) return;
-    if (!saveResume(graph, target)) setQuiet((q) => ({ ...q, place: true }));
+    if (!saveResume(graph, target, props.resumeKey)) setQuiet((q) => ({ ...q, place: true }));
   }, [target, items, graph]);
 
   /* ---- moving ---------------------------------------------------------- */

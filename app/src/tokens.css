@@ -259,6 +259,12 @@
    * --ink is 13.43:1 and --ink-soft 5.21:1 (measured above). Smaller on
    * phones, in app.css. Never shrunk to make room for the picture.
    */
+  /*
+   * A screen's title (share plan, design 14A): the friend's "A wooden railway
+   * · 14 pieces". Ink on --paper, 13.43:1 (measured above).
+   */
+  --page-title: 24px;
+
   --build-name: 40px;
   --build-code: 28px;
   --build-meta: 16px;

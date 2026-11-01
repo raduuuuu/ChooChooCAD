@@ -25,3 +25,14 @@ export const LINK_REFUSED: Record<LinkRefusal, string> = {
   'too-many-pieces': "This link couldn't be opened.",
   invalid: "This link couldn't be opened.",
 };
+
+/** A link pasted into a tab whose last changes are not saved (eng D15, D34). */
+export const LINK_HELD = "Your last changes couldn't be saved, so the link wasn't opened. Your changes are still here.";
+
+/** The friend's screen (design 1A, 6A, 7A, 10A; eng D7, D69). */
+export const linkTitle = (pieces: number) => `A wooden railway · ${pieces} ${pieces === 1 ? 'piece' : 'pieces'}`;
+export const LINK_LOADING = 'Opening a shared railway…';
+export const LINK_CRASHED = "This link couldn't be shown.";
+export const CATALOGUE_SIZES = 'Checked with catalogue sizes.';
+/** The exit, worded for where it goes: D23's empty check picks one (design 10A). */
+export const exitLabel = (holdsOwn: boolean) => (holdsOwn ? 'Back to my layout' : 'Start your own');

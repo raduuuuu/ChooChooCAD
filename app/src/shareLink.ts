@@ -33,8 +33,9 @@ export const LINK_MAX_CHARS = 8192;
 export const LINK_MAX_INFLATED = 64 * 1024;
 export const LINK_MAX_PIECES = 500;
 
-/** Any version of a shared-layout fragment (D17). */
-export const LINK_FRAGMENT = /^#v(\d+)\./;
+import { LINK_FRAGMENT } from './linkFragment.js';
+
+export { LINK_FRAGMENT };
 
 export type LinkRefusal =
   | 'version'
@@ -98,13 +99,14 @@ function fromBase64Url(text: string): Uint8Array<ArrayBuffer> | null {
 }
 
 async function deflate(text: string): Promise<Uint8Array> {
-  const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+  const stream = new Response(text).body!.pipeThrough(new CompressionStream('deflate-raw'));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
 /** Inflate, reading chunk by chunk and stopping as soon as `cap` is passed (D22). */
 async function inflate(bytes: Uint8Array<ArrayBuffer>, cap: number): Promise<{ ok: true; text: string } | { ok: false; reason: 'corrupt' | 'too-large' }> {
-  const reader = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader();
+  // `Response`, not `Blob.stream()`: every target has it, jsdom included.
+  const reader = new Response(bytes).body!.pipeThrough(new DecompressionStream('deflate-raw')).getReader();
   const parts: Uint8Array[] = [];
   let size = 0;
   try {
