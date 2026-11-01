@@ -226,19 +226,27 @@ describe('the live region holds the sentence and nothing else', () => {
   });
 
   /*
-   * Four trust issues, three of them serious. Two serious ones are shown;
-   * the rest become a count.
+   * THE FOLD (share plan, design 4A; eng D69). Every note is still in the
+   * markup, so `aria-describedby` reaches all of them, but only what the
+   * track physically needs stays in view: brands that do not join, and the
+   * count of unmeasured pieces. The rest (which parts, which are modelled,
+   * one source) sit behind "3 notes", hidden until asked for.
    *
-   * MUTATION PROOF, run: raise `TRUST_INLINE_LIMIT` to 3. Fails with
-   * `expected [ [ …(3), index: 393, …(2) ], …(2) ] to have a length of 2 but
-   * got 3`.
+   * MUTATION PROOF, run: `kept` returning true for every kind (nothing
+   * folds): `expected '<div class="verdict verdict-pass" rol…' to contain
+   * '<button type="button" class="verdict-…'`.
    */
-  it('shows the two serious notes and counts the rest', () => {
-    const html = render('EXACT', FIVE);
-    const items = [...html.matchAll(/<li( class="is-serious")?>(.*?)<\/li>/g)];
-    expect(items).toHaveLength(2);
-    expect(items.every((m) => m[1] !== undefined)).toBe(true);
-    expect(html).toMatch(/and <span class="num">2<\/span> more notes about this layout\./);
+  it('keeps the physical facts in view and folds the explanations behind "N notes"', () => {
+    const html = render('EXACT', [...FIVE.slice(0, 1), { ...FIVE[1]!, pieces: 2 }, ...FIVE.slice(2)]);
+    const [before, folded = ''] = html.split('<div id="verdict-folded"');
+    expect(before).toContain('these brands do not join');
+    expect(before).toContain('<span class="num">2</span> pieces have sizes nobody has measured.');
+    expect(before).toContain('<button type="button" class="verdict-fold" aria-expanded="false" aria-controls="verdict-folded"><span class="num">4</span> notes</button>');
+    expect(folded.startsWith(' class="verdict-folded" hidden=""')).toBe(true);
+    for (const d of ['one person measured this', 'nobody measured this', 'this switch is modelled', 'Exact to the catalogue.']) {
+      expect(before, d).not.toContain(d);
+      expect(folded, d).toContain(d);
+    }
   });
 });
 

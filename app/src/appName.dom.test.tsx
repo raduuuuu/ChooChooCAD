@@ -1,7 +1,7 @@
 /**
  * THE APP SAYS ITS NAME (brio-TODOS.md, "The app's name is not on screen").
  *
- * Value: protects=the rail names the app in text a screenshot or a screen
+ * Value: protects=the identity line above the canvas names the app in text a screenshot or a screen
  * reader gets, and the logo mark beside it stays decorative
  * Value: fails_when=the name line is dropped, or the mark becomes announced or
  * focusable
@@ -24,7 +24,7 @@ describe('the app name', () => {
    * - the mark announced (`aria-hidden` removed from AppName's svg): fails with
    *   `expected null to be 'true'`.
    */
-  it('heads the parts rail, with the mark beside it kept out of the reading', () => {
+  it('heads the stage on its own identity line, with the mark kept out of the reading (design 2A)', () => {
     render(
       <StrictMode>
         <App />
@@ -32,7 +32,8 @@ describe('the app name', () => {
     );
     const title = screen.getByText('ChooChooCAD');
     const line = title.closest('.app-name')!;
-    expect(line.closest('section.palette')).not.toBeNull();
+    expect(line.closest('header.identity')).not.toBeNull();
+    expect(line.closest('section.palette')).toBeNull();
     expect(line.textContent).toBe('ChooChooCADwooden railway layouts');
     const mark = line.querySelector('svg')!;
     expect(mark.getAttribute('aria-hidden')).toBe('true');

@@ -26,6 +26,12 @@ export interface TrustIssue {
     | 'modelled-switch';
   /** One sentence, user-facing, naming the specific cause. */
   readonly detail: string;
+  /**
+   * 'unverified-size' only: how many placed pieces have an unmeasured size,
+   * counting repeats. The verdict says this count where it is never folded
+   * (share plan, eng D69); `detail` names the parts.
+   */
+  readonly pieces?: number;
 }
 
 export interface BrandFitLookup {
@@ -53,6 +59,7 @@ export function layoutTrust(
   if (unverified.length > 0) {
     issues.push({
       kind: 'unverified-size',
+      pieces: parts.filter(isUnverified).length,
       detail:
         `${unverified.join(', ')} ${unverified.length === 1 ? 'has a size' : 'have sizes'} ` +
         'nobody has measured, so this answer is exact about an estimate.',

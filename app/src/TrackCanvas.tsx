@@ -19,7 +19,7 @@
 
 import { JOIN_REFUSED_SHORT } from './joinWords.js';
 import type { JoinRefusal } from './layoutModel.js';
-import { memo, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { Segment } from '../../engine/src/geom/fk.js';
 import { onPlank } from '../../engine/src/graph/overlap.js';
 import { renderBounds, type GraphRender } from '../../engine/src/graph/render.js';
@@ -96,12 +96,15 @@ export const TrackLayers = memo(function TrackLayers({
   maxLayers,
   hidden,
   keyPrefix = '',
+  settling,
 }: {
   readonly segments: readonly Segment[];
   readonly resolve: (id: string) => Part;
   readonly maxLayers: number;
   readonly hidden?: ReadonlySet<string>;
   readonly keyPrefix?: string;
+  /** The piece just placed: its paths carry the settle (design 15A). */
+  readonly settling?: ReadonlySet<string>;
 }) {
   // Counted for the committed track only: the preview and drag copies are meant to re-render.
   if (keyPrefix === '') layerRenders.count++;
@@ -120,6 +123,7 @@ export const TrackLayers = memo(function TrackLayers({
               stroke={layer.stroke}
               strokeWidth={layer.w}
               strokeLinecap="butt"
+              className={settling && s.pieceId !== undefined && settling.has(s.pieceId) ? 'settle' : undefined}
             />
           );
         }),
@@ -384,6 +388,23 @@ export function TrackCanvas({
   table = null,
 }: TrackCanvasProps) {
   const { segments, ports: renderedPorts } = render;
+  /*
+   * THE SETTLE (share plan, design 15A): the ONE authored motion. A piece
+   * that arrives on its own, placed from the palette or put back by Undo,
+   * drops the last 2mm into place. A preset, a cleared floor or a first
+   * render arrives all at once and does not move. Read from the pieces seen
+   * at the last commit, so StrictMode's second render agrees with the first.
+   */
+  const seenPieces = useRef<ReadonlySet<string> | null>(null);
+  const settling = useMemo(() => {
+    const before = seenPieces.current;
+    if (before === null) return undefined;
+    const added = new Set(segments.flatMap((sg) => (sg.pieceId !== undefined && !before.has(sg.pieceId) ? [sg.pieceId] : [])));
+    return added.size === 1 ? added : undefined;
+  }, [segments]);
+  useEffect(() => {
+    seenPieces.current = new Set(segments.flatMap((sg) => (sg.pieceId !== undefined ? [sg.pieceId] : [])));
+  }, [segments]);
   /*
    * THE VIEW HOLDS STILL WHILE PLACING (decisions 5A and 4A). The fit covers
    * the placed track plus the preview's whole reach on every side, and none
@@ -769,8 +790,8 @@ export function TrackCanvas({
           Too much track to draw: {segments.length.toLocaleString()} pieces.
         </p>
         <p className="canvas-empty-hint">
-          The layout is still here and still checked, and the verdict below
-          applies to all of it. Remove some track to see the picture again.
+          The layout is still here and still checked, and the verdict applies
+          to all of it. Remove some track to see the picture again.
         </p>
       </div>,
     );
@@ -912,7 +933,7 @@ export function TrackCanvas({
           * by the seam layer's one thin line (decision 11A), not by this
           * accident of paint order.
           */}
-        <TrackLayers segments={raised ? raisedSegments : floorSegments} resolve={resolve} maxLayers={maxLayers} hidden={hiddenRun} />
+        <TrackLayers segments={raised ? raisedSegments : floorSegments} resolve={resolve} maxLayers={maxLayers} hidden={hiddenRun} settling={settling} />
         {/*
           * THE RUN BEING DRAGGED (decision E6): the same wood, moved by one
           * transform, nothing solved. Its pieces are hidden from the layers

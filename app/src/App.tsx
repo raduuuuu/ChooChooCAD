@@ -1545,6 +1545,15 @@ export function App({ link }: { readonly link?: Graph } = {}) {
 
   return (
     <div className="shell">
+      {/*
+        * THE IDENTITY LINE (share plan, design 2A, 22A): the app's name at the
+        * top of the stage, where every screen has it, editor, friend's screen
+        * and first visit alike. A layout put aside is named right under it.
+        */}
+      <header className="identity">
+        <AppName />
+        <PutAsideNotice allSaved={allSaved} />
+      </header>
       <main className="stage">
         {view === '3d' && sceneInput ? (
           <View3DPanel
@@ -1618,8 +1627,6 @@ export function App({ link }: { readonly link?: Graph } = {}) {
           </button>
         </div>
       )}
-
-      <PutAsideNotice allSaved={allSaved} />
 
       {unsavedNotice !== undefined && unsavedDismissed !== unsavedNotice && (
         <div className="notice" role="status" aria-live="polite" aria-atomic="false">
@@ -1737,7 +1744,6 @@ export function App({ link }: { readonly link?: Graph } = {}) {
       )}
 
       <section className="palette" aria-label="Track pieces">
-        <AppName />
         {/*
           * GROUPED BY BRAND, because the brands are not interchangeable.
           *
