@@ -77,6 +77,18 @@ describe('the put-aside notice (22A)', () => {
     expect(screen.queryByRole('button', { name: 'Restore it' })).toBe(null);
   });
 
+  /*
+   * MUTATION PROOF, run: `dropSameCopy` never removing: `expected <button
+   * …(1)></button> to be null`, Restore offered for a swap that changes nothing.
+   */
+  it('a copy that is the saved layout itself is not offered, and is emptied', () => {
+    localStorage.setItem(GRAPH_STORAGE_KEY, OWN);
+    localStorage.setItem(GRAPH_PREVIOUS_KEY, OWN);
+    openEditor();
+    expect(screen.queryByRole('button', { name: 'Restore it' })).toBe(null);
+    expect(localStorage.getItem(GRAPH_PREVIOUS_KEY)).toBe(null);
+  });
+
   it('an unreadable layout put aside is named in words (D72)', () => {
     localStorage.setItem(GRAPH_PREVIOUS_KEY, '{not json');
     openEditor();

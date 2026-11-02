@@ -107,6 +107,19 @@ describe('opening a link in the editor', () => {
     expect(slots()).toEqual({ saved: LINK, aside: MINE });
   });
 
+  /*
+   * MUTATION PROOF, run: the `current === linkBytes` early return removed:
+   * `expected { …(2) } to deeply equal { …(2) }`, the same layout put aside.
+   */
+  it('your own layout, opened from its own link, puts nothing aside', () => {
+    data.set(GRAPH_STORAGE_KEY, MINE);
+    expect(m.openInEditor(MINE)).toEqual({ kind: 'opened' });
+    expect(slots()).toEqual({ saved: MINE, aside: null });
+    data.set(GRAPH_PREVIOUS_KEY, EARLIER);
+    expect(m.openInEditor(MINE)).toEqual({ kind: 'opened' });
+    expect(slots()).toEqual({ saved: MINE, aside: EARLIER });
+  });
+
   it('the rescue slot is never touched', () => {
     data.set(GRAPH_RESCUE_KEY, 'rescued bytes');
     m.openInEditor(LINK);
@@ -194,6 +207,22 @@ describe('Restore swaps, and never loses either layout (D24, D36)', () => {
     data.set(GRAPH_STORAGE_KEY, LINK);
     expect(m.restorePrevious()).toEqual({ kind: 'failed' });
     expect(slots()).toEqual({ saved: LINK, aside: null });
+  });
+});
+
+describe('a copy that is the saved layout itself', () => {
+  /*
+   * MUTATION PROOF, run: `dropSameCopy` never removing: `expected { …(2) } to
+   * deeply equal { …(2) }`.
+   */
+  it('is emptied; any other copy stays', () => {
+    data.set(GRAPH_STORAGE_KEY, MINE);
+    data.set(GRAPH_PREVIOUS_KEY, MINE);
+    m.dropSameCopy();
+    expect(slots()).toEqual({ saved: MINE, aside: null });
+    data.set(GRAPH_PREVIOUS_KEY, EARLIER);
+    m.dropSameCopy();
+    expect(slots()).toEqual({ saved: MINE, aside: EARLIER });
   });
 });
 
