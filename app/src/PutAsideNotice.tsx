@@ -10,6 +10,9 @@
  *     Discard ─▶ "Discard the put-aside layout (N pieces)? This can't be undone."
  *                [Discard] [Keep it] ─▶ the slot empties and the notice goes
  *
+ * A copy that is the saved layout byte for byte is emptied, not offered:
+ * restoring it would change nothing.
+ *
  * Restore reloads, so it waits for `allSaved`: a reload with an unsaved
  * change would lose it. Another tab putting a layout aside, or taking one
  * back, updates this line through the storage event.
@@ -17,7 +20,7 @@
 
 import { useEffect, useState } from 'react';
 import { discardQuestion, putAsideLine, RESTORE_FAILED, RESTORE_WAITS, STRANDED } from './linkWords.js';
-import { discardPrevious, putAside, restorePrevious, type Summary } from './putAside.js';
+import { discardPrevious, dropSameCopy, putAside, restorePrevious, type Summary } from './putAside.js';
 import { GRAPH_PREVIOUS_KEY } from './storageKeys.js';
 
 /** The exact bytes as a file, so nothing about them is changed on the way out (D36). */
@@ -33,7 +36,10 @@ function download(bytes: string) {
 const piecesOf = (s: Summary) => (s.kind === 'layout' ? s.pieces : null);
 
 export function PutAsideNotice({ allSaved }: { readonly allSaved: boolean }) {
-  const [summary, setSummary] = useState(putAside);
+  const [summary, setSummary] = useState(() => {
+    dropSameCopy();
+    return putAside();
+  });
   const [confirming, setConfirming] = useState(false);
   const [failed, setFailed] = useState(false);
   const [stranded, setStranded] = useState<string | null>(null);

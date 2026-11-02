@@ -8,6 +8,7 @@
  *
  *   openInEditor(link)
  *     provably empty (D23) ─▶ saved ← link
+ *     own layout, the very same bytes as the link ─▶ nothing to do
  *     own layout:
  *       put-aside empty, or already the same bytes ─▶ put-aside ← saved, saved ← link
  *       put-aside holds something else ─▶ 'ask' (the caller asks; D29, D72)
@@ -61,6 +62,8 @@ export function openInEditor(linkBytes: string, replace = false): OpenResult {
       put(GRAPH_STORAGE_KEY, current);
       return { kind: 'failed' };
     }
+    // Their own layout, opened from its own link: a copy put aside would be the same layout twice.
+    if (current === linkBytes) return { kind: 'opened' };
     const previous = read(GRAPH_PREVIOUS_KEY);
     if (previous !== null && previous !== current && !replace) return { kind: 'ask', previous, current };
     if (!put(GRAPH_PREVIOUS_KEY, current)) {
@@ -113,6 +116,16 @@ export function summaryOf(bytes: string | null): Summary {
   } catch {
     return { kind: 'unreadable' };
   }
+}
+
+/**
+ * A put-aside copy byte for byte the same as the saved layout gives nothing
+ * back: Restore would swap a layout with itself. Empty that slot. Such copies
+ * were made by opening your own layout's link before `openInEditor` skipped it.
+ */
+export function dropSameCopy(): void {
+  const previous = read(GRAPH_PREVIOUS_KEY);
+  if (previous !== null && previous === read(GRAPH_STORAGE_KEY)) put(GRAPH_PREVIOUS_KEY, null);
 }
 
 export const putAside = (): Summary => summaryOf(read(GRAPH_PREVIOUS_KEY));
