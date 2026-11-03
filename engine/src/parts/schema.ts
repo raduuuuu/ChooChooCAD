@@ -301,6 +301,12 @@ export interface StraightPart extends PartBase {
    */
   readonly deck?: 1;
   /**
+   * The deck's plate in the 3D view only: as long as the piece, this wide
+   * across, as thick as a plank, its top just under the road's (riser plan
+   * 2026-11-03). Collisions use the body; built-in only, like `deck`.
+   */
+  readonly plate?: { readonly widthMm: number };
+  /**
    * AN UP-AND-OVER ROAD (bridges plan 2026-11-03, eng D1): both ends on the
    * piece's own level, the middle one level up. Built-in only, like `rise`.
    */

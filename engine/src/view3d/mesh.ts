@@ -153,6 +153,8 @@ export const CABLE_SAG_CLEAR_MM = 4;
 export const END_CABLE_SAG = 0.12;
 /** The cables reach the road this far back from the top of each climb. */
 export const CABLE_ANCHOR_BACK_MM = 100;
+/** A deck plate's top sits this far under the road's, so the track reads on it and the two never share a face. */
+export const PLATE_DROP_MM = 1;
 /** Half the width of a bridge's arch band in 3D: the stones are 46mm across. */
 export const ARCH_HALF_WIDTH_MM = 23;
 /** The largest turn between two cross-sections of a curve: 3.75 degrees. */
@@ -520,6 +522,29 @@ export function buildScene(input: SceneInput): SceneArrays {
     }
     edgeLoop(ring(zt));
     for (const [x, y] of c) bodyEdges.push(x, y, zb, x, y, zt);
+  }
+
+  /*
+   * A DECK'S PLATE (riser plan 2026-11-03): a riser is posts and a plate,
+   * not four loose boxes. The plate runs the piece's length under its road,
+   * from the posts' tops up to just under the road's top. Decoration only:
+   * collisions use the bodies and the road.
+   */
+  for (const s of segments) {
+    if (s.pieceId === undefined) continue;
+    const part = partOf(s.pieceId);
+    if (part.kind !== 'straight' || !part.plate) continue;
+    boxOf = pieceBox.get(s.pieceId) ?? null;
+    const zb = (s.level ?? 0) * riseMm;
+    const zt = zb + plankMm - PLATE_DROP_MM;
+    const len = Math.hypot(s.to.x - s.from.x, s.to.y - s.from.y);
+    const plate = { ...s, halfWidthMm: part.plate.widthMm / 2 };
+    prism(plate, zb, [[0, zt], [len, zt]]);
+    // Its underside, seen from low down between the posts.
+    const under = bodyCorners(plate);
+    const v = under.map(([x, y]) => solid.vertex(x, y, zb));
+    solid.quad(v[3]!, v[2]!, v[1]!, v[0]!);
+    for (let i = 0; i < 4; i++) bodyEdges.push(...under[i]!, zb, ...under[(i + 1) % 4]!, zb);
   }
 
   /*

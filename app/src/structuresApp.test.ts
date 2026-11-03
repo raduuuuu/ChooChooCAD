@@ -25,7 +25,7 @@ import { renderBounds, renderGraph } from '../../engine/src/graph/render.js';
 import { solveGraph } from '../../engine/src/graph/solve.js';
 import { VerdictLine } from './VerdictLine.js';
 import { viewOf } from './verdictView.js';
-import { buildScene } from '../../engine/src/view3d/mesh.js';
+import { buildScene, PLATE_DROP_MM } from '../../engine/src/view3d/mesh.js';
 import { reduce, type EditorAction, type EditorState } from './editorReducer.js';
 import { EMPTY_GRAPH, ghostFit, shiftMm } from './layoutModel.js';
 import { previewOf } from './previewGeometry.js';
@@ -133,6 +133,24 @@ describe('a piece with no ends lands selected (design decision 3)', () => {
     const empty: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null };
     expect(act(empty, { kind: 'add', partId: 'PR', turn: 'left' }).selected).toBe('p0');
     expect(act(act(empty, { kind: 'pick', partId: 'PR' }), { kind: 'placeGhost' }).selected).toBe('p0');
+  });
+});
+
+describe('the riser in 3D: posts and a plate (riser plan 2026-11-03)', () => {
+  /*
+   * MUTATION PROOF, run: the plate dropped from the seed fails with
+   * `expected 0 to be greater than or equal to 4`: nothing at the plate's top.
+   */
+  it('lays a 58 by 58 plate on its posts, its top just under the road', () => {
+    const r = drawnAlone('RS');
+    const s = buildScene({ segments: r.segments, bodies: r.bodies, ports: r.ports, welds: [], partOf: () => resolve('RS'), riseMm: 61, plankMm: 12 });
+    const p = s.structures.solid.positions;
+    const top: [number, number][] = [];
+    for (let i = 0; i < p.length; i += 3) if (Math.abs(p[i + 2]! - (61 + 12 - PLATE_DROP_MM)) < 1e-6) top.push([p[i]!, p[i + 1]!]);
+    const span = (k: 0 | 1) => Math.max(...top.map((v) => v[k])) - Math.min(...top.map((v) => v[k]));
+    expect(top.length).toBeGreaterThanOrEqual(4);
+    expect(span(0)).toBeCloseTo(58, 6);
+    expect(span(1)).toBeCloseTo(58, 6);
   });
 });
 

@@ -346,6 +346,16 @@ describe('structures are built-in, and named (eng D4, D10)', () => {
   });
 
   /*
+   * MUTATION PROOF, run: `plate` left out of withRise fails with `expected {
+   * widthMm: 500 } to be undefined`.
+   */
+  it('a stored correction cannot lay a plate', () => {
+    const forged = { ...resolve('A'), id: 'X8', plate: { widthMm: 500 } };
+    const got = resolveLibrary([{ submissionId: 's', at: '2026-11-03T10:00:00Z', part: forged as never }]).find((p) => p.id === 'X8')!;
+    expect(got.kind === 'straight' ? got.plate : null).toBeUndefined();
+  });
+
+  /*
    * MUTATION PROOF, run: SA's entry removed from STRUCTURE_WORDS fails with
    * `SA: expected false to be true`.
    */
