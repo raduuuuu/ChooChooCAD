@@ -188,3 +188,31 @@ describe('the clearance under a bridge (bridges design DD5)', () => {
     expect(text(60)).toContain("Your 55mm train won't fit under the stone arch bridge (piece 1): 60mm opening.");
   });
 });
+
+describe('the suspension bridge in 3D and in words (bridges plan B-T6)', () => {
+  /*
+   * MUTATION PROOF, run: the towers dropped from the seed fails with
+   * `expected 73 to be close to 240`: no tower rises above the deck.
+   */
+  it('stands its towers to their heights, with cables between them', () => {
+    const r = drawnAlone('SB');
+    const s = buildScene({ segments: r.segments, bodies: r.bodies, ports: r.ports, welds: [], partOf: () => resolve('SB'), riseMm: 61, plankMm: 12 });
+    expect(s.bounds.max[2]).toBeCloseTo(240, 0);
+    expect(s.structures.edges.positions.length).toBeGreaterThan(1000);
+  });
+
+  /*
+   * MUTATION PROOF, run: `estimated` ignored by the sentence fails with
+   * `expected '?Not a loop yet. 1 piece, open at bot…' to contain 'Your 55mm
+   * train won\'t fit under the …'`.
+   */
+  it('says when the opening under a bridge is an estimate', () => {
+    const g: Graph = { pieces: [{ pieceId: 'p', partId: 'SB', turn: 'left' }], welds: [] };
+    const placement = placeAll(g, ports);
+    const r = renderGraph(g, ports, resolve, placement);
+    const view = viewOf(solveGraph(g, ports, resolve, () => 0, placement, undefined, r.segments, r.bodies));
+    const html = renderToStaticMarkup(createElement(VerdictLine, { view, bridgeNotes: [{ name: 'suspension bridge', piece: 1, clearanceMm: 61, estimated: true }] }))
+      .replace(/<[^>]+>/g, '').replace(/&#x27;|&rsquo;|’/g, "'");
+    expect(html).toContain("Your 55mm train won't fit under the suspension bridge (piece 1): 61mm opening. The opening is an estimate.");
+  });
+});

@@ -1113,7 +1113,12 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
       seen.add(bridge);
       const part = resolve(partOf.get(bridge)!);
       if (part.kind !== 'straight' || !part.hump) return [];
-      return [{ name: part.name.toLowerCase(), piece: pieceNumber.get(bridge)!, clearanceMm: part.hump.clearanceMm }];
+      return [{
+        name: part.name.toLowerCase(),
+        piece: pieceNumber.get(bridge)!,
+        clearanceMm: part.hump.clearanceMm,
+        ...(part.hump.clearanceEstimated ? { estimated: true } : {}),
+      }];
     });
   }, [result, graph, pieceNumber, resolve]);
   // Track that runs into a building, said with the building's name (design decision 5).

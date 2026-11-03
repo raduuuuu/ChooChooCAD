@@ -142,6 +142,17 @@ export const SEAM_OVERHANG_MM = 4;
 export const FOOTPRINT_LIFT_MM = 0.1;
 /** How deep a roof's rim hangs below its top, mm. Drawn, not measured: a roof is an outline. */
 export const ROOF_RIM_MM = 4;
+/** A suspension tower's posts in 3D: square, this half-width, this far either side of the road's centre. */
+export const TOWER_POST_HALF_MM = 4;
+export const TOWER_POST_SPREAD_MM = 30;
+/** The lower crossbeam stands this far above the road, over the train's opening. */
+export const TOWER_OPENING_MM = 70;
+/** A cable's lowest point clears the road by this much. */
+export const CABLE_SAG_CLEAR_MM = 4;
+/** An end cable, from the road up to the first or last tower, sags this share of its rise. */
+export const END_CABLE_SAG = 0.12;
+/** The cables reach the road this far back from the top of each climb. */
+export const CABLE_ANCHOR_BACK_MM = 100;
 /** Half the width of a bridge's arch band in 3D: the stones are 46mm across. */
 export const ARCH_HALF_WIDTH_MM = 23;
 /** The largest turn between two cross-sections of a curve: 3.75 degrees. */
@@ -519,7 +530,7 @@ export function buildScene(input: SceneInput): SceneArrays {
   for (const s of segments) {
     if (!s.alongMm || s.alongMm[0] !== 0 || s.pieceId === undefined) continue;
     const part = partOf(s.pieceId);
-    if (part.kind !== 'straight' || !part.hump) continue;
+    if (part.kind !== 'straight' || !part.hump?.arch) continue;
     const { fromMm, toMm, riseMm: archRise, depthMm, baseMm } = part.hump.arch;
     const base = (s.level ?? 0) * riseMm + baseMm;
     const chord = toMm - fromMm;
@@ -547,6 +558,82 @@ export function buildScene(input: SceneInput): SceneArrays {
         bodyEdges.push(...at(a0, side, lo0), ...at(a1, side, lo1), ...at(a0, side, hi0), ...at(a1, side, hi1));
       }
       grow(...at(a0, 1, hi0));
+    }
+  }
+
+  /*
+   * A SUSPENSION BRIDGE'S TOWERS AND CABLES (bridges plan B-T6; design DD6):
+   * each tower two square posts either side of the road, from its base up to
+   * its height, joined at the top and above the train's opening; the cables
+   * hang from tower top to tower top on both sides, sagging to just above the
+   * road, and run down to the road where the side spans begin. Lines for the
+   * cables and hangers, the house matte for the posts.
+   */
+  for (const s of segments) {
+    if (!s.alongMm || s.alongMm[0] !== 0 || s.pieceId === undefined) continue;
+    const part = partOf(s.pieceId);
+    if (part.kind !== 'straight' || !part.hump?.towers?.length) continue;
+    const { towers, profileMm } = part.hump;
+    const floor = (s.level ?? 0) * riseMm;
+    const len = part.lengthMm;
+    const ux = Math.cos(s.from.h), uy = Math.sin(s.from.h);
+    const at = (a: number, side: number, z: number) =>
+      [s.from.x + ux * a - uy * side, s.from.y + uy * a + ux * side, z] as const;
+    const road = (a: number) => floor + profileAt(profileMm, a);
+    const box = (a: number, side: number, half: number, z0: number, z1: number) => {
+      const c = [[-half, -half], [half, -half], [half, half], [-half, half]].map(([da, ds]) => [a + da!, side + ds!] as const);
+      const lo = c.map(([ca, cs]) => solid.vertex(...at(ca, cs, z0)));
+      const hi = c.map(([ca, cs]) => solid.vertex(...at(ca, cs, z1)));
+      solid.quad(hi[0]!, hi[1]!, hi[2]!, hi[3]!);
+      for (let i = 0; i < 4; i++) solid.quad(lo[i]!, lo[(i + 1) % 4]!, hi[(i + 1) % 4]!, hi[i]!);
+      for (const [ca, cs] of c) bodyEdges.push(...at(ca, cs, z0), ...at(ca, cs, z1));
+    };
+    for (const t of towers) {
+      const top = floor + t.heightMm;
+      const base = road(t.atMm) - plankMm;
+      for (const side of [TOWER_POST_SPREAD_MM, -TOWER_POST_SPREAD_MM]) box(t.atMm, side, TOWER_POST_HALF_MM, base, top);
+      // Crossbeams: at the top, and over the train's opening.
+      for (const zb of [top - 2 * TOWER_POST_HALF_MM, road(t.atMm) + TOWER_OPENING_MM]) {
+        const z0 = zb, z1 = zb + 2 * TOWER_POST_HALF_MM;
+        const c = [at(t.atMm - TOWER_POST_HALF_MM, -TOWER_POST_SPREAD_MM, 0), at(t.atMm + TOWER_POST_HALF_MM, -TOWER_POST_SPREAD_MM, 0), at(t.atMm + TOWER_POST_HALF_MM, TOWER_POST_SPREAD_MM, 0), at(t.atMm - TOWER_POST_HALF_MM, TOWER_POST_SPREAD_MM, 0)];
+        const lo = c.map(([x, y]) => solid.vertex(x, y, z0));
+        const hi = c.map(([x, y]) => solid.vertex(x, y, z1));
+        solid.quad(hi[0]!, hi[1]!, hi[2]!, hi[3]!);
+        for (let i = 0; i < 4; i++) solid.quad(lo[i]!, lo[(i + 1) % 4]!, hi[(i + 1) % 4]!, hi[i]!);
+      }
+      grow(...at(t.atMm, TOWER_POST_SPREAD_MM, top));
+    }
+    // Cables: from the road where the climb starts, over each tower top, back down at the far end.
+    const anchors: (readonly [number, number])[] = [
+      [part.hump.upMm - CABLE_ANCHOR_BACK_MM, road(part.hump.upMm - CABLE_ANCHOR_BACK_MM) + 2],
+      ...towers.map((t) => [t.atMm, floor + t.heightMm - TOWER_POST_HALF_MM] as const),
+      [len - part.hump.downMm + CABLE_ANCHOR_BACK_MM, road(len - part.hump.downMm + CABLE_ANCHOR_BACK_MM) + 2],
+    ];
+    for (const side of [TOWER_POST_SPREAD_MM, -TOWER_POST_SPREAD_MM]) {
+      for (let k = 0; k + 1 < anchors.length; k++) {
+        const [a0, z0] = anchors[k]!, [a1, z1] = anchors[k + 1]!;
+        const low = (a: number) => road(a) + CABLE_SAG_CLEAR_MM;
+        const n = 16;
+        let prev: readonly [number, number, number] | null = null;
+        for (let i = 0; i <= n; i++) {
+          const t = i / n;
+          const a = a0 + (a1 - a0) * t;
+          /*
+           * A parabola through both anchors. Between two towers its lowest
+           * point comes down to just above the road at mid-span; from the
+           * road up to the first or last tower it only sags a little.
+           */
+          const straight = z0 + (z1 - z0) * t;
+          const between = k > 0 && k + 2 < anchors.length;
+          const dip = between ? Math.max(0, (z0 + z1) / 2 - low((a0 + a1) / 2)) : END_CABLE_SAG * Math.abs(z1 - z0);
+          const z = Math.max(low(a), straight - 4 * dip * t * (1 - t));
+          const p = at(a, side, z);
+          if (prev) bodyEdges.push(...prev, ...p);
+          // Hangers: down to the road every few centimetres.
+          if (i > 0 && i < n && i % 2 === 0) bodyEdges.push(...p, ...at(a, side, road(a)));
+          prev = p;
+        }
+      }
     }
   }
 

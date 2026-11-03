@@ -353,3 +353,18 @@ describe('structures are built-in, and named (eng D4, D10)', () => {
     for (const p of BUILT_IN) if (isStructure(p)) expect(STRUCTURE_WORDS[p.id] !== undefined, p.id).toBe(true);
   });
 });
+
+describe('the suspension bridge, estimated (bridges plan B-T6)', () => {
+  const sb = ['sb', 'SB', at(0, 0, 0)] as const;
+
+  /*
+   * MUTATION PROOF, run: the tower bases dropped from the seed (body: [])
+   * fails with `expected [] to deeply equal [ 'floor sb' ]`.
+   */
+  it('floor track passes under the main span between the tower bases, not through one', () => {
+    // Bases at 185, 263.5 and 342, each 28 long: passages 199-249.5 and 277.5-328.
+    expect(clashes(scene([sb, ['under', 'A', at(224, -72, 4)]]))).toEqual([]);
+    expect(clashes(scene([sb, ['under', 'A', at(303, -72, 4)]]))).toEqual([]);
+    expect(clashes(scene([sb, ['floor', 'A', at(263, -72, 4)]]))).toEqual(['floor sb']);
+  });
+});

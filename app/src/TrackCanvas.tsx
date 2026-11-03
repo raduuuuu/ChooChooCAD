@@ -929,10 +929,11 @@ export function TrackCanvas({
     const half = Math.max(part.plankWidthMm, ...(part.body ?? []).map((b) => b.widthMm)) / 2;
     const at = (a: number, side: number) => `${seg.from.x + ux * a - uy * half * side} ${seg.from.y + uy * a + ux * half * side}`;
     const len = part.lengthMm;
-    const { fromMm, toMm } = part.hump.arch;
+    // Across the road: where an arch springs, or where each tower stands.
+    const across = part.hump.arch ? [part.hump.arch.fromMm, part.hump.arch.toMm] : (part.hump.towers ?? []).map((t) => t.atMm);
     return [
       <path key={`bridge-${i}`} className="bridge-outline" d={`M ${at(0, 1)} L ${at(len, 1)} L ${at(len, -1)} L ${at(0, -1)} Z`} />,
-      <path key={`bridge-spring-${i}`} className="bridge-outline" d={`M ${at(fromMm, 1)} L ${at(fromMm, -1)} M ${at(toMm, 1)} L ${at(toMm, -1)}`} />,
+      <path key={`bridge-spring-${i}`} className="bridge-outline" d={across.map((a) => `M ${at(a, 1)} L ${at(a, -1)}`).join(' ')} />,
     ];
   });
   const raisedHere = segments.some((seg) => (seg.level ?? 0) >= 1 || Boolean(seg.rise));

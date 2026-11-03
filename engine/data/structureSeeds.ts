@@ -200,7 +200,64 @@ export const STONE_ARCH_BRIDGE: StraightPart = {
   slop: ESTIMATED_SLOP, ...PROFILE,
 };
 
-export const STRUCTURE_SEEDS = [STATION, RISER, TUNNEL_OVERPASS, STONE_ARCH_BRIDGE] as const;
+/*
+ * THE SUSPENSION BRIDGE (SB), ESTIMATED from its kit on 2026-11-03 (bridges
+ * plan B-T6; owner: "build it as an estimate"). The kit is printed flat: two
+ * side faces (deck edge and cables), three tower bases, six posts and two
+ * ramps. Read off the parts: the main span 157, the tower bases 28 x 73 and
+ * 62 high, the posts 178, the ramps 85. NOT read, estimated from the parts
+ * and the designer's renders: how they sit assembled.
+ *
+ *   ramp 85   side span ~100      main span 157        side span ~100   ramp 85
+ *   12->~37   climbs to the deck  T1 ---- T2 ---- T3   comes down       ->12
+ *              (deck top ~73, the raised level)   towers ~200 / ~240 / ~200
+ *
+ * Floor track passes under the main span between the tower bases (50 wide
+ * each side of the middle base). The deck's underside, ~61, is the opening.
+ */
+const SB_RAMP = 85;
+const SB_SIDE = 100;
+const SB_MAIN = 157;
+const SB_UP = SB_RAMP + SB_SIDE;
+const SB_LEN = 2 * SB_UP + SB_MAIN;
+const SB_DECK = 73;
+const SB_RAMP_TOP = 37;
+const sbClimb: (readonly [number, number])[] = [[0, 12], [SB_RAMP, SB_RAMP_TOP]];
+for (let a = 20; a <= SB_SIDE; a += 20) {
+  const t = a / SB_SIDE;
+  sbClimb.push([SB_RAMP + a, SB_RAMP_TOP + (SB_DECK - SB_RAMP_TOP) * (1 - (1 - t) * (1 - t))]);
+}
+const SB_PROFILE = [...sbClimb, ...sbClimb.slice().reverse().map(([a, h]) => [SB_LEN - a, h] as const)];
+const SB_TOWERS = [SB_UP, SB_UP + SB_MAIN / 2, SB_UP + SB_MAIN];
+const sbBase = (at: number) => ({
+  role: 'footprint' as const, atMm: [at, 0] as const, lengthMm: 28, widthMm: 73, levels: [0, 0] as const,
+  profileMm: [[0, 62], [28, 62]] as const,
+});
+
+export const SUSPENSION_BRIDGE: StraightPart = {
+  id: 'SB', brand: 'GENERIC', kind: 'straight', name: 'Suspension bridge',
+  lengthMm: SB_LEN, ends: { start: 'socket', end: 'peg' },
+  hump: {
+    upMm: SB_UP, topMm: SB_MAIN, downMm: SB_UP,
+    profileMm: SB_PROFILE,
+    clearanceMm: SB_DECK - 12,
+    clearanceEstimated: true,
+    towers: [
+      { atMm: SB_TOWERS[0]!, heightMm: 200 },
+      { atMm: SB_TOWERS[1]!, heightMm: 240 },
+      { atMm: SB_TOWERS[2]!, heightMm: 200 },
+    ],
+  },
+  body: SB_TOWERS.map(sbBase),
+  dimensions: {
+    status: 'unverified',
+    source: 'a printed reproduction, read off the 3MF parts on 2026-11-03; assembled sizes estimated',
+    note: 'A 527 road up ramps and curved side spans to a 157 main span between three towers. The assembled height, length and tower heights are estimates. Unverified until a real one is measured.',
+  },
+  slop: ESTIMATED_SLOP, ...PROFILE,
+};
+
+export const STRUCTURE_SEEDS = [STATION, RISER, TUNNEL_OVERPASS, STONE_ARCH_BRIDGE, SUSPENSION_BRIDGE] as const;
 
 /** How the app names each structure in a sentence, and what its list line says it carries (design decision 5). */
 export const STRUCTURE_WORDS: Readonly<Record<string, { readonly word: string; readonly carries: string }>> = {
@@ -208,6 +265,7 @@ export const STRUCTURE_WORDS: Readonly<Record<string, { readonly word: string; r
   RS: { word: 'riser', carries: 'road raised on legs, floor track passes under' },
   TO: { word: 'tunnel', carries: 'road raised over a passage, floor track passes through' },
   SA: { word: 'bridge', carries: 'road over the arch, floor track passes under' },
+  SB: { word: 'bridge', carries: 'road over the main span, floor track passes under' },
   PR: { word: 'pier', carries: 'no track connections' },
   TU: { word: 'tunnel', carries: 'road between walls, under a roof' },
 };

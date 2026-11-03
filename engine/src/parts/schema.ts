@@ -325,8 +325,16 @@ export interface Hump {
   readonly profileMm: readonly (readonly [number, number])[];
   /** The opening under the span, floor to the arch's underside at its crown (eng D7). */
   readonly clearanceMm: number;
+  /** True when the opening is an estimate, not read off the piece; the clearance sentence says so. */
+  readonly clearanceEstimated?: true;
   /** The arch drawn under the span in 3D: where it springs along the piece, its rise and depth (eng D5, design DD6). */
-  readonly arch: { readonly fromMm: number; readonly toMm: number; readonly riseMm: number; readonly depthMm: number; readonly baseMm: number };
+  readonly arch?: { readonly fromMm: number; readonly toMm: number; readonly riseMm: number; readonly depthMm: number; readonly baseMm: number };
+  /**
+   * A suspension bridge's towers, drawn in 3D with the cables hung between
+   * their tops (bridges plan B-T6): where each stands along the road, and its
+   * height above the floor.
+   */
+  readonly towers?: readonly { readonly atMm: number; readonly heightMm: number }[];
 }
 
 /**

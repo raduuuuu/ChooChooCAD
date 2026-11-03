@@ -47,8 +47,9 @@ describe('structures in the library and on the floor', () => {
       'Add Riser. Raised road. Unverified size.',
       'Add Tunnel with overpass. Raised road. Unverified size.',
       'Add Stone arch bridge. Road over, track passes under. Unverified size.',
+      'Add Suspension bridge. Road over, track passes under. Unverified size.',
     ]);
-    expect(within(group).getAllByText('Estimated size')).toHaveLength(4);
+    expect(within(group).getAllByText('Estimated size')).toHaveLength(5);
     const trackList = container.querySelector('.palette-parts .palette-row') as HTMLElement;
     expect(within(trackList).queryAllByRole('button', { name: /Elevated station|Riser|Tunnel|bridge/ }).length).toBe(0);
   });
