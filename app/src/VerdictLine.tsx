@@ -337,6 +337,8 @@ export interface BridgeNote {
   readonly piece: number;
   /** Floor to the underside of its arch at the crown (eng D7). */
   readonly clearanceMm: number;
+  /** True when that opening is an estimate, not read off the piece. */
+  readonly estimated?: boolean;
 }
 
 /**
@@ -349,7 +351,7 @@ function BridgeClearance({ note }: { note: BridgeNote }) {
   const { plankMm, trainMm, trainMeasured } = CLEARANCE;
   const opening = Math.round(note.clearanceMm);
   const spare = Math.round(note.clearanceMm - plankMm - trainMm);
-  const estimate = trainMeasured ? '' : " The train's height is an estimate.";
+  const estimate = (note.estimated ? ' The opening is an estimate.' : '') + (trainMeasured ? '' : " The train's height is an estimate.");
   if (spare < 0) {
     return (
       <p className="verdict-raised verdict-fail">
