@@ -82,3 +82,18 @@ export function PartPreview({ preview }: { readonly preview: Preview | null }) {
     </svg>
   );
 }
+
+/**
+ * THE MEASURED TICK (docs/plan/2026-11-03-verified-mark.md, 11A): drawn, not
+ * typed, because the code's IBM Plex Mono has no U+2713 and a fallback font
+ * would draw it differently on every system. In `currentColor`, so it follows
+ * the card's text in every state (8A). Decorative: the card's accessible name
+ * says "Measured." (6C).
+ */
+export function MeasuredTick() {
+  return (
+    <svg className="measured-tick" viewBox="0 0 10 10" aria-hidden="true" focusable="false">
+      <path d="M 1.5 5.5 L 4 8 L 8.5 2" />
+    </svg>
+  );
+}

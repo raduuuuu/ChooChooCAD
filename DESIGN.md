@@ -194,6 +194,15 @@ nothing else uses:
   floor track and under the raised track, so the road it covers and the deck
   it shelters both still read. `--ink-soft` lines, 4.64:1 on `--floor` and
   3.22:1 on `--track-fill` (measured 2026-11-03).
+- **A library card's marks each mean one thing** (verified-mark plan,
+  2026-11-03, 12A), and a new card mark takes a sign none of these use:
+  a **drawn tick after the code** means measured, a check on a real piece
+  backs every figure the piece is using; a **`*` after the code with a
+  dotted border** means unverified size; a **dashed border with grey text**
+  means more than you own. The tick is drawn, never typed (the code's font
+  has no U+2713), in the card's text colour: 13.43:1 `--ink` on `--paper`,
+  5.21:1 `--ink-soft` on `--paper` on a greyed card (measured 2026-11-03).
+  One line under the track list keys the tick and the `*`.
 - **A seam is a 2.5px `--seam` line that runs past both plank edges** (seams
   and join review, 26A, 2026-10-31), so pieces in a straight run can be
   counted; inside the plank it vanished into the grooves.

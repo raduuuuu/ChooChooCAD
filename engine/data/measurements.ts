@@ -71,3 +71,24 @@ export const MEASUREMENTS: Measurements = {
     offsetMm: null, //          that end's distance off the through road's line
   },
 };
+
+/**
+ * A PIECE MEASURED BY HAND (verified-mark plan, decisions 5B and 13A): one
+ * figure, read directly off a real piece, for a piece no photo can check, such
+ * as the medium straight A that every photo is scaled by. One careful reading
+ * counts on its own; it earns the piece the library's "Measured" tick when it
+ * agrees with the figure in use (engine/data/measured.ts).
+ */
+export interface PieceMeasurement {
+  readonly partId: string;
+  /** The figure, by its field name on the part, e.g. 'lengthMm'. */
+  readonly figure: string;
+  readonly valueMm: number;
+  /** 'YYYY-MM-DD'. */
+  readonly on: string;
+  /** How, in a few words: "digital caliper". */
+  readonly how: string;
+}
+
+/** Empty until the owner measures A (plan V-T5). */
+export const PIECE_MEASUREMENTS: readonly PieceMeasurement[] = [];

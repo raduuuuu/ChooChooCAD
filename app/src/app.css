@@ -1022,6 +1022,34 @@
 }
 
 /*
+ * MEASURED (docs/plan/2026-11-03-verified-mark.md): a drawn tick after the
+ * code, in the slot `*` takes, in the card's own text colour (8A). Sized to
+ * the code's cap height so it reads as part of the code, not a badge.
+ */
+.measured-tick {
+  display: inline-block;
+  width: 0.75em;
+  height: 0.75em;
+  margin-left: 0.1em;
+  vertical-align: baseline;
+  overflow: visible;
+}
+.measured-tick path {
+  fill: none;
+  stroke: currentColor;
+  /* 2px: the code beside it is set at weight 600, and 1.5 read as a lighter mark. */
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+/* The key under the track list: both card signs, once, in words. */
+.palette-key { margin: var(--s2) 0 0; font-size: 12px; color: var(--ink-soft); }
+.palette-key > span { white-space: nowrap; margin-right: var(--s3); }
+.palette-key .measured-tick { color: var(--ink); }
+.palette-key-star { color: var(--ink); font-family: var(--font-data); }
+
+/*
  * ADVICE, NOT A GATE (decision D8).
  *
  * `is-unowned` marks a palette piece and does nothing else. No `disabled`, no
