@@ -42,6 +42,7 @@ describe('the measured tick on library cards', () => {
     expect(a2.querySelector('.measured-tick')).toBeNull();
     const key = container.querySelector('.palette-key');
     expect(key).not.toBeNull();
-    expect(key!.textContent).toBe(' Measured. * Unverified size.');
+    // The printable-model entry joined it (printable-mark plan, 10A).
+    expect(key!.textContent).toBe(' Measured. * Unverified size.  Printable model.');
   });
 });

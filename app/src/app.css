@@ -772,18 +772,35 @@
 .part-preview-end.is-peg { fill: currentColor; }
 .part-preview-end.is-socket { fill: var(--paper); stroke: currentColor; stroke-width: 1; }
 .piece-dim { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
-.piece-mirror {
+/*
+ * THE MODEL LINK beside a printed part's card (printable-mark plan, 4B, 5A,
+ * 9A, 11A): joined to the card's right edge, outside the card's own button so
+ * a click there never picks or places. Its glyph follows the card's text
+ * colour, so an unowned card greys it with the rest (9A). 36px tall with the
+ * card on a pointer; 44px on touch (rule 10, coarse-pointer block).
+ */
+.piece-origin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-width: 32px;
-  min-height: 44px;
   margin-left: -1px;
   background: var(--paper);
   border: 1px solid var(--rule);
   border-radius: 0 3px 3px 0;
-  color: var(--ink-soft);
-  cursor: pointer;
-  font-size: 15px;
+  color: var(--ink);
 }
-.piece-mirror:hover { color: var(--ink); }
+.piece-origin:hover { border-color: var(--ink-soft); }
+.piece:has(.piece-origin) > .piece-main { border-radius: 3px 0 0 3px; }
+.origin-glyph { width: 14px; height: 14px; overflow: visible; }
+.origin-glyph path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
 .piece-count {
   position: absolute;
   top: -7px;
@@ -1012,7 +1029,7 @@
  * dotted border visible where --rule (1.40:1) would lose it.
  */
 .piece.is-unverified .piece-main,
-.piece.is-unverified .piece-mirror {
+.piece.is-unverified .piece-origin {
   border-style: dotted;
   border-color: var(--ink);
 }
@@ -1046,7 +1063,8 @@
 /* The key under the track list: both card signs, once, in words. */
 .palette-key { margin: var(--s2) 0 0; font-size: 12px; color: var(--ink-soft); }
 .palette-key > span { white-space: nowrap; margin-right: var(--s3); }
-.palette-key .measured-tick { color: var(--ink); }
+.palette-key .measured-tick,
+.palette-key .origin-glyph { color: var(--ink); vertical-align: -2px; }
 .palette-key-star { color: var(--ink); font-family: var(--font-data); }
 
 /*
@@ -1072,7 +1090,7 @@
  *     Visible-dashed is the signal; dashed-in-principle is not.
  */
 .piece.is-unowned .piece-main,
-.piece.is-unowned .piece-mirror {
+.piece.is-unowned .piece-origin {
   border-style: dashed;
   border-color: var(--ink-soft);
   color: var(--ink-soft);
@@ -1214,7 +1232,7 @@
  * it blocks a core action rather than an edge one.
  */
 @media (pointer: coarse) {
-  .piece-mirror { min-width: 44px; }
+  .piece-origin { min-width: 44px; min-height: 44px; }
   .palette-controls button,
   .submit-actions button,
   .notice-close,
@@ -2099,3 +2117,7 @@
   .friend-open, .friend-ask { display: none; }
   .friend-phone-note { display: block; }
 }
+
+/* The model link in build mode's pull list: the library's button, standing alone in its cell (printable-mark plan, 13B). */
+.build-origin { width: 1%; }
+.build-origin .piece-origin { margin-left: 0; min-height: 32px; border-radius: 3px; }
