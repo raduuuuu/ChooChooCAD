@@ -202,14 +202,17 @@ export function solveGraph(
    * (App.tsx's `render` memo); drawn here otherwise. The overlap and bridge
    * checks read it, so it must be of this placement.
    */
-  segments: readonly Segment[] = renderGraph(graph, ports, resolve, placement).segments,
+  drawnSegments?: readonly Segment[],
   /**
    * Wood that is not track (plan 2026-11-02, eng E4): checked for collisions
-   * with track and with each other, never counted as track. Drawn here when
-   * the caller has not drawn it.
+   * with track and with each other, never counted as track. Drawn here, in
+   * the same single render as the track, when the caller has not drawn it.
    */
-  bodies: readonly Segment[] = renderGraph(graph, ports, resolve, placement).bodies,
+  drawnBodies?: readonly Segment[],
 ): GraphResult {
+  const drawn = drawnSegments && drawnBodies ? null : renderGraph(graph, ports, resolve, placement);
+  const segments = drawnSegments ?? drawn!.segments;
+  const bodies = drawnBodies ?? drawn!.bodies;
   const rs = residuals(graph, ports, placement);
   const rank = placement.forest.closing.length;
 

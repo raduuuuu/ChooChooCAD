@@ -23,7 +23,7 @@
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { BUILT_IN, makeResolver } from '../engine/data/library.js';
+import { BUILT_IN, isStructure, makeResolver } from '../engine/data/library.js';
 import { brandFit } from '../engine/data/thirdParty.js';
 import { placeAll } from '../engine/src/graph/frames.js';
 import { graphFromChain } from '../engine/src/graph/fromChain.js';
@@ -54,7 +54,7 @@ function corpus(): Array<[string, Graph]> {
   const out: Array<[string, Graph]> = [];
   // differential.test.ts: flat two-ended Generic parts, seed 20261010, 600 chains.
   const Generic = BUILT_IN.filter(
-    (p) => p.brand === 'GENERIC' && (p.kind === 'straight' || p.kind === 'curve') && !(p.kind === 'straight' && p.rise),
+    (p) => p.brand === 'GENERIC' && (p.kind === 'straight' || p.kind === 'curve') && !(p.kind === 'straight' && p.rise) && !isStructure(p),
   ).map((p) => p.id);
   const rand = lcg(20261010);
   for (let i = 0; i < 600; i++) {
