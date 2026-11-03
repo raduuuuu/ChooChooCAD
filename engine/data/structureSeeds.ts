@@ -100,14 +100,18 @@ const printed = (what: string): DimensionSource => ({
   note: `${what} Unverified until a real one is measured.`,
 });
 
-/** A riser leg: 8mm square, at a corner of the 58mm deck, 25mm either side of the road. */
+/**
+ * A riser leg: 8mm square, at a corner of the 58mm deck, 25mm either side of
+ * the road. In 3D (riser plan 2026-11-03, read off 3MF 597436): the legs are
+ * posts up to the deck, which is a 58 by 58 plate under the road.
+ */
 const LEG = 8;
 const RISER_LEN = 58;
 const leg = (x: number, y: number) => ({ role: 'footprint' as const, atMm: [x, y] as const, lengthMm: LEG, widthMm: LEG, levels: [0, 0] as const });
 
 export const RISER: StraightPart = {
   id: 'RS', brand: 'GENERIC', kind: 'straight', name: 'Riser',
-  lengthMm: RISER_LEN, ends: { start: 'socket', end: 'peg' }, deck: 1,
+  lengthMm: RISER_LEN, ends: { start: 'socket', end: 'peg' }, deck: 1, plate: { widthMm: 58 },
   body: [
     leg(LEG / 2, 25), leg(LEG / 2, -25),
     leg(RISER_LEN - LEG / 2, 25), leg(RISER_LEN - LEG / 2, -25),
