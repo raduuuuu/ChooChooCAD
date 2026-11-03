@@ -108,6 +108,18 @@ describe('the grid finder', () => {
     expect(Math.abs(ea[1] - PLANK.y0)).toBeLessThan(0.05);
     expect(Math.abs(eb[1] - PLANK.y1)).toBeLessThan(0.05);
   });
+
+  /*
+   * MUTATION PROOF, run: the slope returned as 0 fails with
+   * `expected 0.006329113924050633 to be less than 0.002`.
+   */
+  it('reports the end face turned against the seed axis', () => {
+    // Seeds 1mm apart across over 158mm along: the axis is turned atan(1/158) from the plank, so the square end reads that slope.
+    const seedA = paperToPixel(TRUE, [80.5, PLANK.y0 + 1]);
+    const seedB = paperToPixel(TRUE, [79.5, PLANK.y1 - 1]);
+    const a = refineEnd(photo, g.map, seedA, seedB)!;
+    expect(Math.abs(Math.abs(a.slope) - 1 / 158)).toBeLessThan(0.002);
+  });
 });
 
 describe('a piece across the middle', () => {

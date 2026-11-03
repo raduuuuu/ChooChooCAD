@@ -150,9 +150,16 @@ export function renderGraph(
         })));
         continue;
       }
+      // A lead-in is its own straight segment, then the arc from where it ends.
+      let arcFrom = from;
+      const lead = road.shape.leadMm ?? 0;
+      if (lead > 0) {
+        arcFrom = { x: from.x + Math.cos(from.h) * lead, y: from.y + Math.sin(from.h) * lead, h: from.h };
+        segments.push({ kind: 'straight', from, to: arcFrom, partId: piece.partId, pieceId: piece.pieceId, ...levels });
+      }
       segments.push({
         kind: 'curve',
-        from,
+        from: arcFrom,
         to,
         centrelineRadiusMm: centrelineRadiusMm({
           innerRadiusMm: road.shape.innerRadiusMm,

@@ -16,7 +16,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { agreedFigure, photoOutcome, TOLERANCE_MM, TRIAL, type PhotoReading } from './photoReadings.js';
+import { agreedFigure, photoOutcome, PHOTO_READINGS, TOLERANCE_MM, TRIAL, type PhotoReading } from './photoReadings.js';
+import { BUILT_IN } from './library.js';
+import { toXY } from '../src/geom/cyclotomic.js';
 
 const reading = (valueMm: number, photo: string, extra: Partial<PhotoReading> = {}): PhotoReading => ({
   partId: 'A',
@@ -97,4 +99,34 @@ it('the recorded 216mm trial passes the rules it cleared (EO7)', () => {
   const agreed = agreedFigure(TRIAL.readings.map((r) => ({ partId: 'trial', figure: 'lengthMm', valueMm: r.valueMm, photo: r.photo, on: TRIAL.on })));
   expect(agreed).not.toBe(null);
   expect(Math.abs(agreed! - TRIAL.knownMm)).toBeLessThanOrEqual(TOLERANCE_MM);
+});
+
+/*
+ * A PART HELD AS MEASURED MATCHES ITS PHOTOS (eng finding 5: the figure lives
+ * in the part and in its readings, so the two must not drift).
+ *
+ * MUTATION PROOFS, run:
+ * - the T switch's curved end held at xy(108, 108), the printed figure: `curvedEndOutMm:
+ *   expected 2.4749999999999943 to be less than or equal to 1`.
+ * - one T reading of curvedEndOutMm dropped: `expected 'partial' to be 'measured'`.
+ */
+describe('every part measured from photos', () => {
+  const measured = BUILT_IN.filter((p) => p.dimensions.status === 'user-measured');
+
+  it('the T switch is one, and only parts with readings are', () => {
+    expect(measured.map((p) => p.id)).toEqual(['T']);
+    for (const p of measured) expect(PHOTO_READINGS.some((r) => r.partId === p.id), p.id).toBe(true);
+  });
+
+  it("the T switch's held ends are its readings, within 1mm", () => {
+    const t = BUILT_IN.find((p) => p.id === 'T');
+    if (t?.kind !== 'multi-road') throw new Error('T is not a multi-road piece');
+    const [throughX] = toXY(t.ports[1]!.at.pos);
+    const [alongX, outY] = toXY(t.ports[2]!.at.pos);
+    const held = { throughMm: throughX, curvedEndAlongMm: alongX, curvedEndOutMm: outY };
+    const r = photoOutcome('unverified', held, PHOTO_READINGS.filter((x) => x.partId === 'T'));
+    expect(r.kind).toBe('measured');
+    if (r.kind !== 'measured') return;
+    for (const [f, v] of Object.entries(held)) expect(Math.abs(r.figures[f]! - v), f).toBeLessThanOrEqual(TOLERANCE_MM);
+  });
 });

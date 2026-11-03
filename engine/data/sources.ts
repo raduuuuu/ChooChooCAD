@@ -347,7 +347,7 @@ export const GENERIC_PIECE_TABLE: ReadonlyArray<{
   { ids: 'O1, P1', name: 'Short Curved Switch', lengthMm: 108, innerRadiusMm: 90, blocker: 'in-catalogue', note: 'Both held as unverified multi-road seeds (switchSeeds.ts).' },
   { ids: 'Q', name: 'Five-Point Switch', lengthMm: 144, innerRadiusMm: 182, blocker: 'needs-graph', note: 'Outer turns 45 degrees, inner turns 22.5.' },
   { ids: 'R, S', name: 'Buffer Stops', lengthMm: 40, blocker: 'in-catalogue', note: 'Terminates a track with a barrier. ONE end. Both held as unverified seeds (bufferSeeds.ts), R with a peg and S with a socket.' },
-  { ids: 'T', name: 'T-Switch', lengthMm: 216, innerRadiusMm: 88, blocker: 'in-catalogue', note: 'Held as an unverified multi-road seed. Radius EXACT at 88 inner (108 centreline): not E1, but a whole millimetre, and three reproductions agree.' },
+  { ids: 'T', name: 'T-Switch', lengthMm: 216, innerRadiusMm: 86, blocker: 'in-catalogue', note: "Measured from the owner's photos (2026-11-03): two curves, each a 2mm lead-in and an EXACT 86 inner (106 centreline). Printed reproductions put a single arc at 88 inner; the real piece differs." },
   { ids: 'U, V', name: 'Ramp Tracks', lengthMm: 54, blocker: 'in-catalogue', note: 'ADDABLE but not added: end pieces ramped so cars can drive onto the track. Flat on the rail side, so arguably two-ended. Needs a decision on whether a car ramp is track at all.' },
   { ids: 'X', name: 'Star Switch', lengthMm: 216, innerRadiusMm: 88, blocker: 'in-catalogue', note: 'Four directions at 90 degrees. Held as an unverified multi-road seed; radius EXACT like T.' },
 ];
