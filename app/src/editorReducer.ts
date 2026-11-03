@@ -43,6 +43,7 @@ import {
   ghostFit,
   lastPieceId,
   moveRun,
+  flipPiece,
   nextRunAnchor,
   hasFlip,
   rotateCycle,
@@ -151,6 +152,8 @@ export interface EditorState {
    * (decision 6A). Absent means nothing was refused.
    */
   readonly refusal?: string | null;
+  /** What was refused, said before the reason: absent means a move ("move it there"). */
+  readonly refusalOf?: string | null;
   /**
    * Why the last drop joined nothing although an end was in reach: that end
    * is on the other level (two-layer plan, design 5A as amended by eng
@@ -214,7 +217,7 @@ export interface Ghost {
 }
 
 export interface Step {
-  readonly kind: 'place' | 'placeJoin' | 'break' | 'join' | 'remove' | 'move' | 'clear' | 'preset';
+  readonly kind: 'place' | 'placeJoin' | 'break' | 'join' | 'remove' | 'move' | 'flip' | 'clear' | 'preset';
   /** In `past`, the graph before the step; in `future`, the graph after it. */
   readonly graph: Graph;
 }
@@ -260,6 +263,8 @@ export type EditorAction =
   | { readonly kind: 'selectPiece'; readonly pieceId: string | null }
   /** Remove any piece, not just the newest (decision R1/D2). */
   | { readonly kind: 'removePiece'; readonly pieceId: string }
+  /** Put a placed one-sided decorated straight's decoration on the other side (eng D5). */
+  | { readonly kind: 'flipPiece'; readonly pieceId: string }
   /** Start placing a piece: show it where it would go (decision R3). */
   | { readonly kind: 'pick'; readonly partId: string }
   /** Turn the pending piece to its next way of going on (R). */
@@ -464,7 +469,9 @@ export function reduce(
   if (raw === state) return raw;
   // A refusal is said until the next action, whatever that is.
   const stepped =
-    action.kind !== 'moveRun' && (raw.refusal || raw.dropHint) ? { ...raw, refusal: null, dropHint: null } : raw;
+    action.kind !== 'moveRun' && action.kind !== 'flipPiece' && (raw.refusal || raw.dropHint)
+      ? { ...raw, refusal: null, refusalOf: null, dropHint: null }
+      : raw;
   // A selection never outlives its piece, whichever action removed it.
   const next =
     stepped.selected != null && !stepped.graph.pieces.some((p) => p.pieceId === stepped.selected)
@@ -622,13 +629,14 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
       if (state.ghost) return state;
       const result = moveRun(state.graph, ports, action.pieceId, { turns: action.turns, by: action.by }, geometry);
       // A refused move changes no track; it says why until the next action.
-      if (result.refused !== null) return { ...state, refusal: result.refused, dropHint: null };
+      if (result.refused !== null) return { ...state, refusal: result.refused, refusalOf: null, dropHint: null };
       return {
         ...state,
         graph: result.graph,
         cursor: stillFree(result.graph, state.cursor) ?? resumeCursor(result.graph, ports),
         armed: stillFree(result.graph, state.armed),
         refusal: null,
+        refusalOf: null,
         // Derived from what the drop actually did (eng re-run outside voice 3).
         dropHint: result.joined === 0 && action.otherLevelNear ? "Didn't join: that end is on the other level" : null,
         ...remember(state, 'move'),
@@ -777,6 +785,18 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
       const selected = id === null || id === state.selected ? null : id;
       if (selected === (state.selected ?? null) && state.armed === null) return state;
       return { ...state, selected, armed: null };
+    }
+
+    case 'flipPiece': {
+      if (state.ghost || !geometry) return state;
+      const piece = state.graph.pieces.find((p) => p.pieceId === action.pieceId);
+      const part = piece ? geometry.resolve(piece.partId) : null;
+      if (!part?.flip) return state;
+      const result = flipPiece(state.graph, ports, action.pieceId, geometry);
+      // "put the platform on the other side": the F verb, said as what was refused.
+      const refusalOf = part.flip.verb;
+      if (result.refused !== null) return { ...state, refusal: result.refused, refusalOf, dropHint: null };
+      return { ...state, graph: result.graph, refusal: null, refusalOf: null, ...remember(state, 'flip') };
     }
 
     case 'removePiece': {

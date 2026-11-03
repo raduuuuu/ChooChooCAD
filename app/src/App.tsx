@@ -456,6 +456,12 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     if (exampleGraph !== null && graph !== exampleGraph) setAdopted(true);
   }, [graph, exampleGraph]);
   const selected = editor.selected ?? null;
+  // What F does to the selected piece, when it is a one-sided decorated straight (eng D5).
+  const selectedFlip = useMemo(() => {
+    const piece = selected === null ? undefined : graph.pieces.find((p) => p.pieceId === selected);
+    const part = piece ? resolve(piece.partId) : null;
+    return part?.kind === 'straight' && part.flip ? part.flip : null;
+  }, [selected, graph, resolve]);
 
   const graphSaveBlocked = savesSuppressed({
     notice: layoutNotice,
@@ -961,6 +967,8 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
       else if (joining) cancelJoin();
       else if (editor.selected != null) selectPiece(null);
     },
+    // F on a selected one-sided decorated piece (eng D5): the same as its button.
+    onFlipSelected: !ghost && editor.selected != null && selectedFlip ? () => dispatch({ kind: 'flipPiece', pieceId: editor.selected! }) : null,
     placing: ghost
       ? {
           onRotate: () => dispatch({ kind: 'rotateGhost' }),
@@ -1169,7 +1177,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
               <span className="ghost-mark is-fail" aria-hidden="true">
                 X
               </span>{' '}
-              Can&rsquo;t move it there: {editor.refusal}.
+              Can&rsquo;t {editor.refusalOf ?? 'move it there'}: {editor.refusal}.
             </span>
           )}
           {editor.dropHint && <span className="move-refusal"> {editor.dropHint}.</span>}
@@ -1185,6 +1193,8 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
           <button aria-label="Move run right 1 cm" onClick={() => moveRunBy(selected, 10, 0, 0)}>→</button>
         </span>
         <button onClick={() => moveRunBy(selected, 0, 0, 1)}>Rotate run (R)</button>
+        {/* A one-sided decorated piece: its decoration to the other side, ends unchanged (design 5A). */}
+        {selectedFlip && <button onClick={() => dispatch({ kind: 'flipPiece', pieceId: selected })}>{selectedFlip.label} (F)</button>}
         <button onClick={() => removePiece(selected)}>Remove piece</button>
       </div>
     ) : null;
@@ -1365,7 +1375,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
               <span className="ghost-mark is-fail" aria-hidden="true">
                 X
               </span>{' '}
-              Can&rsquo;t move it there: {editor.refusal}.
+              Can&rsquo;t {editor.refusalOf ?? 'move it there'}: {editor.refusal}.
             </span>
           ) : (
             <span className="move-refusal">{editor.dropHint}.</span>

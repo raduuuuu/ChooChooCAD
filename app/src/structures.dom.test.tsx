@@ -66,9 +66,12 @@ describe('structures in the library and on the floor', () => {
     const heading = screen.getByRole('heading', { name: 'Decorated' });
     const group = heading.nextElementSibling as HTMLElement;
     const names = within(group).getAllByRole('button').map((b) => b.getAttribute('aria-label'));
-    expect(names).toEqual(['Add Level crossing. Works like HP, Crossing, printed. Unverified size.']);
+    expect(names).toEqual([
+      'Add Level crossing. Works like HP, Crossing, printed. Unverified size.',
+      'Add Station straight. Works like A, Medium straight. Unverified size.',
+    ]);
     expect(within(group).getByText('Works like HP, Crossing, printed')).toBeTruthy();
-    expect(within(group).getByRole('button').getAttribute('title')).toContain('Works like HP, Crossing, printed.');
+    expect(within(group).getAllByRole('button')[0]!.getAttribute('title')).toContain('Works like HP, Crossing, printed.');
     const trackList = container.querySelector('.palette-parts .palette-row') as HTMLElement;
     expect(within(trackList).queryAllByRole('button', { name: /Level crossing/ }).length).toBe(0);
     expect(within(trackList).queryAllByRole('button', { name: /^Add Crossing, printed/ }).length).toBe(1);

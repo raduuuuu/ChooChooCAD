@@ -29,6 +29,8 @@ import { buildScene, PLATE_DROP_MM } from '../../engine/src/view3d/mesh.js';
 import { reduce, type EditorAction, type EditorState } from './editorReducer.js';
 import { EMPTY_GRAPH, ghostFit, shiftMm } from './layoutModel.js';
 import { previewOf } from './previewGeometry.js';
+import { afterKey, ghostKeys } from './ghostKeys.js';
+import { describeAction } from './announce.js';
 import { trackExtent } from './tableModel.js';
 
 // The retired pier and roofed tunnel stay as fixtures: the only block and the only roof over a floor road.
@@ -204,6 +206,61 @@ describe('the level crossing drawn flat and in 3D (decorated-pieces plan T3, des
     const r = drawnAlone('LC');
     const s = buildScene({ segments: r.segments, bodies: r.bodies, ports: r.ports, welds: [], partOf: () => resolve('LC'), riseMm: 61, plankMm: 12 });
     expect(s.bounds.max[2]).toBeCloseTo(132, 6);
+  });
+});
+
+describe('the station straight, placed and flipped (plan T4, eng D5, design 4A/5A)', () => {
+  const act = (st: EditorState, a: EditorAction) => reduce(st, a, ports, { resolve });
+  const empty: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null };
+
+  /*
+   * MUTATION PROOF, run: the placing keys ignoring a straight's flip fails with
+   * `expected null to deeply equal { label: 'Other side', …(2) }`.
+   */
+  it('while placing, F reads "Other side" and says the platform moved', () => {
+    const picked = act(empty, { kind: 'pick', partId: 'SS' });
+    const keys = ghostKeys(picked.graph, ports, picked.ghost!, resolve('SS'));
+    expect(keys.flip).toEqual({ label: 'Other side', verb: 'put the platform on the other side', enabled: true });
+    const flipped = act(picked, { kind: 'flipGhost' });
+    expect([flipped.ghost!.turn, afterKey('flipGhost', resolve('SS'), flipped.ghost!)]).toEqual(['right', 'Platform on the other side.']);
+  });
+
+  /*
+   * MUTATION PROOF, run: the flip left out of undo history fails with
+   * `expected { pieces: [ { …(3) } ], …(2) } to deeply equal { … }`.
+   */
+  it('a placed station moves its platform across, keeps its joint, and undoes', () => {
+    const two = act(act(empty, { kind: 'add', partId: 'A', turn: 'left' }), { kind: 'add', partId: 'SS', turn: 'left' });
+    const station = two.graph.pieces[1]!.pieceId;
+    const flipped = act(two, { kind: 'flipPiece', pieceId: station });
+    expect(flipped.graph.pieces[1]!.turn).toBe('right');
+    expect(flipped.graph.welds).toEqual(two.graph.welds);
+    expect(describeAction(two, { kind: 'flipPiece', pieceId: station }, flipped, resolve)).toBe('Piece 2: Platform on the other side.');
+    expect(act(flipped, { kind: 'undo' }).graph).toEqual(two.graph);
+  });
+
+  /*
+   * MUTATION PROOF, run: the refusal check off, or the wrapper wiping a flip's
+   * refusal, fails with `expected [ { …(3) }, null, null ] to deeply equal [ … ]`.
+   */
+  it("a flip that would put the platform on other track is refused, naming the piece", () => {
+    // The station free at the origin; a straight 70 across on its right, clear of it until it flips.
+    const placed = act(empty, { kind: 'add', partId: 'SS', turn: 'left' });
+    const station = placed.graph.pieces[0]!.pieceId;
+    const withNeighbour = act(act(placed, { kind: 'pick', partId: 'A' }), { kind: 'floatGhost', pos: shiftMm(0, 70) });
+    const both = act(withNeighbour, { kind: 'placeGhost' });
+    expect(both.graph.pieces).toHaveLength(2);
+    const refused = act(both, { kind: 'flipPiece', pieceId: station });
+    expect([refused.graph, refused.refusalOf, refused.refusal]).toEqual([both.graph, 'put the platform on the other side', 'its platform would sit on piece 2']);
+    expect(describeAction(both, { kind: 'flipPiece', pieceId: station }, refused, resolve)).toBe("Can't put the platform on the other side: its platform would sit on piece 2.");
+    const next = act(refused, { kind: 'selectPiece', pieceId: station });
+    expect([next.refusal, next.refusalOf]).toEqual([null, null]);
+  });
+
+  it('in 3D its clock tower reaches 136mm', () => {
+    const r = drawnAlone('SS');
+    const s = buildScene({ segments: r.segments, bodies: r.bodies, ports: r.ports, welds: [], partOf: () => resolve('SS'), riseMm: 61, plankMm: 12 });
+    expect(s.bounds.max[2]).toBeCloseTo(136, 6);
   });
 });
 

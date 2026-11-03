@@ -178,6 +178,12 @@ export function describeAction(
       return null;
     case 'cancelGhost':
       return 'Cancelled placing the piece.';
+    case 'flipPiece': {
+      if (next.refusal) return `Can't ${next.refusalOf ?? 'do that'}: ${next.refusal}.`;
+      const i = next.graph.pieces.findIndex((p) => p.pieceId === action.pieceId);
+      const part = i === -1 ? null : resolve(next.graph.pieces[i]!.partId);
+      return part?.flip ? `Piece ${i + 1}: ${part.flip.after}` : null;
+    }
     case 'moveRun': {
       if (next.refusal) return `Can't move it there: ${next.refusal}.`;
       const added = next.graph.welds.filter((w) => !prev.graph.welds.includes(w));
@@ -224,6 +230,7 @@ export function describeAction(
       if (kind === 'join') return 'Undid the join.';
       if (kind === 'remove') return 'Undid the removal. The piece is back.';
       if (kind === 'move') return 'Undid the move.';
+      if (kind === 'flip') return 'Undid that. Back on the side it was.';
       if (kind === 'clear') return 'Undid the clear. The layout is back.';
       if (kind === 'preset') return 'Undid loading the layout. The one before is back.';
       return null;
@@ -235,6 +242,7 @@ export function describeAction(
       if (kind === 'join') return 'Joined the ends again.';
       if (kind === 'remove') return 'Removed the piece again.';
       if (kind === 'move') return 'Moved the run again.';
+      if (kind === 'flip') return 'Put it on the other side again.';
       if (kind === 'clear') return 'Cleared the layout again.';
       if (kind === 'preset') return 'Loaded the layout again.';
       return null;

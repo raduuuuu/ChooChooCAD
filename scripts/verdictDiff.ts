@@ -54,7 +54,7 @@ function corpus(): Array<[string, Graph]> {
   const out: Array<[string, Graph]> = [];
   // differential.test.ts: flat two-ended Generic parts, seed 20261010, 600 chains.
   const Generic = BUILT_IN.filter(
-    (p) => p.brand === 'GENERIC' && (p.kind === 'straight' || p.kind === 'curve') && !(p.kind === 'straight' && p.rise) && !isStructure(p),
+    (p) => p.brand === 'GENERIC' && (p.kind === 'straight' || p.kind === 'curve') && !(p.kind === 'straight' && p.rise) && !isStructure(p) && p.decoratedFrom === undefined,
   ).map((p) => p.id);
   const rand = lcg(20261010);
   for (let i = 0; i < 600; i++) {
