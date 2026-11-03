@@ -1076,6 +1076,25 @@ Built (no new dependency: `sips` converts to BMP, read in TypeScript):
 Result: photo 84401 reads 216.52mm; 84397 refused. Open: the trial needs a
 second good photo, and 216.52 is 0.02mm outside 216 ± 0.5 (see the session).
 
+## Tolerance 1mm (owner, 2026-11-03)
+
+Third trial photo (84402, both pieces across the middle): 216.88mm. With
+84401 (216.52mm): repeatable to 0.36mm, but both about 0.7mm long; the cause
+(the method, e.g. rounded end edges, or the owner's pieces) is not settled:
+plank widths read 38.6-39.8mm instead of 40, too inconsistent to correct with.
+
+Owner: "what if we accept 1 mm of tolerance", then "yes, and on point 2 I
+think we can accept 1 mm as well because the millimeter paper has the
+smallest unit at 1 mm", then "ok, then revert point 2 to 0.5mm". Applied:
+C2 agreement stays 0.5mm, EO7 trial 216 ± 1mm (was 0.5), C1 published figures overruled only beyond 1mm, OV7 fit
+residual 1mm; every photo figure is recorded as ±1mm. The trial passes:
+mean 216.70mm, spread 0.36mm (`TRIAL` in engine/data/photoReadings.ts).
+
+Consequence: published straight and curve lengths will be confirmed, not
+changed; switches, crossings and ramps (now from printed copies) can become
+measured at ±1mm. Open, not blocking: a caliper reading of the two trial
+pieces would say whether the 0.7mm is the method.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |

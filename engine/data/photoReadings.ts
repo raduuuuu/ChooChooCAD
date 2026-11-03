@@ -1,9 +1,10 @@
 /**
  * READINGS TAKEN FROM THE OWNER'S PHOTOS, and the rules that decide what a
- * reading may change (plan 2026-11-02: C1, C2, OV7, OV8).
+ * reading may change (plan 2026-11-02: C1, C2, OV7, OV8; tolerance 1mm by the
+ * owner after the 216mm trial, 2026-11-03).
  *
  *   readings of one figure ──▶ two photos agree within AGREE_MM? (C2)
- *                              any switch fit off by more than AGREE_MM? (OV7: not counted)
+ *                              any switch fit off by more than TOLERANCE_MM? (OV7: not counted)
  *   every required figure agreed? ── no ──▶ 'partial': nothing changes (OV8)
  *                                 └─ yes ─▶ part unverified          ──▶ 'measured': the photo figures replace it
  *                                           published, all within     ──▶ 'confirmed': figures kept, photo recorded (C1)
@@ -12,8 +13,8 @@
  * Photos are never committed (SEC1). A reading names its photo by the local
  * file name only, so a figure can be traced on the owner's machine.
  *
- * Empty until the 216mm trial (EO7) passes: no figure lands before the method
- * has measured a piece whose answer is known.
+ * Every figure landed from photos is good to ±TOLERANCE_MM, and says so.
+ * The method was cleared by the 216mm trial (EO7) recorded in TRIAL.
  */
 
 import type { DimensionStatus } from '../src/parts/schema.js';
@@ -33,12 +34,32 @@ export interface PhotoReading {
 
 export const PHOTO_READINGS: readonly PhotoReading[] = [];
 
-/** Two photos must agree this closely, and a fitted shape must match this closely (C2, OV7). */
+/**
+ * ±1mm, the owner's call after the 216mm trial (2026-11-03): what a photo
+ * figure is good to. A fitted shape must match this closely (OV7), a
+ * published figure is overruled only by more than this (C1), and the trial
+ * had to read its known piece this closely (EO7). The trial's two photos both
+ * read about 0.7mm long, an offset not yet explained (the method, or the
+ * owner's pieces).
+ */
+export const TOLERANCE_MM = 1;
+
+/** Two photos of one figure must agree this closely (C2; the owner kept it at 0.5mm, 2026-11-03). */
 export const AGREE_MM = 0.5;
+
+/** The 216mm trial (EO7): a long straight read through the whole method, the medium straight as reference. */
+export const TRIAL = {
+  on: '2026-11-03',
+  knownMm: 216,
+  readings: [
+    { photo: '84401.jpg', valueMm: 216.52 },
+    { photo: '84402.jpg', valueMm: 216.88 },
+  ],
+} as const;
 
 /** One figure's agreed value: two or more usable readings, from different photos, within AGREE_MM. */
 export function agreedFigure(readings: readonly PhotoReading[]): number | null {
-  const usable = readings.filter((r) => (r.fitResidualMm ?? 0) <= AGREE_MM);
+  const usable = readings.filter((r) => (r.fitResidualMm ?? 0) <= TOLERANCE_MM);
   if (new Set(usable.map((r) => r.photo)).size < 2) return null;
   const values = usable.map((r) => r.valueMm);
   if (Math.max(...values) - Math.min(...values) > AGREE_MM) return null;
@@ -67,7 +88,7 @@ export function photoOutcome(
     else agreed[figure] = v;
   }
   if (missing.length > 0) return { kind: 'partial', missing };
-  const contradicted = Object.keys(required).filter((f) => Math.abs(agreed[f]! - required[f]!) > AGREE_MM);
+  const contradicted = Object.keys(required).filter((f) => Math.abs(agreed[f]! - required[f]!) > TOLERANCE_MM);
   if (status === 'published' && contradicted.length === 0) return { kind: 'confirmed' };
   return { kind: 'measured', figures: agreed, contradicted };
 }
