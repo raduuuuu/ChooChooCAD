@@ -65,6 +65,13 @@ export interface Segment {
    */
   readonly body?: 'footprint' | 'wall' | 'roof';
   readonly halfWidthMm?: number;
+  /**
+   * A bridge's road (bridges plan, eng D9): the measured top-surface heights
+   * of the whole road, and this segment's span along it, for the 3D view.
+   * Checks read `level` and `rise` only.
+   */
+  readonly profileMm?: readonly (readonly [number, number])[];
+  readonly alongMm?: readonly [number, number];
 }
 
 export interface FkResult {

@@ -14,12 +14,17 @@
  * pieces' sizes, which are estimates
  */
 
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver, resolveLibrary } from '../../engine/data/library.js';
 import { PIER, TUNNEL } from '../../engine/data/structureSeeds.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Graph, type Piece, type Port } from '../../engine/src/graph/model.js';
 import { renderBounds, renderGraph } from '../../engine/src/graph/render.js';
+import { solveGraph } from '../../engine/src/graph/solve.js';
+import { VerdictLine } from './VerdictLine.js';
+import { viewOf } from './verdictView.js';
 import { buildScene } from '../../engine/src/view3d/mesh.js';
 import { reduce, type EditorAction, type EditorState } from './editorReducer.js';
 import { EMPTY_GRAPH, ghostFit, shiftMm } from './layoutModel.js';
@@ -128,5 +133,58 @@ describe('a piece with no ends lands selected (design decision 3)', () => {
     const empty: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null };
     expect(act(empty, { kind: 'add', partId: 'PR', turn: 'left' }).selected).toBe('p0');
     expect(act(act(empty, { kind: 'pick', partId: 'PR' }), { kind: 'placeGhost' }).selected).toBe('p0');
+  });
+});
+
+describe('the stone arch bridge in 3D (bridges eng D2, D5, D9, D11)', () => {
+  const scene3d = (marks: Parameters<typeof buildScene>[0]['marks'] = []) => {
+    const r = drawnAlone('SA');
+    return buildScene({ segments: r.segments, bodies: r.bodies, ports: r.ports, welds: [], partOf: () => resolve('SA'), riseMm: 61, plankMm: 12, marks });
+  };
+
+  /*
+   * MUTATION PROOF, run: the measured profile ignored (topOf back to levels
+   * only) fails with `expected 88 to be close to 100`: the road drawn flat at
+   * the raised level, with only the arch band above it.
+   */
+  it('the road follows its measured profile up to the crown, over the arch band', () => {
+    const s = scene3d();
+    expect(s.bounds.max[2]).toBeCloseTo(100, 0);
+    expect(s.structures.solid.indices.length).toBeGreaterThan(0);
+  });
+
+  /*
+   * MUTATION PROOF, run: a marker taking the piece's highest stretch again
+   * fails with `expected 57.1 to be close to 14.9`: it floated at the top.
+   */
+  it('a clash mark at the foot of the slope sits on the slope, not at the crown', () => {
+    const s = scene3d([{ kind: 'overlap', at: [30, 0], source: { kind: 'overlap', a: 'p', b: 'p' } }]);
+    expect(s.marks[0]!.at[2]).toBeCloseTo(14.9, 0);
+  });
+});
+
+describe('the clearance under a bridge (bridges design DD5)', () => {
+  const text = (clearanceMm: number) =>
+    renderToStaticMarkup(
+      createElement(VerdictLine, {
+        view: viewOf(solveAlone()),
+        bridgeNotes: [{ name: 'stone arch bridge', piece: 1, clearanceMm }],
+      }),
+    ).replace(/<[^>]+>/g, '').replace(/&#x27;|&rsquo;|’/g, "'");
+  const solveAlone = () => {
+    const g: Graph = { pieces: [{ pieceId: 'p', partId: 'SA', turn: 'left' }], welds: [] };
+    const placement = placeAll(g, ports);
+    const r = renderGraph(g, ports, resolve, placement);
+    return solveGraph(g, ports, resolve, () => 0, placement, undefined, r.segments, r.bodies);
+  };
+
+  /*
+   * MUTATION PROOF, run: the sentence left out of the notes fails with
+   * `expected '?Not a loop yet. 1 piece, open at bot…' to contain 'Under the
+   * stone arch bridge (piece 1)…'`.
+   */
+  it('says the room to spare, and says plainly when the train will not fit', () => {
+    expect(text(69.2)).toContain('Under the stone arch bridge (piece 1): about 2mm to spare (69mm opening, 12mm track, 55mm train).');
+    expect(text(60)).toContain("Your 55mm train won't fit under the stone arch bridge (piece 1): 60mm opening.");
   });
 });

@@ -184,6 +184,12 @@ export function findLevelFaults(
   ports: PortsOf,
   placement: Placement,
   rs: readonly WeldResidual[] = residuals(graph, ports, placement),
+  /**
+   * How many levels a piece's road climbs above its ends (bridges plan, eng
+   * D6): a bridge's top is one up although both its ends sit on its own level.
+   * Without it, only climbing ends are read.
+   */
+  climbsAboveEnds: (piece: Graph['pieces'][number]) => number = () => 0,
 ): LevelFaults {
   const byId = new Map(graph.pieces.map((p) => [p.pieceId, p]));
   const mismatches = rs
@@ -204,6 +210,12 @@ export function findLevelFaults(
         thirdLevels.push({ pieceId: piece.pieceId, at: toXY(f.pos) });
         break;
       }
+    }
+    // A bridge laid on raised track takes its top a level higher still.
+    const over = climbsAboveEnds(piece);
+    if (over > 0 && !thirdLevels.some((t) => t.pieceId === piece.pieceId)) {
+      const f = placement.frames.get(piece.pieceId);
+      if (f && levelOf(f) + over >= LEVEL_COUNT) thirdLevels.push({ pieceId: piece.pieceId, at: toXY(f.pos) });
     }
   }
   return { mismatches, thirdLevels };

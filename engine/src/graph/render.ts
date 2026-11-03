@@ -20,7 +20,7 @@ import { add, scale, toXY, zetaPow } from '../geom/cyclotomic.js';
 import type { FPose, Segment } from '../geom/fk.js';
 import { portFrame, type Placement, type PortsOf } from './frames.js';
 import { levelOf, norm16, portPolarity, roadsOf, type Frame, type Graph } from './model.js';
-import { centrelineRadiusMm, type Part, type Polarity } from '../parts/schema.js';
+import { centrelineRadiusMm, type Hump, type Part, type Polarity } from '../parts/schema.js';
 
 /** Zeta steps to radians: one step is 22.5 degrees. */
 const RAD = Math.PI / 8;
@@ -164,6 +164,7 @@ export function renderGraph(
         pieceId: piece.pieceId,
         body: box.role,
         halfWidthMm: box.widthMm / 2,
+        ...(box.profileMm ? { profileMm: box.profileMm } : {}),
         ...(lo !== 0 ? { level: lo } : {}),
         ...(boxRise !== 0 ? { rise: boxRise } : {}),
       });
@@ -172,6 +173,10 @@ export function renderGraph(
       const start = portFrame(placement, ports, piece, road.from);
       const from = pose({ pos: start.pos, heading: norm16(start.heading + 8) });
       const to = pose(portFrame(placement, ports, piece, road.to));
+      if (road.shape.kind === 'straight' && part.kind === 'straight' && part.hump) {
+        segments.push(...humpRoad(from, to, part.lengthMm, part.hump, level, piece.partId, piece.pieceId));
+        continue;
+      }
       if (road.shape.kind === 'straight') {
         segments.push({ kind: 'straight', from, to, partId: piece.partId, pieceId: piece.pieceId, ...levels });
         continue;
@@ -209,6 +214,28 @@ export function renderGraph(
   }
 
   return { segments, ports: rendered, bodies };
+}
+
+/**
+ * AN UP-AND-OVER ROAD (bridges plan, eng D1): up one level, along the top,
+ * down again, as three straight segments between the road's two ends. The
+ * down slope is flagged high at its start, as a ramp entered from its high
+ * end is. Each carries the measured profile and its span along the road, for
+ * the 3D view (eng D9).
+ */
+function humpRoad(from: FPose, to: FPose, lengthMm: number, hump: Hump, level: number, partId: string, pieceId: string): Segment[] {
+  const at = (mm: number): FPose => {
+    const t = mm / lengthMm;
+    return { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t, h: from.h };
+  };
+  const a = hump.upMm, b = hump.upMm + hump.topMm;
+  const base = level !== 0 ? { level } : {};
+  const shared = { kind: 'straight' as const, partId, pieceId, profileMm: hump.profileMm };
+  return [
+    { ...shared, from, to: at(a), ...base, rise: 1, alongMm: [0, a] },
+    { ...shared, from: at(a), to: at(b), level: level + 1, alongMm: [a, b] },
+    { ...shared, from: at(b), to, ...base, rise: 1, highAtStart: true, alongMm: [b, lengthMm] },
+  ];
 }
 
 /**

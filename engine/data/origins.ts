@@ -44,6 +44,7 @@ export const PART_ORIGINS: Readonly<Record<string, PartOrigin>> = {
   'IKEA-SW': LILLABO, 'IKEA-SW-P': LILLABO, 'IKEA-X145': LILLABO,
   RS: MW('597436', 'historicc'),
   TO: MW('1033476', 'hubi'),
+  SA: MW('1248551', 'Sarlix'),
 };
 
 /** The model page's address. */

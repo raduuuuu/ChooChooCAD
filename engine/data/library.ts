@@ -34,7 +34,7 @@
  * timestamp, and nothing depends on the submitter being the only author.
  */
 
-import type { DimensionSource, Part } from '../src/parts/schema.js';
+import { isStructure, type DimensionSource, type Part } from '../src/parts/schema.js';
 import { DIMENSION_TRUST, trustRank, type DimensionStatus } from '../src/parts/schema.js';
 import { portsOf } from '../src/graph/model.js';
 import { GENERIC_PARTS } from './generic.js';
@@ -100,15 +100,14 @@ const BUILT_IN_RISE = new Map(
  * "correction" of the station would otherwise replace it, deck, footprint and
  * roof gone, because a correction is matched by end count alone.
  */
-export const isStructure = (p: Part): boolean =>
-  p.kind === 'block' || p.body !== undefined || (p.kind === 'straight' && p.deck !== undefined);
+export { isStructure };
 const BUILT_IN_STRUCTURES = new Set(BUILT_IN.filter(isStructure).map((p) => p.id));
 
-/** `part` with the built-in rise, or with none: a stored rise never survives, nor a body or a deck (OV2). */
+/** `part` with the built-in rise, or with none: a stored rise never survives, nor a body, a deck or a hump (OV2, bridges eng D10). */
 function withRise(part: Part, rise: 1 | undefined): Part {
   const { body: _noBody, ...bare } = part;
   if (bare.kind !== 'straight') return bare as Part;
-  const { rise: _dropped, deck: _noDeck, ...flat } = bare;
+  const { rise: _dropped, deck: _noDeck, hump: _noHump, ...flat } = bare;
   return rise === undefined ? flat : { ...flat, rise };
 }
 

@@ -915,6 +915,26 @@ export function TrackCanvas({
       ))}
     </g>
   );
+  /*
+   * A BRIDGE, OUTLINED (bridges design DD2, DD3): one 1.5px ink line round
+   * its road and abutments, and two across the road where its arch springs,
+   * the edges of the passage floor track may cross. Ink only, over both
+   * levels, never a target. Its slopes keep their ramp chevrons.
+   */
+  const bridgeOutlines = segments.flatMap((seg, i) => {
+    if (!seg.alongMm || seg.alongMm[0] !== 0) return [];
+    const part = resolve(seg.partId);
+    if (part.kind !== 'straight' || !part.hump) return [];
+    const ux = Math.cos(seg.from.h), uy = Math.sin(seg.from.h);
+    const half = Math.max(part.plankWidthMm, ...(part.body ?? []).map((b) => b.widthMm)) / 2;
+    const at = (a: number, side: number) => `${seg.from.x + ux * a - uy * half * side} ${seg.from.y + uy * a + ux * half * side}`;
+    const len = part.lengthMm;
+    const { fromMm, toMm } = part.hump.arch;
+    return [
+      <path key={`bridge-${i}`} className="bridge-outline" d={`M ${at(0, 1)} L ${at(len, 1)} L ${at(len, -1)} L ${at(0, -1)} Z`} />,
+      <path key={`bridge-spring-${i}`} className="bridge-outline" d={`M ${at(fromMm, 1)} L ${at(fromMm, -1)} M ${at(toMm, 1)} L ${at(toMm, -1)}`} />,
+    ];
+  });
   const raisedHere = segments.some((seg) => (seg.level ?? 0) >= 1 || Boolean(seg.rise));
   /*
    * THE SELECTED PIECE, ABOVE BOTH LEVELS (plan 2026-11-01, design DR1, DR6).
@@ -1449,6 +1469,7 @@ export function TrackCanvas({
         {levelLayer(false)}
         {ghostOnFloor && ghostLayer}
         {levelLayer(true)}
+        {bridgeOutlines}
         {selectionTop}
         {/*
           * THE GAP, DRAWN (task W2, decision D4).

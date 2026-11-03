@@ -226,8 +226,9 @@ function notesFor(
   unmarked = 0,
   raised: { readonly bridges: number } | null = null,
   bend: BendWords | null = null,
+  bridges: readonly BridgeNote[] = [],
 ) {
-  if (trust.length === 0 && !action && adapters === 0 && !raised && !bend) return undefined;
+  if (trust.length === 0 && !action && adapters === 0 && !raised && !bend && bridges.length === 0) return undefined;
   const unmeasured = trust.find((t) => t.kind === 'unverified-size')?.pieces ?? 0;
   const folded = trust.filter((t) => !kept(t));
   const limits = bend ? bend.limits.length + (bend.overlapNote ? 1 : 0) : 0;
@@ -236,6 +237,7 @@ function notesFor(
     <>
       {adapters > 0 && <AdapterNote n={adapters} unmarked={unmarked} />}
       {raised && <RaisedNote bridges={raised.bridges} />}
+      {bridges.map((b, i) => <BridgeClearance key={i} note={b} />)}
       {unmeasured > 0 && <Unmeasured n={unmeasured} />}
       <Trust trust={trust.filter(kept)} />
       <Action action={action} />
@@ -327,6 +329,43 @@ function AdapterNote({ n, unmarked }: { n: number; unmarked: number }) {
  * published (rampSeeds.ts `CLEARANCE`).
  * Every number in the number face (rule 4).
  */
+/** A bridge that track passes under, for its clearance sentence (design DD5). */
+export interface BridgeNote {
+  /** The bridge's name, as the sentence says it: "stone arch bridge". */
+  readonly name: string;
+  /** Its piece number in the layout. */
+  readonly piece: number;
+  /** Floor to the underside of its arch at the crown (eng D7). */
+  readonly clearanceMm: number;
+}
+
+/**
+ * THE CLEARANCE UNDER A BRIDGE (design DD5): the opening, less the track
+ * under it and the tallest train. When the train does not fit it is said in
+ * the fail register, in words with the X (rule 2); the layout's verdict is
+ * unchanged, since the layout can be built and only the train cannot pass.
+ */
+function BridgeClearance({ note }: { note: BridgeNote }) {
+  const { plankMm, trainMm, trainMeasured } = CLEARANCE;
+  const opening = Math.round(note.clearanceMm);
+  const spare = Math.round(note.clearanceMm - plankMm - trainMm);
+  const estimate = trainMeasured ? '' : " The train's height is an estimate.";
+  if (spare < 0) {
+    return (
+      <p className="verdict-raised verdict-fail">
+        <span aria-hidden="true">X </span>Your <span className="num">{trainMm}</span>mm train won&rsquo;t fit under the {note.name}{' '}
+        (piece <span className="num">{note.piece}</span>): <span className="num">{opening}</span>mm opening.{estimate}
+      </p>
+    );
+  }
+  return (
+    <p className="verdict-raised">
+      Under the {note.name} (piece <span className="num">{note.piece}</span>): about <span className="num">{spare}</span>mm to spare (
+      <span className="num">{opening}</span>mm opening, <span className="num">{plankMm}</span>mm track, <span className="num">{trainMm}</span>mm train).{estimate}
+    </p>
+  );
+}
+
 function RaisedNote({ bridges }: { bridges: number }) {
   const { riseMm, plankMm, trainMm, trainMeasured } = CLEARANCE;
   return (
@@ -506,6 +545,7 @@ export function VerdictLine({
   levelUnmarked = 0,
   polarityUnmarked = 0,
   buildings = [],
+  bridgeNotes = [],
 }: {
   view: VerdictView;
   /** Why this verdict is worth less than it looks. See engine/joints/trust.ts. */
@@ -518,6 +558,8 @@ export function VerdictLine({
   polarityUnmarked?: number;
   /** Track running into a building, one sentence each (design decision 5; `buildingClashSentence`). */
   buildings?: readonly string[];
+  /** Bridges track passes under, one clearance sentence each (design DD5). */
+  bridgeNotes?: readonly BridgeNote[];
 }) {
   const e = view;
 
@@ -556,7 +598,7 @@ export function VerdictLine({
     return (
       <Verdict
         tone="unknown"
-        notes={notesFor(trust, unchecked ? null : (ACTION_FOR_FAILURE[e.kind] ?? null), false, e.adapterCount, adaptersUnmarked, raisedOf(e))}
+        notes={notesFor(trust, unchecked ? null : (ACTION_FOR_FAILURE[e.kind] ?? null), false, e.adapterCount, adaptersUnmarked, raisedOf(e), undefined, bridgeNotes)}
       >
         <Mark glyph="?" />
         <span className="verdict-text">
@@ -590,6 +632,7 @@ export function VerdictLine({
             raisedOf(e),
             // A run that needs bend carries the overlap note (design 11A).
             e.bend && e.bend.tier !== 'exact' ? e.bend : null,
+            bridgeNotes,
           )}
         >
           <Mark glyph="X" />
@@ -724,6 +767,8 @@ export function VerdictLine({
             e.adapterCount,
             adaptersUnmarked,
             raisedOf(e),
+            undefined,
+            bridgeNotes,
           )}
         >
           <Mark glyph="O" />
@@ -748,7 +793,7 @@ export function VerdictLine({
       return (
         <Verdict
           tone="tight"
-          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], false, e.adapterCount, adaptersUnmarked, raisedOf(e), e.bend)}
+          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], false, e.adapterCount, adaptersUnmarked, raisedOf(e), e.bend, bridgeNotes)}
         >
           <Mark glyph={'/\\'} />
           <span className="verdict-text">
@@ -798,7 +843,7 @@ export function VerdictLine({
          */
         <Verdict
           tone="fail"
-          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], false, e.adapterCount, adaptersUnmarked, raisedOf(e), e.bend)}
+          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], false, e.adapterCount, adaptersUnmarked, raisedOf(e), e.bend, bridgeNotes)}
         >
           <Mark glyph="X" />
           <span className="verdict-text">

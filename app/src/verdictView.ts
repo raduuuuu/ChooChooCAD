@@ -259,7 +259,9 @@ export function buildingClashSentence(
         ? 'the pier'
         : o.body.role === 'wall'
           ? `the ${word}'s wall`
-          : `the ${word}'s footprint`;
+          : word === 'bridge'
+            ? "the bridge's abutment"
+            : `the ${word}'s footprint`;
   const head = o.body.role === 'roof' ? `Raised track at piece ${n} hits ${what}` : `Piece ${n} runs into ${what}`;
   return `${head} (piece ${m}). Move either piece.`;
 }

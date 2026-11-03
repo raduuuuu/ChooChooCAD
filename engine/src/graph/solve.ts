@@ -29,7 +29,7 @@ import { findLevelFaults, residuals, type LevelMismatch, type Placement, type Po
 import type { Forest } from './forest.js';
 import type { Graph } from './model.js';
 import { pieceRepair, type PieceRepair, type RepairLibrary } from './repair.js';
-import type { Part } from '../parts/schema.js';
+import { isStructure, type Part } from '../parts/schema.js';
 
 export type GraphFailure =
   | 'NO_CYCLE'
@@ -126,6 +126,8 @@ export type GraphResult =
       readonly bridges: readonly PlankOverlap[];
       /** Whether any track is off the floor, for the supports note (design 3A). */
       readonly raised: boolean;
+      /** Track passing under an up-and-over bridge: the bridge, and the piece under it (design DD5). */
+      readonly underBridges: readonly { readonly bridge: string; readonly under: string }[];
       /** The separate runs of track, so the verdict can speak about each one. Every branch. */
       readonly runs: RunSummary;
       /**
@@ -174,6 +176,8 @@ export type GraphResult =
       readonly bridges: readonly PlankOverlap[];
       /** Whether any track is off the floor, for the supports note (design 3A). */
       readonly raised: boolean;
+      /** Track passing under an up-and-over bridge: the bridge, and the piece under it (design DD5). */
+      readonly underBridges: readonly { readonly bridge: string; readonly under: string }[];
       /** The separate runs of track, so the verdict can speak about each one. Every branch. */
       readonly runs: RunSummary;
       /**
@@ -224,10 +228,29 @@ export function solveGraph(
   const wood = bodies.length === 0 ? segments : [...segments, ...bodies];
   const overlaps = findPlankOverlaps(graph, wood, halfWidth, sites);
   const { violations: polarityViolations, adapters: adapterJoints } = classifyWelds(graph, resolve, ports);
-  const { mismatches: levelMismatches, thirdLevels } = findLevelFaults(graph, ports, placement, rs);
-  const bridges = findBridges(graph, segments, halfWidth, sites);
-  const raised = segments.some((sg) => (sg.level ?? 0) + (sg.rise ?? 0) > 0);
-  const levels = { levelMismatches, thirdLevels, bridges, raised, runs: summariseRuns(graph, placement.forest, rs, ports) };
+  const { mismatches: levelMismatches, thirdLevels } = findLevelFaults(graph, ports, placement, rs, (p) => {
+    const part = resolve(p.partId);
+    return part.kind === 'straight' && part.hump ? 1 : 0;
+  });
+  /*
+   * A structure carries its own raised road (bridges eng D3): its deck or its
+   * hump needs no supports from the user, so neither the supports note nor
+   * its crossing count includes it. Track passing under a bridge is listed
+   * apart, for that bridge's own clearance sentence (design DD5).
+   */
+  const partOfPiece = new Map(graph.pieces.map((p) => [p.pieceId, p.partId]));
+  const structural = (pieceId: string) => isStructure(resolve(partOfPiece.get(pieceId)!));
+  const humped = (pieceId: string) => {
+    const part = resolve(partOfPiece.get(pieceId)!);
+    return part.kind === 'straight' && part.hump !== undefined;
+  };
+  const allBridges = findBridges(graph, segments, halfWidth, sites);
+  const bridges = allBridges.filter((b) => !structural(b.a) && !structural(b.b));
+  const underBridges = allBridges.flatMap((b) =>
+    humped(b.a) ? [{ bridge: b.a, under: b.b }] : humped(b.b) ? [{ bridge: b.b, under: b.a }] : [],
+  );
+  const raised = segments.some((sg) => (sg.level ?? 0) + (sg.rise ?? 0) > 0 && !(sg.pieceId !== undefined && structural(sg.pieceId)));
+  const levels = { levelMismatches, thirdLevels, bridges, underBridges, raised, runs: summariseRuns(graph, placement.forest, rs, ports) };
 
   if (rank === 0) {
     /*
