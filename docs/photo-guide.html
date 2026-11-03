@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Photo guide</title>
+<!--
+  How to photograph a piece so its sizes can be read off the photo (plan
+  docs/plan/2026-11-02-photo-parts-and-stations.md, design decision 8).
+  Print it on A4 or Letter; it reads the same in black and white.
+
+  Colours come from the app's design system (app/src/tokens.css), faces from
+  the installed IBM Plex files. Nothing here is a verdict, so nothing here is
+  coloured (DESIGN.md rule 1).
+-->
+<link rel="stylesheet" href="../app/src/tokens.css">
+<style>
+  @font-face { font-family: 'IBM Plex Sans'; font-weight: 400; font-display: optional;
+    src: url('../node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'IBM Plex Sans'; font-weight: 600; font-display: optional;
+    src: url('../node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'IBM Plex Mono'; font-weight: 400; font-display: optional;
+    src: url('../node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2') format('woff2'); }
+  * { box-sizing: border-box; }
+  body { margin: 0 auto; max-width: 180mm; padding: 10mm 8mm; background: var(--paper); color: var(--ink);
+         font: 10.5pt/1.4 var(--font-ui); }
+  .identity { display: flex; gap: 3mm; align-items: baseline; margin-bottom: 4mm; }
+  .identity b { font-weight: 600; }
+  .identity span { color: var(--ink-soft); }
+  h1 { font-size: 15pt; font-weight: 600; margin: 0 0 2mm; }
+  h2 { font-size: 11.5pt; font-weight: 600; margin: 7mm 0 1.5mm; border-bottom: 1px solid var(--ink); padding-bottom: 0.5mm; break-after: avoid; }
+  p, li { margin: 0 0 1.5mm; }
+  ul { padding-left: 5mm; margin: 0 0 2mm; }
+  .num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+  .soft { color: var(--ink-soft); }
+  section { break-inside: avoid; }
+  .box { border: 1px solid var(--ink); padding: 2mm 3mm; margin: 6mm 0 0; break-inside: avoid; }
+  .box h2 { border: 0; margin-top: 0; }
+  .dwg { display: block; width: 100%; height: auto; margin: 2mm 0 1mm; font: 3.2px var(--font-ui); }
+  .dwg text { fill: var(--ink); }
+  .dwg .note { fill: var(--ink-soft); font-size: 2.8px; }
+  .dwg .paper { fill: none; stroke: var(--ink); stroke-width: 0.4; }
+  .dwg .grid { stroke: var(--rule); stroke-width: 0.15; }
+  .dwg .plank { fill: var(--paper-sunk); stroke: var(--ink); stroke-width: 0.4; }
+  .dwg .groove { stroke: var(--ink-soft); stroke-width: 0.25; }
+  .dwg .point { fill: none; stroke: var(--ink); stroke-width: 0.4; }
+  .dwg .dim { stroke: var(--ink); stroke-width: 0.25; }
+  .dwg .ext { stroke: var(--ink-soft); stroke-width: 0.2; }
+  .dwg .sight { stroke: var(--ink-soft); stroke-width: 0.25; stroke-dasharray: 1 0.8; }
+  .dwg .phone { fill: var(--paper); stroke: var(--ink); stroke-width: 0.5; }
+  .dwg .floor { stroke: var(--ink); stroke-width: 0.5; }
+  .caption { font-size: 8.5pt; color: var(--ink-soft); margin: 0 0 2mm; }
+  @media print { body { padding: 0; } }
+</style>
+</head>
+<body>
+<div class="identity"><b>ChooChooCAD</b><span>wooden railway layouts</span></div>
+<h1>Measuring a piece from photos</h1>
+<p>You need: the piece; one <b>medium straight</b> (<span class="num">144mm</span>), which is the ruler in every photo; a sheet of any millimetre paper (shop-bought graph paper is fine, the brand and the exact print size do not matter); and a phone. For the first session only, also a <b>long straight</b> (<span class="num">216mm</span>).</p>
+<p class="soft">Why the medium straight: the tops of the pieces sit <span class="num">12mm</span> nearer the lens than the paper, so the paper's own lines would read them a few percent long. A known piece lying beside them, top face at the same height, gives the true scale. The paper's grid only straightens out the camera angle.</p>
+
+<section>
+<h2>1 · Lay out the reference</h2>
+<ul>
+  <li>Lay the paper flat on a table or a hard floor. Tape the corners if it curls.</li>
+  <li>Put the medium straight and the piece on it side by side, top face up, about <span class="num">2cm</span> apart, both fully on the grid.</li>
+  <li>Nothing under either piece. Both lie flat on the paper.</li>
+</ul>
+<svg class="dwg" viewBox="0 0 200 74" role="img" aria-label="Plan view from above. A sheet of millimetre paper. The 144 millimetre reference straight lies on it, and the piece to measure lies beside it about 2 centimetres away. Circles mark the points that get read: the centre of each end face, where the plank ends, not the tip of the peg.">
+  <rect class="paper" x="6" y="4" width="188" height="66"/>
+  <g class="grid">
+    <line x1="26" y1="4" x2="26" y2="70"/><line x1="46" y1="4" x2="46" y2="70"/><line x1="66" y1="4" x2="66" y2="70"/><line x1="86" y1="4" x2="86" y2="70"/><line x1="106" y1="4" x2="106" y2="70"/><line x1="126" y1="4" x2="126" y2="70"/><line x1="146" y1="4" x2="146" y2="70"/><line x1="166" y1="4" x2="166" y2="70"/><line x1="186" y1="4" x2="186" y2="70"/>
+    <line x1="6" y1="14" x2="194" y2="14"/><line x1="6" y1="24" x2="194" y2="24"/><line x1="6" y1="34" x2="194" y2="34"/><line x1="6" y1="44" x2="194" y2="44"/><line x1="6" y1="54" x2="194" y2="54"/><line x1="6" y1="64" x2="194" y2="64"/>
+  </g>
+  <rect class="plank" x="22" y="12" width="96" height="14"/>
+  <line class="groove" x1="22" y1="16.5" x2="118" y2="16.5"/><line class="groove" x1="22" y1="21.5" x2="118" y2="21.5"/>
+  <circle class="point" cx="22" cy="19" r="1.6"/><circle class="point" cx="118" cy="19" r="1.6"/>
+  <text x="70" y="9.5" text-anchor="middle">reference: medium straight, 144mm</text>
+  <rect class="plank" x="22" y="40" width="144" height="14"/>
+  <line class="groove" x1="22" y1="44.5" x2="166" y2="44.5"/><line class="groove" x1="22" y1="49.5" x2="166" y2="49.5"/>
+  <circle class="point" cx="22" cy="47" r="1.6"/><circle class="point" cx="166" cy="47" r="1.6"/>
+  <text x="94" y="61" text-anchor="middle">the piece to measure</text>
+  <line class="ext" x1="128" y1="26" x2="128" y2="40"/><text class="note" x="130" y="34.5">about 2cm</text>
+  <text class="note" x="8" y="73">○ the points read: the centre of each end face, where the plank ends (not the tip of the peg). Not to scale.</text>
+</svg>
+</section>
+
+<section>
+<h2>2 · Photograph from the top</h2>
+<ul>
+  <li>Hold the phone flat, lens pointing straight down, over the middle of the two pieces, <span class="num">30–40cm</span> up.</li>
+  <li>Both pieces and a ring of grid around them in the picture. Use the normal lens (1x), never wide-angle (0.5x), never portrait mode.</li>
+  <li>No shadow across an end. Hold still; a sharp photo matters more than a big one.</li>
+</ul>
+<svg class="dwg" viewBox="0 0 200 66" role="img" aria-label="Side view. The phone is held flat, lens down, 30 to 40 centimetres above the paper, over the middle of the two pieces. Dotted lines show its view covering both pieces and some grid around them. The pieces are 12 millimetres tall, so their tops are nearer the lens than the paper.">
+  <line class="floor" x1="10" y1="58" x2="190" y2="58"/>
+  <rect class="plank" x="52" y="52" width="30" height="6"/><rect class="plank" x="96" y="52" width="48" height="6"/>
+  <rect class="phone" x="84" y="6" width="32" height="4" rx="1"/>
+  <line class="sight" x1="100" y1="10" x2="34" y2="58"/><line class="sight" x1="100" y1="10" x2="166" y2="58"/>
+  <line class="dim" x1="178" y1="10" x2="178" y2="58"/><line class="ext" x1="118" y1="8" x2="180" y2="8"/>
+  <text x="181" y="35">30–40cm</text>
+  <line class="dim" x1="148" y1="52" x2="148" y2="58"/><text class="note" x="150" y="55.5">12mm</text>
+  <text class="note" x="100" y="4" text-anchor="middle">lens square to the paper, normal 1x lens</text>
+  <text class="note" x="10" y="64">Side view. Not to scale.</text>
+</svg>
+</section>
+
+<section>
+<h2>3 · Photograph the side (only pieces with height)</h2>
+<p>Ramps, the station and anything else that rises. Skip this for flat pieces.</p>
+<ul>
+  <li>Stand a second sheet of millimetre paper upright behind the piece: tape it to a box or a wall.</li>
+  <li>Put the medium straight on the floor beside the piece, side face against the paper, as the ruler for this photo.</li>
+  <li>Hold the phone upright, level, lens at the height of the piece's top, <span class="num">30–40cm</span> away.</li>
+</ul>
+<svg class="dwg" viewBox="0 0 200 62" role="img" aria-label="Side view looking at the upright paper. A ramp stands against it, rising from the floor to its high end. The medium straight lies beside it against the paper as the ruler. The phone is upright, level, with its lens at the height of the ramp's top. The height read is from the floor to the top face at the high end.">
+  <rect class="paper" x="10" y="6" width="150" height="48"/>
+  <g class="grid"><line x1="30" y1="6" x2="30" y2="54"/><line x1="50" y1="6" x2="50" y2="54"/><line x1="70" y1="6" x2="70" y2="54"/><line x1="90" y1="6" x2="90" y2="54"/><line x1="110" y1="6" x2="110" y2="54"/><line x1="130" y1="6" x2="130" y2="54"/><line x1="150" y1="6" x2="150" y2="54"/><line x1="10" y1="16" x2="160" y2="16"/><line x1="10" y1="26" x2="160" y2="26"/><line x1="10" y1="36" x2="160" y2="36"/><line x1="10" y1="46" x2="160" y2="46"/></g>
+  <line class="floor" x1="6" y1="54" x2="192" y2="54"/>
+  <polygon class="plank" points="20,54 20,50 100,24 108,24 108,54"/>
+  <rect class="plank" x="116" y="50" width="38" height="4"/><text class="note" x="135" y="48" text-anchor="middle">reference</text>
+  <line class="dim" x1="112" y1="24" x2="112" y2="54"/><line class="ext" x1="106" y1="24" x2="114" y2="24"/>
+  <text x="114" y="38">height</text>
+  <rect class="phone" x="182" y="16" width="4" height="18" rx="1"/>
+  <line class="sight" x1="182" y1="25" x2="104" y2="24"/>
+  <text class="note" x="190" y="12" text-anchor="end">lens level with the top</text>
+  <text class="note" x="10" y="60">Side view. Not to scale.</text>
+</svg>
+</section>
+
+<section>
+<h2>4 · Move the piece and repeat</h2>
+<ul>
+  <li>Lift both pieces and put them back somewhere else on the paper, the piece turned a quarter turn.</li>
+  <li>Take the same photos again. Two photos must give the same sizes within <span class="num">0.5mm</span>; if they do not, take a third.</li>
+  <li>Save the photos upright. They stay on your machine (the repo's <code>photos/</code> folder is never uploaded) or come straight into the session.</li>
+</ul>
+</section>
+
+<section>
+<h2>5 · The first time: check with the long straight</h2>
+<p>Before any real piece is measured, photograph the <b>long straight</b> as if it were the piece, twice, steps 1, 2 and 4. It must read <span class="num">216 ± 0.5mm</span>. Until it does, no size from a photo goes into the library.</p>
+</section>
+
+<div class="box">
+<h2>What a rejected photo looks like</h2>
+<ul>
+  <li><b>The grid points disagree</b>: the paper was not flat, or a point was misread. Flatten or tape the sheet.</li>
+  <li><b>The reference reads far off on the paper</b>: it was not lying flat and top face up, or it is not a medium straight.</li>
+  <li><b>Curved grid lines</b>: a wide-angle or portrait mode was on. Use the normal 1x lens.</li>
+  <li><b>A blurred or shadowed end</b>: its point cannot be read. Retake it.</li>
+  <li><b>Two photos more than 0.5mm apart</b>: take a third; the figure lands only when two agree.</li>
+</ul>
+</div>
+</body>
+</html>
