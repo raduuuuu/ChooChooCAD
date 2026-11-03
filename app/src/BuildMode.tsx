@@ -21,6 +21,7 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { bendLimit } from '../../engine/data/bendLimit.js';
+import { originLabel, originUrl, PART_ORIGINS } from '../../engine/data/origins.js';
 import type { Segment } from '../../engine/src/geom/fk.js';
 import { buildSteps, type BuildItem, type BuildVerdict } from '../../engine/src/graph/buildSteps.js';
 import type { Graph, PortRef } from '../../engine/src/graph/model.js';
@@ -30,6 +31,7 @@ import type { MarkInput, SceneInput } from '../../engine/src/view3d/mesh.js';
 import { clearResume, enterHistory, keepAwake, loadResume, saveResume, type Awake, type BuildHistory } from './buildSession.js';
 import type { BuildView } from './Viewer3D.js';
 import { View3DPanel } from './View3DPanel.js';
+import { OriginGlyph } from './PartPreview.js';
 
 /** Taps ignored after a step draws (D40), the "Drawing…" delay (D37), and the tap and swipe distances (D25). */
 export const TAP_GUARD_MS = 400;
@@ -231,6 +233,21 @@ export default function BuildMode(props: BuildModeProps) {
                   <td className="num">{r.partId}</td>
                   <td className="num">{r.count}</td>
                   <td className="build-short">{r.short > 0 && <><span className="num">{r.short}</span> short</>}</td>
+                  {/* Where to print one, the library's own link (printable-mark plan, 12A, 13B). */}
+                  <td className="build-origin">
+                    {PART_ORIGINS[r.partId] && (
+                      <a
+                        className="piece-origin"
+                        href={originUrl(PART_ORIGINS[r.partId]!)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={originLabel(PART_ORIGINS[r.partId]!)}
+                        title={originLabel(PART_ORIGINS[r.partId]!)}
+                      >
+                        <OriginGlyph />
+                      </a>
+                    )}
+                  </td>
                 </tr>
               ))}
               {props.pull.adapters.count > 0 && (
@@ -241,6 +258,7 @@ export default function BuildMode(props: BuildModeProps) {
                   <td className="build-short">
                     {props.pull.adapters.short > 0 && <><span className="num">{props.pull.adapters.short}</span> short</>}
                   </td>
+                  <td />
                 </tr>
               )}
             </tbody>

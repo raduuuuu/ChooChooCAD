@@ -202,7 +202,11 @@ nothing else uses:
   means more than you own. The tick is drawn, never typed (the code's font
   has no U+2713), in the card's text colour: 13.43:1 `--ink` on `--paper`,
   5.21:1 `--ink-soft` on `--paper` on a greyed card (measured 2026-11-03).
-  One line under the track list keys the tick and the `*`.
+  A **drawn print nozzle on a small button joined to the card's right
+  edge** means a printable model of this part exists, and the button opens
+  its page in a new tab (printable-mark plan, 2026-11-03); it is never a mark
+  inside the card, and follows the card's colour like the tick. One line
+  under the track list keys all three: the tick, the `*` and the nozzle.
 - **A seam is a 2.5px `--seam` line that runs past both plank edges** (seams
   and join review, 26A, 2026-10-31), so pieces in a straight run can be
   counted; inside the plank it vanished into the grooves.

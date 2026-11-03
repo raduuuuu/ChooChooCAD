@@ -76,7 +76,8 @@ import { buildingClashSentence, viewOf } from './verdictView.js';
 import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
 import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
 import { CANVAS_SEGMENT_CEILING, TrackCanvas } from './TrackCanvas.js';
-import { MeasuredTick, PartPreview } from './PartPreview.js';
+import { MeasuredTick, OriginGlyph, PartPreview } from './PartPreview.js';
+import { originLabel, originOf, originUrl } from '../../engine/data/origins.js';
 import { isMeasured } from '../../engine/data/measured.js';
 import { AppName } from './AppName.js';
 import { previews } from './previewGeometry.js';
@@ -1481,6 +1482,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             const unowned = wouldExceed(inventory, counts, part.id);
             const unverified = isUnverified(part);
             const measured = measuredIds.has(part.id);
+            const origin = originOf(part);
             return (
             <div
               key={part.id}
@@ -1546,6 +1548,22 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
                 )}
                 <span className="piece-dim num">{paletteSize(part)}</span>
               </button>
+              {/*
+                * THE MODEL LINK (printable-mark plan, 4B): beside the card, never
+                * inside its button, and live even while placing is paused (9A).
+                */}
+              {origin && (
+                <a
+                  className="piece-origin"
+                  href={originUrl(origin)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={originLabel(origin)}
+                  title={originLabel(origin)}
+                >
+                  <OriginGlyph />
+                </a>
+              )}
               {counts[part.id] ? <span className="piece-count num">{counts[part.id]}</span> : null}
             </div>
             );
@@ -1617,6 +1635,9 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             </span>{' '}
             <span>
               <span className="palette-key-star">*</span> Unverified size.
+            </span>{' '}
+            <span>
+              <OriginGlyph /> Printable model.
             </span>
           </p>
         )}

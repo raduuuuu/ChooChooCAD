@@ -97,3 +97,18 @@ export function MeasuredTick() {
     </svg>
   );
 }
+
+/**
+ * THE PRINTABLE-MODEL GLYPH (docs/plan/2026-11-03-printable-mark.md, 11A): a
+ * print nozzle over one layer line, drawn like the measured tick, in
+ * `currentColor`. Decorative: its link's accessible name says who made the
+ * model and where (6A).
+ */
+export function OriginGlyph() {
+  return (
+    <svg className="origin-glyph" viewBox="0 0 14 14" aria-hidden="true" focusable="false">
+      <path d="M 3.5 1.5 H 10.5 V 5 L 8 8.5 H 6 L 3.5 5 Z" />
+      <path d="M 1 12.5 H 13" />
+    </svg>
+  );
+}
