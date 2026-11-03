@@ -60,7 +60,15 @@ export const MEASUREMENTS: Measurements = {
   /** Q5: the bridge subtraction. */
   q5: {
     vehicleHeightMm: 55, //     the tallest vehicle you own, wheels to roof
-    riseMm: null, //            ramp rise, if you re-measure it (published: 64)
+    /*
+     * The owner, 2026-11-03, steel ruler: 73mm from the table to the top of
+     * the ramp's high end, set up as played with. Less the 12mm plank, a 61mm
+     * rise, not the published 64. Two printable designs agree within 1mm:
+     * a tunnel's road top at 72.3 and a riser's "standard height" at 72.8.
+     * Photos of the ramp lying on its side read 52 to 59 and were set aside:
+     * the curve at both ends left no flat to measure from.
+     */
+    riseMm: 61, //              ramp rise (published: 64)
     plankThicknessMm: null, //  if you re-measure it (published: 12)
   },
 

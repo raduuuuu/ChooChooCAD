@@ -89,11 +89,10 @@ export const TUNNEL: StraightPart = {
  *   tunnel  TO   a 72mm deck on two walls at right angles to it; the passage
  *                between them is 43mm wide and about 61mm high
  *
- * HEIGHT, NOT YET SETTLED: the riser's default print puts its deck top at
- * 76.1mm, the app's raised level (a 64 rise and a 12 plank). The tunnel's road
- * top is at about 72.3mm, as is the riser's other profile ("standard height",
- * 72.8). The owner is measuring a real ramp to decide; until then both are one
- * level up, like every raised piece.
+ * HEIGHT: the owner's ramp tops out at 73mm (measurements.ts Q5), the
+ * raised level. The tunnel's road top is at about 72.3mm and the riser's
+ * "standard height" print at 72.8, both within 1mm of it; the riser's default
+ * print (76.1) stands 3mm high, so print the standard height.
  */
 const printed = (what: string): DimensionSource => ({
   status: 'unverified',
