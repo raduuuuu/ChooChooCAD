@@ -34,11 +34,12 @@
  * timestamp, and nothing depends on the submitter being the only author.
  */
 
-import { isStructure, type DimensionSource, type Part } from '../src/parts/schema.js';
+import { isStructure, type BodyBox, type DecorBox, type DimensionSource, type Part } from '../src/parts/schema.js';
 import { DIMENSION_TRUST, trustRank, type DimensionStatus } from '../src/parts/schema.js';
 import { portsOf } from '../src/graph/model.js';
 import { GENERIC_PARTS } from './generic.js';
-import { RAMP_SEEDS } from './rampSeeds.js';
+import { CLEARANCE, RAMP_SEEDS } from './rampSeeds.js';
+import { DECORATED_SEEDS, type DecoratedSpec } from './decoratedSeeds.js';
 import { BUFFER_SEEDS } from './bufferSeeds.js';
 import { STRUCTURE_SEEDS } from './structureSeeds.js';
 import { stored, write } from './storage.js';
@@ -49,10 +50,60 @@ import { THIRD_PARTY_SEEDS } from './thirdParty.js';
  * Built-in parts: published Generic, unverified Generic switches measured off 3D-print
  * reproductions, and unverified third-party seeds.
  */
-export const BUILT_IN: readonly Part[] = [
+const PLAIN_BUILT_IN: readonly Part[] = [
   ...GENERIC_PARTS, ...RAMP_SEEDS, ...SWITCH_SEEDS, ...CROSSING_SEEDS, ...MULTI_ROAD_SEEDS, ...BUFFER_SEEDS, ...STRUCTURE_SEEDS,
   ...THIRD_PARTY_SEEDS,
 ];
+
+/**
+ * The levels a decoration shape blocks, from its height (eng D9): every
+ * level its millimetre range reaches, level n being [n x rise, (n+1) x rise).
+ * A range ending exactly on a level line does not reach into the next.
+ */
+export function decorLevels(bottomMm: number, topMm: number, riseMm: number): readonly [number, number] {
+  const lo = Math.floor(bottomMm / riseMm);
+  return [lo, Math.max(lo, Math.ceil(topMm / riseMm) - 1)];
+}
+
+/**
+ * BUILD EACH DECORATED PIECE FROM ITS BASE (eng D2): the base part whole,
+ * under the piece's own id, name and provenance, plus its decoration and
+ * the boxes derived from it (eng D4). The base's catalogue number never
+ * carries over (CEO D3: only a verified match has one). A missing base, a
+ * shape with no height, or an id already taken is a seed error, refused
+ * when the library loads.
+ */
+export function deriveDecorated(specs: readonly DecoratedSpec[], builtIn: readonly Part[], riseMm: number): Part[] {
+  const byId = new Map(builtIn.map((p) => [p.id, p]));
+  return specs.map((spec) => {
+    const base = byId.get(spec.base);
+    if (!base) throw new Error(`Decorated piece ${spec.id}: no built-in part ${spec.base} to take its track from.`);
+    if (byId.has(spec.id)) throw new Error(`Decorated piece ${spec.id}: that id is already a built-in part.`);
+    const decorBody: DecorBox[] = spec.decor.map((shape) => {
+      if (!(shape.topMm > shape.bottomMm) || shape.bottomMm < 0 || !Number.isFinite(shape.topMm)) {
+        throw new Error(`Decorated piece ${spec.id}: a ${shape.kind} needs a height: a bottom no lower than the floor, and a top higher than its bottom.`);
+      }
+      const box: BodyBox = {
+        role: 'footprint', atMm: shape.atMm, lengthMm: shape.lengthMm, widthMm: shape.widthMm,
+        levels: decorLevels(shape.bottomMm, shape.topMm, riseMm),
+      };
+      return { ...box, bottomMm: shape.bottomMm, topMm: shape.topMm, solid: shape.solid !== false, ...(shape.noun ? { noun: shape.noun } : {}) };
+    });
+    const { partNumber: _theBases, ...track } = base;
+    return {
+      ...track,
+      id: spec.id,
+      name: spec.name,
+      dimensions: spec.dimensions,
+      ...(spec.partNumber ? { partNumber: spec.partNumber } : {}),
+      decoratedFrom: base.id,
+      decor: spec.decor,
+      decorBody,
+    } as Part;
+  });
+}
+
+export const BUILT_IN: readonly Part[] = [...PLAIN_BUILT_IN, ...deriveDecorated(DECORATED_SEEDS, PLAIN_BUILT_IN, CLEARANCE.riseMm)];
 
 /**
  * One submitted part. A `Part` plus the bookkeeping a shared library needs.
@@ -101,11 +152,12 @@ const BUILT_IN_RISE = new Map(
  * roof gone, because a correction is matched by end count alone.
  */
 export { isStructure };
-const BUILT_IN_STRUCTURES = new Set(BUILT_IN.filter(isStructure).map((p) => p.id));
+// Decorated pieces are fixed the same way (eng O5), though they are not structures.
+const BUILT_IN_STRUCTURES = new Set(BUILT_IN.filter((p) => isStructure(p) || p.decoratedFrom !== undefined).map((p) => p.id));
 
-/** `part` with the built-in rise, or with none: a stored rise never survives, nor a body, a deck, a plate, a truss arch or a hump (OV2, bridges eng D10). */
+/** `part` with the built-in rise, or with none: a stored rise never survives, nor a body, a decoration, a deck, a plate, a truss arch or a hump (OV2, bridges eng D10). */
 function withRise(part: Part, rise: 1 | undefined): Part {
-  const { body: _noBody, ...bare } = part;
+  const { body: _noBody, decoratedFrom: _noBase, decor: _noDecor, decorBody: _noDecorBody, ...bare } = part;
   if (bare.kind !== 'straight') return bare as Part;
   const { rise: _dropped, deck: _noDeck, plate: _noPlate, trussArch: _noTruss, deckClearanceMm: _noClear, hump: _noHump, ...flat } = bare;
   return rise === undefined ? flat : { ...flat, rise };

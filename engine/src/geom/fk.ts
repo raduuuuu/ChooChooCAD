@@ -66,6 +66,12 @@ export interface Segment {
   readonly body?: 'footprint' | 'wall' | 'roof';
   readonly halfWidthMm?: number;
   /**
+   * A decoration box (decorated-pieces plan, eng D4/D9): its real heights
+   * above the piece's floor level, for drawing; whether it is solid (a thin
+   * barrier arm is not, and never collides); and what a sentence calls it.
+   */
+  readonly decor?: { readonly floorLevel: number; readonly bottomMm: number; readonly topMm: number; readonly solid: boolean; readonly noun?: string };
+  /**
    * A bridge's road (bridges plan, eng D9): the measured top-surface heights
    * of the whole road, and this segment's span along it, for the 3D view.
    * Checks read `level` and `rise` only.
