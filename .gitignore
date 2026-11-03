@@ -7,3 +7,7 @@ dist/
 # NOT try.ts, which is a committed tool.
 crash-repro.ts
 .repro-check.ts
+
+# The owner's track photos and their crops: never committed (public repo;
+# phone photos carry the GPS location they were taken at). Plan 2026-11-02, SEC1.
+photos/
