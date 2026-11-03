@@ -60,7 +60,7 @@ describe('placing a piece', () => {
    */
   it('a click shows it, focuses Place, scopes the verdict; Esc cancels and hands focus back', async () => {
     const user = mount();
-    await user.dblClick(button(/^Add Medium straight$/));
+    await user.dblClick(button(/^Add Medium straight\. Measured\.$/));
     const palette = button('Add Large curve');
     await user.click(palette);
 
@@ -81,7 +81,7 @@ describe('placing a piece', () => {
 
   it('Enter places it, joined to the end it was shown at', async () => {
     const user = mount();
-    await user.dblClick(button(/^Add Medium straight$/));
+    await user.dblClick(button(/^Add Medium straight\. Measured\.$/));
     await user.click(button('Add Large curve'));
     await user.keyboard('{Enter}');
     expect(strip()).toBeNull();
@@ -91,7 +91,7 @@ describe('placing a piece', () => {
 
   it('a red preview says why, and can still be placed', async () => {
     const user = mount();
-    await user.dblClick(button(/^Add Medium straight$/));
+    await user.dblClick(button(/^Add Medium straight\. Measured\.$/));
     // Two pegs, onto the straight's peg end.
     await user.click(button(/^Add Medium straight, two pegs/));
     const status = within(strip()!).getByRole('status');
@@ -123,7 +123,7 @@ describe('placing a piece', () => {
 
   it('a key typed in a text field does not turn the preview', async () => {
     const user = mount();
-    await user.dblClick(button(/^Add Medium straight$/));
+    await user.dblClick(button(/^Add Medium straight\. Measured\.$/));
     await user.click(button('Add Large curve'));
     await user.click(button('Add a part'));
     await user.click(screen.getByLabelText('Name'));

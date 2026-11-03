@@ -37,7 +37,7 @@ function mount() {
 async function oneStraight(): Promise<{ user: UserEvent; unmount: () => void }> {
   const user = userEvent.setup();
   const { unmount } = mount();
-  await place(user, button(/^Add Medium straight$/));
+  await place(user, button(/^Add Medium straight\. Measured\.$/));
   return { user, unmount };
 }
 
@@ -123,7 +123,7 @@ describe("an unreadable stored table is kept until the user acts on the table", 
       screen.getByText('Your saved table size could not be read, so the table outline was removed.'),
     ).toBeTruthy();
 
-    await place(user, button(/^Add Medium straight$/));
+    await place(user, button(/^Add Medium straight\. Measured\.$/));
     expect(localStorage.getItem(GRAPH_STORAGE_KEY)).not.toBeNull();
     expect(localStorage.getItem(TABLE_STORAGE_KEY), 'a graph edit released the table').toBe('{');
 

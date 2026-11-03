@@ -176,7 +176,7 @@ describe('the shadow outside the still canvas (design review of PR #46: 1A, 2A, 
   it('a piece about to go on raised track casts its shadow in the preview', async () => {
     const user = mount([{ id: 'u', part: 'A', x: 0, y: 0, heading: 0, level: 1 }]);
     await user.click(screen.getByRole('button', { name: /end of piece 1/i }));
-    await user.click(button(/^Add Medium straight$/));
+    await user.click(button(/^Add Medium straight\. Measured\.$/));
     expect(document.querySelectorAll('g.ghost path.raised-shadow').length).toBe(1);
   });
 

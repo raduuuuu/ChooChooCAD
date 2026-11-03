@@ -95,8 +95,8 @@ describe('structures in the library and on the floor', () => {
    */
   it('a station picked at the end of floor track says it will raise that run (design decision 4)', async () => {
     const { user } = mount();
-    await user.dblClick(screen.getByRole('button', { name: /^Add Medium straight$/ }));
-    await user.dblClick(screen.getByRole('button', { name: /^Add Medium straight$/ }));
+    await user.dblClick(screen.getByRole('button', { name: /^Add Medium straight\. Measured\.$/ }));
+    await user.dblClick(screen.getByRole('button', { name: /^Add Medium straight\. Measured\.$/ }));
     await user.click(screen.getByRole('button', { name: /^Add Elevated station\./ }));
     const strip = screen.getByRole('group', { name: 'Placing a piece' });
     expect(

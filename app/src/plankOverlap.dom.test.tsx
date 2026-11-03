@@ -79,7 +79,7 @@ describe('track laid over track', () => {
     ]);
     expect(document.querySelector('.verdict-text')!.textContent).toMatch(/^Not a loop yet/);
     const user = userEvent.setup();
-    await user.click(screen.getAllByRole('button', { name: /^Add Medium straight$/ })[0]!);
+    await user.click(screen.getAllByRole('button', { name: /^Add Medium straight\. Measured\.$/ })[0]!);
     const strip = screen.getByRole('group', { name: /Placing/ }).textContent!;
     expect(strip).toContain('It would lie over piece 1.');
     expect(document.querySelector('.ghost')!.getAttribute('class')).toBe('ghost is-red');

@@ -35,7 +35,7 @@ const mount = async () => {
       <App />
     </StrictMode>,
   );
-  for (let i = 0; i < 2; i++) await place(user, button(/^Add Medium straight$/));
+  for (let i = 0; i < 2; i++) await place(user, button(/^Add Medium straight\. Measured\.$/));
   return user;
 };
 
