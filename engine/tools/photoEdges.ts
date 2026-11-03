@@ -41,6 +41,12 @@ export interface RefinedEnd {
   /** Edge samples used, and their spread about the fitted line, mm. */
   readonly samples: number;
   readonly spreadMm: number;
+  /**
+   * How far the end face turns from square to the seed-to-other axis: the
+   * fitted line's slope (mm along the axis per mm across). A square end on a
+   * correctly aimed axis reads 0; a switch's side end reads its angle error.
+   */
+  readonly slope: number;
 }
 
 /**
@@ -82,7 +88,7 @@ export function refineEnd(img: RgbImage, map: PaperMap, seed: Pt, other: Pt): Re
   const b = found.reduce((q, [c, t]) => q + (c - mc) * (t - mt), 0) / found.reduce((q, [c]) => q + (c - mc) ** 2, 0);
   const a = mt - b * mc;
   const spread = Math.sqrt(found.reduce((q, [c, t]) => q + (t - (a + b * c)) ** 2, 0) / n);
-  return { px: at(0, a), samples: n, spreadMm: spread };
+  return { px: at(0, a), samples: n, spreadMm: spread, slope: b };
 }
 
 /** True when a piece's two ends lie either side of the photo's centre row or column, so both face away from the camera. */

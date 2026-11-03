@@ -355,6 +355,14 @@ export type RoadShape =
       readonly arcSteps: number;
       /** Which way it bends walked from `from`, with the piece `turn: 'left'`. */
       readonly side: Turn;
+      /**
+       * A STRAIGHT LEAD-IN before the arc, whole millimetres, walked from
+       * `from` (absent means 0). The owner's T switch, photographed
+       * 2026-11-03, runs 2mm straight before each 106mm curve; one arc from
+       * the heel could not end where its curved road does. A whole-millimetre
+       * lead keeps the far end a lattice point, so verdicts stay exact.
+       */
+      readonly leadMm?: number;
     }
   /**
    * An S-BEND: the road ends facing the way it started, moved `offsetMm`

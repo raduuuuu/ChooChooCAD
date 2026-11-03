@@ -14,7 +14,8 @@
  * file name only, so a figure can be traced on the owner's machine.
  *
  * Every figure landed from photos is good to ±TOLERANCE_MM, and says so.
- * The method was cleared by the 216mm trial (EO7) recorded in TRIAL.
+ * The method was cleared by the 216mm trial (EO7) recorded in TRIAL. A part
+ * held as 'user-measured' must match its readings (photoReadings.test.ts).
  */
 
 import type { DimensionStatus } from '../src/parts/schema.js';
@@ -32,7 +33,23 @@ export interface PhotoReading {
   readonly fitResidualMm?: number;
 }
 
-export const PHOTO_READINGS: readonly PhotoReading[] = [];
+/*
+ * The T switch (2026-11-03): photos 84404 and 84405, each with the medium
+ * straight beside it. Along and out are the curved road's end measured from
+ * the heel along the straight and out from its centreline. Its fit residual
+ * is how far the whole-millimetre model, (108, 106), sits from the photos'
+ * agreed (108.50, 105.53): 0.69mm.
+ */
+const T_PHOTOS = [
+  { photo: '84404.jpg', throughMm: 216.43, alongMm: 108.5, outMm: 105.71 },
+  { photo: '84405.jpg', throughMm: 216.49, alongMm: 108.49, outMm: 105.34 },
+] as const;
+
+export const PHOTO_READINGS: readonly PhotoReading[] = T_PHOTOS.flatMap((p) => [
+  { partId: 'T', figure: 'throughMm', valueMm: p.throughMm, photo: p.photo, on: '2026-11-03' },
+  { partId: 'T', figure: 'curvedEndAlongMm', valueMm: p.alongMm, photo: p.photo, on: '2026-11-03', fitResidualMm: 0.69 },
+  { partId: 'T', figure: 'curvedEndOutMm', valueMm: p.outMm, photo: p.photo, on: '2026-11-03', fitResidualMm: 0.69 },
+]);
 
 /**
  * ±1mm, the owner's call after the 216mm trial (2026-11-03): what a photo

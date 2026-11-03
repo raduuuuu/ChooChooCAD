@@ -294,11 +294,13 @@ export function roadEnd(start: Frame, shape: RoadShape, plankWidthMm: number): F
   }
   const r = centrelineRadiusMm({ innerRadiusMm: shape.innerRadiusMm, plankWidthMm });
   const s = shape.arcSteps;
+  // A lead-in runs straight on first, then the arc starts where it stops.
+  const from = add(start.pos, scale(zetaPow(h), shape.leadMm ?? 0));
   const d =
     shape.side === 'left'
       ? scale(sub(zetaPow(4 + h), zetaPow(4 + h + s)), r)
       : scale(sub(zetaPow(4 + h - s), zetaPow(4 + h)), r);
-  return { pos: add(start.pos, d), heading: norm16(shape.side === 'left' ? h + s : h - s) };
+  return { pos: add(from, d), heading: norm16(shape.side === 'left' ? h + s : h - s) };
 }
 
 const ENTRY: Frame = { pos: ZERO, heading: 8 };

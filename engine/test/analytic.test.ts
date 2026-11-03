@@ -575,8 +575,8 @@ describe('the Generic piece registry is complete and honest', () => {
    * is a whole millimetre, and three reproductions put the arc at a 108
    * centreline. The rows and the parts must agree on that radius.
    */
-  it('T and X are exact at 88 inner, in the table and in the catalogue', () => {
-    for (const id of ['T', 'X']) {
+  it('X is exact at 88 inner, in the table and in the catalogue (T is measured, below)', () => {
+    for (const id of ['X']) {
       const row = GENERIC_PIECE_TABLE.find((r) => r.ids === id)!;
       expect(row.blocker, id).toBe('in-catalogue');
       expect(row.innerRadiusMm, id).toBe(88);
@@ -587,6 +587,29 @@ describe('the Generic piece registry is complete and honest', () => {
       expect(arcs.length, id).toBeGreaterThan(0);
       for (const r of arcs) expect(r, id).toBe(88);
     }
+  });
+
+  /*
+   * T IS MEASURED, NOT PRINTED (owner's photos, 2026-11-03). Two curves, one
+   * from each end of the straight, each a 2mm lead-in and a 86 inner arc.
+   *
+   * MUTATION PROOFS, run:
+   * - the second curve (road 1-2) removed fails with `expected [ [ +0, 1, { …(2) } ],
+   *   …(1) ] to deeply equal [ [ +0, 1, { …(2) } ], …(2) ]`.
+   * - the lead-in ignored in roadEnd (model.ts) fails multiRoad.test.ts with
+   *   `T road 0-2 left: expected false to be true`: the curve stops 2mm short.
+   */
+  it('T is the photographed piece: two curves, 2mm lead-ins, 86 inner', () => {
+    const row = GENERIC_PIECE_TABLE.find((r) => r.ids === 'T')!;
+    expect(row.innerRadiusMm).toBe(86);
+    const part = BUILT_IN.find((p) => p.id === 'T');
+    if (part?.kind !== 'multi-road') throw new Error('T is not a multi-road piece');
+    expect(part.dimensions.status).toBe('user-measured');
+    expect(part.roads.map((r) => [r.from, r.to, r.shape])).toEqual([
+      [0, 1, { kind: 'straight', lengthMm: 216 }],
+      [0, 2, { kind: 'arc', innerRadiusMm: 86, arcSteps: 4, side: 'left', leadMm: 2 }],
+      [1, 2, { kind: 'arc', innerRadiusMm: 86, arcSteps: 4, side: 'right', leadMm: 2 }],
+    ]);
   });
 
   it('the pieces that break the 18mm rule are recorded as such', () => {
@@ -611,7 +634,8 @@ describe('multi-brand catalogue provenance', () => {
     for (const p of BUILT_IN) {
       expect(p.dimensions, p.id).toBeDefined();
       expect(p.dimensions.source.length, p.id).toBeGreaterThan(10);
-      expect(['published', 'community-measured', 'unverified']).toContain(p.dimensions.status);
+      // 'user-measured' only from the owner's photos, each matched to its readings in photoReadings.test.ts.
+      expect(['published', 'community-measured', 'unverified', 'user-measured']).toContain(p.dimensions.status);
     }
   });
 
@@ -626,7 +650,8 @@ describe('multi-brand catalogue provenance', () => {
         // IKEA Lillabo or Lidl Playtive, or a Generic switch's diverging leg. If
         // that ever changes, upgrade the part and this assertion changes with
         // it, deliberately.
-        expect(isUnverified(p), p.id).toBe(true);
+        // Or measured from the owner's photos since (photoReadings.ts), deliberately.
+        expect(isUnverified(p) || p.dimensions.status === 'user-measured', p.id).toBe(true);
       }
     }
   });

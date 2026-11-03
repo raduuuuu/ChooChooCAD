@@ -306,24 +306,34 @@ export const MULTI_ROAD_SEEDS: readonly MultiRoadPart[] = [
   ySwitch('P', 'Y switch, peg heel', 'peg', 'switch_short_curved_p'),
   {
     id: 'T', brand: 'GENERIC', kind: 'multi-road', name: 'T switch',
-    // A 216 straight and a quarter circle at a 108 centreline: 108 * (1 + zeta^4).
+    /*
+     * MEASURED FROM THE OWNER'S PHOTOS (2026-11-03, photoReadings.ts): a 216
+     * straight, and from EACH end of it a 2mm lead-in and a quarter circle
+     * at a 106 centreline (86 inner) down to the side socket at (108, 106).
+     * The printed reproduction this replaced had one arc at a 108 centreline,
+     * ending at (108, 108): 2.5mm off the real piece, and missing the second
+     * curve, so a train from the straight road's end could not branch.
+     */
     ports: [
       { at: { pos: ORIGIN, heading: 8 }, polarity: 'socket', name: 'heel', kind: 'heel' },
       { at: { pos: xy(216, 0), heading: 0 }, polarity: 'peg', name: 'straight road' },
-      { at: { pos: xy(108, 108), heading: 4 }, polarity: 'socket', name: 'curved road' },
+      { at: { pos: xy(108, 106), heading: 4 }, polarity: 'socket', name: 'curved road' },
     ],
     roads: [
       { from: 0, to: 1, shape: { kind: 'straight', lengthMm: 216 } },
-      { from: 0, to: 2, shape: { kind: 'arc', innerRadiusMm: 88, arcSteps: 4, side: 'left' } },
+      { from: 0, to: 2, shape: { kind: 'arc', innerRadiusMm: 86, arcSteps: 4, side: 'left', leadMm: 2 } },
+      { from: 1, to: 2, shape: { kind: 'arc', innerRadiusMm: 86, arcSteps: 4, side: 'right', leadMm: 2 } },
     ],
-    sizeLabel: 'r108',
+    sizeLabel: 'r106',
     flip: BRANCH,
-    dimensions: reproduction(
-      'a printed reproduction (T-Switch 216mm)',
-      'Ends at (216, 0) and (108, 108) heading 90 to 0.1mm: a 108 centreline (88 inner). Two other ' +
-        'printed models put the arc in the same place but disagree on polarity (all ' +
-        "sockets; socket, socket, peg); the reproduction's socket heel, peg straight and socket arc are used.",
-    ),
+    dimensions: {
+      status: 'user-measured',
+      source: "the owner's photographs",
+      note:
+        'Two photos on millimetre paper, 2026-11-03, each figure within 0.5mm across them: through 216.46, ' +
+        'curved end 108.50 along and 105.53 out, square. Held as whole millimetres: 216, a 2mm lead-in and a ' +
+        '106 centreline on each curve, the curved end at (108, 106), 0.69mm from the photos. Good to 1mm.',
+    },
     slop: ESTIMATED_SLOP, ...PROFILE,
   },
   /*
