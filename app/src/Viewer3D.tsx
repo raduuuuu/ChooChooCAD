@@ -238,6 +238,10 @@ export function syncScene(group: Group, arrays: SceneArrays, c: SceneColors, dpr
     add(lines(arrays.slab.outline.positions, arrays.slab.overhang ? c.fail : c.inkSoft, OUTLINE_PX), 1);
   }
   add(new Mesh(geometryOf(arrays.footprints), flat(c.trackShadow)), 1);
+  // Structures (design decision 7): matte boxes in the slab's side colour, roofs as an outline and a rim.
+  add(new Mesh(geometryOf(arrays.structures.solid), flat(c.slabSide)), 1);
+  add(new Mesh(geometryOf(arrays.structures.rim), flat(c.slabSide)), 1);
+  if (arrays.structures.edges.positions.length > 0) add(lines(arrays.structures.edges.positions, c.inkSoft, OUTLINE_PX), 2);
   // In build mode what is down is muted, so the next piece carries the weight (D42).
   const next = arrays.next;
   add(new Mesh(geometryOf(arrays.plankSide), flat(next ? c.trackShadow : c.trackEdge)), 2);

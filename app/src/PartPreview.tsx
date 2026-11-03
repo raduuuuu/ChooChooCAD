@@ -5,9 +5,12 @@
  * `currentColor`, so it takes the card's text colour in every state (3A).
  */
 
+import { useId } from 'react';
 import { PREVIEW_H, PREVIEW_W, type Preview } from './previewGeometry.js';
 
 export function PartPreview({ preview }: { readonly preview: Preview | null }) {
+  const hatch = `hatch${useId().replace(/:/g, '')}`;
+  const roofs = preview?.bodies.filter((b) => b.roof) ?? [];
   return (
     <svg
       className="part-preview"
@@ -19,6 +22,17 @@ export function PartPreview({ preview }: { readonly preview: Preview | null }) {
     >
       {preview && (
         <>
+          {roofs.length > 0 && (
+            <defs>
+              <pattern id={hatch} width={3} height={3} patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <line className="part-preview-hatch" x1={0} y1={0} x2={0} y2={3} />
+              </pattern>
+            </defs>
+          )}
+          {/* A footprint or a wall: a thin ink outline under the road (decision 2). */}
+          {preview.bodies.filter((b) => !b.roof).map((b, i) => (
+            <polygon key={`b${i}`} className="part-preview-body" points={b.points} />
+          ))}
           {/*
             * The plank as two strokes, a wide ink one under a narrower paper
             * one: an outline without end-cap geometry, and roads that cross
@@ -32,6 +46,10 @@ export function PartPreview({ preview }: { readonly preview: Preview | null }) {
               <path key={`f${i}`} className="part-preview-plank" d={d} />
             ))}
           </g>
+          {/* A roof: hatched over the road it covers, so the road still shows. */}
+          {roofs.map((b, i) => (
+            <polygon key={`r${i}`} className="part-preview-body" points={b.points} style={{ fill: `url(#${hatch})` }} />
+          ))}
           {preview.beam && (
             <rect
               className="part-preview-beam"

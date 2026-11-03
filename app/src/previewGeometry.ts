@@ -20,7 +20,7 @@ import { BUILT_IN } from '../../engine/data/library.js';
 import type { Segment } from '../../engine/src/geom/fk.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Graph, type Piece } from '../../engine/src/graph/model.js';
-import { renderGraph } from '../../engine/src/graph/render.js';
+import { bodyCorners, renderGraph } from '../../engine/src/graph/render.js';
 import type { Part, Polarity } from '../../engine/src/parts/schema.js';
 import { segmentPath } from './trackPath.js';
 
@@ -46,6 +46,11 @@ export interface Preview {
   readonly beam?: { readonly x: number; readonly y: number; readonly deg: number };
   /** A ramp's chevron: the middle of the ramp, pointing up the slope, in box pixels. */
   readonly chevron?: { readonly x: number; readonly y: number; readonly deg: number };
+  /**
+   * Wood that is not track (structures, design decision 2): each body box as
+   * an SVG polygon's points in box pixels, a roof drawn hatched over the road.
+   */
+  readonly bodies: ReadonlyArray<{ readonly points: string; readonly roof: boolean }>;
 }
 
 /** Points along a segment's centreline, enough to bound its arcs. */
@@ -81,7 +86,11 @@ export function previewOf(part: Part): Preview {
   const graph: Graph = { pieces: [{ pieceId: 'p', partId: part.id, turn: 'left' }], welds: [] };
   const drawn = renderGraph(graph, ports, resolve, placeAll(graph, ports));
 
-  const pts = [...drawn.segments.flatMap(sample), ...drawn.ports.map((p) => [p.x, p.y] as const)];
+  const pts = [
+    ...drawn.segments.flatMap(sample),
+    ...drawn.ports.map((p) => [p.x, p.y] as const),
+    ...drawn.bodies.flatMap(bodyCorners),
+  ];
   if (pts.length === 0) throw new Error(`${part.id} draws nothing`);
   const xs = pts.map((p) => p[0]);
   const ys = pts.map((p) => p[1]);
@@ -106,6 +115,10 @@ export function previewOf(part: Part): Preview {
     transform: `translate(${PREVIEW_W / 2 - cx * k}, ${PREVIEW_H / 2 + cy * k}) scale(${k}, ${-k})`,
     roads: drawn.segments.map(segmentPath),
     ends: drawn.ports.map((p) => ({ ...px(p.x, p.y), polarity: p.polarity })),
+    bodies: drawn.bodies.map((b) => ({
+      points: bodyCorners(b).map(([x, y]) => { const q = px(x, y); return `${q.x},${q.y}`; }).join(' '),
+      roof: b.body === 'roof',
+    })),
     ...(stop ? { beam: { ...px(stop.to.x, stop.to.y), deg: deg(stop) } } : {}),
     ...(ramp
       ? {

@@ -456,6 +456,7 @@ export function pictureOf(items: readonly BuildItem[], i: number, scene: SceneIn
   const input: SceneInput = {
     ...scene,
     segments: scene.segments.filter((s) => s.pieceId !== undefined && down.has(s.pieceId)),
+    ...(scene.bodies ? { bodies: scene.bodies.filter((b) => b.pieceId !== undefined && down.has(b.pieceId)) } : {}),
     ports: scene.ports.filter((p) => down.has(p.pieceId)),
     welds: scene.welds.filter((w) => down.has(w.a.pieceId) && down.has(w.b.pieceId)),
     marks,

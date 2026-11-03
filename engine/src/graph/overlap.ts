@@ -249,7 +249,7 @@ function planksSharingArea(
     const hi = lo + (s.rise ?? 0);
     const body = s.body !== undefined;
     for (const q of plankQuads(s, s.halfWidthMm ?? plankHalfWidth(s.partId), s.pieceId)) {
-      quads.push({ ...q, lo, hi, body });
+      quads.push(quad(q.pieceId, q.pts, lo, hi, body));
     }
   }
 

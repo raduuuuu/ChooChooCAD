@@ -241,7 +241,24 @@ function sBend(
   ];
 }
 
-/** Bounds over rendered ports, which is every extremity a layout has. */
+/**
+ * A body box's four corners, in millimetres: its centreline (a straight from
+ * one end of the box to the other) widened `halfWidthMm` either side, in
+ * order round the box.
+ */
+export function bodyCorners(s: Segment): Array<readonly [number, number]> {
+  const w = s.halfWidthMm ?? 0;
+  const nx = -Math.sin(s.from.h) * w;
+  const ny = Math.cos(s.from.h) * w;
+  return [
+    [s.from.x + nx, s.from.y + ny],
+    [s.to.x + nx, s.to.y + ny],
+    [s.to.x - nx, s.to.y - ny],
+    [s.from.x - nx, s.from.y - ny],
+  ];
+}
+
+/** Bounds over rendered ports, which is every extremity a layout has, and every body's corners. */
 export function renderBounds(r: GraphRender): {
   minX: number;
   minY: number;
@@ -266,6 +283,8 @@ export function renderBounds(r: GraphRender): {
     consider(s.from.x, s.from.y);
     consider(s.to.x, s.to.y);
   }
+  // A pier has no ends at all: its body is its only extent.
+  for (const b of r.bodies) for (const [x, y] of bodyCorners(b)) consider(x, y);
   if (!Number.isFinite(minX)) return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
   return { minX, minY, maxX, maxY };
 }

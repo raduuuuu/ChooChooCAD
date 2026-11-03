@@ -118,8 +118,9 @@ export function describeAction(
     const part = resolve(piece.partId);
     const joinedBy = next.graph.welds.find((w) => w.a.pieceId === id || w.b.pieceId === id);
     const by = joinedBy ? (joinedBy.a.pieceId === id ? joinedBy.a.port : joinedBy.b.port) : 0;
-    // It climbs when it went on by its low end, whichever face is up.
-    const lowEndIn = levelOf(portsOfPiece(piece)[by]!.at) === 0;
+    // It climbs when it went on by its low end, whichever face is up. A pier has no end at all.
+    const end = portsOfPiece(piece)[by];
+    const lowEndIn = end !== undefined && levelOf(end.at) === 0;
     const own =
       part.kind === 'straight' && part.rise !== undefined
         ? lowEndIn
@@ -140,6 +141,8 @@ export function describeAction(
         (w) => w.a.pieceId === piece.pieceId || w.b.pieceId === piece.pieceId,
       );
       const head = `Added piece ${n}, ${part.name} (${shortCode(part)})`;
+      // A pier starts no run: nothing joins it (design decision 3).
+      if (portsOfPiece(piece).length === 0) return `${head}.`;
       if (!joint) return `${head}, starting a new run.${levels(piece.pieceId)}`;
       const other = joint.a.pieceId === piece.pieceId ? joint.b : joint.a;
       return `${head}, joined to ${where(next.graph, other)}${withAdapter(next.graph, joint)}.${closed(piece.pieceId)}${levels(piece.pieceId)}`;
@@ -156,6 +159,7 @@ export function describeAction(
         (w) => w.a.pieceId === piece.pieceId || w.b.pieceId === piece.pieceId,
       );
       const head = `Added piece ${n}, ${part.name} (${shortCode(part)})`;
+      if (portsOfPiece(piece).length === 0) return `${head}.`;
       if (joints.length === 0) return `${head}, starting a new run.${levels(piece.pieceId)}`;
       const other = joints[0]!.a.pieceId === piece.pieceId ? joints[0]!.b : joints[0]!.a;
       return `${head}, joined to ${where(next.graph, other)}${withAdapter(next.graph, joints[0]!)}.${closed(piece.pieceId)}${levels(piece.pieceId)}`;

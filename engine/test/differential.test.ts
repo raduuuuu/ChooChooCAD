@@ -14,7 +14,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { BUILT_IN, makeResolver } from '../data/library.js';
+import { BUILT_IN, makeResolver, isStructure } from '../data/library.js';
 import { magnitude } from '../src/geom/cyclotomic.js';
 import { placeAll, residuals } from '../src/graph/frames.js';
 import { graphFromChain } from '../src/graph/fromChain.js';
@@ -73,7 +73,7 @@ function viaGraph(layout: Layout) {
  * Ramps get their own seeded enumeration in levels.test.ts.
  */
 const Generic = BUILT_IN.filter(
-  (p) => p.brand === 'GENERIC' && (p.kind === 'straight' || p.kind === 'curve') && !(p.kind === 'straight' && p.rise),
+  (p) => p.brand === 'GENERIC' && (p.kind === 'straight' || p.kind === 'curve') && !(p.kind === 'straight' && p.rise) && !isStructure(p),
 ).map((p) => p.id);
 
 /** Deterministic, so a failure is reproducible from the seed alone. */

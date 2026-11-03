@@ -47,6 +47,7 @@ import {
   hasFlip,
   rotateCycle,
   weldEnds,
+  woodOf,
   type Fit,
   type FitGeometry,
 } from './layoutModel.js';
@@ -425,7 +426,8 @@ function ghostAt(graph: Graph, ports: PortsOf, partId: string, at: PortRef, turn
  * beside the track when every end is joined.
  */
 function newGhost(state: EditorState, partId: string, ports: PortsOf, geometry?: FitGeometry): Ghost {
-  const at = stillFree(state.graph, state.cursor);
+  // A piece with no ends (a pier) clips onto nothing: its preview stands free (design 3A, eng EO2).
+  const at = portCountOf(ports, partId, 'left') === 0 ? null : stillFree(state.graph, state.cursor);
   if (at) return ghostAt(state.graph, ports, partId, at, null);
   const frame =
     state.graph.pieces.length === 0 ? IDENTITY : nextRunAnchor(state.graph, ports, placementOf(state.graph, ports, geometry), drawnOf(state.graph, geometry)?.ports);
@@ -494,7 +496,7 @@ function drawnOf(graph: Graph, geometry?: FitGeometry): GraphRender | undefined 
 /** `geometry` with App's segments for `graph` when it has them, so the wood check draws nothing again. */
 function withSegments(graph: Graph, geometry?: FitGeometry): FitGeometry | undefined {
   const drawn = drawnOf(graph, geometry);
-  return geometry && drawn && !geometry.segments ? { ...geometry, segments: drawn.segments } : geometry;
+  return geometry && drawn && !geometry.segments ? { ...geometry, segments: woodOf(drawn) } : geometry;
 }
 
 function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry?: FitGeometry): EditorState {
@@ -503,8 +505,8 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
       const count = portCountOf(ports, action.partId, action.turn);
       // Reads the cursor it is HANDED, never one in scope. This is the
       // line the eight-runs regression test pins.
-      // At a free cursor, the same default as the preview (defaultFit).
-      const at = stillFree(state.graph, state.cursor);
+      // At a free cursor, the same default as the preview (defaultFit). A piece with no ends never joins it.
+      const at = count === 0 ? null : stillFree(state.graph, state.cursor);
       const next = addPiece(
         state.graph,
         action.partId,
@@ -527,9 +529,11 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
       // The add welds the cursor's port, so an end armed on it is now stale.
       return {
         graph: placed.graph,
-        cursor: stillFree(placed.graph, next.select) ?? resumeCursor(placed.graph, ports),
+        cursor: count === 0 ? stillFree(placed.graph, state.cursor) : stillFree(placed.graph, next.select) ?? resumeCursor(placed.graph, ports),
         armed: stillFree(placed.graph, state.armed),
         ghost: null,
+        // A pier lands selected, to be moved, as Place leaves it (design 3A).
+        ...(count === 0 ? { selected: placed.graph.pieces[placed.graph.pieces.length - 1]!.pieceId } : {}),
         ...remember(state, placed.joined > 0 ? 'placeJoin' : 'place'),
       };
     }
@@ -576,13 +580,15 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
       const next = g.at
         ? addPiece(state.graph, g.partId, g.turn, count, g.at, ports, { port: g.port, turn: g.turn })
         : addPiece(state.graph, g.partId, g.turn, count, null, ports, { port: 0, turn: g.turn }, g.frame!);
-      const placed = autoJoin(next.graph, ports, next.graph.pieces[next.graph.pieces.length - 1]!.pieceId);
+      const newId = next.graph.pieces[next.graph.pieces.length - 1]!.pieceId;
+      const placed = autoJoin(next.graph, ports, newId);
       return {
         graph: placed.graph,
         // A join can consume the far end the cursor would go to (Codex, OV5).
-        cursor: stillFree(placed.graph, next.select) ?? resumeCursor(placed.graph, ports),
+        // A piece with no ends (a pier) leaves the cursor where it was and stays selected, to be moved (design 3A).
+        cursor: count === 0 ? stillFree(placed.graph, state.cursor) : stillFree(placed.graph, next.select) ?? resumeCursor(placed.graph, ports),
         armed: null,
-        selected: null,
+        selected: count === 0 ? newId : null,
         ghost: null,
         ...remember(state, placed.joined > 0 ? 'placeJoin' : 'place'),
       };

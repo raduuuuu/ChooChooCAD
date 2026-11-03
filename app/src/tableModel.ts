@@ -77,7 +77,8 @@ export function trackExtent(
     if (y > maxY) maxY = y;
   };
   for (const s of segments) {
-    const half = plankHalfWidth(s.partId);
+    // A body (a station's footprint, a pier) carries its own width.
+    const half = s.halfWidthMm ?? plankHalfWidth(s.partId);
     if (s.kind === 'straight') {
       for (const p of [s.from, s.to]) {
         const nx = -Math.sin(p.h) * half;

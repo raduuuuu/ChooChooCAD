@@ -35,6 +35,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState , type Reac
 import {
   BUILT_IN,
   droppedSubmissionsNotice,
+  isStructure,
   loadSubmissionsResult,
   makeResolver,
   resolveLibrary,
@@ -81,7 +82,7 @@ import { previews } from './previewGeometry.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
 import { JoinStart, VerdictLine, VerdictScope } from './VerdictLine.js';
 import { markLists } from './markLists.js';
-import { EMPTY_GRAPH, ghostFit, joinRefusal, otherLevelEndNear, shiftMm, snapRunMove, type JoinRefusal } from './layoutModel.js';
+import { EMPTY_GRAPH, ghostFit, joinRefusal, otherLevelEndNear, shiftMm, snapRunMove, woodOf, type JoinRefusal } from './layoutModel.js';
 import { ghostKeys } from './ghostKeys.js';
 import { InventoryPanel } from './Inventory.js';
 import { TablePanel } from './TablePanel.js';
@@ -152,8 +153,11 @@ function paletteSize(part: Part): string {
   return part.sizeLabel;
 }
 const isRamp = (p: Part) => p.kind === 'straight' && p.rise !== undefined;
+/** What a structure carries, in the floor/raised words (design decision 2, rule 7). */
+const structureUse = (p: Part): string =>
+  p.kind === 'block' ? 'No track connections' : p.kind === 'straight' && p.deck !== undefined ? 'Raised road' : 'Floor road';
 const partsByBrand = (lib: readonly Part[], b: Brand) => {
-  const own = lib.filter((p) => p.brand === b);
+  const own = lib.filter((p) => p.brand === b && !isStructure(p));
   const ramps = own.filter(isRamp);
   const flat = own.filter((p) => !isRamp(p));
   const at = flat.findIndex((p) => p.id === 'D');
@@ -231,6 +235,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
       ? droppedSubmissionsNotice(submissionsLoad.value.length, submissionsLoad.dropped)
       : undefined);
   const library = useMemo(() => resolveLibrary(submissions), [submissions]);
+  const structures = useMemo(() => library.filter(isStructure), [library]);
   const resolve = useMemo(() => makeResolver(library), [library]);
   // Each card's drawing, rebuilt when the library is (eng D1: a correction keeps the id).
   const partPreviews = useMemo(() => previews(library), [library]);
@@ -603,6 +608,8 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     [graph, ports, resolve, placement],
   );
 
+  // What the canvas and 3D count against their ceiling: track and bodies (eng EO6).
+  const woodCount = render.segments.length + render.bodies.length;
 
   /*
    * ONE MAP, NOT A SCAN PER CALL. This passed a callback that did
@@ -672,7 +679,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
    */
   const tableView = useMemo(() => {
     if (table === null) return null;
-    const extent = trackExtent(drawn.segments, (id) => resolve(id).plankWidthMm / 2);
+    const extent = trackExtent([...drawn.segments, ...drawn.bodies], (id) => resolve(id).plankWidthMm / 2);
     if (extent === null) return null;
     const fit = tableFit(extent, table);
     return { outline: fit.outline, fits: fit.fits, note: fitSentence(fit, table) };
@@ -989,7 +996,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             },
             graph.welds,
             drawn.ports,
-            render.segments.length <= CANVAS_SEGMENT_CEILING,
+            woodCount <= CANVAS_SEGMENT_CEILING,
           )
         : null,
     [result, graph, drawn, render, shifts],
@@ -1015,6 +1022,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     const partOf = new Map(graph.pieces.map((p) => [p.pieceId, p.partId]));
     return {
       segments: drawn.segments,
+      bodies: drawn.bodies,
       ports: drawn.ports,
       welds: graph.welds,
       partOf: (id) => resolve(partOf.get(id)!),
@@ -1039,7 +1047,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     if (!building) return null;
     const { riseMm, plankMm } = clearance(MEASUREMENTS);
     const partOf = new Map(graph.pieces.map((p) => [p.pieceId, p.partId]));
-    return { segments: drawn.segments, ports: drawn.ports, welds: graph.welds, partOf: (id) => resolve(partOf.get(id)!), riseMm, plankMm };
+    return { segments: drawn.segments, bodies: drawn.bodies, ports: drawn.ports, welds: graph.welds, partOf: (id) => resolve(partOf.get(id)!), riseMm, plankMm };
   }, [building, drawn, graph, resolve]);
   const exitBuild = useCallback(() => {
     leftBuild.current = true;
@@ -1060,7 +1068,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
   // Adapter joints a red mark hides, said in the note (DR1). None above the
   // ceiling: there the canvas already says nothing is drawn.
   const adaptersUnmarked =
-    result && render.segments.length <= CANVAS_SEGMENT_CEILING
+    result && woodCount <= CANVAS_SEGMENT_CEILING
       ? result.adapterJoints.length - adapterMarks.length
       : 0;
 
@@ -1070,7 +1078,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
    * `badJoints` gives.
    */
   const seams = useMemo(() => {
-    if (render.segments.length > CANVAS_SEGMENT_CEILING) return [];
+    if (woodCount > CANVAS_SEGMENT_CEILING) return [];
     const partOf = new Map(graph.pieces.map((p) => [p.pieceId, p.partId]));
     const refused = new Set(result ? result.polarityViolations.map((v) => v.weld) : []);
     return seamLines(
@@ -1099,12 +1107,26 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     const mine = component.get(selected);
     return new Set(graph.pieces.map((p) => p.pieceId).filter((id) => component.get(id) === mine));
   }, [graph, selected]);
+  const selectedPiece = selected === null ? undefined : graph.pieces.find((p) => p.pieceId === selected);
+  const selectedPart = selectedPiece ? resolve(selectedPiece.partId) : undefined;
   const selectionStrip =
     selected !== null && graph.pieces.some((p) => p.pieceId === selected) ? (
       <div className="mode-strip" role="group" aria-label="Selected piece">
         <p className="mode-strip-text">
-          {canvasPieceName(selected)} · run of {selectedRun.size}{' '}
-          {selectedRun.size === 1 ? 'piece' : 'pieces'}
+          {/*
+            * A PIER (design decision 3): no ends, so no run to speak of. Just
+            * put down, the strip says how to move it; after that, its name.
+            */}
+          {selectedPart?.kind === 'block' ? (
+            lastStep(editor)?.kind === 'place' && graph.pieces[graph.pieces.length - 1]!.pieceId === selected
+              ? `${selectedPart.name} placed. Move it with the arrows, R to turn, or drag it.`
+              : canvasPieceName(selected)
+          ) : (
+            <>
+              {canvasPieceName(selected)} · run of {selectedRun.size}{' '}
+              {selectedRun.size === 1 ? 'piece' : 'pieces'}
+            </>
+          )}
           {editor.refusal && (
             /*
              * WHY A MOVE WAS REFUSED, until the next action (decision 6A). The
@@ -1172,7 +1194,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
    */
   const suggestions = useMemo(
     () =>
-      ghost || render.segments.length > CANVAS_SEGMENT_CEILING
+      ghost || woodCount > CANVAS_SEGMENT_CEILING
         ? []
         : joinSuggestions(drawn.ports, (a, b) => joinRefusal(sites, a, b) === null),
     [ghost, render, drawn, sites],
@@ -1190,7 +1212,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     const piece: GPiece = { pieceId: '\u0000ghost', partId: ghost.partId, turn: ghost.turn };
     const { frame, conflicts: found, joins, adapterHere, relevels } = ghostFit(graph, ports, ghost, placement, sites, {
       resolve,
-      segments: render.segments,
+      segments: woodOf(render),
     });
     const alone = { pieces: [piece], welds: [], anchors: new Map([[piece.pieceId, frame]]) };
     const own = placeAll(alone, ports);
@@ -1402,12 +1424,92 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
    * to show a preview on, and placing blind would put down a piece nobody
    * saw. Removing pieces in the layout list still works, as do Undo and Redo.
    */
-  const overLimit = render.segments.length > CANVAS_SEGMENT_CEILING;
+  const overLimit = woodCount > CANVAS_SEGMENT_CEILING;
 
   const counts = usedCounts(graph.pieces.map((p) => p.partId));
   const shortfalls = computeShortfalls(inventory, counts);
   const adaptersUsed = result ? result.adapterJoints.length : 0;
   const adapterShort = adapterShortfall(inventory, adaptersUsed);
+
+  /* One part's card in the palette. A structure's card adds what it is for and, while it is a guess, says so (design decision 2). */
+  const renderCard = (part: Part) => {
+            /*
+             * ADVICE, NEVER A GATE (decision D8).
+             *
+             * `is-unowned` greys the button and nothing else. It stays clickable,
+             * stays focusable, and carries no `disabled`, because a shortfall is
+             * information about the real world rather than an error in the
+             * layout: people borrow track, buy more, and sketch layouts they
+             * cannot build yet. Hiding or disabling the piece would teach the
+             * user nothing and read as a bug. `aria-describedby` is not used
+             * here either; the state is carried in the accessible name below so
+             * it is announced with the control rather than after it.
+             */
+            const unowned = wouldExceed(inventory, counts, part.id);
+            const unverified = isUnverified(part);
+            return (
+            <div
+              key={part.id}
+              className={
+                'piece' + (unowned ? ' is-unowned' : '') + (unverified ? ' is-unverified' : '')
+              }
+            >
+              <button
+                className="piece-main"
+                /*
+                 * One click PICKS: the piece appears where it would go, to be
+                 * turned and then placed (decision R3). A double-click, or
+                 * Shift+Enter, places it straight away in its first
+                 * orientation (decision 9A), which is how eight clicks still
+                 * build a circle.
+                 */
+                {...(({ swallowsClick, ...h }) => ({
+                  ...h,
+                  onClick: (e: React.MouseEvent<HTMLButtonElement>) => {
+                    if (!swallowsClick()) pick(part.id, e.currentTarget);
+                  },
+                }))(paletteDrag(part.id))}
+                onDoubleClick={() => add(part.id, 'left')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.shiftKey) {
+                    e.preventDefault();
+                    add(part.id, 'left');
+                  }
+                }}
+                disabled={overLimit}
+                // The picked piece's button takes a touch drag (see usePaletteDrag).
+                data-picked={ghost?.partId === part.id ? '' : undefined}
+                // The pick is said, not only drawn: "pressed" while its ghost is out.
+                aria-pressed={ghost?.partId === part.id}
+                // The full code and name, which the card may cut short (11A, eng D5).
+                title={`${shortCode(part)} ${part.name}. Double-click to place directly`}
+                aria-label={[
+                  // The name, then each note as its own sentence.
+                  `Add ${part.name}${isRamp(part) || isStructure(part) || unverified || unowned ? '.' : ''}`,
+                  ...(isRamp(part) ? ['Climbs one level.'] : []),
+                  ...(isStructure(part) ? [`${structureUse(part)}.`] : []),
+                  ...(unverified ? ['Unverified size.'] : []),
+                  ...(unowned ? ['More than you own.'] : []),
+                ].join(' ')}
+              >
+                {/* The part's drawing, first in the row (1A); a ramp's chevron is in it (9A). */}
+                <PartPreview preview={partPreviews.get(part.id) ?? null} />
+                <span className="piece-id num">{shortCode(part)}</span>
+                {isStructure(part) ? (
+                  <span className="piece-name has-notes">
+                    <span className="piece-name-text">{part.name}</span>
+                    <span className="piece-note">{structureUse(part)}</span>
+                    {unverified && <span className="piece-note">Estimated size</span>}
+                  </span>
+                ) : (
+                  <span className="piece-name">{part.name}</span>
+                )}
+                <span className="piece-dim num">{paletteSize(part)}</span>
+              </button>
+              {counts[part.id] ? <span className="piece-count num">{counts[part.id]}</span> : null}
+            </div>
+            );
+  };
 
   /* One brand's shelf. Used twice: Generic inside the scrolling region, the
      rest pinned below it. See the comment at the call site. */
@@ -1462,76 +1564,19 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             </>
           )}
         <div className="palette-row">
-          {partsByBrand(library, brand).map((part) => {
-            /*
-             * ADVICE, NEVER A GATE (decision D8).
-             *
-             * `is-unowned` greys the button and nothing else. It stays clickable,
-             * stays focusable, and carries no `disabled`, because a shortfall is
-             * information about the real world rather than an error in the
-             * layout: people borrow track, buy more, and sketch layouts they
-             * cannot build yet. Hiding or disabling the piece would teach the
-             * user nothing and read as a bug. `aria-describedby` is not used
-             * here either; the state is carried in the accessible name below so
-             * it is announced with the control rather than after it.
-             */
-            const unowned = wouldExceed(inventory, counts, part.id);
-            const unverified = isUnverified(part);
-            return (
-            <div
-              key={part.id}
-              className={
-                'piece' + (unowned ? ' is-unowned' : '') + (unverified ? ' is-unverified' : '')
-              }
-            >
-              <button
-                className="piece-main"
-                /*
-                 * One click PICKS: the piece appears where it would go, to be
-                 * turned and then placed (decision R3). A double-click, or
-                 * Shift+Enter, places it straight away in its first
-                 * orientation (decision 9A), which is how eight clicks still
-                 * build a circle.
-                 */
-                {...(({ swallowsClick, ...h }) => ({
-                  ...h,
-                  onClick: (e: React.MouseEvent<HTMLButtonElement>) => {
-                    if (!swallowsClick()) pick(part.id, e.currentTarget);
-                  },
-                }))(paletteDrag(part.id))}
-                onDoubleClick={() => add(part.id, 'left')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && e.shiftKey) {
-                    e.preventDefault();
-                    add(part.id, 'left');
-                  }
-                }}
-                disabled={overLimit}
-                // The picked piece's button takes a touch drag (see usePaletteDrag).
-                data-picked={ghost?.partId === part.id ? '' : undefined}
-                // The pick is said, not only drawn: "pressed" while its ghost is out.
-                aria-pressed={ghost?.partId === part.id}
-                // The full code and name, which the card may cut short (11A, eng D5).
-                title={`${shortCode(part)} ${part.name}. Double-click to place directly`}
-                aria-label={[
-                  // The name, then each note as its own sentence.
-                  `Add ${part.name}${isRamp(part) || unverified || unowned ? '.' : ''}`,
-                  ...(isRamp(part) ? ['Climbs one level.'] : []),
-                  ...(unverified ? ['Unverified size.'] : []),
-                  ...(unowned ? ['More than you own.'] : []),
-                ].join(' ')}
-              >
-                {/* The part's drawing, first in the row (1A); a ramp's chevron is in it (9A). */}
-                <PartPreview preview={partPreviews.get(part.id) ?? null} />
-                <span className="piece-id num">{shortCode(part)}</span>
-                <span className="piece-name">{part.name}</span>
-                <span className="piece-dim num">{paletteSize(part)}</span>
-              </button>
-              {counts[part.id] ? <span className="piece-count num">{counts[part.id]}</span> : null}
-            </div>
-            );
-          })}
+          {partsByBrand(library, brand).map(renderCard)}
         </div>
+        {/*
+          * STRUCTURES, after every track group (design decision 2): wood that
+          * is not track, so it is not mixed in with the pieces a run is built
+          * from.
+          */}
+        {brand === 'GENERIC' && structures.length > 0 && (
+          <>
+            <h3 className="palette-subhead">Structures</h3>
+            <div className="palette-row">{structures.map(renderCard)}</div>
+          </>
+        )}
     </BrandGroup>
   );
 
@@ -1573,7 +1618,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
           />
         }
         verdictPass={verdictView.kind === 'EXACT' || verdictView.kind === 'NEEDS_GIVE'}
-        segmentCount={render.segments.length}
+        segmentCount={woodCount}
         ceiling={CANVAS_SEGMENT_CEILING}
         allSaved={allSaved}
         onExit={exitBuild}
@@ -1606,7 +1651,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
           <View3DPanel
             input={sceneInput}
             pieceCount={n}
-            segmentCount={render.segments.length}
+            segmentCount={woodCount}
             ceiling={CANVAS_SEGMENT_CEILING}
             allSaved
             emptyAction={null}
@@ -1685,7 +1730,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
           <View3DPanel
             input={sceneInput}
             pieceCount={graph.pieces.length}
-            segmentCount={render.segments.length}
+            segmentCount={woodCount}
             ceiling={CANVAS_SEGMENT_CEILING}
             allSaved={allSaved}
             emptyAction={emptyAction}

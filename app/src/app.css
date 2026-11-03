@@ -206,6 +206,16 @@
 .piece-selected-halo { stroke: var(--paper); stroke-width: 7; }
 .piece-selected { stroke: var(--ink); stroke-width: 3; }
 .piece-run { stroke: var(--ink-soft); stroke-width: 1; }
+/*
+ * WOOD THAT IS NOT TRACK (structures, design decision 1): a footprint or a
+ * wall is a flat slab in the 3D view's side colour with a 1px --ink-soft
+ * edge; a roof is an ink hatch with no fill, so the deck over it and the
+ * road under it both show. Neither takes a click: the piece's own target does.
+ */
+.body,
+.body-roof { stroke: var(--ink-soft); stroke-width: 1; vector-effect: non-scaling-stroke; pointer-events: none; }
+.body { fill: var(--slab-side); }
+.roof-hatch { stroke: var(--ink-soft); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .piece-label {
   font-size: 13px;
   fill: var(--ink);
@@ -731,6 +741,16 @@
   max-width: 10ch; overflow: hidden; text-overflow: ellipsis;
 }
 .piece-name { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/*
+ * A STRUCTURE'S CARD (design decision 2): the name, then what it carries
+ * ('Raised road') and, while nobody has photographed one, 'Estimated size',
+ * each a 12px data line in --ink-soft under the name.
+ */
+.piece-name.has-notes { display: flex; flex-direction: column; white-space: normal; }
+.piece-name-text,
+.piece-note { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.piece-note { font-size: 12px; color: var(--ink-soft); }
+.palette-subhead { margin: var(--s3) 0 var(--s1); font-size: 12px; font-weight: 600; color: var(--ink); }
 
 /*
  * THE PART'S DRAWING (docs/plan/2026-10-30-part-previews.md). Ink only (rule
@@ -745,6 +765,8 @@
 .part-preview-edge { stroke: currentColor; stroke-width: 9; }
 .part-preview-plank { stroke: var(--paper); stroke-width: 6; }
 .part-preview-beam { fill: currentColor; }
+.part-preview-body { fill: none; stroke: currentColor; stroke-width: 1; }
+.part-preview-hatch { stroke: currentColor; stroke-width: 0.75; }
 .part-preview-chevron { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
 /* The canvas's end marks (8A, rule 11): a peg filled, a socket a ring. */
 .part-preview-end.is-peg { fill: currentColor; }

@@ -229,9 +229,10 @@ describe('a rendered end knows whether it is a peg or a socket', () => {
           expect(rendered.polarity, `${part.id} port ${i}`).toBe(expected);
         });
         // The sweep reaches real heels (L, M, O1, P1) and the H crossing, so
-        // a multi-road piece's ends are checked here like any other.
+        // a multi-road piece's ends are checked here like any other. A pier
+        // (a block) has none.
         expect(r.ports, part.id).toHaveLength(
-          part.kind === 'multi-road' ? part.ports.length : part.kind === 'buffer' ? 1 : 2,
+          part.kind === 'multi-road' ? part.ports.length : part.kind === 'buffer' ? 1 : part.kind === 'block' ? 0 : 2,
         );
       }
     }

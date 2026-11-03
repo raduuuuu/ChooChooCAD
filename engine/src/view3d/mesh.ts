@@ -30,7 +30,7 @@
  */
 
 import type { FPose, Segment } from '../geom/fk.js';
-import type { RenderedPort } from '../graph/render.js';
+import { bodyCorners, type RenderedPort } from '../graph/render.js';
 import type { Part } from '../parts/schema.js';
 
 /** Triangles: xyz per vertex, three indices per triangle. */
@@ -95,6 +95,8 @@ export interface SceneInput {
   readonly table?: { readonly outline: readonly (readonly [number, number])[]; readonly overhang: boolean } | null;
   /** Build mode's next piece (D23): drawn into `next`, and every other piece without grooves (D42). */
   readonly highlight?: string;
+  /** Wood that is not track (`GraphRender.bodies`, bent like the segments): footprints, walls, roofs. */
+  readonly bodies?: readonly Segment[];
 }
 
 export interface SceneArrays {
@@ -112,6 +114,13 @@ export interface SceneArrays {
   readonly bounds: Box;
   /** Each piece's own box, for framing a build step on the next piece (D17, D34). */
   readonly pieceBounds: ReadonlyMap<string, Box>;
+  /**
+   * Structures (plan 2026-11-02, design decision 7): footprints and walls as
+   * solid boxes, each as tall as the levels it blocks; a roof as its top's
+   * outline and a thin rim, so the deck or road under it stays in view; and
+   * every box's edges as lines.
+   */
+  readonly structures: { readonly solid: Mesh; readonly rim: Mesh; readonly edges: Lines };
   /** The highlighted piece, apart from the rest, with its top's outline (D42). Null without `highlight`. */
   readonly next: { readonly top: Mesh; readonly side: Mesh; readonly grooves: Mesh; readonly beams: Mesh; readonly edge: Lines } | null;
 }
@@ -131,6 +140,8 @@ export const SLAB_NOMINAL_MM = 20;
 export const SEAM_OVERHANG_MM = 4;
 /** A footprint sits this far above the floor, so it never fights the slab top for depth. */
 export const FOOTPRINT_LIFT_MM = 0.1;
+/** How deep a roof's rim hangs below its top, mm. Drawn, not measured: a roof is an outline. */
+export const ROOF_RIM_MM = 4;
 /** The largest turn between two cross-sections of a curve: 3.75 degrees. */
 export const ARC_STEP_RAD = Math.PI / 48;
 
@@ -400,6 +411,51 @@ export function buildScene(input: SceneInput): SceneArrays {
     }
   }
 
+  /*
+   * STRUCTURES. A body blocks the levels from its own up to the top of its
+   * last, so it is drawn that tall: a pier from the floor to the underside
+   * of the track it carries, a station's footprint up to its deck.
+   */
+  const solid = new Builder();
+  const rim = new Builder();
+  const bodyEdges: number[] = [];
+  for (const b of input.bodies ?? []) {
+    if (b.pieceId !== undefined) {
+      boxOf = pieceBox.get(b.pieceId) ?? { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
+      pieceBox.set(b.pieceId, boxOf);
+    } else boxOf = null;
+    const lo = b.level ?? 0;
+    const zt = (lo + (b.rise ?? 0) + 1) * riseMm;
+    const c = bodyCorners(b);
+    const ring = (z: number) => c.map(([x, y]) => [x, y, z] as const);
+    const edgeLoop = (pts: readonly (readonly [number, number, number])[]) => {
+      for (let i = 0; i < pts.length; i++) bodyEdges.push(...pts[i]!, ...pts[(i + 1) % pts.length]!);
+    };
+    for (const [x, y] of c) grow(x, y, zt);
+    if (b.body === 'roof') {
+      const top = ring(zt);
+      const under = ring(zt - ROOF_RIM_MM);
+      for (let i = 0; i < 4; i++) {
+        const j = (i + 1) % 4;
+        rim.quad(rim.vertex(...under[i]!), rim.vertex(...under[j]!), rim.vertex(...top[j]!), rim.vertex(...top[i]!));
+      }
+      edgeLoop(top);
+      edgeLoop(under);
+      continue;
+    }
+    const zb = lo * riseMm;
+    for (const [x, y] of c) grow(x, y, zb);
+    const bottom = ring(zb).map((v) => solid.vertex(...v));
+    const top = ring(zt).map((v) => solid.vertex(...v));
+    solid.quad(top[0]!, top[1]!, top[2]!, top[3]!);
+    for (let i = 0; i < 4; i++) {
+      const j = (i + 1) % 4;
+      solid.quad(bottom[i]!, bottom[j]!, top[j]!, top[i]!);
+    }
+    edgeLoop(ring(zt));
+    for (const [x, y] of c) bodyEdges.push(x, y, zb, x, y, zt);
+  }
+
   // The table and the rest grow the scene's box, never the last piece's.
   boxOf = null;
 
@@ -479,6 +535,7 @@ export function buildScene(input: SceneInput): SceneArrays {
     grooves: mainGrooves.done(),
     beams: mainBeams.done(),
     footprints: footprints.done(),
+    structures: { solid: solid.done(), rim: rim.done(), edges: { positions: new Float32Array(bodyEdges) } },
     seams: { positions: new Float32Array(seamPos) },
     slab,
     marks,

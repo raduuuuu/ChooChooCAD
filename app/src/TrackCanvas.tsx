@@ -22,7 +22,7 @@ import type { JoinRefusal } from './layoutModel.js';
 import { memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { Segment } from '../../engine/src/geom/fk.js';
 import { onPlank } from '../../engine/src/graph/overlap.js';
-import { renderBounds, type GraphRender } from '../../engine/src/graph/render.js';
+import { bodyCorners, renderBounds, type GraphRender } from '../../engine/src/graph/render.js';
 import { useDragSession, type RunDrag } from './useDragSession.js';
 import type { CanvasProbe } from './usePaletteDrag.js';
 import type { Extent } from './tableModel.js';
@@ -164,6 +164,11 @@ const SHADOW_OFFSET_MM = 14;
  * end, where it touches the floor, to the full offset at its high end, so the
  * slope shows too. Depth, not hue: colour is spent only on verdicts (rule 1).
  */
+/** A body box (a footprint, a wall, a roof) as one closed path, in millimetres. */
+function bodyPath(b: Segment): string {
+  return `M ${bodyCorners(b).map(([x, y]) => `${x} ${y}`).join(' L ')} Z`;
+}
+
 function rampShadow(seg: Segment, half: number): string {
   /*
    * A FILLED QUAD, not a stroke along a slanted line: the stroke's square end
@@ -390,7 +395,9 @@ export function TrackCanvas({
   probe,
   table = null,
 }: TrackCanvasProps) {
-  const { segments, ports: renderedPorts } = render;
+  const { segments, ports: renderedPorts, bodies } = render;
+  // Everything drawn: a pier is wood with no track (plan 2026-11-02, eng EO6).
+  const drawnCount = segments.length + bodies.length;
   /*
    * THE SETTLE (share plan, design 15A): the ONE authored motion. A piece
    * that arrives on its own, placed from the palette or put back by Undo,
@@ -417,11 +424,11 @@ export function TrackCanvas({
    */
   const reach = ghost?.reach ?? 0;
   const box = useMemo(() => {
-    if (segments.length === 0 && ghost) return { minX: -500, minY: -300, maxX: 500, maxY: 300 };
+    if (drawnCount === 0 && ghost) return { minX: -500, minY: -300, maxX: 500, maxY: 300 };
     const b = renderBounds(render);
     const fit = { minX: b.minX - reach, minY: b.minY - reach, maxX: b.maxX + reach, maxY: b.maxY + reach };
     // A table bigger than the track widens the view so its whole outline shows.
-    if (!table || segments.length === 0) return fit;
+    if (!table || drawnCount === 0) return fit;
     const t = table.outline;
     return {
       minX: Math.min(fit.minX, t.minX),
@@ -429,7 +436,7 @@ export function TrackCanvas({
       maxX: Math.max(fit.maxX, t.maxX),
       maxY: Math.max(fit.maxY, t.maxY),
     };
-  }, [render, reach, segments.length, ghost !== null, table?.outline]);
+  }, [render, reach, drawnCount, ghost !== null, table?.outline]);
   const pad = 90;
   const w = Math.max(box.maxX - box.minX, 1) + pad * 2;
   const h = Math.max(box.maxY - box.minY, 1) + pad * 2;
@@ -551,8 +558,16 @@ export function TrackCanvas({
     for (const seg of segments) {
       if (seg.pieceId !== undefined && seen[seen.length - 1] !== seg.pieceId) seen.push(seg.pieceId);
     }
+    // A piece with no track (a pier) is reached by its body, after the track.
+    const has = new Set(seen);
+    for (const b of bodies) {
+      if (b.pieceId !== undefined && !has.has(b.pieceId)) {
+        has.add(b.pieceId);
+        seen.push(b.pieceId);
+      }
+    }
     return seen;
-  }, [segments]);
+  }, [segments, bodies]);
   const [focusId, setFocusId] = useState<string | null>(null);
   const pieceEls = useRef(new Map<string, SVGGElement>());
   const tabStop =
@@ -662,6 +677,7 @@ export function TrackCanvas({
    */
   // Unique per canvas: two canvases on a page must not share a mask.
   const casingMaskId = `casing-mask-${useId().replace(/:/g, '')}`;
+  const hatchId = `roof-hatch-${useId().replace(/:/g, '')}`;
   const [floorSegments, raisedSegments] = useMemo(
     () => [segments.filter((sg) => (sg.level ?? 0) < 1), segments.filter((sg) => (sg.level ?? 0) >= 1)] as const,
     [segments],
@@ -797,11 +813,11 @@ export function TrackCanvas({
       </div>
     </div>
   );
-  if (segments.length > CANVAS_SEGMENT_CEILING) {
+  if (drawnCount > CANVAS_SEGMENT_CEILING) {
     return framed(
       <div className="canvas-empty">
         <p className="canvas-empty-lead">
-          Too much track to draw: {segments.length.toLocaleString()} pieces.
+          Too much track to draw: {drawnCount.toLocaleString()} pieces.
         </p>
         <p className="canvas-empty-hint">
           The layout is still here and still checked, and the verdict applies
@@ -811,7 +827,7 @@ export function TrackCanvas({
     );
   }
 
-  if (segments.length === 0 && !ghost) {
+  if (drawnCount === 0 && !ghost) {
     return framed(
       <div className="canvas-empty">
         <p className="canvas-empty-lead">Nothing on the floor yet.</p>
@@ -884,6 +900,9 @@ export function TrackCanvas({
         */}
       {ghost.render.segments.map((seg, i) => shadowOf(seg, `ghost-shadow-${i}`))}
       <g className="ghost-wood">
+        {ghost.render.bodies.map((b, i) => (
+          <path key={`ghost-body-${i}`} d={bodyPath(b)} className={b.body === 'roof' ? 'body-roof' : 'body'} />
+        ))}
         <TrackLayers segments={ghost.render.segments} resolve={resolve} maxLayers={maxLayers} keyPrefix="ghost-" />
       </g>
       {ghost.render.segments.flatMap((seg, i) =>
@@ -891,6 +910,9 @@ export function TrackCanvas({
           <path key={`ghost-edge-${i}-${side}`} d={d} className="ghost-edge" />
         )),
       )}
+      {ghost.render.bodies.map((b, i) => (
+        <path key={`ghost-body-edge-${i}`} d={bodyPath(b)} className="ghost-edge" />
+      ))}
     </g>
   );
   const raisedHere = segments.some((seg) => (seg.level ?? 0) >= 1 || Boolean(seg.rise));
@@ -911,7 +933,16 @@ export function TrackCanvas({
               ...d.map((e, side) => <path key={`sel-halo-${i}-${side}`} d={e} className="piece-selected-halo" />),
               ...d.map((e, side) => <path key={`sel-${i}-${side}`} d={e} className="piece-selected" />),
             ];
-          });
+          })
+          .concat(
+            // A body: 3px ink all the way round it (design decision 3).
+            bodies
+              .filter((b) => b.pieceId === selected)
+              .flatMap((b, i) => [
+                <path key={`sel-body-halo-${i}`} d={bodyPath(b)} className="piece-selected-halo" />,
+                <path key={`sel-body-${i}`} d={bodyPath(b)} className="piece-selected" />,
+              ]),
+          );
   const levelLayer = (raised: boolean) => (
     <>
         {!raised && shadows()}
@@ -965,6 +996,23 @@ export function TrackCanvas({
           * by the seam layer's one thin line (decision 11A), not by this
           * accident of paint order.
           */}
+        {/*
+          * WOOD THAT IS NOT TRACK (design decision 1): a footprint or a wall
+          * as a flat slab under its level's track, a roof as an ink hatch
+          * under the raised track, so the deck it carries and the road it
+          * covers both still read. Order: floor bodies, floor track, roofs,
+          * raised track.
+          */}
+        {bodies.map((b, i) =>
+          ((b.level ?? 0) >= 1) !== raised || (b.pieceId !== undefined && hiddenRun?.has(b.pieceId)) ? null : (
+            <path
+              key={`body-${i}`}
+              d={bodyPath(b)}
+              className={b.body === 'roof' ? 'body-roof' : 'body'}
+              style={b.body === 'roof' ? { fill: `url(#${hatchId})` } : undefined}
+            />
+          ),
+        )}
         <TrackLayers segments={raised ? raisedSegments : floorSegments} resolve={resolve} maxLayers={maxLayers} hidden={hiddenRun} settling={settling} />
         {/*
           * THE RUN BEING DRAGGED (decision E6): the same wood, moved by one
@@ -980,6 +1028,11 @@ export function TrackCanvas({
             {/* Its shadows travel with it, under its wood (design review 2A, PR #46). */}
             {segments.map((sg, i) =>
               sg.pieceId !== undefined && hiddenRun!.has(sg.pieceId) ? shadowOf(sg, `drag-shadow-${i}`) : null,
+            )}
+            {bodies.map((b, i) =>
+              b.pieceId !== undefined && hiddenRun!.has(b.pieceId) ? (
+                <path key={`drag-body-${i}`} d={bodyPath(b)} className={b.body === 'roof' ? 'body-roof' : 'body'} />
+              ) : null,
             )}
             <TrackLayers
               segments={segments.filter((sg) => sg.pieceId !== undefined && hiddenRun!.has(sg.pieceId))}
@@ -1029,8 +1082,9 @@ export function TrackCanvas({
           */}
         {onPieceSelect &&
           pieceOrder.filter((id) => raisedPiece(id) === raised).map((id) => {
-            const segs = segments.filter((seg) => seg.pieceId === id);
-            const width = resolve(segs[0]!.partId).plankWidthMm;
+            const segs = [...segments, ...bodies].filter((seg) => seg.pieceId === id);
+            // A body is as wide as its box; track as wide as its plank.
+            const widthOf = (seg: Segment) => (seg.halfWidthMm !== undefined ? 2 * seg.halfWidthMm : resolve(seg.partId).plankWidthMm);
             return (
               <g
                 key={`piece-${id}`}
@@ -1090,10 +1144,10 @@ export function TrackCanvas({
                 }}
               >
                 {segs.map((seg, i) => (
-                  <path key={`hit-${i}`} d={segmentPath(seg)} className="piece-hit" strokeWidth={hitWidth(width)} />
+                  <path key={`hit-${i}`} d={segmentPath(seg)} className="piece-hit" strokeWidth={hitWidth(widthOf(seg))} />
                 ))}
                 {segs.flatMap((seg, i) =>
-                  plankEdges(seg, width / 2).map((d, side) => (
+                  plankEdges(seg, widthOf(seg) / 2).map((d, side) => (
                     <path key={`focus-${i}-${side}`} d={d} className="piece-focus" />
                   )),
                 )}
@@ -1374,6 +1428,10 @@ export function TrackCanvas({
           * line. One path for the whole grid; see `gridPath`.
           */}
         <path className="grid" d={gridPath(shown.minX, shown.minY, shown.width, shown.height, step)} />
+        {/* A roof's hatch: ink diagonals 12mm apart, in millimetres like the wood. */}
+        <pattern id={hatchId} width={12} height={12} patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <line className="roof-hatch" x1={0} y1={0} x2={0} y2={12} />
+        </pattern>
         {/*
           * THE TABLE (backlog E4): over the grid and under the track, so the
           * wood that hangs past an edge is drawn on top of the line it

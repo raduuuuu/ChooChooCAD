@@ -151,7 +151,8 @@ export function addPiece(
   anchor?: Frame,
 ): { graph: Graph; select: PortRef | null } {
   const pieceId = newPieceId(graph.pieces);
-  const attaching = at !== null && isFree(graph, at);
+  // A piece with no ends (a pier, eng EO2) never attaches: it always starts its own run.
+  const attaching = at !== null && portCount > 0 && isFree(graph, at);
   const { port: joinBy, turn: placedTurn } = attaching
     ? (choice ?? orientation(graph, ports, at, pieceId, partId, turn))
     : { port: 0, turn: choice?.turn ?? turn };
@@ -345,12 +346,22 @@ export type FitConflict =
   | { readonly kind: 'level' };
 
 /**
+ * Every piece of wood a render draws: the track, then the bodies (a station's
+ * footprint and roof, a pier, a tunnel's walls), which the overlap checks
+ * read alike (plan 2026-11-02, eng E4).
+ */
+export function woodOf(r: GraphRender): readonly Segment[] {
+  return r.bodies.length === 0 ? r.segments : [...r.segments, ...r.bodies];
+}
+
+/**
  * What the wood check needs that ports alone do not carry: plank widths and
  * curve radii, through the part. `segments` is the placed layout's render,
  * when the caller already has it; otherwise it is drawn here.
  */
 export interface FitGeometry {
   readonly resolve: (id: string) => Part;
+  /** All the wood: track and bodies alike (`woodOf`). */
   readonly segments?: readonly Segment[];
   /**
    * The placement App already made, the drawing it made from it, and the
@@ -461,8 +472,8 @@ export function ghostFit(
     const over = findPlankOverlaps(
       { pieces: [...graph.pieces, piece], welds },
       [
-        ...(geometry.segments ?? renderGraph(graph, ports, resolve, placement).segments),
-        ...renderGraph({ pieces: [piece], welds: [] }, ports, resolve, alone).segments,
+        ...(geometry.segments ?? woodOf(renderGraph(graph, ports, resolve, placement))),
+        ...woodOf(renderGraph({ pieces: [piece], welds: [] }, ports, resolve, alone)),
       ],
       (id) => resolve(id).plankWidthMm / 2,
       sites,
@@ -498,11 +509,11 @@ export function ghostFit(
       const half = (pid: string) => resolve(pid).plankWidthMm / 2;
       const pair = (a: string, b: string) => (a < b ? `${a}\u0000${b}` : `${b}\u0000${a}`);
       const had = new Set(
-        findPlankOverlaps(graph, renderGraph(graph, ports, resolve, placement).segments, half, sites).map((o) => pair(o.a, o.b)),
+        findPlankOverlaps(graph, woodOf(renderGraph(graph, ports, resolve, placement)), half, sites).map((o) => pair(o.a, o.b)),
       );
       const moved = new Set(graph.pieces.filter((p) => levelOf(placement.frames.get(p.pieceId)!) !== levelOf(after.frames.get(p.pieceId)!)).map((p) => p.pieceId));
       const named = new Set(conflicts.flatMap((c) => ('pieceId' in c ? [c.pieceId] : [])));
-      for (const o of findPlankOverlaps(candidate, renderGraph(candidate, ports, resolve, after).segments, half, connectorSites(candidate, ports, after))) {
+      for (const o of findPlankOverlaps(candidate, woodOf(renderGraph(candidate, ports, resolve, after)), half, connectorSites(candidate, ports, after))) {
         if (had.has(pair(o.a, o.b))) continue;
         const other = moved.has(o.a) || o.a === id ? o.b : o.a;
         if (!named.has(other)) {
@@ -724,7 +735,8 @@ export function moveRun(
   if (!grabbed || comp === undefined) return { graph, refused: null, joined: 0, adapters: 0 };
   const root = place.forest.roots[comp]!;
   const members = new Set(graph.pieces.map((p) => p.pieceId).filter((id) => place.forest.component.get(id) === comp));
-  const pivot = portFrame(place, ports, grabbed, 0).pos;
+  // Turn about the grabbed piece's first end, or its own frame when it has none (a pier, eng EO2).
+  const pivot = ports(grabbed).length > 0 ? portFrame(place, ports, grabbed, 0).pos : place.frames.get(pieceId)!.pos;
   const rootFrame = place.frames.get(root)!;
   // A move turns and shifts a run; it never changes its level (I1: a raised
   // run with no ramp keeps its level only here, in its root's anchor).
@@ -781,7 +793,7 @@ export function moveRun(
     const placed = placeAll(joined, ports);
     const over = findPlankOverlaps(
       joined,
-      renderGraph(joined, ports, resolve, placed).segments,
+      woodOf(renderGraph(joined, ports, resolve, placed)),
       (id) => resolve(id).plankWidthMm / 2,
       connectorSites(joined, ports, placed),
     );

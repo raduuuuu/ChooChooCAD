@@ -40,6 +40,7 @@ import { portsOf } from '../src/graph/model.js';
 import { GENERIC_PARTS } from './generic.js';
 import { RAMP_SEEDS } from './rampSeeds.js';
 import { BUFFER_SEEDS } from './bufferSeeds.js';
+import { STRUCTURE_SEEDS } from './structureSeeds.js';
 import { stored, write } from './storage.js';
 import { CROSSING_SEEDS, MULTI_ROAD_SEEDS, SWITCH_SEEDS } from './switchSeeds.js';
 import { THIRD_PARTY_SEEDS } from './thirdParty.js';
@@ -49,7 +50,7 @@ import { THIRD_PARTY_SEEDS } from './thirdParty.js';
  * reproductions, and unverified third-party seeds.
  */
 export const BUILT_IN: readonly Part[] = [
-  ...GENERIC_PARTS, ...RAMP_SEEDS, ...SWITCH_SEEDS, ...CROSSING_SEEDS, ...MULTI_ROAD_SEEDS, ...BUFFER_SEEDS,
+  ...GENERIC_PARTS, ...RAMP_SEEDS, ...SWITCH_SEEDS, ...CROSSING_SEEDS, ...MULTI_ROAD_SEEDS, ...BUFFER_SEEDS, ...STRUCTURE_SEEDS,
   ...THIRD_PARTY_SEEDS,
 ];
 
@@ -93,10 +94,21 @@ const BUILT_IN_RISE = new Map(
   BUILT_IN.flatMap((p) => (p.kind === 'straight' && p.rise !== undefined ? [[p.id, p.rise] as const] : [])),
 );
 
-/** `part` with the built-in rise, or with none: a stored rise never survives. */
+/**
+ * THE BUILT-IN STRUCTURES (plan 2026-11-02, OV2): a part with a body or a
+ * raised deck, or a block. Nothing in storage may correct one: a two-ended
+ * "correction" of the station would otherwise replace it, deck, footprint and
+ * roof gone, because a correction is matched by end count alone.
+ */
+export const isStructure = (p: Part): boolean =>
+  p.kind === 'block' || p.body !== undefined || (p.kind === 'straight' && p.deck !== undefined);
+const BUILT_IN_STRUCTURES = new Set(BUILT_IN.filter(isStructure).map((p) => p.id));
+
+/** `part` with the built-in rise, or with none: a stored rise never survives, nor a body or a deck (OV2). */
 function withRise(part: Part, rise: 1 | undefined): Part {
-  if (part.kind !== 'straight') return part;
-  const { rise: _dropped, ...flat } = part;
+  const { body: _noBody, ...bare } = part;
+  if (bare.kind !== 'straight') return bare as Part;
+  const { rise: _dropped, deck: _noDeck, ...flat } = bare;
   return rise === undefined ? flat : { ...flat, rise };
 }
 
@@ -134,6 +146,8 @@ export function resolveLibrary(submissions: readonly Submission[]): readonly Par
      * the ramp into another kind of piece is refused like an end-count change
      * (eng decision D5): a curved ramp is not something the engine models.
      */
+    // A structure is never corrected from storage (OV2): its body and deck are built-in only.
+    if (BUILT_IN_STRUCTURES.has(s.part.id)) continue;
     const rise = BUILT_IN_RISE.get(s.part.id);
     if (rise !== undefined && s.part.kind !== 'straight') continue;
     const part = withRise(s.part, rise);

@@ -184,6 +184,16 @@ nothing else uses:
   chevron. No beech and no grooves: the palette gets no colour (rule 1). The
   drawing follows the card's text colour, so a greyed card has a greyed
   drawing.
+- **A flat slab with a 1px `--ink-soft` edge is wood that is not track**
+  (structures, plan 2026-11-02, design 1A): a station's footprint, a pier, a
+  tunnel's walls, in `--slab-side`, drawn under its level's track. Never
+  wood, filled ink, dashed or shadowed: only track casts a shadow. The fill
+  is decorative (1.70:1 on `--floor`); the edge carries it, 4.64:1 on
+  `--floor` (WCAG relative luminance, measured 2026-11-03).
+- **A diagonal ink hatch with no fill is a roof** (design 1A): drawn over the
+  floor track and under the raised track, so the road it covers and the deck
+  it shelters both still read. `--ink-soft` lines, 4.64:1 on `--floor` and
+  3.22:1 on `--track-fill` (measured 2026-11-03).
 - **A seam is a 2.5px `--seam` line that runs past both plank edges** (seams
   and join review, 26A, 2026-10-31), so pieces in a straight run can be
   counted; inside the plank it vanished into the grooves.
