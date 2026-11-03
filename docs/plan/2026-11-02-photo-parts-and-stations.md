@@ -1056,6 +1056,26 @@ rejected-photo box (decision 8).
 
 Unresolved Decisions: none.
 
+## E2 revisited after the 216mm trial (2026-11-03)
+
+Trial results with six hand-read grid points (E2 A): two good photos read
+215.98 and 217.35mm, 1.37mm apart (C2 needs 0.5mm). Cause: hand-read points
+(±2-3px) and lens bowing a homography cannot hold. Owner answer to "Which way
+forward?": "Automatic grid finding (recommended)", 2026-11-03, reversing E2 A.
+
+Built (no new dependency: `sips` converts to BMP, read in TypeScript):
+- `photoGrid.ts`: every 10mm crossing found from the hand seeds (red-channel
+  darkness, sub-pixel), perspective + one radial bowing term, outliers dropped,
+  three passes. On the trial photos: 269 and 311 crossings, rms 0.13-0.16mm.
+- `photoEdges.ts`: each plank end found from its seed on the flat top face
+  beside the peg/socket (26 edge samples, ~0.1mm spread).
+- A piece must cross the middle of the photo, or its end nearer the middle
+  shows its end face and reads long; the tool refuses such a photo and the
+  guide says so (photo 84397's reference did not).
+
+Result: photo 84401 reads 216.52mm; 84397 refused. Open: the trial needs a
+second good photo, and 216.52 is 0.02mm outside 216 ± 0.5 (see the session).
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
