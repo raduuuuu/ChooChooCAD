@@ -105,15 +105,16 @@ export function bendSegments(segments: readonly Segment[], shifts: ReadonlyMap<s
   });
 }
 
-/** The render with each shifted piece's wood and ends moved rigidly by its shift. */
+/** The render with each shifted piece's wood, bodies included (OV5), and ends moved rigidly by its shift. */
 export function bendRender(render: GraphRender, shifts: ReadonlyMap<string, Move>): GraphRender {
   if (shifts.size === 0) return render;
   const segments = bendSegments(render.segments, shifts);
+  const bodies = bendSegments(render.bodies, shifts);
   const ports = render.ports.map((p) => {
     const d = shifts.get(p.pieceId);
     if (!d) return p;
     const [x, y, h] = compose(d, [p.x, p.y, p.h]);
     return { ...p, x, y, h };
   });
-  return { segments, ports };
+  return { segments, ports, bodies };
 }

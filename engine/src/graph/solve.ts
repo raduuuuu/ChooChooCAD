@@ -69,8 +69,15 @@ export interface RunLoop {
   readonly headingBroken: boolean;
 }
 
-function summariseRuns(graph: Graph, forest: Forest, rs: readonly WeldResidual[]): RunSummary {
-  const count = forest.roots.length;
+function summariseRuns(graph: Graph, forest: Forest, rs: readonly WeldResidual[], ports: PortsOf): RunSummary {
+  /*
+   * A RUN IS TRACK (eng EO4). A run made only of pieces with no ends (a pier)
+   * is wood on the floor, not unfinished track: it is not counted, so a loop
+   * with a pier beside it still reads as one closed run.
+   */
+  const track = new Set<number>();
+  for (const p of graph.pieces) if (ports(p).length > 0) track.add(forest.component.get(p.pieceId)!);
+  const count = track.size;
   const looped = new Map<number, boolean>();
   for (const w of forest.closing) {
     const comp = forest.component.get(graph.welds[w]!.a.pieceId)!;
@@ -196,6 +203,12 @@ export function solveGraph(
    * checks read it, so it must be of this placement.
    */
   segments: readonly Segment[] = renderGraph(graph, ports, resolve, placement).segments,
+  /**
+   * Wood that is not track (plan 2026-11-02, eng E4): checked for collisions
+   * with track and with each other, never counted as track. Drawn here when
+   * the caller has not drawn it.
+   */
+  bodies: readonly Segment[] = renderGraph(graph, ports, resolve, placement).bodies,
 ): GraphResult {
   const rs = residuals(graph, ports, placement);
   const rank = placement.forest.closing.length;
@@ -204,12 +217,14 @@ export function solveGraph(
   const clashes = findVertexClashes(graph, ports, placement);
   const halfWidth = (id: string) => resolve(id).plankWidthMm / 2;
   const sites = connectorSites(graph, ports, placement);
-  const overlaps = findPlankOverlaps(graph, segments, halfWidth, sites);
+  // All wood collides: track with track, and bodies with track and with each other (OV4).
+  const wood = bodies.length === 0 ? segments : [...segments, ...bodies];
+  const overlaps = findPlankOverlaps(graph, wood, halfWidth, sites);
   const { violations: polarityViolations, adapters: adapterJoints } = classifyWelds(graph, resolve, ports);
   const { mismatches: levelMismatches, thirdLevels } = findLevelFaults(graph, ports, placement, rs);
   const bridges = findBridges(graph, segments, halfWidth, sites);
   const raised = segments.some((sg) => (sg.level ?? 0) + (sg.rise ?? 0) > 0);
-  const levels = { levelMismatches, thirdLevels, bridges, raised, runs: summariseRuns(graph, placement.forest, rs) };
+  const levels = { levelMismatches, thirdLevels, bridges, raised, runs: summariseRuns(graph, placement.forest, rs, ports) };
 
   if (rank === 0) {
     /*
@@ -455,7 +470,8 @@ export function solveGraph(
    * the catalogue alone gave.
    */
   const shifts = bentShifts(graph, placement, ports, bend);
-  const bentOverlaps = shifts.size === 0 ? [] : findPlankOverlaps(graph, bendSegments(segments, shifts), halfWidth, sites);
+  // Bodies bend with their pieces and are checked in this pass too (OV5).
+  const bentOverlaps = shifts.size === 0 ? [] : findPlankOverlaps(graph, bendSegments(wood, shifts), halfWidth, sites);
   const pairOf = (o: PlankOverlap) => (o.a < o.b ? `${o.a} ${o.b}` : `${o.b} ${o.a}`);
   const bentAt = new Map(bentOverlaps.map((o) => [pairOf(o), o]));
   const lyingOverlaps = shifts.size === 0 ? overlaps : overlaps.flatMap((o) => bentAt.get(pairOf(o)) ?? []);

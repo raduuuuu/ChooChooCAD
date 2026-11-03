@@ -41,7 +41,7 @@ function verdict(g: Graph): string {
   const placement = placeAll(g, ports);
   const render = renderGraph(g, ports, resolve, placement);
   const slop = new Map(g.pieces.map((p) => [p.pieceId, resolve(p.partId).slop.axialMm]));
-  const r = solveGraph(g, ports, resolve, (id: string) => slop.get(id) ?? 0, placement, { parts: BUILT_IN, brandFit }, render.segments);
+  const r = solveGraph(g, ports, resolve, (id: string) => slop.get(id) ?? 0, placement, { parts: BUILT_IN, brandFit }, render.segments, render.bodies);
   return viewOf(r).kind;
 }
 

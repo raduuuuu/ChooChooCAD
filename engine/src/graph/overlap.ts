@@ -65,6 +65,11 @@ type Pt = readonly [number, number];
 
 interface Quad {
   readonly pieceId: string;
+  /** The levels this quad's wood fills, low and high (eng EO1: per shape, not per piece). */
+  readonly lo: number;
+  readonly hi: number;
+  /** A body box (plan 2026-11-02): never exempt as a welded neighbour (OV4), never a bridge. */
+  readonly body: boolean;
   readonly pts: readonly Pt[];
   readonly minX: number;
   readonly minY: number;
@@ -72,7 +77,7 @@ interface Quad {
   readonly maxY: number;
 }
 
-function quad(pieceId: string, pts: readonly Pt[]): Quad {
+function quad(pieceId: string, pts: readonly Pt[], lo = 0, hi = 0, body = false): Quad {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const [x, y] of pts) {
     if (x < minX) minX = x;
@@ -80,7 +85,7 @@ function quad(pieceId: string, pts: readonly Pt[]): Quad {
     if (x > maxX) maxX = x;
     if (y > maxY) maxY = y;
   }
-  return { pieceId, pts, minX, minY, maxX, maxY };
+  return { pieceId, lo, hi, body, pts, minX, minY, maxX, maxY };
 }
 
 /** A segment's plank as convex quads, each wound counter-clockwise. */
@@ -233,24 +238,19 @@ function planksSharingArea(
    * LEVELS (two-layer plan, core 3). Planks cross freely on different levels:
    * that is a bridge. A ramp spans the levels of both its ends, so it clashes
    * with track on either, which is the safe reading of a plank whose height
-   * changes along its length.
+   * changes along its length. Each quad keeps its own segment's span (eng
+   * EO1): a station's floor footprint and its raised roof are one piece at
+   * two heights, and a single span per piece would let the last one win.
    */
-  const span = new Map<string, readonly [number, number]>();
-  for (const s of segments) {
-    if (s.pieceId === undefined) continue;
-    const lo = s.level ?? 0;
-    span.set(s.pieceId, [lo, lo + (s.rise ?? 0)]);
-  }
-  const sameLevel = (a: string, b: string): boolean => {
-    const [alo, ahi] = span.get(a)!;
-    const [blo, bhi] = span.get(b)!;
-    return alo <= bhi && blo <= ahi;
-  };
-
   const quads: Quad[] = [];
   for (const s of segments) {
     if (s.pieceId === undefined) continue;
-    quads.push(...plankQuads(s, plankHalfWidth(s.partId), s.pieceId));
+    const lo = s.level ?? 0;
+    const hi = lo + (s.rise ?? 0);
+    const body = s.body !== undefined;
+    for (const q of plankQuads(s, s.halfWidthMm ?? plankHalfWidth(s.partId), s.pieceId)) {
+      quads.push({ ...q, lo, hi, body });
+    }
   }
 
   // A uniform grid, a cell about two plank widths, so a quad spans few cells.
@@ -279,8 +279,12 @@ function planksSharingArea(
         if (p.pieceId === q.pieceId) continue;
         if (p.maxX <= q.minX || q.maxX <= p.minX || p.maxY <= q.minY || q.maxY <= p.minY) continue;
         const pk = pairKey(p.pieceId, q.pieceId);
-        if (exempt.has(pk)) continue;
-        if (sameLevel(p.pieceId, q.pieceId) !== wantSameLevel) continue;
+        // Welded neighbours may touch, plank to plank; a body is never let off (OV4).
+        if (!p.body && !q.body && exempt.has(pk)) continue;
+        const sameLevel = p.lo <= q.hi && q.lo <= p.hi;
+        if (sameLevel !== wantSameLevel) continue;
+        // A body under or over track is not a bridge; only track over track is.
+        if (!wantSameLevel && (p.body || q.body)) continue;
         // Two quads can share several cells; clip each pair once.
         const qk = `${i},${j}`;
         if (seen.has(qk)) continue;

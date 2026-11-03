@@ -223,7 +223,9 @@ describe('a rendered end knows whether it is a peg or a socket', () => {
               ? part.ports[i]!.polarity
               : part.kind === 'buffer'
                 ? part.end
-                : i === 0 ? part.ends.start : part.ends.end;
+                : part.kind === 'block'
+                  ? undefined
+                  : i === 0 ? part.ends.start : part.ends.end;
           expect(rendered.polarity, `${part.id} port ${i}`).toBe(expected);
         });
         // The sweep reaches real heels (L, M, O1, P1) and the H crossing, so

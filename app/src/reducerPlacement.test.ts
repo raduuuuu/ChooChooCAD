@@ -85,7 +85,7 @@ describe('a drop over track is judged on the drawing handed in', () => {
    */
   it('read for the same graph, so an empty drawing lets it land; drawn afresh for any other', () => {
     expect(dropped()).toBe(1);
-    const empty: GraphRender = { segments: [], ports: [] };
+    const empty: GraphRender = { segments: [], ports: [], bodies: [] };
     expect(dropped({ graph, placement: truth, render: empty })).toBe(2);
     expect(dropped({ graph: { ...graph }, placement: truth, render: empty })).toBe(1);
   });
