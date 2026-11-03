@@ -294,6 +294,9 @@ export function bodyCorners(s: Segment): Array<readonly [number, number]> {
   ];
 }
 
+/** Wood drawn on a flat drawing (the canvas, a card): everything but decoration that is not solid (decorated-pieces design 6A). */
+export const drawnFlat = (b: Segment): boolean => b.decor?.solid !== false;
+
 /** Bounds over rendered ports, which is every extremity a layout has, and every body's corners. */
 export function renderBounds(r: GraphRender): {
   minX: number;

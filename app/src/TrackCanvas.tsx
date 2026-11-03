@@ -22,7 +22,7 @@ import type { JoinRefusal } from './layoutModel.js';
 import { memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { Segment } from '../../engine/src/geom/fk.js';
 import { onPlank } from '../../engine/src/graph/overlap.js';
-import { bodyCorners, renderBounds, type GraphRender } from '../../engine/src/graph/render.js';
+import { bodyCorners, drawnFlat, renderBounds, type GraphRender } from '../../engine/src/graph/render.js';
 import { useDragSession, type RunDrag } from './useDragSession.js';
 import type { CanvasProbe } from './usePaletteDrag.js';
 import type { Extent } from './tableModel.js';
@@ -395,7 +395,9 @@ export function TrackCanvas({
   probe,
   table = null,
 }: TrackCanvasProps) {
-  const { segments, ports: renderedPorts, bodies } = render;
+  const { segments, ports: renderedPorts, bodies: allBodies } = render;
+  // Only solid wood is drawn flat: a thin barrier arm is a 3D detail (decorated-pieces design 6A).
+  const bodies = useMemo(() => allBodies.filter(drawnFlat), [allBodies]);
   // Everything drawn: a pier is wood with no track (plan 2026-11-02, eng EO6).
   const drawnCount = segments.length + bodies.length;
   /*
@@ -900,7 +902,7 @@ export function TrackCanvas({
         */}
       {ghost.render.segments.map((seg, i) => shadowOf(seg, `ghost-shadow-${i}`))}
       <g className="ghost-wood">
-        {ghost.render.bodies.map((b, i) => (
+        {ghost.render.bodies.filter(drawnFlat).map((b, i) => (
           <path key={`ghost-body-${i}`} d={bodyPath(b)} className={b.body === 'roof' ? 'body-roof' : 'body'} />
         ))}
         <TrackLayers segments={ghost.render.segments} resolve={resolve} maxLayers={maxLayers} keyPrefix="ghost-" />
@@ -910,7 +912,7 @@ export function TrackCanvas({
           <path key={`ghost-edge-${i}-${side}`} d={d} className="ghost-edge" />
         )),
       )}
-      {ghost.render.bodies.map((b, i) => (
+      {ghost.render.bodies.filter(drawnFlat).map((b, i) => (
         <path key={`ghost-body-edge-${i}`} d={bodyPath(b)} className="ghost-edge" />
       ))}
     </g>

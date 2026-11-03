@@ -44,6 +44,8 @@ export const PART_ORIGINS: Readonly<Record<string, PartOrigin>> = {
   'IKEA-SW': LILLABO, 'IKEA-SW-P': LILLABO, 'IKEA-X145': LILLABO,
   N: MW('1238767', 'Cactus 973'),
   HH: MW('889540', 'AU3D'),
+  HP: MW('681643', 'Martin'),
+  LC: MW('681643', 'Martin'),
   RS: MW('597436', 'historicc'),
   TS: MW('1238767', 'Cactus 973'),
   TO: MW('1033476', 'hubi'),

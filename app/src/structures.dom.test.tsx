@@ -57,6 +57,24 @@ describe('structures in the library and on the floor', () => {
   });
 
   /*
+   * MUTATION PROOF, run: decorated pieces left in the track list fails with
+   * `expected 1 to be +0`; the works-like line left off the card fails with
+   * `Unable to find an element with the text: Works like HP, Crossing, printed`.
+   */
+  it('decorated pieces have their own heading after Structures, each saying what it works like (decorated-pieces design 1A, 2A)', () => {
+    const { container } = mount();
+    const heading = screen.getByRole('heading', { name: 'Decorated' });
+    const group = heading.nextElementSibling as HTMLElement;
+    const names = within(group).getAllByRole('button').map((b) => b.getAttribute('aria-label'));
+    expect(names).toEqual(['Add Level crossing. Works like HP, Crossing, printed. Unverified size.']);
+    expect(within(group).getByText('Works like HP, Crossing, printed')).toBeTruthy();
+    expect(within(group).getByRole('button').getAttribute('title')).toContain('Works like HP, Crossing, printed.');
+    const trackList = container.querySelector('.palette-parts .palette-row') as HTMLElement;
+    expect(within(trackList).queryAllByRole('button', { name: /Level crossing/ }).length).toBe(0);
+    expect(within(trackList).queryAllByRole('button', { name: /^Add Crossing, printed/ }).length).toBe(1);
+  });
+
+  /*
    * MUTATION PROOF, run: bodies left out of the canvas's level passes fails
    * with `expected  to have a length of 4 but got +0`: no legs drawn.
    */

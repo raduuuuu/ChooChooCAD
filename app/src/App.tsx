@@ -162,8 +162,15 @@ const structureUse = (p: Part): string =>
     : p.kind === 'straight' && (p.hump !== undefined || p.deckClearanceMm !== undefined)
       ? 'Road over, track passes under'
       : p.kind === 'straight' && p.deck !== undefined ? 'Raised road' : 'Floor road';
+/** A decorated card's line: the plain piece it behaves as, by code and name (decorated-pieces design 2A). */
+const worksLike = (p: Part, resolve: (id: string) => Part): string | null => {
+  if (p.decoratedFrom === undefined) return null;
+  const base = resolve(p.decoratedFrom);
+  return `Works like ${shortCode(base)}, ${base.name}`;
+};
 const partsByBrand = (lib: readonly Part[], b: Brand) => {
-  const own = lib.filter((p) => p.brand === b && !isStructure(p));
+  // Structures and decorated pieces have their own headings (design 2; decorated-pieces design 1A).
+  const own = lib.filter((p) => p.brand === b && !isStructure(p) && p.decoratedFrom === undefined);
   const ramps = own.filter(isRamp);
   const flat = own.filter((p) => !isRamp(p));
   const at = flat.findIndex((p) => p.id === 'D');
@@ -242,6 +249,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
       : undefined);
   const library = useMemo(() => resolveLibrary(submissions), [submissions]);
   const structures = useMemo(() => library.filter(isStructure), [library]);
+  const decorated = useMemo(() => library.filter((p) => p.decoratedFrom !== undefined), [library]);
   // Pieces a check on a real piece backs, for the card's tick (verified-mark plan, 9A).
   const measuredIds = useMemo(() => new Set(library.filter((p) => isMeasured(p)).map((p) => p.id)), [library]);
   const resolve = useMemo(() => makeResolver(library), [library]);
@@ -1494,6 +1502,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             const unverified = isUnverified(part);
             const measured = measuredIds.has(part.id);
             const origin = originOf(part);
+            const likeLine = worksLike(part, resolve);
             return (
             <div
               key={part.id}
@@ -1529,14 +1538,15 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
                 // The pick is said, not only drawn: "pressed" while its ghost is out.
                 aria-pressed={ghost?.partId === part.id}
                 // The full code and name, which the card may cut short (11A, eng D5).
-                title={`${shortCode(part)} ${part.name}.${measured ? ' Measured.' : ''} Double-click to place directly`}
+                title={`${shortCode(part)} ${part.name}.${measured ? ' Measured.' : ''}${likeLine ? ` ${likeLine}.` : ''} Double-click to place directly`}
                 aria-label={[
                   // The name, then each note as its own sentence.
-                  `Add ${part.name}${isRamp(part) || isStructure(part) || unverified || unowned || measured ? '.' : ''}`,
+                  `Add ${part.name}${isRamp(part) || isStructure(part) || likeLine || unverified || unowned || measured ? '.' : ''}`,
                   // Checked against a real piece (verified-mark plan, 6C).
                   ...(measured ? ['Measured.'] : []),
                   ...(isRamp(part) ? ['Climbs one level.'] : []),
                   ...(isStructure(part) ? [`${structureUse(part)}.`] : []),
+                  ...(likeLine ? [`${likeLine}.`] : []),
                   ...(unverified ? ['Unverified size.'] : []),
                   ...(unowned ? ['More than you own.'] : []),
                 ].join(' ')}
@@ -1553,6 +1563,11 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
                     <span className="piece-name-text">{part.name}</span>
                     <span className="piece-note">{structureUse(part)}</span>
                     {unverified && <span className="piece-note">Estimated size</span>}
+                  </span>
+                ) : likeLine ? (
+                  <span className="piece-name has-notes">
+                    <span className="piece-name-text">{part.name}</span>
+                    <span className="piece-note">{likeLine}</span>
                   </span>
                 ) : (
                   <span className="piece-name">{part.name}</span>
@@ -1661,6 +1676,17 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
           <>
             <h3 className="palette-subhead">Structures</h3>
             <div className="palette-row">{structures.map(renderCard)}</div>
+          </>
+        )}
+        {/*
+          * DECORATED PIECES (decorated-pieces design 1A): pieces that work like
+          * a plain part, with decoration on them; after Structures, so the
+          * track lists stay the plain pieces a run is built from.
+          */}
+        {brand === 'GENERIC' && decorated.length > 0 && (
+          <>
+            <h3 className="palette-subhead">Decorated</h3>
+            <div className="palette-row">{decorated.map(renderCard)}</div>
           </>
         )}
     </BrandGroup>
