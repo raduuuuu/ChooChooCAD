@@ -66,6 +66,15 @@ type BodyRole = NonNullable<Segment['body']>;
  */
 export const OVERLAP_MIN_AREA_MM2 = 100;
 
+/**
+ * The same line where a BODY is one of the two (measured structures,
+ * 2026-11-03). The 100 mm² above allows for plank ends pushed together at a
+ * joint, which a body never has, and a riser's leg is only 8 by 8: track laid
+ * straight through one shares 64 mm² and went unreported. 16 mm² is a 2 mm
+ * graze along a whole leg, still far above float noise and chord error.
+ */
+export const OVERLAP_MIN_AREA_BODY_MM2 = 16;
+
 /** Slice a curve this finely: 1/32 of a half turn, 5.6 degrees. */
 const SLICE_RAD = Math.PI / 32;
 
@@ -322,7 +331,7 @@ function planksSharingArea(
 
   const out: PlankOverlap[] = [];
   for (const e of shared.values()) {
-    if (e.area < OVERLAP_MIN_AREA_MM2) continue;
+    if (e.area < (e.body ? OVERLAP_MIN_AREA_BODY_MM2 : OVERLAP_MIN_AREA_MM2)) continue;
     out.push({ a: e.a, b: e.b, at: [e.sx / e.area, e.sy / e.area], areaMm2: e.area, ...(e.body ? { body: e.body } : {}) });
   }
   // Stable order, so markers and counts do not reshuffle between edits.

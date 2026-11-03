@@ -58,6 +58,7 @@ import { placeAll, portFrame } from '../../engine/src/graph/frames.js';
 import { useLayoutEffect, useRef } from 'react';
 import type { Part, Turn } from '../../engine/src/parts/schema.js';
 import { shortCode } from '../../engine/src/parts/schema.js';
+import { STRUCTURE_WORDS } from '../../engine/data/structureSeeds.js';
 
 /** Above this many pieces the list is replaced by a sentence saying so. */
 export const LISTING_CEILING = 2000;
@@ -122,9 +123,8 @@ export function pieceName(n: number, piece: Piece, part: Part, from: number | un
   const side = turnedRound ? (stored === 'right' ? 'left' : 'right') : stored;
   const by = turnedRound ? `, joined by its ${endName(part, from, piece.turn)}` : '';
   // Structures say what they carry, in the floor/raised words (design decision 5, rule 7).
-  if (part.kind === 'block') return `${head}, no track connections`;
-  if (part.kind === 'straight' && part.deck !== undefined) return `${head}, road raised, footprint on the floor${by}`;
-  if (part.kind === 'straight' && part.body !== undefined) return `${head}, road between walls, under a roof${by}`;
+  const structure = STRUCTURE_WORDS[part.id];
+  if (structure) return `${head}, ${structure.carries}${part.kind === 'block' ? '' : by}`;
   if (part.kind === 'curve') return `${head}, turning ${side}${by}`;
   if (part.kind === 'straight' && part.rise !== undefined && piece.turn === 'right') return `${head}, flipped over${by}`;
   // Only a piece whose mirror image differs (it has an F) branches to a side.

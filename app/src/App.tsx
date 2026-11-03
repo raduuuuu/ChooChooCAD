@@ -72,7 +72,7 @@ import { holdsOwnLayout, loadGraph, partialLoadNotice, saveGraph, savesSuppresse
 import { PutAsideNotice } from './PutAsideNotice.js';
 import { ShareControl } from './ShareControl.js';
 import { saveFailureNotice, type SavedStore } from './saveNotice.js';
-import { buildingClashSentence, viewOf } from './verdictView.js';
+import { buildingClashSentence, buildingWord, viewOf } from './verdictView.js';
 import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
 import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
 import { CANVAS_SEGMENT_CEILING, TrackCanvas } from './TrackCanvas.js';
@@ -1303,11 +1303,12 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
        * the truth to show instead (eng re-run D3).
        */
       const rising = part.kind === 'straight' && part.rise !== undefined;
-      const station = part.kind === 'straight' && part.deck !== undefined;
+      // A raised deck on supports: a station, a riser, a tunnel with overpass.
+      const raisedDeck = part.kind === 'straight' && part.deck !== undefined;
       const lift = lifted?.ids.length ?? 0;
-      const level: string[] = station
+      const level: string[] = raisedDeck
         ? lift > 0
-          ? [`Placing this station raises this run of track (${lift} ${lift === 1 ? 'piece' : 'pieces'}). Add a ramp to keep the rest on the floor.`]
+          ? [`Placing this ${buildingWord(part)} raises this run of track (${lift} ${lift === 1 ? 'piece' : 'pieces'}). Add a ramp to keep the rest on the floor.`]
           : []
         : !rising
         ? []

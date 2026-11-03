@@ -44,47 +44,23 @@ describe('structures in the library and on the floor', () => {
     const names = within(group).getAllByRole('button').map((b) => b.getAttribute('aria-label'));
     expect(names).toEqual([
       'Add Elevated station. Raised road. Unverified size.',
-      'Add Bridge pier. No track connections. Unverified size.',
-      'Add Tunnel. Floor road. Unverified size.',
+      'Add Riser. Raised road. Unverified size.',
+      'Add Tunnel with overpass. Raised road. Unverified size.',
     ]);
     expect(within(group).getAllByText('Estimated size')).toHaveLength(3);
     const trackList = container.querySelector('.palette-parts .palette-row') as HTMLElement;
-    expect(within(trackList).queryAllByRole('button', { name: /Elevated station|Bridge pier|Tunnel/ }).length).toBe(0);
+    expect(within(trackList).queryAllByRole('button', { name: /Elevated station|Riser|Tunnel/ }).length).toBe(0);
   });
 
   /*
-   * MUTATION PROOFS, run:
-   * - the placed line dropped (the piece's name instead): fails with `Unable
-   *   to find an element with the text: Bridge pier placed. Move it with the
-   *   arrows, R to turn, or drag it.`.
-   * - the canvas's empty check counting segments only: fails with `Unable to
-   *   find an accessible element with the role "group" and name "Selected
-   *   piece"`: the floor read as empty and the pier could not be selected.
-   * - `add` not selecting a piece with no ends: fails with the same message.
+   * MUTATION PROOF, run: bodies left out of the canvas's level passes fails
+   * with `expected  to have a length of 4 but got +0`: no legs drawn.
    */
-  it('a pier, double-clicked, lands selected with the strip saying how to move it, drawn as a body', async () => {
+  it('a riser, double-clicked, stands on its four legs; floor track can pass under it', async () => {
     const { user, container } = mount();
-    await user.dblClick(screen.getByRole('button', { name: /^Add Bridge pier\./ }));
-    const strip = screen.getByRole('group', { name: 'Selected piece' });
-    expect(within(strip).getByText('Bridge pier placed. Move it with the arrows, R to turn, or drag it.')).toBeTruthy();
+    await user.dblClick(screen.getByRole('button', { name: /^Add Riser\./ }));
     expect(container.querySelector('.canvas-empty-lead')).toBeNull();
-    expect(container.querySelectorAll('path.body')).toHaveLength(1);
-    expect(screen.getByRole('button', { name: /Bridge pier/, pressed: true })).toBeTruthy();
-  });
-
-  /*
-   * MUTATION PROOF, run: Place (`placeGhost`) not selecting a piece with no
-   * ends fails with `Unable to find an accessible element with the role
-   * "group" and name "Selected piece"`.
-   */
-  it('picked and placed, it lands selected too; moved, the strip names it', async () => {
-    const { user } = mount();
-    await user.click(screen.getByRole('button', { name: /^Add Bridge pier\./ }));
-    await user.keyboard('{Enter}');
-    const strip = () => screen.getByRole('group', { name: 'Selected piece' });
-    expect(within(strip()).getByText('Bridge pier placed. Move it with the arrows, R to turn, or drag it.')).toBeTruthy();
-    await user.click(within(strip()).getByRole('button', { name: 'Move run right 1 cm' }));
-    expect(within(strip()).getByText('Piece 1: Bridge pier (PR), 40×40')).toBeTruthy();
+    expect(container.querySelectorAll('path.body')).toHaveLength(4);
   });
 
   /*

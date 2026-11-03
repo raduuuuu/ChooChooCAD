@@ -19,6 +19,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../../engine/data/library.js';
+import { PIER, TUNNEL } from '../../engine/data/structureSeeds.js';
 import { add, fromInt, scale, zetaPow, type Cyc } from '../../engine/src/geom/cyclotomic.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Frame, type Graph, type Piece, type Port } from '../../engine/src/graph/model.js';
@@ -31,7 +32,8 @@ import { ACTION_WHEN_BUILDING } from './verdictAction.js';
 import { VerdictLine } from './VerdictLine.js';
 import { buildingClashSentence, viewOf } from './verdictView.js';
 
-const resolve = makeResolver(BUILT_IN);
+// The retired pier and roofed tunnel stay as fixtures: the only block and the only roof over a floor road.
+const resolve = makeResolver([...BUILT_IN, PIER, TUNNEL]);
 const ports = (piece: Piece): readonly Port[] => portsOf(resolve(piece.partId), piece.turn);
 
 const at = (x: number, y: number, heading: number, level = 0): Frame => {
@@ -110,6 +112,8 @@ describe('the layout list (design decision 5)', () => {
     expect(pieceName(12, piece('ST'), resolve('ST'), undefined)).toBe('Piece 12: Elevated station (ST), road raised, footprint on the floor');
     expect(pieceName(7, piece('PR'), resolve('PR'), undefined)).toBe('Piece 7: Bridge pier (PR), no track connections');
     expect(pieceName(3, piece('TU'), resolve('TU'), undefined)).toBe('Piece 3: Tunnel (TU), road between walls, under a roof');
+    expect(pieceName(4, piece('RS'), resolve('RS'), undefined)).toBe('Piece 4: Riser (RS), road raised on legs, floor track passes under');
+    expect(pieceName(5, piece('TO'), resolve('TO'), undefined)).toBe('Piece 5: Tunnel with overpass (TO), road raised over a passage, floor track passes through');
   });
 });
 

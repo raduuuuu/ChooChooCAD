@@ -42,6 +42,8 @@ export const PART_ORIGINS: Readonly<Record<string, PartOrigin>> = {
   'IKEA-50': LILLABO, 'IKEA-100': LILLABO, 'IKEA-145': LILLABO, 'IKEA-205': LILLABO,
   'IKEA-240': LILLABO, 'IKEA-C22': LILLABO, 'IKEA-C45': LILLABO, 'IKEA-C90': LILLABO,
   'IKEA-SW': LILLABO, 'IKEA-SW-P': LILLABO, 'IKEA-X145': LILLABO,
+  RS: MW('597436', 'historicc'),
+  TO: MW('1033476', 'hubi'),
 };
 
 /** The model page's address. */

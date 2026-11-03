@@ -29,6 +29,7 @@ import { bendWords, type BendWords } from '../../engine/src/joints/bendWords.js'
 import { bendLimit } from '../../engine/data/bendLimit.js';
 import type { PlankOverlap } from '../../engine/src/graph/overlap.js';
 import type { Part } from '../../engine/src/parts/schema.js';
+import { STRUCTURE_WORDS } from '../../engine/data/structureSeeds.js';
 
 export type VerdictKind =
   | 'NOTHING'
@@ -230,9 +231,8 @@ export function viewOf(result: GraphResult | null): VerdictView {
 }
 
 /** What a structure is called in a sentence: the floor/raised words only (design decision 5, rule 7). */
-export function buildingWord(part: Part): 'station' | 'pier' | 'tunnel' {
-  if (part.kind === 'block') return 'pier';
-  return part.kind === 'straight' && part.deck !== undefined ? 'station' : 'tunnel';
+export function buildingWord(part: Part): string {
+  return STRUCTURE_WORDS[part.id]?.word ?? (part.kind === 'block' ? 'pier' : 'building');
 }
 
 /**
