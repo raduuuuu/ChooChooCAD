@@ -1,10 +1,12 @@
 /**
- * WHAT A PHOTO READING MAY CHANGE (plan 2026-11-02: C1, C2, OV7, OV8).
+ * WHAT A PHOTO READING MAY CHANGE (plan 2026-11-02: C1, C2, OV7, OV8;
+ * tolerance 1mm, owner 2026-11-03).
  *
  * Value: protects=a figure needs two photos within 0.5mm; a switch fit off by
- * more than 0.5mm does not count; a part changes only when every required
+ * more than 1mm does not count; a part changes only when every required
  * figure agrees; a published part that the photos agree with keeps its
- * figures; one they contradict is replaced and named
+ * figures; one they contradict by more than 1mm is replaced and named; the
+ * recorded 216mm trial passes these same rules
  * Value: fails_when=one photo is enough, the agreement band widens, partial
  * readings promote a part, or confirmation overwrites published figures
  * Value: why_new=no photo readings existed
@@ -14,7 +16,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { agreedFigure, photoOutcome, PHOTO_READINGS, type PhotoReading } from './photoReadings.js';
+import { agreedFigure, photoOutcome, TOLERANCE_MM, TRIAL, type PhotoReading } from './photoReadings.js';
 
 const reading = (valueMm: number, photo: string, extra: Partial<PhotoReading> = {}): PhotoReading => ({
   partId: 'A',
@@ -46,8 +48,8 @@ describe('one figure (C2, OV7)', () => {
     expect(agreedFigure([reading(144.0, 'a.jpg'), reading(144.2, 'a.jpg')])).toBe(null);
   });
 
-  it('a fitted shape that misses the photo by more than 0.5mm does not count', () => {
-    expect(agreedFigure([reading(150, 'a.jpg', { fitResidualMm: 0.8 }), reading(150.1, 'b.jpg')])).toBe(null);
+  it('a fitted shape that misses the photo by more than 1mm does not count', () => {
+    expect(agreedFigure([reading(150, 'a.jpg', { fitResidualMm: 1.2 }), reading(150.1, 'b.jpg')])).toBe(null);
   });
 });
 
@@ -69,7 +71,7 @@ describe('one part (C1, OV8)', () => {
    * `expected 'measured' to be 'confirmed'`: a photo would overwrite the guide.
    */
   it('a published part the photos agree with keeps its figures', () => {
-    expect(photoOutcome('published', { lengthMm: 144 }, two('lengthMm', 144)).kind).toBe('confirmed');
+    expect(photoOutcome('published', { lengthMm: 144 }, two('lengthMm', 144.7)).kind).toBe('confirmed');
   });
 
   it('a published figure the photos contradict is replaced, and named', () => {
@@ -86,6 +88,13 @@ describe('one part (C1, OV8)', () => {
   });
 });
 
-it('no reading lands before the 216mm trial (EO7)', () => {
-  expect(PHOTO_READINGS).toEqual([]);
+/*
+ * MUTATION PROOF, run: TOLERANCE_MM set back to 0.5 fails with
+ * `expected 0.6999999999999886 to be less than or equal to 0.5`: the trial
+ * read about 0.7mm long, which only the owner's 1mm accepts.
+ */
+it('the recorded 216mm trial passes the rules it cleared (EO7)', () => {
+  const agreed = agreedFigure(TRIAL.readings.map((r) => ({ partId: 'trial', figure: 'lengthMm', valueMm: r.valueMm, photo: r.photo, on: TRIAL.on })));
+  expect(agreed).not.toBe(null);
+  expect(Math.abs(agreed! - TRIAL.knownMm)).toBeLessThanOrEqual(TOLERANCE_MM);
 });
