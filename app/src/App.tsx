@@ -76,7 +76,8 @@ import { buildingClashSentence, viewOf } from './verdictView.js';
 import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
 import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
 import { CANVAS_SEGMENT_CEILING, TrackCanvas } from './TrackCanvas.js';
-import { PartPreview } from './PartPreview.js';
+import { MeasuredTick, PartPreview } from './PartPreview.js';
+import { isMeasured } from '../../engine/data/measured.js';
 import { AppName } from './AppName.js';
 import { previews } from './previewGeometry.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
@@ -236,6 +237,8 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
       : undefined);
   const library = useMemo(() => resolveLibrary(submissions), [submissions]);
   const structures = useMemo(() => library.filter(isStructure), [library]);
+  // Pieces a check on a real piece backs, for the card's tick (verified-mark plan, 9A).
+  const measuredIds = useMemo(() => new Set(library.filter((p) => isMeasured(p)).map((p) => p.id)), [library]);
   const resolve = useMemo(() => makeResolver(library), [library]);
   // Each card's drawing, rebuilt when the library is (eng D1: a correction keeps the id).
   const partPreviews = useMemo(() => previews(library), [library]);
@@ -1477,6 +1480,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
              */
             const unowned = wouldExceed(inventory, counts, part.id);
             const unverified = isUnverified(part);
+            const measured = measuredIds.has(part.id);
             return (
             <div
               key={part.id}
@@ -1512,10 +1516,12 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
                 // The pick is said, not only drawn: "pressed" while its ghost is out.
                 aria-pressed={ghost?.partId === part.id}
                 // The full code and name, which the card may cut short (11A, eng D5).
-                title={`${shortCode(part)} ${part.name}. Double-click to place directly`}
+                title={`${shortCode(part)} ${part.name}.${measured ? ' Measured.' : ''} Double-click to place directly`}
                 aria-label={[
                   // The name, then each note as its own sentence.
-                  `Add ${part.name}${isRamp(part) || isStructure(part) || unverified || unowned ? '.' : ''}`,
+                  `Add ${part.name}${isRamp(part) || isStructure(part) || unverified || unowned || measured ? '.' : ''}`,
+                  // Checked against a real piece (verified-mark plan, 6C).
+                  ...(measured ? ['Measured.'] : []),
                   ...(isRamp(part) ? ['Climbs one level.'] : []),
                   ...(isStructure(part) ? [`${structureUse(part)}.`] : []),
                   ...(unverified ? ['Unverified size.'] : []),
@@ -1524,7 +1530,11 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
               >
                 {/* The part's drawing, first in the row (1A); a ramp's chevron is in it (9A). */}
                 <PartPreview preview={partPreviews.get(part.id) ?? null} />
-                <span className="piece-id num">{shortCode(part)}</span>
+                <span className="piece-id num">
+                  {shortCode(part)}
+                  {/* The tick sits where `*` does (3A). */}
+                  {measured && <MeasuredTick />}
+                </span>
                 {isStructure(part) ? (
                   <span className="piece-name has-notes">
                     <span className="piece-name-text">{part.name}</span>
@@ -1596,6 +1606,20 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         <div className="palette-row">
           {partsByBrand(library, brand).map(renderCard)}
         </div>
+        {/*
+          * THE KEY to the two card signs (verified-mark plan, 10A, 14A): read
+          * where they are seen, not only on hover.
+          */}
+        {brand === 'GENERIC' && (
+          <p className="palette-key">
+            <span>
+              <MeasuredTick /> Measured.
+            </span>{' '}
+            <span>
+              <span className="palette-key-star">*</span> Unverified size.
+            </span>
+          </p>
+        )}
         {/*
           * STRUCTURES, after every track group (design decision 2): wood that
           * is not track, so it is not mixed in with the pieces a run is built

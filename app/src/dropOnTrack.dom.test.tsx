@@ -82,7 +82,7 @@ describe('dragging a straight from the palette', () => {
         <App />
       </StrictMode>,
     );
-    return screen.getAllByRole('button', { name: /^Add Medium straight$/ })[0]!;
+    return screen.getAllByRole('button', { name: /^Add Medium straight\. Measured\.$/ })[0]!;
   }
 
   it('let go 10 mm off the first straight, along it: nothing is placed, and it says why', () => {
