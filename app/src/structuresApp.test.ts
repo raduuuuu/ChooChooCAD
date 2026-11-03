@@ -24,7 +24,7 @@ import { portsOf, type Graph, type Piece, type Port } from '../../engine/src/gra
 import { renderBounds, renderGraph } from '../../engine/src/graph/render.js';
 import { solveGraph } from '../../engine/src/graph/solve.js';
 import { VerdictLine } from './VerdictLine.js';
-import { viewOf } from './verdictView.js';
+import { bridgeNotesOf, viewOf } from './verdictView.js';
 import { buildScene, PLATE_DROP_MM } from '../../engine/src/view3d/mesh.js';
 import { reduce, type EditorAction, type EditorState } from './editorReducer.js';
 import { EMPTY_GRAPH, ghostFit, shiftMm } from './layoutModel.js';
@@ -270,6 +270,49 @@ describe('the clearance under a bridge (bridges design DD5)', () => {
   it('says the room to spare, and says plainly when the train will not fit', () => {
     expect(text(69.2)).toContain('Under the stone arch bridge (piece 1): about 2mm to spare (69mm opening, 12mm track, 55mm train).');
     expect(text(60)).toContain("Your 55mm train won't fit under the stone arch bridge (piece 1): 60mm opening.");
+  });
+});
+
+describe('the harbour arch bridge in words, and every bridge in its own bounds (next-parts R1, R2)', () => {
+  /*
+   * MUTATION PROOF, run: HB's deckClearanceMm removed from the seed fails with
+   * `expected [] to deeply equal [ { …(3) } ]`: no sentence for it.
+   */
+  it('says the room under its deck, like the other bridges', () => {
+    const g: Graph = { pieces: [{ pieceId: 'hb', partId: 'HB', turn: 'left' }], welds: [] };
+    const notes = bridgeNotesOf([{ bridge: 'hb', under: 'x' }], () => 'HB', resolve, () => 1);
+    expect(notes).toEqual([{ name: 'harbour arch bridge', piece: 1, clearanceMm: 60.8 }]);
+    const placement = placeAll(g, ports);
+    const r = renderGraph(g, ports, resolve, placement);
+    const html = renderToStaticMarkup(createElement(VerdictLine, { view: viewOf(solveGraph(g, ports, resolve, () => 0, placement, undefined, r.segments, r.bodies)), bridgeNotes: notes }))
+      .replace(/<[^>]+>/g, '').replace(/&#x27;|&rsquo;|’/g, "'");
+    expect(html).toContain("Your 55mm train won't fit under the harbour arch bridge (piece 1): 61mm opening.");
+  });
+
+  /*
+   * MUTATION PROOFS, run:
+   * - the arch pass not setting its piece's bounds fails with `hb: expected
+   *   { min: [ -24, -51.5, +0 ], …(1) } to deeply equal { … }`: the stone arch
+   *   grew the harbour bridge's box.
+   * - the tower pass not setting them fails with `sa: expected { min: [ +0,
+   *   -27, +0 ], …(1) } to deeply equal { … }`: the towers grew the arch's.
+   */
+  it("a bridge's arch and towers grow its own piece's bounds, never another's", () => {
+    const g: Graph = {
+      pieces: [{ pieceId: 'hb', partId: 'HB', turn: 'left' }, { pieceId: 'sa', partId: 'SA', turn: 'left' }, { pieceId: 'sb', partId: 'SB', turn: 'left' }],
+      welds: [],
+    };
+    const placement = placeAll(g, ports);
+    const r = renderGraph(g, ports, resolve, placement);
+    const byPiece = new Map(g.pieces.map((p) => [p.pieceId, p.partId]));
+    const s = buildScene({ segments: r.segments, bodies: r.bodies, ports: r.ports, welds: [], partOf: (id) => resolve(byPiece.get(id)!), riseMm: 61, plankMm: 12 });
+    const alone = (id: string) => {
+      const one: Graph = { pieces: [{ pieceId: id, partId: byPiece.get(id)!, turn: 'left' }], welds: [] };
+      const p1 = placeAll(one, ports);
+      const r1 = renderGraph(one, ports, resolve, p1);
+      return buildScene({ segments: r1.segments, bodies: r1.bodies, ports: r1.ports, welds: [], partOf: () => resolve(byPiece.get(id)!), riseMm: 61, plankMm: 12 }).pieceBounds.get(id)!;
+    };
+    for (const id of ['hb', 'sa', 'sb']) expect(s.pieceBounds.get(id), id).toEqual(alone(id));
   });
 });
 

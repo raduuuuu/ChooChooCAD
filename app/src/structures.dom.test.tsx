@@ -49,7 +49,7 @@ describe('structures in the library and on the floor', () => {
       'Add Tunnel with overpass. Raised road. Unverified size.',
       'Add Stone arch bridge. Road over, track passes under. Unverified size.',
       'Add Suspension bridge. Road over, track passes under. Unverified size.',
-      'Add Harbour arch bridge. Raised road. Unverified size.',
+      'Add Harbour arch bridge. Road over, track passes under. Unverified size.',
     ]);
     expect(within(group).getAllByText('Estimated size')).toHaveLength(7);
     const trackList = container.querySelector('.palette-parts .palette-row') as HTMLElement;

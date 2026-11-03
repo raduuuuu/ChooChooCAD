@@ -307,6 +307,12 @@ export interface StraightPart extends PartBase {
    */
   readonly plate?: { readonly widthMm: number };
   /**
+   * The opening under a raised deck that floor track passes beneath, floor to
+   * the road's underside (next-parts plan R2): a deck bridge's clearance,
+   * stated like a hump's (bridges design DD5). Built-in only, like `deck`.
+   */
+  readonly deckClearanceMm?: number;
+  /**
    * A truss arch over the deck, in the 3D view only (Sydney bridge plan
    * 2026-11-03): a rib either side of the road, `sideMm` from its middle,
    * springing at `springMm` above the floor at `fromMm` and `toMm` along the

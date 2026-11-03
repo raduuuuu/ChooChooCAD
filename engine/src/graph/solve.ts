@@ -240,9 +240,10 @@ export function solveGraph(
    */
   const partOfPiece = new Map(graph.pieces.map((p) => [p.pieceId, p.partId]));
   const structural = (pieceId: string) => isStructure(resolve(partOfPiece.get(pieceId)!));
+  // A bridge track passes under: a hump, or a raised deck with a stated opening (R2).
   const humped = (pieceId: string) => {
     const part = resolve(partOfPiece.get(pieceId)!);
-    return part.kind === 'straight' && part.hump !== undefined;
+    return part.kind === 'straight' && (part.hump !== undefined || part.deckClearanceMm !== undefined);
   };
   const allBridges = findBridges(graph, segments, halfWidth, sites);
   const bridges = allBridges.filter((b) => !structural(b.a) && !structural(b.b));

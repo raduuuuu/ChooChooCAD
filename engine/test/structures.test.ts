@@ -348,7 +348,8 @@ describe('structures are built-in, and named (eng D4, D10)', () => {
   /*
    * MUTATION PROOFS, run: `plate` left out of withRise fails with `expected {
    * widthMm: 500 } to be undefined`; `trussArch` left out fails with
-   * `expected { fromMm: +0, toMm: 100, …(4) } to be undefined`.
+   * `expected { fromMm: +0, toMm: 100, …(4) } to be undefined`; `deckClearanceMm`
+   * left out fails with `expected 999 to be undefined`.
    */
   it('a stored correction cannot lay a plate or raise a truss arch', () => {
     const arch = { fromMm: 0, toMm: 100, springMm: 0, crownMm: 900, innerCrownMm: 800, sideMm: 28 };
@@ -356,6 +357,8 @@ describe('structures are built-in, and named (eng D4, D10)', () => {
     const got = resolveLibrary([{ submissionId: 's', at: '2026-11-03T10:00:00Z', part: forged as never }]).find((p) => p.id === 'X8')!;
     expect(got.kind === 'straight' ? got.plate : null).toBeUndefined();
     expect(got.kind === 'straight' ? got.trussArch : null).toBeUndefined();
+    const clear = resolveLibrary([{ submissionId: 's2', at: '2026-11-03T10:00:00Z', part: { ...resolve('A'), id: 'X7', deckClearanceMm: 999 } as never }]).find((p) => p.id === 'X7')!;
+    expect(clear.kind === 'straight' ? clear.deckClearanceMm : null).toBeUndefined();
   });
 
   /*
@@ -400,5 +403,15 @@ describe('the harbour arch bridge (Sydney bridge plan 2026-11-03)', () => {
     // From -110 to 34: under the raised road from 0, into the portal's floor between its pylons.
     expect(clashes(scene([hb, ['floor', 'A', at(-110, 0, 0)]]))).toEqual(['floor hb']);
     expect(clashes(scene([hb, ['short', 'A', at(-144, 0, 0)]]))).toEqual([]);
+  });
+
+  /*
+   * MUTATION PROOF, run: deckClearanceMm left out of the solver's bridge test
+   * fails with `expected [] to deeply equal [ { bridge: 'hb', under: 'under' } ]`.
+   */
+  it('lists floor track under its deck for its room sentence (next-parts R2)', () => {
+    const g = scene([hb, ['under', 'A', at(108, -72, 4)]]);
+    const r = solveGraph(g, ports, resolve, () => 0, placeAll(g, ports));
+    expect(r.underBridges).toEqual([{ bridge: 'hb', under: 'under' }]);
   });
 });

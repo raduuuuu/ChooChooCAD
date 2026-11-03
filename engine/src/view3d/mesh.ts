@@ -615,6 +615,7 @@ export function buildScene(input: SceneInput): SceneArrays {
     if (!s.alongMm || s.alongMm[0] !== 0 || s.pieceId === undefined) continue;
     const part = partOf(s.pieceId);
     if (part.kind !== 'straight' || !part.hump?.arch) continue;
+    boxOf = pieceBox.get(s.pieceId) ?? null;
     const { fromMm, toMm, riseMm: archRise, depthMm, baseMm } = part.hump.arch;
     const base = (s.level ?? 0) * riseMm + baseMm;
     const chord = toMm - fromMm;
@@ -657,6 +658,7 @@ export function buildScene(input: SceneInput): SceneArrays {
     if (!s.alongMm || s.alongMm[0] !== 0 || s.pieceId === undefined) continue;
     const part = partOf(s.pieceId);
     if (part.kind !== 'straight' || !part.hump?.towers?.length) continue;
+    boxOf = pieceBox.get(s.pieceId) ?? null;
     const { towers, profileMm } = part.hump;
     const floor = (s.level ?? 0) * riseMm;
     const len = part.lengthMm;
