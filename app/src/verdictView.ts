@@ -27,6 +27,8 @@
 import type { GraphResult } from '../../engine/src/graph/solve.js';
 import { bendWords, type BendWords } from '../../engine/src/joints/bendWords.js';
 import { bendLimit } from '../../engine/data/bendLimit.js';
+import type { PlankOverlap } from '../../engine/src/graph/overlap.js';
+import type { Part } from '../../engine/src/parts/schema.js';
 
 export type VerdictKind =
   | 'NOTHING'
@@ -225,4 +227,39 @@ export function viewOf(result: GraphResult | null): VerdictView {
         }
       : null,
   };
+}
+
+/** What a structure is called in a sentence: the floor/raised words only (design decision 5, rule 7). */
+export function buildingWord(part: Part): 'station' | 'pier' | 'tunnel' {
+  if (part.kind === 'block') return 'pier';
+  return part.kind === 'straight' && part.deck !== undefined ? 'station' : 'tunnel';
+}
+
+/**
+ * THE SENTENCE FOR TRACK THAT RUNS INTO A BUILDING (design decision 5). It
+ * names the building and the part of it, and says "Move either piece": never
+ * the crossing or ramp advice, which cannot fix a footprint. Null when the
+ * overlap is track over track.
+ */
+export function buildingClashSentence(
+  o: PlankOverlap,
+  numberOf: (pieceId: string) => number | undefined,
+  partOf: (pieceId: string) => Part,
+): string | null {
+  if (!o.body) return null;
+  const building = o.body.pieceId;
+  const other = o.a === building ? o.b : o.a;
+  const word = buildingWord(partOf(building));
+  const n = numberOf(other);
+  const m = numberOf(building);
+  const what =
+    o.body.role === 'roof'
+      ? `the ${word} roof`
+      : word === 'pier'
+        ? 'the pier'
+        : o.body.role === 'wall'
+          ? `the ${word}'s wall`
+          : `the ${word}'s footprint`;
+  const head = o.body.role === 'roof' ? `Raised track at piece ${n} hits ${what}` : `Piece ${n} runs into ${what}`;
+  return `${head} (piece ${m}). Move either piece.`;
 }

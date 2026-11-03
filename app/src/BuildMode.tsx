@@ -48,6 +48,7 @@ export interface PullRow {
 export interface BuildModeProps {
   readonly graph: Graph;
   /** The layout as drawn, for the assembly order's levels (assemblyOrder reads them). */
+  /** All the wood (`woodOf`): track, and bodies, which order a station before the track on its deck. */
   readonly segments: readonly Segment[];
   readonly result: GraphResult | null;
   /** The 3D view's input for the whole layout; each step draws a part of it. */
@@ -206,7 +207,9 @@ export default function BuildMode(props: BuildModeProps) {
 
   /* ---- words ------------------------------------------------------------ */
   const stepCount = pieces.length;
-  const said = announce(labelItem, stepCount, partName, items, shown);
+  // A pier stands on its own: nothing clips onto it (design decision 6).
+  const standsAlone = labelItem.kind === 'piece' && scene.partOf(labelItem.pieceId).kind === 'block';
+  const said = announce(labelItem, stepCount, partName, items, shown) + (standsAlone ? ` ${STANDS_ALONE}` : '');
 
   if (item.kind === 'pull' && labelItem.kind === 'pull') {
     return (
@@ -293,7 +296,7 @@ export default function BuildMode(props: BuildModeProps) {
         />
       </div>
       <div className="build-label">
-        <Label item={labelItem} partName={partName} before={bandBefore(items, shown)} pass={props.verdictPass} verdict={props.verdict} />
+        <Label item={labelItem} partName={partName} before={bandBefore(items, shown)} pass={props.verdictPass} verdict={props.verdict} standsAlone={standsAlone} />
         {labelItem.kind !== 'last' && (
           <p className="build-meta">
             {drawing && target !== shown ? 'Drawing…' : n !== null ? <>Step <span className="num">{n}</span> of <span className="num">{stepCount}</span></> : null}
@@ -334,7 +337,10 @@ function Mark({ glyph }: { glyph: string }) {
   );
 }
 
-function Label(props: { item: BuildItem; partName: (id: string) => string; before: number; pass: boolean; verdict: ReactNode }) {
+/** A pier's step card: where it goes, since there is no end to clip it onto (design decision 6). */
+const STANDS_ALONE = 'Stand it on the floor. Nothing clips onto it.';
+
+function Label(props: { item: BuildItem; partName: (id: string) => string; before: number; pass: boolean; verdict: ReactNode; standsAlone?: boolean }) {
   const { item } = props;
   if (item.kind === 'band') {
     const w = bandWords(item, props.before);
@@ -363,6 +369,7 @@ function Label(props: { item: BuildItem; partName: (id: string) => string; befor
       {item.adapter && <p className="build-name build-adapter">Adapter first: male-male</p>}
       <p className="build-name">{props.partName(item.partId)}</p>
       <p className="build-code num">{item.partId}</p>
+      {props.standsAlone && <p className="build-note">{STANDS_ALONE}</p>}
       <Note item={item} />
     </>
   );

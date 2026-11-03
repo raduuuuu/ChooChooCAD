@@ -86,4 +86,21 @@ describe('structures in the library and on the floor', () => {
     await user.click(within(strip()).getByRole('button', { name: 'Move run right 1 cm' }));
     expect(within(strip()).getByText('Piece 1: Bridge pier (PR), 40×40')).toBeTruthy();
   });
+
+  /*
+   * MUTATION PROOF, run: the station sentence dropped from the placing strip
+   * fails with `Unable to find an element with the text: /Placing this
+   * station raises this run of track \(2 pieces\)\. Add a ramp to keep the
+   * rest on the floor\./`.
+   */
+  it('a station picked at the end of floor track says it will raise that run (design decision 4)', async () => {
+    const { user } = mount();
+    await user.dblClick(screen.getByRole('button', { name: /^Add Medium straight$/ }));
+    await user.dblClick(screen.getByRole('button', { name: /^Add Medium straight$/ }));
+    await user.click(screen.getByRole('button', { name: /^Add Elevated station\./ }));
+    const strip = screen.getByRole('group', { name: 'Placing a piece' });
+    expect(
+      within(strip).getByText(/Placing this station raises this run of track \(2 pieces\)\. Add a ramp to keep the rest on the floor\./),
+    ).toBeTruthy();
+  });
 });

@@ -27,6 +27,7 @@ import { placeAll } from '../src/graph/frames.js';
 import { levelOf, portsOf, type Frame, type Graph, type Piece, type Port } from '../src/graph/model.js';
 import { findBridges, findPlankOverlaps } from '../src/graph/overlap.js';
 import { renderGraph } from '../src/graph/render.js';
+import { assemblyOrder } from '../src/graph/assembly.js';
 import { solveGraph } from '../src/graph/solve.js';
 
 const resolve = makeResolver([...BUILT_IN, STATION, PIER, TUNNEL]);
@@ -182,5 +183,56 @@ describe('a pier is not track', () => {
     const r = solveGraph(g, ports, resolve, () => 0, placeAll(g, ports));
     if (!r.ok) throw new Error(`expected a verdict, got ${r.reason}`);
     expect({ count: r.runs.count, open: r.runs.open }).toEqual({ count: 1, open: 0 });
+  });
+});
+
+describe('naming and ordering a building (design decisions 5, 6)', () => {
+  /*
+   * MUTATION PROOF, run: the overlap record's body dropped fails with
+   * `expected undefined to deeply equal { pieceId: 'st', role: 'footprint' }`.
+   */
+  it('an overlap with a body says whose body and which part of it', () => {
+    const g = scene([ST, ['floor', 'D', at(72, -100, 4)]]);
+    const placement = placeAll(g, ports);
+    const r = renderGraph(g, ports, resolve, placement);
+    const [o] = findPlankOverlaps(g, [...r.segments, ...r.bodies], half, connectorSites(g, ports, placement));
+    expect(o!.body).toEqual({ pieceId: 'st', role: 'footprint' });
+    const plain = scene([['a', 'A', at(0, 0, 0)], ['b', 'A', at(72, -100, 4)]]);
+    const p2 = placeAll(plain, ports);
+    const r2 = renderGraph(plain, ports, resolve, p2);
+    expect(findPlankOverlaps(plain, r2.segments, half, connectorSites(plain, ports, p2))[0]!.body).toBeUndefined();
+  });
+
+  /*
+   * MUTATION PROOF, run: standing pieces not started first fails with
+   * `expected [ 'up', 'st' ] to deeply equal [ 'st', 'up' ]`: the raised
+   * straight went down in mid-air before the station that holds it.
+   */
+  it('a station goes down before the raised track on its deck; a pier with the floor', () => {
+    const g: Graph = {
+      pieces: [{ pieceId: 'up', partId: 'A', turn: 'left' }, { pieceId: 'st', partId: 'ST', turn: 'left' }, { pieceId: 'pier', partId: 'PR', turn: 'left' }],
+      welds: [{ a: { pieceId: 'st', port: 1 }, b: { pieceId: 'up', port: 0 } }],
+      anchors: new Map([['st', at(0, 0, 0)], ['pier', at(500, 500, 0)]]),
+    };
+    const r = renderGraph(g, ports, resolve, placeAll(g, ports));
+    const order = assemblyOrder(g, [...r.segments, ...r.bodies]);
+    expect(order.filter((s) => s.pieceId !== 'pier').map((s) => s.pieceId)).toEqual(['st', 'up']);
+    expect(order.find((s) => s.pieceId === 'pier')!.phase).toBe('floor');
+  });
+});
+
+describe('"not a loop yet" counts track (eng EO4)', () => {
+  /*
+   * MUTATION PROOF, run: the run count read from every root again fails with
+   * `expected '2 separate runs of track, none of the…' to be '1 piece, open
+   * at both ends'`.
+   */
+  it('a pier beside a straight is one open piece of track, and a lone pier says it joins nothing', () => {
+    const detail = (g: Graph) => {
+      const r = solveGraph(g, ports, resolve, () => 0, placeAll(g, ports));
+      return r.ok ? null : r.detail;
+    };
+    expect(detail(scene([['pier', 'PR', at(500, 500, 0)], ['a', 'A', at(0, 0, 0)]]))).toBe('1 piece, open at both ends');
+    expect(detail(scene([['pier', 'PR', at(500, 500, 0)]]))).toBe('1 piece with no track connections');
   });
 });

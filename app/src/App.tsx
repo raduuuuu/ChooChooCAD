@@ -72,7 +72,7 @@ import { holdsOwnLayout, loadGraph, partialLoadNotice, saveGraph, savesSuppresse
 import { PutAsideNotice } from './PutAsideNotice.js';
 import { ShareControl } from './ShareControl.js';
 import { saveFailureNotice, type SavedStore } from './saveNotice.js';
-import { viewOf } from './verdictView.js';
+import { buildingClashSentence, viewOf } from './verdictView.js';
 import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
 import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
 import { CANVAS_SEGMENT_CEILING, TrackCanvas } from './TrackCanvas.js';
@@ -1095,6 +1095,15 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
    * its whole connected run (decision D10).
    */
   const pieceNumber = useMemo(() => new Map(graph.pieces.map((p, i) => [p.pieceId, i + 1])), [graph]);
+  // Track that runs into a building, said with the building's name (design decision 5).
+  const buildingClashes = useMemo(() => {
+    if (!result) return [];
+    const partOf = new Map(graph.pieces.map((p) => [p.pieceId, p.partId]));
+    return result.overlaps.flatMap((o) => {
+      const sentence = buildingClashSentence(o, (id) => pieceNumber.get(id), (id) => resolve(partOf.get(id)!));
+      return sentence ? [sentence] : [];
+    });
+  }, [result, graph, pieceNumber, resolve]);
   const sizeOf = paletteSize;
   const canvasPieceName = (id: string): string => {
     const piece = graph.pieces.find((p) => p.pieceId === id)!;
@@ -1210,7 +1219,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     if (!ghost) return null;
     const part = resolve(ghost.partId);
     const piece: GPiece = { pieceId: '\u0000ghost', partId: ghost.partId, turn: ghost.turn };
-    const { frame, conflicts: found, joins, adapterHere, relevels } = ghostFit(graph, ports, ghost, placement, sites, {
+    const { frame, conflicts: found, joins, adapterHere, relevels, lifted } = ghostFit(graph, ports, ghost, placement, sites, {
       resolve,
       segments: woodOf(render),
     });
@@ -1218,9 +1227,24 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     const own = placeAll(alone, ports);
     // On a free end of a run drawn bent, the preview moves with that run.
     const atShift = ghost.at ? shifts.get(ghost.at.pieceId) : undefined;
-    const ghostRender = atShift
+    const drawnAlone = atShift
       ? bendRender(renderGraph(alone, ports, resolve, own), new Map([[piece.pieceId, atShift]]))
       : renderGraph(alone, ports, resolve, own);
+    /*
+     * THE RUN IT WOULD LIFT, drawn in the preview at its new height with its
+     * shadows (design decision 4), so what Place does is seen before it.
+     */
+    const ghostRender = (() => {
+      if (!lifted) return drawnAlone;
+      const ids = new Set(lifted.ids);
+      const after = renderGraph(lifted.graph, ports, resolve, placeAll(lifted.graph, ports));
+      const mine = (s: { pieceId?: string }) => s.pieceId !== undefined && ids.has(s.pieceId);
+      return {
+        ...drawnAlone,
+        segments: [...drawnAlone.segments, ...after.segments.filter(mine)],
+        bodies: [...drawnAlone.bodies, ...after.bodies.filter(mine)],
+      };
+    })();
     const ends = ports(piece);
     let status: { glyph: 'O' | 'X' | '◇'; text: ReactNode };
     // Piece numbers in the number face (DESIGN.md rule 4; design review DR9).
@@ -1275,7 +1299,13 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
        * the truth to show instead (eng re-run D3).
        */
       const rising = part.kind === 'straight' && part.rise !== undefined;
-      const level: string[] = !rising
+      const station = part.kind === 'straight' && part.deck !== undefined;
+      const lift = lifted?.ids.length ?? 0;
+      const level: string[] = station
+        ? lift > 0
+          ? [`Placing this station raises this run of track (${lift} ${lift === 1 ? 'piece' : 'pieces'}). Add a ramp to keep the rest on the floor.`]
+          : []
+        : !rising
         ? []
         : levelOf(ends[ghost.port]!.at) === 0
           ? ['Climbs from the floor to the raised level.']
@@ -1600,7 +1630,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     return (
       <BuildModeLoader
         graph={graph}
-        segments={render.segments}
+        segments={woodOf(render)}
         result={result}
         scene={buildScene}
         partName={(id) => resolve(id).name}
@@ -1615,6 +1645,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             adaptersUnmarked={adaptersUnmarked}
             levelUnmarked={levelMarks.hidden}
             polarityUnmarked={refusedMarks.hidden}
+            buildings={buildingClashes}
           />
         }
         verdictPass={verdictView.kind === 'EXACT' || verdictView.kind === 'NEEDS_GIVE'}
@@ -1641,6 +1672,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         adaptersUnmarked={adaptersUnmarked}
         levelUnmarked={levelMarks.hidden}
         polarityUnmarked={refusedMarks.hidden}
+        buildings={buildingClashes}
       />
     );
     const n = graph.pieces.length;

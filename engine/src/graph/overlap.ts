@@ -47,7 +47,15 @@ export interface PlankOverlap {
   readonly at: [number, number];
   /** The shared area, in square millimetres. */
   readonly areaMm2: number;
+  /**
+   * When wood that is not track is in it (plan 2026-11-02, design decision
+   * 5): which piece's body, and which part of it, so the verdict can name the
+   * building. Absent for track over track.
+   */
+  readonly body?: { readonly pieceId: string; readonly role: BodyRole };
 }
+
+type BodyRole = NonNullable<Segment['body']>;
 
 /**
  * Below this, two planks are touching, not overlapping. 100 mm² is a 40 mm
@@ -70,6 +78,7 @@ interface Quad {
   readonly hi: number;
   /** A body box (plan 2026-11-02): never exempt as a welded neighbour (OV4), never a bridge. */
   readonly body: boolean;
+  readonly role?: BodyRole;
   readonly pts: readonly Pt[];
   readonly minX: number;
   readonly minY: number;
@@ -77,7 +86,8 @@ interface Quad {
   readonly maxY: number;
 }
 
-function quad(pieceId: string, pts: readonly Pt[], lo = 0, hi = 0, body = false): Quad {
+function quad(pieceId: string, pts: readonly Pt[], lo = 0, hi = 0, role?: BodyRole): Quad {
+  const body = role !== undefined;
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const [x, y] of pts) {
     if (x < minX) minX = x;
@@ -85,7 +95,7 @@ function quad(pieceId: string, pts: readonly Pt[], lo = 0, hi = 0, body = false)
     if (x > maxX) maxX = x;
     if (y > maxY) maxY = y;
   }
-  return { pieceId, lo, hi, body, pts, minX, minY, maxX, maxY };
+  return { pieceId, lo, hi, body, ...(role ? { role } : {}), pts, minX, minY, maxX, maxY };
 }
 
 /** A segment's plank as convex quads, each wound counter-clockwise. */
@@ -247,9 +257,8 @@ function planksSharingArea(
     if (s.pieceId === undefined) continue;
     const lo = s.level ?? 0;
     const hi = lo + (s.rise ?? 0);
-    const body = s.body !== undefined;
     for (const q of plankQuads(s, s.halfWidthMm ?? plankHalfWidth(s.partId), s.pieceId)) {
-      quads.push(quad(q.pieceId, q.pts, lo, hi, body));
+      quads.push(quad(q.pieceId, q.pts, lo, hi, s.body));
     }
   }
 
@@ -268,7 +277,7 @@ function planksSharingArea(
   });
 
   const seen = new Set<string>();
-  const shared = new Map<string, { a: string; b: string; area: number; sx: number; sy: number }>();
+  const shared = new Map<string, { a: string; b: string; area: number; sx: number; sy: number; body?: PlankOverlap['body'] }>();
   for (const cell of grid.values()) {
     for (let m = 0; m < cell.length; m++) {
       for (let n = m + 1; n < cell.length; n++) {
@@ -300,6 +309,9 @@ function planksSharingArea(
           b: p.pieceId < q.pieceId ? q.pieceId : p.pieceId,
           area: 0, sx: 0, sy: 0,
         };
+        // The first body seen names the pair; a track quad never displaces it.
+        const hit = p.role ? { pieceId: p.pieceId, role: p.role } : q.role ? { pieceId: q.pieceId, role: q.role } : undefined;
+        if (hit && !entry.body) entry.body = hit;
         entry.area += area;
         entry.sx += (cx / region.length) * area;
         entry.sy += (cy / region.length) * area;
@@ -311,7 +323,7 @@ function planksSharingArea(
   const out: PlankOverlap[] = [];
   for (const e of shared.values()) {
     if (e.area < OVERLAP_MIN_AREA_MM2) continue;
-    out.push({ a: e.a, b: e.b, at: [e.sx / e.area, e.sy / e.area], areaMm2: e.area });
+    out.push({ a: e.a, b: e.b, at: [e.sx / e.area, e.sy / e.area], areaMm2: e.area, ...(e.body ? { body: e.body } : {}) });
   }
   // Stable order, so markers and counts do not reshuffle between edits.
   return out.sort((x, y) => (x.a === y.a ? x.b.localeCompare(y.b) : x.a.localeCompare(y.a)));

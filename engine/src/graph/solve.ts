@@ -246,19 +246,24 @@ export function solveGraph(
      * thing to say, and it is the first place the rewrite shows up in copy a
      * user reads.
      */
-    const runs = placement.forest.roots.length;
+    // Runs of TRACK, and track pieces (eng EO4): a pier beside a straight is not a second run.
+    const runs = summariseRuns(graph, placement.forest, [], ports).count;
+    const trackPieces = graph.pieces.filter((p) => ports(p).length > 0).length;
     /*
      * "Both ends" is only true of a run with two. A switch adds a third, and
      * one run with no loop has exactly (ports - 2 x welds) of them free.
      */
     const freeEnds =
       graph.pieces.reduce((n, p) => n + ports(p).length, 0) - 2 * graph.welds.length;
-    const pieces = `${graph.pieces.length} ${graph.pieces.length === 1 ? 'piece' : 'pieces'}`;
+    const pieces = `${trackPieces} ${trackPieces === 1 ? 'piece' : 'pieces'}`;
+    const loose = graph.pieces.length - trackPieces;
     return {
       ok: false,
       reason: 'NO_CYCLE',
       detail:
-        runs <= 1
+        runs === 0
+          ? `${loose} ${loose === 1 ? 'piece' : 'pieces'} with no track connections`
+          : runs <= 1
           ? freeEnds === 2
             ? `${pieces}, open at both ends`
             : `${pieces}, ${freeEnds} open ends`

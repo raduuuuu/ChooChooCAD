@@ -404,6 +404,12 @@ export function ghostFit(
    * placing strip says so before Place (design 2A).
    */
   readonly relevels: boolean;
+  /**
+   * The track whose level it would change, and the layout as it would be
+   * once placed, so the preview can draw that run at its new height (design
+   * decision 4). Null when nothing changes level.
+   */
+  readonly lifted: { readonly graph: Graph; readonly ids: readonly string[] } | null;
 } {
   const piece: Piece = { pieceId: '\u0000ghost', partId: ghost.partId, turn: ghost.turn };
   const frame = ghost.at
@@ -494,6 +500,7 @@ export function ghostFit(
    * is checked whole.
    */
   let relevels = false;
+  let lifted: { graph: Graph; ids: string[] } | null = null;
   if (ends.some((e) => levelOf(e.at) !== 0)) {
     const placed = ghost.at
       ? addPiece(graph, ghost.partId, ghost.turn, ends.length, ghost.at, ports, { port: ghost.port, turn: ghost.turn })
@@ -501,7 +508,9 @@ export function ghostFit(
     const id = placed.graph.pieces[placed.graph.pieces.length - 1]!.pieceId;
     const candidate = autoJoin(placed.graph, ports, id).graph;
     const after = placeAll(candidate, ports);
-    relevels = graph.pieces.some((p) => levelOf(placement.frames.get(p.pieceId)!) !== levelOf(after.frames.get(p.pieceId)!));
+    const changed = graph.pieces.filter((p) => levelOf(placement.frames.get(p.pieceId)!) !== levelOf(after.frames.get(p.pieceId)!));
+    relevels = changed.length > 0;
+    if (relevels) lifted = { graph: candidate, ids: changed.map((p) => p.pieceId) };
     const thirdBefore = findLevelFaults(graph, ports, placement).thirdLevels.length;
     if (findLevelFaults(candidate, ports, after).thirdLevels.length > thirdBefore) conflicts.push({ kind: 'level' });
     if (relevels && geometry) {
@@ -523,7 +532,7 @@ export function ghostFit(
       }
     }
   }
-  return { frame, conflicts, joinsTo, joins, adapterHere, relevels };
+  return { frame, conflicts, joinsTo, joins, adapterHere, relevels, lifted };
 }
 
 /**
