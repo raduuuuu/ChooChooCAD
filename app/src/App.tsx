@@ -158,7 +158,7 @@ const isRamp = (p: Part) => p.kind === 'straight' && p.rise !== undefined;
 /** What a structure carries, in the floor/raised words (design decision 2, rule 7). */
 const structureUse = (p: Part): string =>
   p.kind === 'block'
-    ? 'No track connections'
+    ? 'Holds raised track'
     : p.kind === 'straight' && p.hump !== undefined
       ? 'Road over, track passes under'
       : p.kind === 'straight' && p.deck !== undefined ? 'Raised road' : 'Floor road';

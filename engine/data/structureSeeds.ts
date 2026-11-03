@@ -257,12 +257,27 @@ export const SUSPENSION_BRIDGE: StraightPart = {
   slop: ESTIMATED_SLOP, ...PROFILE,
 };
 
-export const STRUCTURE_SEEDS = [STATION, RISER, TUNNEL_OVERPASS, STONE_ARCH_BRIDGE, SUSPENSION_BRIDGE] as const;
+/*
+ * THE TRACK SUPPORT (more parts plan 2026-11-03), read off 3MF 1238767,
+ * printed lying down: a slab 25 thick along the track and 52 across, its
+ * cradle (44.6 wide between 3.7 walls) 60.7 up: raised track sits in it one
+ * level up. No track of its own, like the pier it replaces in the list.
+ */
+export const TRACK_SUPPORT: BlockPart = {
+  id: 'TS', brand: 'GENERIC', kind: 'block', name: 'Track support',
+  body: [{ role: 'footprint', atMm: [0, 0], lengthMm: 25, widthMm: 52, levels: [0, 0] }],
+  sizeLabel: '25×52',
+  dimensions: printed('A 25 by 52 footprint; its cradle holds track 60.7 up, one level.'),
+  slop: ESTIMATED_SLOP, ...PROFILE,
+};
+
+export const STRUCTURE_SEEDS = [STATION, RISER, TRACK_SUPPORT, TUNNEL_OVERPASS, STONE_ARCH_BRIDGE, SUSPENSION_BRIDGE] as const;
 
 /** How the app names each structure in a sentence, and what its list line says it carries (design decision 5). */
 export const STRUCTURE_WORDS: Readonly<Record<string, { readonly word: string; readonly carries: string }>> = {
   ST: { word: 'station', carries: 'road raised, footprint on the floor' },
   RS: { word: 'riser', carries: 'road raised on legs, floor track passes under' },
+  TS: { word: 'support', carries: 'holds raised track, no track connections' },
   TO: { word: 'tunnel', carries: 'road raised over a passage, floor track passes through' },
   SA: { word: 'bridge', carries: 'road over the arch, floor track passes under' },
   SB: { word: 'bridge', carries: 'road over the main span, floor track passes under' },
