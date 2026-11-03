@@ -121,6 +121,55 @@ describe('every reader of "all wood" reads the bodies', () => {
   });
 });
 
+describe('the track support (more parts plan 2026-11-03)', () => {
+  /*
+   * MUTATION PROOFS, run:
+   * - its width 40, not 52: fails with `expected [ 25, 40 ] to deeply equal [ 25, 52 ]`.
+   * - its body filling levels [0, 1]: fails with `expected 122 to be 61` here
+   *   and `expected [ { kind: 'over', pieceId: 'p1' } ] to deeply equal []`
+   *   below: it would block the raised track it holds.
+   */
+  it('stands 25 by 52, from the floor to the underside of raised track', () => {
+    const r = drawnAlone('TS');
+    const b = renderBounds(r);
+    expect([b.maxX - b.minX, b.maxY - b.minY]).toEqual([25, 52]);
+    const scene = buildScene({ segments: r.segments, bodies: r.bodies, ports: r.ports, welds: [], partOf: () => resolve('TS'), riseMm: 61, plankMm: 12 });
+    expect(scene.bounds.max[2] - scene.bounds.min[2]).toBe(61);
+  });
+
+  it('goes under raised track, and is refused on floor track', () => {
+    const act = (s: EditorState, a: EditorAction) => reduce(s, a, ports, { resolve });
+    const ramp = act({ graph: EMPTY_GRAPH, cursor: null, armed: null }, { kind: 'add', partId: 'N', turn: 'left' });
+    const raised = act(ramp, { kind: 'add', partId: 'A', turn: 'left' });
+    const under = act(act(raised, { kind: 'pick', partId: 'TS' }), { kind: 'floatGhost', pos: shiftMm(216 + 72, 0) });
+    expect(ghostFit(under.graph, ports, under.ghost!, undefined, undefined, { resolve }).conflicts).toEqual([]);
+    const onFloor = act(act(raised, { kind: 'pick', partId: 'TS' }), { kind: 'floatGhost', pos: shiftMm(20, 0) });
+    expect(ghostFit(onFloor.graph, ports, onFloor.ghost!, undefined, undefined, { resolve }).conflicts).toEqual([
+      { kind: 'over', pieceId: 'p0' },
+    ]);
+  });
+});
+
+describe('the double crossing (more parts plan 2026-11-03)', () => {
+  /*
+   * MUTATION PROOF, run: the second road 44 from the first, not 46: fails
+   * with `expected [ 1, true, 2, +0, +0 ] to deeply equal [ 1, true, +0, +0, +0 ]`.
+   */
+  it('its pair of tracks, 46 apart, takes the large double curve exactly', () => {
+    const g: Graph = {
+      pieces: [{ pieceId: 'x', partId: 'HH', turn: 'left' }, { pieceId: 'e', partId: 'EE', turn: 'left' }],
+      welds: [
+        { a: { pieceId: 'x', port: 3 }, b: { pieceId: 'e', port: 0 } },
+        { a: { pieceId: 'x', port: 1 }, b: { pieceId: 'e', port: 2 } },
+      ],
+    };
+    const placement = placeAll(g, ports);
+    const r = renderGraph(g, ports, resolve, placement);
+    const view = viewOf(solveGraph(g, ports, resolve, () => 0, placement, undefined, r.segments, r.bodies));
+    expect([view.rank, view.gapKnown, view.gapMm, view.clashCount, view.overlapCount]).toEqual([1, true, 0, 0, 0]);
+  });
+});
+
 describe('a piece with no ends lands selected (design decision 3)', () => {
   /*
    * MUTATION PROOFS, run:

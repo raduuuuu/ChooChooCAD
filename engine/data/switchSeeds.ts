@@ -420,6 +420,42 @@ export const MULTI_ROAD_SEEDS: readonly MultiRoadPart[] = [
   },
 
   /*
+   * THE DOUBLE CROSSING (more parts plan 2026-11-03): two tracks each way,
+   * 46 apart, crossing square in a 150 by 150 plank. A printable design
+   * (its origin in origins.ts), read off its 3MF mesh. Its mirror image is
+   * the same crossing turned a quarter, so it has no `flip`.
+   */
+  {
+    id: 'HH', brand: 'GENERIC', kind: 'multi-road', name: 'Double crossing',
+    ports: [
+      { at: { pos: ORIGIN, heading: 8 }, polarity: 'socket', name: "first road's near end" },
+      { at: { pos: xy(150, 0), heading: 0 }, polarity: 'peg', name: "first road's far end" },
+      { at: { pos: xy(0, 46), heading: 8 }, polarity: 'socket', name: "second road's near end" },
+      { at: { pos: xy(150, 46), heading: 0 }, polarity: 'peg', name: "second road's far end" },
+      { at: { pos: xy(52, -52), heading: 12 }, polarity: 'peg', name: "third road's near end" },
+      { at: { pos: xy(52, 98), heading: 4 }, polarity: 'socket', name: "third road's far end" },
+      { at: { pos: xy(98, -52), heading: 12 }, polarity: 'peg', name: "fourth road's near end" },
+      { at: { pos: xy(98, 98), heading: 4 }, polarity: 'socket', name: "fourth road's far end" },
+    ],
+    roads: [
+      { from: 0, to: 1, shape: { kind: 'straight', lengthMm: 150 } },
+      { from: 2, to: 3, shape: { kind: 'straight', lengthMm: 150 } },
+      { from: 4, to: 5, shape: { kind: 'straight', lengthMm: 150 } },
+      { from: 6, to: 7, shape: { kind: 'straight', lengthMm: 150 } },
+    ],
+    sizeLabel: '150×150',
+    dimensions: {
+      status: 'unverified',
+      source: 'a printed design, measured off the 3MF mesh on 2026-11-03',
+      note:
+        'A printable design with its own sizes, not a measurement of a shop piece. A 150 by 150 plank; ' +
+        'each pair of tracks 46 apart centre to centre (grooves 26 apart within a track), 23 either side ' +
+        'of the middle, to 0.05mm. Every road runs socket to peg, both of a pair the same way.',
+    },
+    slop: ESTIMATED_SLOP, ...PROFILE,
+  },
+
+  /*
    * F AND G, the straight fork and merge . Each road is an
    * S-bend; their ends sit 23.5 either side of the heel's line, 47 apart.
    * ROUNDED to the grid (owner, 2026-10-30): F's ends at +24 and -23, so

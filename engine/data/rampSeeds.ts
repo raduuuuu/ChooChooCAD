@@ -24,7 +24,9 @@ import { MEASUREMENTS } from './measurements.js';
 const RAMP_SOURCE: DimensionSource = {
   status: 'unverified',
   source: 'the published piece table: N, Ascending, 216mm; CALIBRATION.md Q4 (run or slope, unmeasured)',
-  note: '216mm taken as the floor run (owner decision L2, 2026-10-23). If it is the slope length, the run is about 207.2mm (with the measured 61mm rise).',
+  note:
+    '216mm taken as the floor run (owner decision L2, 2026-10-23). If it is the slope length, the run is about 207.2mm (with the measured 61mm rise). ' +
+    'A printed replica, read off its 3MF mesh on 2026-11-03, covers 216.0mm of floor from its socket end to the face behind its peg and rises 60.7mm: the run, on that replica.',
 };
 
 export const RAMP_SEEDS: readonly Part[] = [
