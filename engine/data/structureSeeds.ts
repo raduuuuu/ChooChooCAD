@@ -314,6 +314,7 @@ export const HARBOUR_BRIDGE: StraightPart = {
     pylon(PORTAL_IN - PORTAL / 2, 1), pylon(PORTAL_IN - PORTAL / 2, -1),
     pylon(HB_LEN - PORTAL_IN + PORTAL / 2, 1), pylon(HB_LEN - PORTAL_IN + PORTAL / 2, -1),
   ],
+  deckClearanceMm: 60.8,
   trussArch: { fromMm: 20.5, toMm: 195.5, springMm: 19.8, crownMm: 142.5, innerCrownMm: 118.3, sideMm: 28 },
   dimensions: printed('A 216 road one level up between two portals 121.4 apart; floor track passes under between them.'),
   slop: ESTIMATED_SLOP, ...PROFILE,

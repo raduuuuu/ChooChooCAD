@@ -72,7 +72,7 @@ import { holdsOwnLayout, loadGraph, partialLoadNotice, saveGraph, savesSuppresse
 import { PutAsideNotice } from './PutAsideNotice.js';
 import { ShareControl } from './ShareControl.js';
 import { saveFailureNotice, type SavedStore } from './saveNotice.js';
-import { buildingClashSentence, buildingWord, viewOf } from './verdictView.js';
+import { bridgeNotesOf, buildingClashSentence, buildingWord, viewOf } from './verdictView.js';
 import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
 import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
 import { CANVAS_SEGMENT_CEILING, TrackCanvas } from './TrackCanvas.js';
@@ -159,7 +159,7 @@ const isRamp = (p: Part) => p.kind === 'straight' && p.rise !== undefined;
 const structureUse = (p: Part): string =>
   p.kind === 'block'
     ? 'Holds raised track'
-    : p.kind === 'straight' && p.hump !== undefined
+    : p.kind === 'straight' && (p.hump !== undefined || p.deckClearanceMm !== undefined)
       ? 'Road over, track passes under'
       : p.kind === 'straight' && p.deck !== undefined ? 'Raised road' : 'Floor road';
 const partsByBrand = (lib: readonly Part[], b: Brand) => {
@@ -1107,19 +1107,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
   const bridgeNotes = useMemo((): BridgeNote[] => {
     if (!result) return [];
     const partOf = new Map(graph.pieces.map((p) => [p.pieceId, p.partId]));
-    const seen = new Set<string>();
-    return result.underBridges.flatMap(({ bridge }) => {
-      if (seen.has(bridge)) return [];
-      seen.add(bridge);
-      const part = resolve(partOf.get(bridge)!);
-      if (part.kind !== 'straight' || !part.hump) return [];
-      return [{
-        name: part.name.toLowerCase(),
-        piece: pieceNumber.get(bridge)!,
-        clearanceMm: part.hump.clearanceMm,
-        ...(part.hump.clearanceEstimated ? { estimated: true } : {}),
-      }];
-    });
+    return bridgeNotesOf(result.underBridges, (id) => partOf.get(id)!, resolve, (id) => pieceNumber.get(id)!);
   }, [result, graph, pieceNumber, resolve]);
   // Track that runs into a building, said with the building's name (design decision 5).
   const buildingClashes = useMemo(() => {

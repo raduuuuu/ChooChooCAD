@@ -30,6 +30,7 @@ import { bendLimit } from '../../engine/data/bendLimit.js';
 import type { PlankOverlap } from '../../engine/src/graph/overlap.js';
 import type { Part } from '../../engine/src/parts/schema.js';
 import { STRUCTURE_WORDS } from '../../engine/data/structureSeeds.js';
+import type { BridgeNote } from './VerdictLine.js';
 
 export type VerdictKind =
   | 'NOTHING'
@@ -228,6 +229,33 @@ export function viewOf(result: GraphResult | null): VerdictView {
         }
       : null,
   };
+}
+
+/**
+ * Each bridge track passes under, once, for its clearance sentence (bridges
+ * design DD5): a hump's opening, or a raised deck's stated one (R2).
+ */
+export function bridgeNotesOf(
+  underBridges: GraphResult['underBridges'],
+  partIdOf: (pieceId: string) => string,
+  resolve: (partId: string) => Part,
+  numberOf: (pieceId: string) => number,
+): BridgeNote[] {
+  const seen = new Set<string>();
+  return underBridges.flatMap(({ bridge }) => {
+    if (seen.has(bridge)) return [];
+    seen.add(bridge);
+    const part = resolve(partIdOf(bridge));
+    if (part.kind !== 'straight') return [];
+    const clearanceMm = part.hump?.clearanceMm ?? part.deckClearanceMm;
+    if (clearanceMm === undefined) return [];
+    return [{
+      name: part.name.toLowerCase(),
+      piece: numberOf(bridge),
+      clearanceMm,
+      ...(part.hump?.clearanceEstimated ? { estimated: true } : {}),
+    }];
+  });
 }
 
 /** What a structure is called in a sentence: the floor/raised words only (design decision 5, rule 7). */

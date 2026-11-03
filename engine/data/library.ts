@@ -107,7 +107,7 @@ const BUILT_IN_STRUCTURES = new Set(BUILT_IN.filter(isStructure).map((p) => p.id
 function withRise(part: Part, rise: 1 | undefined): Part {
   const { body: _noBody, ...bare } = part;
   if (bare.kind !== 'straight') return bare as Part;
-  const { rise: _dropped, deck: _noDeck, plate: _noPlate, trussArch: _noTruss, hump: _noHump, ...flat } = bare;
+  const { rise: _dropped, deck: _noDeck, plate: _noPlate, trussArch: _noTruss, deckClearanceMm: _noClear, hump: _noHump, ...flat } = bare;
   return rise === undefined ? flat : { ...flat, rise };
 }
 
