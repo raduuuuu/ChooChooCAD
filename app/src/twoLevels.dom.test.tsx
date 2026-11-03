@@ -118,7 +118,8 @@ describe('a bridge on the canvas', () => {
    * `expected 'Grid: 10 cm?Not a loop yet. 2 separat…' to contain 'Raised
    * track: supports are not checke…'`.
    *
-   * The clearance is the MEASURED -3mm (CALIBRATION.md Q5, 2026-10-30); a
+   * The clearance is the MEASURED -6mm (CALIBRATION.md Q5: 55mm train
+   * 2026-10-30; 61mm rise from the owner's 73mm ramp top, 2026-11-03); a
    * warning for a train that does not fit is a TODO in docs/plan/generic-TODOS.md.
    * MUTATION PROOF, run: `vehicleHeightMm: 44` in measurements.ts fails with
    * `expected 'Grid: 10 cm · Shadow: raised?Not a lo…' to match /crosses other
@@ -128,7 +129,7 @@ describe('a bridge on the canvas', () => {
     mount(BRIDGE);
     const text = document.body.textContent!;
     expect(text).toContain('Raised track: supports are not checked.');
-    expect(text).toMatch(/crosses other track at\s*1\s*place; clearance is about\s*-3\s*mm/);
+    expect(text).toMatch(/crosses other track at\s*1\s*place; clearance is about\s*-6\s*mm/);
   });
 });
 

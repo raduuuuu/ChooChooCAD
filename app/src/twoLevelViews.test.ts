@@ -98,15 +98,18 @@ describe('raised track on a verdict that works (3A, 4A)', () => {
    *   measurements.ts): `expected 'OThis works. Closes exactly, no give …' to
    *   match /crosses other track at 2 places; clea…/`.
    *
-   * THE CLEARANCE IS NEGATIVE AND THE NOTE DOES NOT WARN YET. -3mm is the
-   * measured result (CALIBRATION.md Q5, 2026-10-30: 64 rise - 12 plank - 55
-   * train). A per-train warning is filed in docs/plan/generic-TODOS.md ("A 55mm
+   * THE CLEARANCE IS NEGATIVE AND THE NOTE DOES NOT WARN YET. -6mm is the
+   * measured result (CALIBRATION.md Q5: 61 rise, from the owner's 73mm ramp
+   * top on 2026-11-03, - 12 plank - 55 train from 2026-10-30).
+   * MUTATION PROOF, run: `riseMm: null` (back to the published 64) fails
+   * with `expected 'OThis works. Closes exactly, no give …' to match
+   * /crosses other track at 2 places; clea…/`. A per-train warning is filed in docs/plan/generic-TODOS.md ("A 55mm
    * train may not fit under a one-level bridge"); this pins today's wording.
    */
   it('says what was not checked, past a long notes list, and never "Build it"', () => {
     const out = verdict(view({ kind: 'EXACT', gapKnown: true, raised: true, bridgeCount: 2 }), { trust: FIVE });
     expect(out).toContain('Raised track: supports are not checked.');
-    expect(out).toMatch(/crosses other track at 2 places; clearance is about -3mm/);
+    expect(out).toMatch(/crosses other track at 2 places; clearance is about -6mm/);
     // The train is measured now (Q5), so nothing in the figure is called a guess.
     expect(out).toContain('55mm train).');
     expect(out).not.toContain('height is an estimate');

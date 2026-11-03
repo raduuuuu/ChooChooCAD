@@ -6,13 +6,14 @@
  * ordinary 216mm straight to the exact walk and loops through it still close
  * exactly (owner decision L2, 2026-10-23). Nobody has measured whether 216 is
  * the run or the length along the slope: if it is the slope, the run is
- * sqrt(216^2 - 64^2), about 206.34mm, and every ramp loop is off by about
- * 9.7mm per ramp. That is `CALIBRATION.md` Q4, still open, which is why this
+ * sqrt(216^2 - 61^2), about 207.2mm, and every ramp loop is off by about
+ * 8.8mm per ramp (the 61mm rise is the owner's, measurements.ts Q5). That is `CALIBRATION.md` Q4, still open, which is why this
  * part is `unverified` (eng review finding T2: the schema has no "estimated"
  * dimension status, and unverified is the honest one) and sits outside
  * `GENERIC_PARTS`, whose parts are all published.
  *
- * The rise of 64mm is estimated too, and only the clearance note uses it
+ * The rise, 61mm measured by the owner (published 64), is used only by the
+ * clearance note and the 3D view
  * (`CLEARANCE` below): to the engine a ramp climbs exactly one level.
  */
 
@@ -23,7 +24,7 @@ import { MEASUREMENTS } from './measurements.js';
 const RAMP_SOURCE: DimensionSource = {
   status: 'unverified',
   source: 'the published piece table: N, Ascending, 216mm; CALIBRATION.md Q4 (run or slope, unmeasured)',
-  note: '216mm taken as the floor run (owner decision L2, 2026-10-23). If it is the slope length, the run is about 206.34mm.',
+  note: '216mm taken as the floor run (owner decision L2, 2026-10-23). If it is the slope length, the run is about 207.2mm (with the measured 61mm rise).',
 };
 
 export const RAMP_SEEDS: readonly Part[] = [
@@ -66,8 +67,9 @@ export const RAMP_SEEDS: readonly Part[] = [
 /**
  * The clearance under a bridge, millimetres, for the verdict's note only
  * (decision L3): ramp rise minus plank thickness minus the tallest train.
- * The rise and the plank are published: "Raises or lowers the track by 64mm"
- * and "40mm wide and 12mm high" (the published track guide).
+ * The plank is published ("40mm wide and 12mm high", the published track
+ * guide). The rise is the owner's: 61mm from a 73mm ramp top, where the guide
+ * says 64 (measurements.ts Q5, 2026-11-03).
  * The train's height is the estimate, and the note names it as the one guess
  * in the figure until Q5 of `measurements.ts` is filled in (`trainMeasured`).
  */
