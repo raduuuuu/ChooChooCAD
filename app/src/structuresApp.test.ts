@@ -170,6 +170,23 @@ describe('the double crossing (more parts plan 2026-11-03)', () => {
   });
 });
 
+describe('the harbour arch bridge in 3D (Sydney bridge plan 2026-11-03)', () => {
+  /*
+   * MUTATION PROOFS, run:
+   * - the truss arch dropped from the seed: `expected 127 to be close to 142.5`.
+   * - the pylons' height dropped: `expected 0 to be greater than or equal to 16`.
+   */
+  it('stands its pylons 127 tall and its arch over the deck to 142.5', () => {
+    const r = drawnAlone('HB');
+    const s = buildScene({ segments: r.segments, bodies: r.bodies, ports: r.ports, welds: [], partOf: () => resolve('HB'), riseMm: 61, plankMm: 12 });
+    expect(s.bounds.max[2]).toBeCloseTo(142.5, 6);
+    const p = s.structures.solid.positions;
+    let pylonTops = 0;
+    for (let i = 2; i < p.length; i += 3) if (Math.abs(p[i]! - 127) < 1e-6) pylonTops++;
+    expect(pylonTops).toBeGreaterThanOrEqual(16);
+  });
+});
+
 describe('a piece with no ends lands selected (design decision 3)', () => {
   /*
    * MUTATION PROOFS, run:

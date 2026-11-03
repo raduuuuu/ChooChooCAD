@@ -346,13 +346,16 @@ describe('structures are built-in, and named (eng D4, D10)', () => {
   });
 
   /*
-   * MUTATION PROOF, run: `plate` left out of withRise fails with `expected {
-   * widthMm: 500 } to be undefined`.
+   * MUTATION PROOFS, run: `plate` left out of withRise fails with `expected {
+   * widthMm: 500 } to be undefined`; `trussArch` left out fails with
+   * `expected { fromMm: +0, toMm: 100, …(4) } to be undefined`.
    */
-  it('a stored correction cannot lay a plate', () => {
-    const forged = { ...resolve('A'), id: 'X8', plate: { widthMm: 500 } };
+  it('a stored correction cannot lay a plate or raise a truss arch', () => {
+    const arch = { fromMm: 0, toMm: 100, springMm: 0, crownMm: 900, innerCrownMm: 800, sideMm: 28 };
+    const forged = { ...resolve('A'), id: 'X8', plate: { widthMm: 500 }, trussArch: arch };
     const got = resolveLibrary([{ submissionId: 's', at: '2026-11-03T10:00:00Z', part: forged as never }]).find((p) => p.id === 'X8')!;
     expect(got.kind === 'straight' ? got.plate : null).toBeUndefined();
+    expect(got.kind === 'straight' ? got.trussArch : null).toBeUndefined();
   });
 
   /*
@@ -376,5 +379,26 @@ describe('the suspension bridge, estimated (bridges plan B-T6)', () => {
     expect(clashes(scene([sb, ['under', 'A', at(224, -72, 4)]]))).toEqual([]);
     expect(clashes(scene([sb, ['under', 'A', at(303, -72, 4)]]))).toEqual([]);
     expect(clashes(scene([sb, ['floor', 'A', at(263, -72, 4)]]))).toEqual(['floor sb']);
+  });
+});
+
+describe('the harbour arch bridge (Sydney bridge plan 2026-11-03)', () => {
+  const hb = ['hb', 'HB', at(0, 0, 0)] as const;
+
+  it('floor track passes under the deck between the portals, not through one', () => {
+    // Portal floors to 47.3 and from 168.7; pylons 25.6 to 51.5 out either side.
+    expect(clashes(scene([hb, ['under', 'A', at(108, -72, 4)]]))).toEqual([]);
+    expect(clashes(scene([hb, ['floor', 'A', at(20, -72, 4)]]))).toEqual(['floor hb']);
+  });
+
+  /*
+   * MUTATION PROOF, run: the portal floors dropped from the seed fails with
+   * `expected [] to deeply equal [ 'floor hb' ]` (the crossing through a
+   * portal above still clashes, on its pylons).
+   */
+  it('floor track along the bridge stops at the portal, under its deck', () => {
+    // From -110 to 34: under the raised road from 0, into the portal's floor between its pylons.
+    expect(clashes(scene([hb, ['floor', 'A', at(-110, 0, 0)]]))).toEqual(['floor hb']);
+    expect(clashes(scene([hb, ['short', 'A', at(-144, 0, 0)]]))).toEqual([]);
   });
 });

@@ -49,6 +49,7 @@ export const PART_ORIGINS: Readonly<Record<string, PartOrigin>> = {
   TO: MW('1033476', 'hubi'),
   SA: MW('1248551', 'Sarlix'),
   SB: MW('639571', 'Ren_Studio'),
+  HB: MW('1124746', 'hubi'),
 };
 
 /** The model page's address. */
