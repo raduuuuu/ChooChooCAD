@@ -69,12 +69,31 @@ describe('structures in the library and on the floor', () => {
     expect(names).toEqual([
       'Add Level crossing. Works like HP, Crossing, printed. Unverified size.',
       'Add Station straight. Works like A, Medium straight. Unverified size.',
+      'Add Tunnel straight. Works like D, Long straight. Unverified size.',
     ]);
     expect(within(group).getByText('Works like HP, Crossing, printed')).toBeTruthy();
     expect(within(group).getAllByRole('button')[0]!.getAttribute('title')).toContain('Works like HP, Crossing, printed.');
     const trackList = container.querySelector('.palette-parts .palette-row') as HTMLElement;
     expect(within(trackList).queryAllByRole('button', { name: /Level crossing/ }).length).toBe(0);
     expect(within(trackList).queryAllByRole('button', { name: /^Add Crossing, printed/ }).length).toBe(1);
+  });
+
+  /*
+   * MUTATION PROOF, run: roofs left in their level's pass fails with
+   * `expected 3 to be greater than 4`: the tunnel's roof, which starts at the
+   * floor, was drawn under the track it covers.
+   */
+  it("a tunnel straight's roof hatch is drawn over its track (DESIGN.md 11)", async () => {
+    const { user, container } = mount();
+    await user.dblClick(screen.getByRole('button', { name: /^Add Tunnel straight\./ }));
+    // The canvas's own drawing: the svg holding the roof, not a library card's.
+    const canvas = container.querySelector('path.body-roof')!.closest('svg')!;
+    const paths = [...canvas.querySelectorAll('path')];
+    const roof = paths.findIndex((p) => p.classList.contains('body-roof'));
+    // A plank layer: a stroked path with no fill (TrackLayers).
+    const track = paths.findIndex((p) => p.getAttribute('stroke-width') !== null && p.getAttribute('fill') === 'none');
+    expect(track).toBeGreaterThan(-1);
+    expect(roof).toBeGreaterThan(track);
   });
 
   /*

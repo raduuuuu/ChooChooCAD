@@ -260,3 +260,44 @@ describe('the station straight: a one-sided decoration (plan T4, eng D5, design 
     expect(beside('right', 70)).toEqual(['n s']);
   });
 });
+
+describe('the tunnel straight: a vault over a long straight (plan T5, eng D10)', () => {
+  const pair = (partId: string, y: number, level = 0) => clashes({
+    pieces: [{ pieceId: 't', partId, turn: 'left' }, { pieceId: 'n', partId: 'D', turn: 'left' }],
+    welds: [],
+    anchors: new Map([['t', at(0, 0, 0)], ['n', level === 0 ? at(0, y, 0) : at(108, y, 4, level)]]),
+  });
+
+  it('works like a long straight; its vault yields two walls and a roof, and one box to draw it', () => {
+    const p = resolve('TT');
+    expect(p.decoratedFrom).toBe('D');
+    expect(p.decorBody!.map((b) => [b.role, b.solid, b.draw, b.levels])).toEqual([
+      ['wall', true, false, [0, 0]],
+      ['wall', true, false, [0, 0]],
+      ['roof', true, false, [0, 1]],
+      ['footprint', false, true, [0, 1]],
+    ]);
+  });
+
+  /*
+   * MUTATION PROOF, run: the roof built from the floor fails with `roof at 0:
+   * expected false to be true`.
+   */
+  it('leaves the passage open: no solid box fills the space between its walls under the arch', () => {
+    for (const b of resolve('TT').decorBody!.filter((d) => d.solid)) {
+      const innerEdge = Math.abs(b.atMm[1]) - b.widthMm / 2;
+      expect(innerEdge >= 19.5 || b.bottomMm >= 60, `${b.role} at ${b.atMm[1]}`).toBe(true);
+    }
+  });
+
+  /*
+   * MUTATION PROOF, run: the roof dropped fails with `expected [ [], [] ] to deeply
+   * equal [ [ 'n t' ], [] ]`; the walls not solid fails the box list above.
+   */
+  it('its walls stand in the way of track alongside, and its roof of raised track over it', () => {
+    // A long straight 44 across: its plank reaches 24 across, into the wall (19.5 to 25.5).
+    expect([pair('TT', -44), pair('D', -44)]).toEqual([['n t'], []]);
+    // Raised track crossing square over the middle: the roof reaches 85.5mm, into level 1.
+    expect([pair('TT', -100, 1), pair('D', -100, 1)]).toEqual([['n t'], []]);
+  });
+});

@@ -24,7 +24,7 @@ import { portsOf, type Graph, type Piece, type Port } from '../../engine/src/gra
 import { renderBounds, renderGraph } from '../../engine/src/graph/render.js';
 import { solveGraph } from '../../engine/src/graph/solve.js';
 import { VerdictLine } from './VerdictLine.js';
-import { bridgeNotesOf, viewOf } from './verdictView.js';
+import { bridgeNotesOf, tunnelNotesOf, viewOf } from './verdictView.js';
 import { buildScene, PLATE_DROP_MM } from '../../engine/src/view3d/mesh.js';
 import { reduce, type EditorAction, type EditorState } from './editorReducer.js';
 import { EMPTY_GRAPH, ghostFit, shiftMm } from './layoutModel.js';
@@ -261,6 +261,46 @@ describe('the station straight, placed and flipped (plan T4, eng D5, design 4A/5
     const r = drawnAlone('SS');
     const s = buildScene({ segments: r.segments, bodies: r.bodies, ports: r.ports, welds: [], partOf: () => resolve('SS'), riseMm: 61, plankMm: 12 });
     expect(s.bounds.max[2]).toBeCloseTo(136, 6);
+  });
+});
+
+describe('the tunnel straight in words, flat and in 3D (plan T5, eng D7, D10)', () => {
+  /*
+   * MUTATION PROOF, run: the opening taken to the vault's outside top fails with
+   * `expected [ { name: 'tunnel straight', …(2) } ] to deeply equal [ … ]`.
+   */
+  it('states the room over the train like a bridge, from the vault\'s opening', () => {
+    const g: Graph = { pieces: [{ pieceId: 'a', partId: 'A', turn: 'left' }, { pieceId: 't', partId: 'TT', turn: 'left' }], welds: [] };
+    const notes = tunnelNotesOf(g.pieces, resolve, (id) => (id === 'a' ? 1 : 2));
+    expect(notes).toEqual([{ name: 'tunnel straight', piece: 2, clearanceMm: 79.5 }]);
+    const placement = placeAll(g, ports);
+    const r = renderGraph(g, ports, resolve, placement);
+    const html = renderToStaticMarkup(createElement(VerdictLine, { view: viewOf(solveGraph(g, ports, resolve, () => 0, placement, undefined, r.segments, r.bodies)), bridgeNotes: notes }))
+      .replace(/<[^>]+>/g, '').replace(/&#x27;|&rsquo;|’/g, "'");
+    expect(html).toContain('Under the tunnel straight (piece 2): about 13mm to spare (80mm opening, 12mm track, 55mm train).');
+  });
+
+  it('its card draws the two walls as slabs and the roof as a roof', () => {
+    expect(previewOf(resolve('TT')).bodies.map((b) => b.roof)).toEqual([false, false, true]);
+  });
+
+  /*
+   * MUTATION PROOF, run: the vault not drawn fails with `expected 12 to be
+   * close to 85.5`; the collision boxes drawn too fails with `expected [ 396,
+   * 24 ] to deeply equal [ 336, +0 ]`.
+   */
+  it('in 3D the vault is drawn round, to 85.5mm, and its collision boxes are not drawn', () => {
+    const r = drawnAlone('TT');
+    const s = buildScene({ segments: r.segments, bodies: r.bodies, ports: r.ports, welds: [], partOf: () => resolve('TT'), riseMm: 61, plankMm: 12 });
+    expect(s.bounds.max[2]).toBeCloseTo(85.5, 6);
+    // A box-drawn roof would put solid corners at its full 25.5 half-width at 85.5; the round vault's top is a single ridge.
+    const pos = s.structures.solid.positions;
+    const atTop = new Set<number>();
+    for (let i = 0; i < pos.length; i += 3) if (Math.abs(pos[i + 2]! - 85.5) < 1e-6) atTop.add(Math.round(pos[i + 1]! * 10) / 10);
+    expect(atTop.size).toBe(1);
+    // Drawn from the vault alone: the walls' and roof's collision boxes add nothing, solid or rim.
+    const vaultOnly = buildScene({ segments: r.segments, bodies: r.bodies.filter((b) => b.decor?.draw), ports: r.ports, welds: [], partOf: () => resolve('TT'), riseMm: 61, plankMm: 12 });
+    expect([s.structures.solid.indices.length, s.structures.rim.indices.length]).toEqual([vaultOnly.structures.solid.indices.length, 0]);
   });
 });
 

@@ -258,6 +258,25 @@ export function bridgeNotesOf(
   });
 }
 
+/**
+ * The room over the train in each tunnel piece (decorated-pieces eng D7):
+ * floor to the underside of its vault, in the bridges' sentence. Its
+ * inside width is stored on the shape, not said: no train width exists yet.
+ */
+export function tunnelNotesOf(
+  pieces: readonly { readonly pieceId: string; readonly partId: string }[],
+  resolve: (partId: string) => Part,
+  numberOf: (pieceId: string) => number,
+): BridgeNote[] {
+  return pieces.flatMap((p) => {
+    const part = resolve(p.partId);
+    const vault = part.decor?.find((d) => d.kind === 'vault');
+    return vault?.kind === 'vault'
+      ? [{ name: part.name.toLowerCase(), piece: numberOf(p.pieceId), clearanceMm: vault.topMm - vault.wallMm }]
+      : [];
+  });
+}
+
 /** What a structure is called in a sentence: the floor/raised words only (design decision 5, rule 7). */
 export function buildingWord(part: Part): string {
   return STRUCTURE_WORDS[part.id]?.word ?? (part.kind === 'block' ? 'pier' : 'building');

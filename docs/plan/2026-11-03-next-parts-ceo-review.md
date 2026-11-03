@@ -735,7 +735,7 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
   - Surfaced by: P1 (D5); CEO D5, D7
   - Files: engine/data/decoratedSeeds.ts, app/src (placing, F key)
   - Verify: dom test: F flips the platform, ends unchanged
-- [ ] **T5 (P2, human: ~1d / CC: ~30min)** — parts — Tunnel straight with its room sentence (D7)
+- [x] **T5 (P2, human: ~1d / CC: ~30min)** — parts — Tunnel straight with its room sentence (D7)
   - Surfaced by: G2 (D7)
   - Files: engine/data/decoratedSeeds.ts, app/src/VerdictLine.tsx, app/src/verdictView.ts
   - Verify: fits / doesn't fit / estimated sentences

@@ -312,7 +312,25 @@ export interface DecorSlab {
   readonly noun?: string;
 }
 
-export type DecorShape = DecorSlab;
+/**
+ * A VAULT (decorated-pieces plan T5): a tunnel shell standing on the floor
+ * over the track, `lengthMm` along and `widthMm` across outside, its walls
+ * `wallMm` thick, straight up to `springMm`, then a round arch to `topMm`.
+ * An opening shape (eng D10): it blocks track only with its two walls and
+ * its roof, never with the passage it makes; it is drawn round in 3D.
+ */
+export interface DecorVault {
+  readonly kind: 'vault';
+  readonly atMm: readonly [number, number];
+  readonly lengthMm: number;
+  readonly widthMm: number;
+  readonly wallMm: number;
+  readonly springMm: number;
+  readonly topMm: number;
+  readonly noun?: string;
+}
+
+export type DecorShape = DecorSlab | DecorVault;
 
 /** A derived decoration box: a body box at whole levels, carrying the shape's real heights for drawing. */
 export interface DecorBox extends BodyBox {
@@ -320,6 +338,10 @@ export interface DecorBox extends BodyBox {
   readonly topMm: number;
   readonly solid: boolean;
   readonly noun?: string;
+  /** False for a box that only collides (a vault's walls and roof); the shape is drawn by its own box. */
+  readonly draw: boolean;
+  /** The vault this box draws, when it draws one (eng D10). */
+  readonly vault?: { readonly widthMm: number; readonly wallMm: number; readonly springMm: number };
 }
 
 export interface StraightPart extends PartBase {
