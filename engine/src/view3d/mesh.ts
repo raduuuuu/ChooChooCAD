@@ -31,6 +31,7 @@
 
 import type { Segment } from '../geom/fk.js';
 import { bodyCorners, type RenderedPort } from '../graph/render.js';
+import { decorSpan } from './decor.js';
 import type { Part } from '../parts/schema.js';
 
 /** Triangles: xyz per vertex, three indices per triangle. */
@@ -493,7 +494,9 @@ export function buildScene(input: SceneInput): SceneArrays {
       pieceBox.set(b.pieceId, boxOf);
     } else boxOf = null;
     const lo = b.level ?? 0;
-    const zt = (lo + (b.rise ?? 0) + 1) * riseMm;
+    // A decoration stands at its measured heights; a structure's body fills its levels.
+    const span = decorSpan(b, riseMm);
+    const zt = span ? span.zt : (lo + (b.rise ?? 0) + 1) * riseMm;
     const c = bodyCorners(b);
     const ring = (z: number) => c.map(([x, y]) => [x, y, z] as const);
     const edgeLoop = (pts: readonly (readonly [number, number, number])[]) => {
@@ -511,7 +514,7 @@ export function buildScene(input: SceneInput): SceneArrays {
       edgeLoop(under);
       continue;
     }
-    const zb = lo * riseMm;
+    const zb = span ? span.zb : lo * riseMm;
     for (const [x, y] of c) grow(x, y, zb);
     if (b.profileMm) {
       // An embankment or abutment: its top follows its measured outline (eng D5, design DD6).
@@ -524,6 +527,11 @@ export function buildScene(input: SceneInput): SceneArrays {
     for (let i = 0; i < 4; i++) {
       const j = (i + 1) % 4;
       solid.quad(bottom[i]!, bottom[j]!, top[j]!, top[i]!);
+    }
+    // A decoration can stand off the floor (a canopy, a sign): close its underside.
+    if (span && span.zb > 0) {
+      solid.quad(bottom[3]!, bottom[2]!, bottom[1]!, bottom[0]!);
+      edgeLoop(ring(zb));
     }
     edgeLoop(ring(zt));
     for (const [x, y] of c) bodyEdges.push(x, y, zb, x, y, zt);

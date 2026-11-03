@@ -215,7 +215,9 @@ export function findPlankOverlaps(
   plankHalfWidth: (partId: string) => number,
   sites: ConnectorSites,
 ): readonly PlankOverlap[] {
-  return planksSharingArea(graph, segments, plankHalfWidth, sites, true);
+  // A decoration that is not solid (a thin barrier arm) never collides (eng D4).
+  const solid = segments.filter((sg) => sg.decor?.solid !== false);
+  return planksSharingArea(graph, solid, plankHalfWidth, sites, true);
 }
 
 /**

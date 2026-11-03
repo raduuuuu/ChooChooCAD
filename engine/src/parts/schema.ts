@@ -268,6 +268,50 @@ interface PartBase {
    * Built-in only: a submission cannot add or correct one (OV2).
    */
   readonly body?: readonly BodyBox[];
+  /**
+   * A DECORATED PIECE (decorated-pieces plan 2026-11-03, CEO D2, eng D2): the
+   * built-in part whose track this piece has, unchanged. Its ends, roads and
+   * joint give are that part's; only its decoration is its own. Built-in only.
+   */
+  readonly decoratedFrom?: string;
+  /** The decoration, as measured shapes in the piece's own frame (eng D4). Built-in only. */
+  readonly decor?: readonly DecorShape[];
+  /**
+   * The decoration's boxes, DERIVED from `decor` by the library (eng D4, D9),
+   * never written by hand: what is drawn and what collides come from one
+   * list. Not a `body`, so a decorated piece is never a structure (eng D2).
+   */
+  readonly decorBody?: readonly DecorBox[];
+}
+
+/**
+ * ONE DECORATION SHAPE: a slab, a box of wood beside, across or over the
+ * track, centred at `atMm` in the piece's frame, `lengthMm` along it and
+ * `widthMm` across, from `bottomMm` to `topMm` above the piece's floor.
+ * Solid unless `solid: false` (a thin barrier arm): a solid shape blocks
+ * other track at every level its height reaches (eng D9). `noun` is what a
+ * sentence calls it ("platform"). Further shapes (roof, arch) arrive with the
+ * pieces that need them (eng D10 gives each its own solid parts).
+ */
+export interface DecorSlab {
+  readonly kind: 'slab';
+  readonly atMm: readonly [number, number];
+  readonly lengthMm: number;
+  readonly widthMm: number;
+  readonly bottomMm: number;
+  readonly topMm: number;
+  readonly solid?: false;
+  readonly noun?: string;
+}
+
+export type DecorShape = DecorSlab;
+
+/** A derived decoration box: a body box at whole levels, carrying the shape's real heights for drawing. */
+export interface DecorBox extends BodyBox {
+  readonly bottomMm: number;
+  readonly topMm: number;
+  readonly solid: boolean;
+  readonly noun?: string;
 }
 
 export interface StraightPart extends PartBase {

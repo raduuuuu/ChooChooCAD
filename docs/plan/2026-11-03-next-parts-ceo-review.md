@@ -719,11 +719,11 @@ No stacking: each lane branches from main after its dependency merges.
 Synthesized from this review's findings. Each task derives from a specific
 finding above. Run with Claude Code or Codex; checkbox as you ship.
 
-- [ ] **T1 (P1, human: ~2h / CC: ~15min)** — 3D — Repair piece bounds and the harbour bridge's room sentence (R1, R2)
+- [x] **T1 (P1, human: ~2h / CC: ~15min)** — 3D — Repair piece bounds and the harbour bridge's room sentence (R1, R2)
   - Surfaced by: Code quality finding 6 (mesh.ts:614-617, 656-659)
   - Files: engine/src/view3d/mesh.ts, app/src/VerdictLine.tsx, app/src/App.tsx
   - Verify: bun run test (two bridges in one layout: each piece's bounds hold only its shapes)
-- [ ] **T2 (P1, human: ~2d / CC: ~1h)** — engine — Variant model, shared shapes, derived collision boxes
+- [x] **T2 (P1, human: ~2d / CC: ~1h)** — engine — Variant model, shared shapes, derived collision boxes
   - Surfaced by: G1 (D2), G3 (D4), O2 (D9), O3 (D10), O4, O5, F5 (D8), structure (D1)
   - Files: engine/src/parts/schema.ts, engine/data/library.ts, engine/data/decoratedSeeds.ts (new), engine/src/view3d/decor.ts (new), engine/src/view3d/mesh.ts, engine/src/graph/render.ts
   - Verify: tripwire (joins equal base), opening and level fixtures, 3,000-triangle budget, submission refusal

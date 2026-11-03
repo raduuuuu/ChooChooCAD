@@ -148,7 +148,13 @@ export function renderGraph(
      * through its middle, half its width either side, at its own levels above
      * the frame. Mirrored with the piece, like its ends.
      */
-    for (const box of part.body ?? []) {
+    /*
+     * The decoration's boxes (eng D4) go in the same list: drawn and checked
+     * like any wood, at the levels derived from their heights, mirrored with
+     * the piece. Each carries its heights, so 3D draws the shape as measured.
+     */
+    const decorBoxes = (part.decorBody ?? []).map((box) => ({ box, decor: true as const }));
+    for (const { box, decor } of [...(part.body ?? []).map((box) => ({ box, decor: false as const })), ...decorBoxes]) {
       const mirror = piece.turn === 'right' ? -1 : 1;
       const h = frame.heading * RAD;
       const c = Math.cos(h), sn = Math.sin(h);
@@ -165,6 +171,9 @@ export function renderGraph(
         body: box.role,
         halfWidthMm: box.widthMm / 2,
         ...(box.profileMm ? { profileMm: box.profileMm } : {}),
+        ...(decor && 'bottomMm' in box
+          ? { decor: { floorLevel: levelOf(frame), bottomMm: box.bottomMm, topMm: box.topMm, solid: box.solid, ...(box.noun ? { noun: box.noun } : {}) } }
+          : {}),
         ...(lo !== 0 ? { level: lo } : {}),
         ...(boxRise !== 0 ? { rise: boxRise } : {}),
       });
