@@ -76,6 +76,13 @@ export const ACTION_WHEN_CROSSING =
   'Move one of the crossing pieces so the two no longer touch, or raise one on ramps.';
 
 /**
+ * IMPOSSIBLE's action when every crossing is track running into a building
+ * (design decision 5): a footprint, wall or roof does not move out of the way
+ * on ramps, so the crossing advice would be wrong.
+ */
+export const ACTION_WHEN_BUILDING = 'Move the track or the building so the two no longer touch.';
+
+/**
  * IMPOSSIBLE's actions when the cause is a level fault and nothing else
  * (two-layer plan, design decision 8A). The ends-share-a-spot fallback would
  * point at a spot no level fault has.

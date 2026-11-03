@@ -23,9 +23,12 @@
  * the end of the floor, raised track at the top of a ramp), which is the
  * second rule, and only then at a piece joined to nothing yet.
  *
- * Supports are not modelled (TODO "Support and pier modelling"), so nothing
- * here says where a pier goes. When they are, they join the band below the
- * deck they hold.
+ * STRUCTURES (plan 2026-11-02, design decision 6). `segments` may carry
+ * bodies too. A piece's band is read from its track; a pier, which has none,
+ * from its body, so it joins the floor band. A piece whose body stands lower
+ * than its road (a station on its footprint) is held up by its own wood, so
+ * it starts its band before track that is only joined to it: the station
+ * goes down before the raised track that clips onto its deck.
  *
  * Linear in pieces and welds: a layout of tens of thousands of loose pieces is
  * a supported size (TODO "Nothing bounds a layout's size"), so every piece is
@@ -59,15 +62,24 @@ export function bandOf(lo: number, hi: number): number {
 export function assemblyOrder(graph: Graph, segments: readonly Segment[]): readonly AssemblyStep[] {
   // The levels each piece's wood spans, read the way `findBridges` reads them.
   const span = new Map<string, readonly [number, number]>();
+  const bodyLo = new Map<string, number>();
   for (const s of segments) {
     if (s.pieceId === undefined) continue;
     const a = s.level ?? 0;
+    if (s.body !== undefined) {
+      bodyLo.set(s.pieceId, Math.min(bodyLo.get(s.pieceId) ?? Infinity, a));
+      continue;
+    }
     const b = a + (s.rise ?? 0);
     span.set(s.pieceId, [Math.min(a, b), Math.max(a, b)]);
   }
+  // A piece with no track (a pier) stands where its body does.
+  for (const [id, l] of bodyLo) if (!span.has(id)) span.set(id, [l, l]);
   const lo = (id: string) => span.get(id)?.[0] ?? 0;
   const hi = (id: string) => span.get(id)?.[1] ?? 0;
   const band = (id: string) => bandOf(lo(id), hi(id));
+  // Held up by its own body, standing lower than its road.
+  const standing = (id: string) => (bodyLo.get(id) ?? Infinity) < lo(id);
 
   const adjacency = new Map<string, string[]>();
   for (const p of graph.pieces) adjacency.set(p.pieceId, []);
@@ -106,7 +118,8 @@ export function assemblyOrder(graph: Graph, segments: readonly Segment[]): reado
     // Every lower band is already down, so "joined to something down" is
     // known now, before this band starts: those pieces are tried first.
     const attached = members.filter((id) => (adjacency.get(id) ?? []).some((o) => down.has(o)));
-    for (const start of [...attached, ...members]) {
+    const standingHere = members.filter(standing);
+    for (const start of [...attached, ...standingHere, ...members]) {
       if (down.has(start)) continue;
       const stack = [start];
       while (stack.length > 0) {

@@ -21,7 +21,7 @@
  * every measured defect in the engine lived in it.
  */
 
-import { Children, cloneElement, createContext, isValidElement, useContext, useState, type ReactNode } from 'react';
+import { Children, cloneElement, createContext, Fragment, isValidElement, useContext, useState, type ReactNode } from 'react';
 import type { TrustIssue } from '../../engine/src/joints/trust.js';
 import type { VerdictView } from './verdictView.js';
 import type { BendWords } from '../../engine/src/joints/bendWords.js';
@@ -29,6 +29,7 @@ import { CLEARANCE } from '../../engine/data/rampSeeds.js';
 import {
   ACTION_FOR_FAILURE,
   ACTION_FOR_VERDICT,
+  ACTION_WHEN_BUILDING,
   ACTION_WHEN_CROSSING,
   ACTION_WHEN_LEVEL_MISMATCH,
   ACTION_WHEN_RAISED,
@@ -348,9 +349,9 @@ function RaisedNote({ bridges }: { bridges: number }) {
  * sentence shows, in order, refused ends, then piled-up ends, then crossing
  * planks, then the two level faults; the action follows the same order.
  */
-function impossibleAction(e: VerdictView): string {
+function impossibleAction(e: VerdictView, buildings: number): string {
   if (e.polarityCount > 0 || e.clashCount > 0) return ACTION_FOR_VERDICT.IMPOSSIBLE;
-  if (e.overlapCount > 0) return ACTION_WHEN_CROSSING;
+  if (e.overlapCount > 0) return buildings === e.overlapCount ? ACTION_WHEN_BUILDING : ACTION_WHEN_CROSSING;
   if (e.levelMismatchCount > 0) return ACTION_WHEN_LEVEL_MISMATCH;
   if (e.thirdLevelCount > 0) return ACTION_WHEN_THIRD_LEVEL;
   return ACTION_FOR_VERDICT.IMPOSSIBLE;
@@ -504,6 +505,7 @@ export function VerdictLine({
   adaptersUnmarked = 0,
   levelUnmarked = 0,
   polarityUnmarked = 0,
+  buildings = [],
 }: {
   view: VerdictView;
   /** Why this verdict is worth less than it looks. See engine/joints/trust.ts. */
@@ -514,6 +516,8 @@ export function VerdictLine({
   levelUnmarked?: number;
   /** Refused joints the canvas does not mark because a clash holds every end of them (`badJointMarks`). */
   polarityUnmarked?: number;
+  /** Track running into a building, one sentence each (design decision 5; `buildingClashSentence`). */
+  buildings?: readonly string[];
 }) {
   const e = view;
 
@@ -579,7 +583,7 @@ export function VerdictLine({
           tone="fail"
           notes={notesFor(
             trust,
-            impossibleAction(e),
+            impossibleAction(e, buildings.length),
             false,
             e.adapterCount,
             adaptersUnmarked,
@@ -630,11 +634,24 @@ export function VerdictLine({
                 * overlap was found instead of "can't be built"; the notes give
                 * the distance. Exact runs keep the plain claim.
                 */}
-              {e.bend && e.bend.tier !== 'exact' ? 'Track overlaps in the catalogue shape.' : <>Can&rsquo;t be built.</>}{' '}
-              <span className="num">{e.overlapCount}</span>{' '}
-              {e.overlapCount === 1
-                ? 'place has track running over other track. Track can only cross on a crossing piece, or raised on ramps over the other track.'
-                : 'places have track running over other track. Track can only cross on a crossing piece, or raised on ramps over the other track.'}
+              {e.bend && e.bend.tier !== 'exact' ? 'Track overlaps in the catalogue shape.' : <>Can&rsquo;t be built.</>}
+              {e.overlapCount > buildings.length && (
+                <>
+                  {' '}
+                  <span className="num">{e.overlapCount - buildings.length}</span>{' '}
+                  {e.overlapCount - buildings.length === 1
+                    ? 'place has track running over other track. Track can only cross on a crossing piece, or raised on ramps over the other track.'
+                    : 'places have track running over other track. Track can only cross on a crossing piece, or raised on ramps over the other track.'}
+                </>
+              )}
+              {/* Track into a building names the building (design decision 5). */}
+              {buildings.map((b, i) => (
+                <Fragment key={i}>
+                  {' '}
+                  {/* Piece numbers in the number face (DESIGN.md rule 4). */}
+                  {b.split(/(\d+)/).map((x, j) => (j % 2 === 1 ? <span key={j} className="num">{x}</span> : x))}
+                </Fragment>
+              ))}
             </span>
           ) : e.clashCount === 0 && e.levelMismatchCount > 0 ? (
             <span className="verdict-text">
