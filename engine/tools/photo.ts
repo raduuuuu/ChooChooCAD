@@ -125,12 +125,25 @@ export function measurePhoto(input: PhotoInput): PhotoResult {
   if (residual > GRID_RESIDUAL_MAX_MM) {
     return { kind: 'refused', reason: `the grid points disagree by ${residual.toFixed(2)}mm (limit ${GRID_RESIDUAL_MAX_MM}mm): a misread point or a sheet that is not flat` };
   }
-  const refOnPaper = dist(toPaper(h, input.reference[0]), toPaper(h, input.reference[1]));
+  return scaleAndMeasure((p) => toPaper(h, p), residual, input);
+}
+
+/**
+ * The scale from the reference and every figure, given any map from photo
+ * pixels to paper millimetres (a plain homography here, or one with lens
+ * bowing from photoGrid.ts).
+ */
+export function scaleAndMeasure(
+  onPaper: (p: Pt) => Pt,
+  gridResidualMm: number,
+  input: Pick<PhotoInput, 'reference' | 'figures'>,
+): PhotoResult {
+  const refOnPaper = dist(onPaper(input.reference[0]), onPaper(input.reference[1]));
   const k = REFERENCE_MM / refOnPaper;
   if (k < K_PLAUSIBLE.min || k > K_PLAUSIBLE.max) {
     return { kind: 'refused', reason: `the reference reads ${refOnPaper.toFixed(1)}mm on the paper (scale ${k.toFixed(3)}, expected ${K_PLAUSIBLE.min} to ${K_PLAUSIBLE.max}): is it lying flat, top face up?` };
   }
   const figures: Record<string, number> = {};
-  for (const [name, [a, b]] of Object.entries(input.figures)) figures[name] = k * dist(toPaper(h, a), toPaper(h, b));
-  return { kind: 'measured', k, gridResidualMm: residual, figures };
+  for (const [name, [a, b]] of Object.entries(input.figures)) figures[name] = k * dist(onPaper(a), onPaper(b));
+  return { kind: 'measured', k, gridResidualMm, figures };
 }
