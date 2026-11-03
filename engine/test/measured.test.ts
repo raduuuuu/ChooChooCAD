@@ -27,10 +27,10 @@ describe('the measured tick', () => {
   /*
    * MUTATION PROOFS, run:
    * MUTATION PROOF, run: the trial readings left out of READINGS fails
-   * with `expected [ 'T' ] to deeply equal [ 'D', 'T' ]`.
+   * with `expected [ 'A', 'T' ] to deeply equal [ 'A', 'D', 'T' ]`.
    */
-  it('goes to the T switch and the long straight, and nothing else yet', () => {
-    expect(BUILT_IN.filter((p) => isMeasured(p)).map((p) => p.id)).toEqual(['D', 'T']);
+  it('goes to the medium and long straights and the T switch, and nothing else yet', () => {
+    expect(BUILT_IN.filter((p) => isMeasured(p)).map((p) => p.id)).toEqual(['A', 'D', 'T']);
   });
 
   /*
@@ -43,7 +43,9 @@ describe('the measured tick', () => {
       ...READINGS,
       byHand: [{ partId: 'A', figure: 'lengthMm', valueMm, on: '2026-11-03', how: 'digital caliper' }] as PieceMeasurement[],
     });
-    expect(isMeasured(a)).toBe(false);
+    // The owner's own 143.5 (steel ruler, 2026-11-03) is the recorded one.
+    expect(isMeasured(a)).toBe(true);
+    expect(isMeasured(a, { ...READINGS, byHand: [] })).toBe(false);
     expect(isMeasured(a, reading(144.4))).toBe(true);
     expect(isMeasured(a, reading(145.2))).toBe(false);
   });

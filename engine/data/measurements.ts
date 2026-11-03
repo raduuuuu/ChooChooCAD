@@ -90,5 +90,11 @@ export interface PieceMeasurement {
   readonly how: string;
 }
 
-/** Empty until the owner measures A (plan V-T5). */
-export const PIECE_MEASUREMENTS: readonly PieceMeasurement[] = [];
+/**
+ * A, the reference every photo is scaled by, measured by the owner
+ * (plan V-T5, 2026-11-03): socket end face to the base of the peg, along the
+ * middle. A steel rule reads to about 0.5mm, inside the 1mm the tick allows.
+ */
+export const PIECE_MEASUREMENTS: readonly PieceMeasurement[] = [
+  { partId: 'A', figure: 'lengthMm', valueMm: 143.5, on: '2026-11-03', how: 'steel ruler' },
+];

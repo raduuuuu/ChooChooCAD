@@ -20,7 +20,7 @@ using now (decision 9A):
 |---|---|---|---|
 | T (T switch) | `user-measured` | Photos 84404 and 84405: through road and curved end | Yes |
 | D (Long straight) | `published` | The 216mm trial: 216.52 and 216.88, within ±1mm of 216 | Yes (4A: same tick) |
-| A (Medium straight) | `published` | The photos' reference, so no photo checks it. The owner will measure it directly (5B) | When the owner's figure is recorded and within ±1mm of 144 (13A) |
+| A (Medium straight) | `published` | The photos' reference, so no photo checks it. The owner measured it directly: 143.5mm, steel ruler, 2026-11-03 (5B) | Yes (13A: within ±1mm of 144) |
 | Other Generic | `published` | Nothing here yet | No |
 | Ramps, switches, structures, other brands | `unverified` | Estimates; keep the dotted border and `*` | No |
 
@@ -113,7 +113,7 @@ There is no loading or error state: the tick is computed with the library.
   - Surfaced by: decisions 10, 14. Files: app/src/App.tsx, app/src/app.css. Verify: DOM test.
 - [x] **V-T4 (P2, human: ~30min / CC: ~5min)** — DESIGN.md — card-marks bullet with measured contrast
   - Surfaced by: decision 12. Files: DESIGN.md.
-- [ ] **V-T5 (P1, human: ~30min / CC: ~10min)** — owner — engineering diagram of what to measure on A, and record the figure
+- [x] **V-T5 (P1, human: ~30min / CC: ~10min)** — owner — engineering diagram of what to measure on A, and record the figure
   - Surfaced by: decisions 5, 13. Files: a diagram sent to the owner; engine/data/measurements.ts once measured.
 
 ## Design Review Completion Summary
