@@ -21,6 +21,7 @@ const NAME: Record<Step['kind'], string> = {
   join: 'join',
   remove: 'remove',
   move: 'move',
+  flip: 'other side',
   clear: 'clear',
   preset: 'preset',
 };

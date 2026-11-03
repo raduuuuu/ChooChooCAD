@@ -731,7 +731,7 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
   - Surfaced by: CEO D5/D6; Section 3 test diagram
   - Files: engine/data/decoratedSeeds.ts, engine/data/origins.ts, app/src/App.tsx, app/src/PartPreview.tsx
   - Verify: card text test; clash and pass fixtures
-- [ ] **T4 (P2, human: ~1d / CC: ~30min)** — parts — Station straight with the F flip (D5)
+- [x] **T4 (P2, human: ~1d / CC: ~30min)** — parts — Station straight with the F flip (D5)
   - Surfaced by: P1 (D5); CEO D5, D7
   - Files: engine/data/decoratedSeeds.ts, app/src (placing, F key)
   - Verify: dom test: F flips the platform, ends unchanged
@@ -831,7 +831,7 @@ declined. Calibrated against DESIGN.md rules 7, 10 and 11.
   - Surfaced by: decisions 3, 4; carried announcement
   - Files: app/src/App.tsx, app/src/editorReducer.ts
   - Verify: dom test: "Make it a Station straight", "Make it plain", hidden with no version, refusal names the piece, announcement, undo
-- [ ] **D-T3 (P2, human: ~2h / CC: ~10min)** — app — "Other side (F)" wording per one-sided piece
+- [x] **D-T3 (P2, human: ~2h / CC: ~10min)** — app — "Other side (F)" wording per one-sided piece
   - Surfaced by: decision 5
   - Files: engine/data/decoratedSeeds.ts, app/src/ghostKeys.ts
   - Verify: keys line and announcement text; copyPosition.test.ts stays green

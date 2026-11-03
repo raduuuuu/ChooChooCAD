@@ -61,6 +61,9 @@ export function ghostKeys(
   // A multi-road piece says in its data what F does, or has no F (eng review D8).
   else if (part.kind === 'multi-road')
     flip = part.flip ? { label: part.flip.label, verb: part.flip.verb, enabled: canFlip } : null;
+  // A one-sided decorated straight: its data says what F does (design 5A).
+  else if (part.kind === 'straight' && !isRamp(part) && part.flip)
+    flip = { label: part.flip.label, verb: part.flip.verb, enabled: canFlip };
   else if (isRamp(part)) {
     flip =
       options === null
@@ -93,6 +96,7 @@ export function afterKey(kind: 'rotateGhost' | 'flipGhost', part: Part, ghost: P
   if (part.kind === 'curve') return 'Now bends the other way.';
   if (part.kind === 'multi-road') return part.flip?.after ?? 'It looks the same turned over.';
   if (part.kind === 'buffer') return 'A buffer stop looks the same turned over.';
+  if (part.kind === 'straight' && part.flip) return part.flip.after;
   // F still reaches a plain straight from the keyboard; it reads the same either way up.
   if (!isRamp(part)) return 'A straight looks the same turned over.';
   return `Turned over.${ramp}`;

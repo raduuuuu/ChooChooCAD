@@ -218,3 +218,45 @@ describe('the level crossing, the first decorated piece (plan T3)', () => {
     ]);
   });
 });
+
+describe('the station straight: a one-sided decoration (plan T4, eng D5, design 5A)', () => {
+  const side = (turn: 'left' | 'right') => {
+    const g: Graph = { pieces: [{ pieceId: 's', partId: 'SS', turn }], welds: [] };
+    const r = renderGraph(g, ports, resolve, placeAll(g, ports));
+    const platform = r.bodies.find((b) => b.decor?.noun === 'platform')!;
+    return { ys: Math.sign(platform.from.y), ends: r.ports.map((q) => [q.x, q.y, q.polarity]) };
+  };
+
+  /*
+   * MUTATION PROOF, run: the flip words not derived from `oneSided` fails with
+   * `expected [ 'A', undefined ] to deeply equal [ 'A', { label: 'Other side', …(2) } ]`.
+   */
+  it('works like a medium straight, and says what F does to it', () => {
+    const p = resolve('SS');
+    expect([p.decoratedFrom, p.flip]).toEqual(['A', {
+      label: 'Other side', verb: 'put the platform on the other side', after: 'Platform on the other side.',
+    }]);
+  });
+
+  /*
+   * MUTATION PROOF, run: decoration not mirrored with the piece fails with
+   * `expected [ -1, -1 ] to deeply equal [ -1, 1 ]`.
+   */
+  it('F puts the platform on the other side and leaves both ends where they were', () => {
+    const left = side('left'), right = side('right');
+    expect([left.ys, right.ys]).toEqual([-1, 1]);
+    expect(right.ends).toEqual(left.ends);
+  });
+
+  it('its platform is wood: track along its platform side clashes, along the other side does not', () => {
+    // The platform runs 20 to 124 across on its side (y negative turned left).
+    const beside = (turn: 'left' | 'right', y: number) => clashes({
+      pieces: [{ pieceId: 's', partId: 'SS', turn }, { pieceId: 'n', partId: 'A', turn: 'left' }],
+      welds: [],
+      anchors: new Map([['s', at(0, 0, 0)], ['n', at(0, y, 0)]]),
+    });
+    expect(beside('left', -70)).toEqual(['n s']);
+    expect(beside('left', 70)).toEqual([]);
+    expect(beside('right', 70)).toEqual(['n s']);
+  });
+});

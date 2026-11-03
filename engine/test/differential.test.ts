@@ -73,7 +73,7 @@ function viaGraph(layout: Layout) {
  * Ramps get their own seeded enumeration in levels.test.ts.
  */
 const Generic = BUILT_IN.filter(
-  (p) => p.brand === 'GENERIC' && (p.kind === 'straight' || p.kind === 'curve') && !(p.kind === 'straight' && p.rise) && !isStructure(p),
+  (p) => p.brand === 'GENERIC' && (p.kind === 'straight' || p.kind === 'curve') && !(p.kind === 'straight' && p.rise) && !isStructure(p) && p.decoratedFrom === undefined,
 ).map((p) => p.id);
 
 /** Deterministic, so a failure is reproducible from the seed alone. */

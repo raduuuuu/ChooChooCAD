@@ -295,7 +295,8 @@ export function hasFlip(part: Part): boolean {
   if (part.kind === 'multi-road') return part.flip !== undefined;
   // A buffer stop has one end on its axis: turned over, it is the same; a block has none.
   if (part.kind === 'buffer' || part.kind === 'block') return false;
-  return part.rise !== undefined;
+  // A ramp turns over; a one-sided decorated straight moves its decoration across (eng D5).
+  return part.rise !== undefined || part.flip !== undefined;
 }
 
 /**
@@ -811,6 +812,43 @@ export function moveRun(
     }
   }
   return { graph: joined, refused: null, joined: count, adapters };
+}
+
+/**
+ * PUT A ONE-SIDED DECORATION ON THE OTHER SIDE (decorated-pieces eng D5,
+ * design 5A): the placed piece's turn flips, so its decoration mirrors
+ * across the track; its ends do not move, so every joint stays. Refused,
+ * like a move, when the decoration would then lie over other wood it did
+ * not touch before, naming the first piece in the way (design 4A).
+ */
+export function flipPiece(
+  graph: Graph,
+  ports: PortsOf,
+  pieceId: string,
+  geometry: FitGeometry,
+): { graph: Graph; refused: string | null } {
+  const piece = graph.pieces.find((p) => p.pieceId === pieceId);
+  const part = piece ? geometry.resolve(piece.partId) : null;
+  if (!piece || !part || part.kind !== 'straight' || !part.flip) return { graph, refused: null };
+  const flipped: Graph = {
+    ...graph,
+    pieces: graph.pieces.map((p) => (p.pieceId === pieceId ? { ...p, turn: p.turn === 'right' ? 'left' : 'right' } : p)),
+  };
+  const touching = (g: Graph) => {
+    const placed = placeAll(g, ports);
+    return new Set(
+      findPlankOverlaps(g, woodOf(renderGraph(g, ports, geometry.resolve, placed)), (id) => geometry.resolve(id).plankWidthMm / 2, connectorSites(g, ports, placed))
+        .flatMap((o) => (o.a === pieceId ? [o.b] : o.b === pieceId ? [o.a] : [])),
+    );
+  };
+  const before = touching(graph);
+  const hit = [...touching(flipped)].find((other) => !before.has(other));
+  if (hit !== undefined) {
+    const n = graph.pieces.findIndex((p) => p.pieceId === hit) + 1;
+    const noun = part.decorBody?.find((b) => b.solid && b.noun)?.noun ?? 'decoration';
+    return { graph, refused: `its ${noun} would sit on piece ${n}` };
+  }
+  return { graph: flipped, refused: null };
 }
 
 /**

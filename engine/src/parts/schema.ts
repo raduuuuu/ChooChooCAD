@@ -282,6 +282,14 @@ interface PartBase {
    * list. Not a `body`, so a decorated piece is never a structure (eng D2).
    */
   readonly decorBody?: readonly DecorBox[];
+  /**
+   * What F does, in words: the key's label, its verb for the key list, and
+   * what is said after it. ABSENT when the mirror image is the same piece,
+   * as on a symmetric crossing, so F is not offered. A multi-road piece's
+   * mirror; a decorated straight's decoration moved to the other side, its
+   * ends unchanged (decorated-pieces eng D5, design 5A).
+   */
+  readonly flip?: { readonly label: string; readonly verb: string; readonly after: string };
 }
 
 /**
@@ -579,12 +587,6 @@ export interface MultiRoadPart extends PartBase {
    * "108 x 108" for a crossing.
    */
   readonly sizeLabel: string;
-  /**
-   * What F does, in words: the key's label, its verb for the key list, and
-   * what is said after it. ABSENT when the mirror image is the same piece,
-   * as on a symmetric crossing, so F is not offered.
-   */
-  readonly flip?: { readonly label: string; readonly verb: string; readonly after: string };
 }
 
 /**

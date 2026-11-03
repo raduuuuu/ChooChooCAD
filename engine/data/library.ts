@@ -99,6 +99,15 @@ export function deriveDecorated(specs: readonly DecoratedSpec[], builtIn: readon
       decoratedFrom: base.id,
       decor: spec.decor,
       decorBody,
+      ...(spec.oneSided
+        ? {
+            flip: {
+              label: 'Other side',
+              verb: `put the ${spec.oneSided} on the other side`,
+              after: `${spec.oneSided[0]!.toUpperCase()}${spec.oneSided.slice(1)} on the other side.`,
+            },
+          }
+        : {}),
     } as Part;
   });
 }
@@ -157,7 +166,9 @@ const BUILT_IN_STRUCTURES = new Set(BUILT_IN.filter((p) => isStructure(p) || p.d
 
 /** `part` with the built-in rise, or with none: a stored rise never survives, nor a body, a decoration, a deck, a plate, a truss arch or a hump (OV2, bridges eng D10). */
 function withRise(part: Part, rise: 1 | undefined): Part {
-  const { body: _noBody, decoratedFrom: _noBase, decor: _noDecor, decorBody: _noDecorBody, ...bare } = part;
+  const { body: _noBody, decoratedFrom: _noBase, decor: _noDecor, decorBody: _noDecorBody, ...rest } = part;
+  // A stored straight never gains an F of its own: only a multi-road piece's mirror is data (eng D8).
+  const bare = (rest.kind === 'multi-road' ? rest : (({ flip: _noFlip, ...r }) => r)(rest)) as Part;
   if (bare.kind !== 'straight') return bare as Part;
   const { rise: _dropped, deck: _noDeck, plate: _noPlate, trussArch: _noTruss, deckClearanceMm: _noClear, hump: _noHump, ...flat } = bare;
   return rise === undefined ? flat : { ...flat, rise };

@@ -21,6 +21,11 @@ export interface DecoratedSpec {
   readonly dimensions: DimensionSource;
   /** A catalogue number, only for a verified match of a real piece (CEO D3). */
   readonly partNumber?: string;
+  /**
+   * A one-sided decoration's noun ("platform"): F puts it on the other side
+   * of the track, the ends unchanged (eng D5, design 5A).
+   */
+  readonly oneSided?: string;
 }
 
 /*
@@ -33,6 +38,20 @@ export interface DecoratedSpec {
 const post = (x: number, y: number): DecorSlab => ({ kind: 'slab', atMm: [x, y], lengthMm: 10, widthMm: 10, bottomMm: 0, topMm: 31, noun: 'barrier post' });
 const arm = (x: number, y: number): DecorSlab => ({ kind: 'slab', atMm: [x, y], lengthMm: 6, widthMm: 6, bottomMm: 31, topMm: 132, solid: false, noun: 'barrier' });
 
+/*
+ * THE STATION STRAIGHT (plan T4), read off 3MF 1995429: a medium straight
+ * (A, 144) whose platform clips to one side by two dowels. On that side, from
+ * the plank's edge (20 across): the platform, 144 by 104 and 14 tall, with
+ * its street stairs (79 by 22) beyond it; on the platform, the hall's end
+ * walls (144 by 78, 47 tall), its roof (140 by 69) and the clock tower (40
+ * square) at the middle of its track-side face. The heights are the parts';
+ * where the hall stands on the platform is read from the designer's photos,
+ * so it is estimated. Drawn on the right of the piece as it runs from its
+ * socket; F puts it on the other side.
+ */
+const slab = (x: number, y: number, l: number, w: number, bottomMm: number, topMm: number, noun: string): DecorSlab =>
+  ({ kind: 'slab', atMm: [x, y], lengthMm: l, widthMm: w, bottomMm, topMm, noun });
+
 export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
   {
     id: 'LC', name: 'Level crossing', base: 'HP',
@@ -41,6 +60,21 @@ export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
       status: 'unverified',
       source: 'a printed design, measured off the 3MF mesh on 2026-11-03',
       note: 'Barrier posts 10 square and 31 tall at two opposite corners, 38 along and 36.5 across from the crossing point; arms 107 long, drawn raised.',
+    },
+  },
+  {
+    id: 'SS', name: 'Station straight', base: 'A', oneSided: 'platform',
+    decor: [
+      slab(72, -72, 144, 104, 0, 14, 'platform'),
+      slab(72, -135, 79, 22, 0, 14, 'stairs'),
+      slab(72, -85, 144, 78, 14, 61, 'station building'),
+      slab(72, -85, 140, 69, 61, 100, 'roof'),
+      slab(72, -66, 40, 40, 61, 136, 'clock tower'),
+    ],
+    dimensions: {
+      status: 'unverified',
+      source: 'a printed design, measured off the 3MF mesh on 2026-11-03; the hall\'s place on the platform estimated from photos',
+      note: 'Platform 144 by 104, 14 tall, beside the plank; stairs 79 by 22; hall 144 by 78 and 47 tall on the platform, roof 140 by 69, clock tower 40 square reaching 136.',
     },
   },
 ];

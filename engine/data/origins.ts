@@ -46,6 +46,7 @@ export const PART_ORIGINS: Readonly<Record<string, PartOrigin>> = {
   HH: MW('889540', 'AU3D'),
   HP: MW('681643', 'Martin'),
   LC: MW('681643', 'Martin'),
+  SS: MW('1995429', 'CreatorPaul'),
   RS: MW('597436', 'historicc'),
   TS: MW('1238767', 'Cactus 973'),
   TO: MW('1033476', 'hubi'),

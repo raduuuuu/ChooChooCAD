@@ -39,10 +39,12 @@ export function useEditorKeys(handlers: {
     readonly onFlip: () => void;
     readonly onStep: (by: 1 | -1) => void;
   } | null;
+  /** F on a selected piece that has another side (decorated-pieces eng D5); absent otherwise. */
+  readonly onFlipSelected?: (() => void) | null;
   /** False while building: no key reaches the editor (D27). */
   readonly enabled?: boolean;
 }): void {
-  const { onUndo, onRedo, onEscape, placing = null, enabled = true } = handlers;
+  const { onUndo, onRedo, onEscape, placing = null, onFlipSelected = null, enabled = true } = handlers;
   useEffect(() => {
     if (!enabled) return;
     const onKey = (e: KeyboardEvent) => {
@@ -65,9 +67,12 @@ export function useEditorKeys(handlers: {
         else if (e.key === '[') placing.onStep(-1);
         else return;
         e.preventDefault();
+      } else if (onFlipSelected && !mod && !e.altKey && key === 'f') {
+        e.preventDefault();
+        onFlipSelected();
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onUndo, onRedo, onEscape, placing, enabled]);
+  }, [onUndo, onRedo, onEscape, placing, onFlipSelected, enabled]);
 }
