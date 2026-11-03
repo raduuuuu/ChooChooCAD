@@ -275,7 +275,51 @@ export const TRACK_SUPPORT: BlockPart = {
   slop: ESTIMATED_SLOP, ...PROFILE,
 };
 
-export const STRUCTURE_SEEDS = [STATION, RISER, TRACK_SUPPORT, TUNNEL_OVERPASS, STONE_ARCH_BRIDGE, SUSPENSION_BRIDGE] as const;
+/*
+ * THE HARBOUR ARCH BRIDGE (Sydney bridge plan 2026-11-03), read off 3MF
+ * 1124746: two portals, two truss arch sides and two 108 tracks.
+ *
+ *                     ______ crown 142.5 (outer chord) ______
+ *          pylon    /   inner chord 118.3, hangers to deck  \    pylon 127
+ *   socket |  |====/========== deck, top 72.8 ===============\===|  | peg
+ *          |  |   /       floor track passes under            \  |  |
+ *         -24 0  20.5 ......... 47.3 ......... 168.7 ...... 195.5 216 240
+ *         portal (71.3 along)    open floor between portals    portal
+ *
+ * - The tracks rest on a ledge 60.8 up in each portal, 24 in from its outer
+ *   face: one level up. The two make a 216 road, socket to peg.
+ * - Each portal is 103 across: two pylons, 25.9 wide, 25.6 to 51.5 out from
+ *   the road, 127 tall; between them, under the road, the portal fills the
+ *   floor from the ledge to its inner face. Its outer 24 is a 7mm apron,
+ *   left out so a ramp or raised track can come in over it.
+ * - The arch sides (175 long, rib centres 28 either side) spring 19.8 up at
+ *   20.5 and 195.5 along; outer chord crown 142.5, inner 118.3.
+ */
+const HB_LEN = 216;
+const PORTAL = 71.3;
+const PORTAL_IN = 47.3;
+const pylon = (mid: number, side: 1 | -1) => ({
+  role: 'wall' as const, atMm: [mid, side * 38.55] as const, lengthMm: PORTAL, widthMm: 25.9, levels: [0, 1] as const,
+  profileMm: [[0, 127], [PORTAL, 127]] as const,
+});
+const portalFloor = (mid: number) => ({
+  role: 'footprint' as const, atMm: [mid, 0] as const, lengthMm: PORTAL_IN, widthMm: 51.2, levels: [0, 0] as const,
+});
+
+export const HARBOUR_BRIDGE: StraightPart = {
+  id: 'HB', brand: 'GENERIC', kind: 'straight', name: 'Harbour arch bridge',
+  lengthMm: HB_LEN, ends: { start: 'socket', end: 'peg' }, deck: 1,
+  body: [
+    portalFloor(PORTAL_IN / 2), portalFloor(HB_LEN - PORTAL_IN / 2),
+    pylon(PORTAL_IN - PORTAL / 2, 1), pylon(PORTAL_IN - PORTAL / 2, -1),
+    pylon(HB_LEN - PORTAL_IN + PORTAL / 2, 1), pylon(HB_LEN - PORTAL_IN + PORTAL / 2, -1),
+  ],
+  trussArch: { fromMm: 20.5, toMm: 195.5, springMm: 19.8, crownMm: 142.5, innerCrownMm: 118.3, sideMm: 28 },
+  dimensions: printed('A 216 road one level up between two portals 121.4 apart; floor track passes under between them.'),
+  slop: ESTIMATED_SLOP, ...PROFILE,
+};
+
+export const STRUCTURE_SEEDS = [STATION, RISER, TRACK_SUPPORT, TUNNEL_OVERPASS, STONE_ARCH_BRIDGE, SUSPENSION_BRIDGE, HARBOUR_BRIDGE] as const;
 
 /** How the app names each structure in a sentence, and what its list line says it carries (design decision 5). */
 export const STRUCTURE_WORDS: Readonly<Record<string, { readonly word: string; readonly carries: string }>> = {
@@ -284,6 +328,7 @@ export const STRUCTURE_WORDS: Readonly<Record<string, { readonly word: string; r
   TS: { word: 'support', carries: 'holds raised track, no track connections' },
   TO: { word: 'tunnel', carries: 'road raised over a passage, floor track passes through' },
   SA: { word: 'bridge', carries: 'road over the arch, floor track passes under' },
+  HB: { word: 'bridge', carries: 'road raised between the portals, floor track passes under' },
   SB: { word: 'bridge', carries: 'road over the main span, floor track passes under' },
   PR: { word: 'pier', carries: 'no track connections' },
   TU: { word: 'tunnel', carries: 'road between walls, under a roof' },

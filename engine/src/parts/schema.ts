@@ -307,6 +307,21 @@ export interface StraightPart extends PartBase {
    */
   readonly plate?: { readonly widthMm: number };
   /**
+   * A truss arch over the deck, in the 3D view only (Sydney bridge plan
+   * 2026-11-03): a rib either side of the road, `sideMm` from its middle,
+   * springing at `springMm` above the floor at `fromMm` and `toMm` along the
+   * piece; its outer chord's crown at `crownMm`, its inner chord's at
+   * `innerCrownMm`. Collisions use the body; built-in only, like `deck`.
+   */
+  readonly trussArch?: {
+    readonly fromMm: number;
+    readonly toMm: number;
+    readonly springMm: number;
+    readonly crownMm: number;
+    readonly innerCrownMm: number;
+    readonly sideMm: number;
+  };
+  /**
    * AN UP-AND-OVER ROAD (bridges plan 2026-11-03, eng D1): both ends on the
    * piece's own level, the middle one level up. Built-in only, like `rise`.
    */

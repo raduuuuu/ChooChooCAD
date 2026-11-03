@@ -155,6 +155,11 @@ export const END_CABLE_SAG = 0.12;
 export const CABLE_ANCHOR_BACK_MM = 100;
 /** A deck plate's top sits this far under the road's, so the track reads on it and the two never share a face. */
 export const PLATE_DROP_MM = 1;
+/** A truss arch's chords in 3D: this deep, and twice this across. */
+export const TRUSS_CHORD_MM = 4;
+export const TRUSS_HALF_MM = 2;
+/** A truss arch's verticals and hangers stand this far apart along the road. */
+export const TRUSS_STEP_MM = 12;
 /** Half the width of a bridge's arch band in 3D: the stones are 46mm across. */
 export const ARCH_HALF_WIDTH_MM = 23;
 /** The largest turn between two cross-sections of a curve: 3.75 degrees. */
@@ -545,6 +550,60 @@ export function buildScene(input: SceneInput): SceneArrays {
     const v = under.map(([x, y]) => solid.vertex(x, y, zb));
     solid.quad(v[3]!, v[2]!, v[1]!, v[0]!);
     for (let i = 0; i < 4; i++) bodyEdges.push(...under[i]!, zb, ...under[(i + 1) % 4]!, zb);
+  }
+
+  /*
+   * A TRUSS ARCH OVER THE DECK (Sydney bridge plan 2026-11-03): two curved
+   * chords either side of the road, outer and inner, meeting where the arch
+   * springs low on the portals; verticals between them, hangers from the
+   * inner chord down to the road, and braces across between the two outer
+   * chords. Chords in the house matte, the rest as lines. Decoration only.
+   */
+  for (const s of segments) {
+    if (s.pieceId === undefined) continue;
+    const part = partOf(s.pieceId);
+    if (part.kind !== 'straight' || !part.trussArch) continue;
+    boxOf = pieceBox.get(s.pieceId) ?? null;
+    const { fromMm, toMm, springMm, crownMm, innerCrownMm, sideMm } = part.trussArch;
+    const floor = ((s.level ?? 0) - (part.deck ?? 0)) * riseMm;
+    const roadTop = (s.level ?? 0) * riseMm + plankMm;
+    const len = Math.hypot(s.to.x - s.from.x, s.to.y - s.from.y);
+    const ux = (s.to.x - s.from.x) / len, uy = (s.to.y - s.from.y) / len;
+    const at = (a: number, across: number, z: number) =>
+      [s.from.x + ux * a - uy * across, s.from.y + uy * a + ux * across, z] as const;
+    /** A circular chord through both springings and its crown, as height above the floor. */
+    const chord = (crown: number) => {
+      const half = (toMm - fromMm) / 2, rise = crown - springMm;
+      const r = (half * half + rise * rise) / (2 * rise);
+      return (a: number) => floor + crown - (r - Math.sqrt(Math.max(0, r * r - (a - fromMm - half) ** 2)));
+    };
+    const outer = chord(crownMm), inner = chord(innerCrownMm);
+    // An even count, so a step lands on the crown.
+    const steps = 2 * Math.max(1, Math.ceil((toMm - fromMm) / TRUSS_STEP_MM / 2));
+    const along = (i: number) => fromMm + ((toMm - fromMm) * i) / steps;
+    for (const side of [1, -1] as const) {
+      for (const top of [outer, inner]) {
+        for (let i = 0; i < steps; i++) {
+          const a0 = along(i), a1 = along(i + 1);
+          const ring = (a: number) => [-1, 1].flatMap((d) => [[a, top(a)], [a, top(a) - TRUSS_CHORD_MM]].map(([aa, z]) => at(aa!, side * sideMm + d * TRUSS_HALF_MM, z!)));
+          // Corners: [in-top, in-bottom, out-top, out-bottom] at each end of the step.
+          const [p0, p1, p2, p3] = ring(a0).map((v) => solid.vertex(...v));
+          const [q0, q1, q2, q3] = ring(a1).map((v) => solid.vertex(...v));
+          solid.quad(p0!, q0!, q2!, p2!);
+          solid.quad(p1!, p3!, q3!, q1!);
+          solid.quad(p0!, p1!, q1!, q0!);
+          solid.quad(p2!, q2!, q3!, p3!);
+          for (const [x, y, z] of ring(a0)) grow(x, y, z);
+          for (const d of [1, -1]) bodyEdges.push(...at(a0, side * sideMm + d * TRUSS_HALF_MM, top(a0)), ...at(a1, side * sideMm + d * TRUSS_HALF_MM, top(a1)));
+        }
+      }
+      for (let i = 1; i < steps; i++) {
+        const a = along(i), c = side * sideMm;
+        bodyEdges.push(...at(a, c, outer(a) - TRUSS_CHORD_MM), ...at(a, c, inner(a)));
+        if (inner(a) - TRUSS_CHORD_MM > roadTop) bodyEdges.push(...at(a, c, inner(a) - TRUSS_CHORD_MM), ...at(a, c, roadTop));
+        if (side === 1 && i % 2 === 0 && outer(a) - TRUSS_CHORD_MM > roadTop + 40) bodyEdges.push(...at(a, sideMm, outer(a) - TRUSS_CHORD_MM), ...at(a, -sideMm, outer(a) - TRUSS_CHORD_MM));
+      }
+    }
   }
 
   /*
