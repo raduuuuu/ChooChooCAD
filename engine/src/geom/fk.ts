@@ -58,6 +58,13 @@ export interface Segment {
    * draws the buffer beam at `to`. Absent on every other segment.
    */
   readonly stop?: true;
+  /**
+   * A BODY BOX (plan 2026-11-02, structures): wood that is not track, drawn
+   * as a straight from one end of the box to the other, `halfWidthMm` either
+   * side. Only in a render's `bodies` list, never in `segments` (eng E4).
+   */
+  readonly body?: 'footprint' | 'wall' | 'roof';
+  readonly halfWidthMm?: number;
 }
 
 export interface FkResult {

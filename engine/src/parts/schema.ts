@@ -261,6 +261,13 @@ interface PartBase {
    * not, and a level index would be a reversibility-1 mistake.
    */
   readonly heightMm: number;
+  /**
+   * WOOD THAT IS NOT TRACK (plan 2026-11-02, structures): a station's
+   * footprint and roof, a pier, a tunnel's walls and roof. Each box is drawn
+   * and collision-checked at its own levels (eng EO1); none carries a train.
+   * Built-in only: a submission cannot add or correct one (OV2).
+   */
+  readonly body?: readonly BodyBox[];
 }
 
 export interface StraightPart extends PartBase {
@@ -285,6 +292,39 @@ export interface StraightPart extends PartBase {
    * correction, so nothing in storage can create, flatten or reshape a ramp.
    */
   readonly rise?: 1;
+  /**
+   * A RAISED DECK: both ends sit this many levels above the piece's own
+   * frame, which stays at its footprint (plan 2026-11-02, C4 B). A station's
+   * deck is one level up, so the floor rule that puts each run's lowest piece
+   * on the floor puts the station's footprint there and its deck at level 1,
+   * with no change to how levels are worked out. Built-in only, like `rise`.
+   */
+  readonly deck?: 1;
+}
+
+/**
+ * One box of a part's `body`, in the part's own frame (placed `turn: 'left'`):
+ * centred at `atMm`, `lengthMm` along the piece's x axis, `widthMm` across,
+ * filling `levels` (low, high) above the piece's frame.
+ */
+export interface BodyBox {
+  readonly role: 'footprint' | 'wall' | 'roof';
+  readonly atMm: readonly [number, number];
+  readonly lengthMm: number;
+  readonly widthMm: number;
+  readonly levels: readonly [number, number];
+}
+
+/**
+ * A BLOCK: wood with no ends, only a body (plan 2026-11-02, X1: the bridge
+ * pier). It joins nothing, so it is always its own run, placed and moved like
+ * one (eng EO2), and never counted as unfinished track (EO4).
+ */
+export interface BlockPart extends PartBase {
+  readonly kind: 'block';
+  readonly body: readonly BodyBox[];
+  /** The palette card's size, e.g. "40×40". */
+  readonly sizeLabel: string;
 }
 
 export interface CurvePart extends PartBase {
@@ -441,7 +481,7 @@ export interface BufferPart extends PartBase {
   readonly end: Polarity;
 }
 
-export type Part = StraightPart | CurvePart | MultiRoadPart | BufferPart;
+export type Part = StraightPart | CurvePart | MultiRoadPart | BufferPart | BlockPart;
 
 /** True for every piece with more than two ends. The one place that asks. */
 export function isMultiRoad(part: Part): part is MultiRoadPart {

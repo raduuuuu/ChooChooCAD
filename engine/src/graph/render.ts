@@ -55,8 +55,16 @@ export interface RenderedPort {
 }
 
 export interface GraphRender {
+  /** Track: every road of every piece, and a buffer's body. */
   readonly segments: readonly Segment[];
   readonly ports: readonly RenderedPort[];
+  /**
+   * Wood that is not track: footprints, walls, roofs (plan 2026-11-02, eng
+   * E4). A separate list on purpose: a reader that means "track" never sees a
+   * body, and a reader that means "all wood" (collisions, drawing, table fit)
+   * reads both.
+   */
+  readonly bodies: readonly Segment[];
 }
 
 export function renderGraph(
@@ -73,13 +81,15 @@ export function renderGraph(
 
   const segments: Segment[] = [];
   const rendered: RenderedPort[] = [];
+  const bodies: Segment[] = [];
 
   for (const piece of graph.pieces) {
     const frame = placement.frames.get(piece.pieceId);
     if (!frame) continue;
     const part = resolve(piece.partId);
     // Written only off the floor (SC1), so a flat layout renders as before.
-    const level = levelOf(frame);
+    // A raised deck's roads sit `deck` levels above the frame (its footprint).
+    const level = levelOf(frame) + (part.kind === 'straight' ? (part.deck ?? 0) : 0);
     const rise = part.kind === 'straight' ? (part.rise ?? 0) : 0;
     const highAtStart = rise !== 0 && levelOf(ports(piece)[0]!.at) > 0;
     const levels = {
@@ -133,6 +143,31 @@ export function renderGraph(
         ...levels,
       });
     }
+    /*
+     * THE BODY (plan 2026-11-02, structures): each box drawn as a straight
+     * through its middle, half its width either side, at its own levels above
+     * the frame. Mirrored with the piece, like its ends.
+     */
+    for (const box of part.body ?? []) {
+      const mirror = piece.turn === 'right' ? -1 : 1;
+      const h = frame.heading * RAD;
+      const c = Math.cos(h), sn = Math.sin(h);
+      const [fx, fy] = toXY(frame.pos);
+      const at = (lx: number, ly: number) => ({ x: fx + lx * c - ly * mirror * sn, y: fy + lx * sn + ly * mirror * c, h });
+      const lo = levelOf(frame) + box.levels[0];
+      const boxRise = box.levels[1] - box.levels[0];
+      bodies.push({
+        kind: 'straight',
+        from: at(box.atMm[0] - box.lengthMm / 2, box.atMm[1]),
+        to: at(box.atMm[0] + box.lengthMm / 2, box.atMm[1]),
+        partId: piece.partId,
+        pieceId: piece.pieceId,
+        body: box.role,
+        halfWidthMm: box.widthMm / 2,
+        ...(lo !== 0 ? { level: lo } : {}),
+        ...(boxRise !== 0 ? { rise: boxRise } : {}),
+      });
+    }
     for (const road of roadsOf(part, piece.turn)) {
       const start = portFrame(placement, ports, piece, road.from);
       const from = pose({ pos: start.pos, heading: norm16(start.heading + 8) });
@@ -173,7 +208,7 @@ export function renderGraph(
     }
   }
 
-  return { segments, ports: rendered };
+  return { segments, ports: rendered, bodies };
 }
 
 /**

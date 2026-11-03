@@ -199,6 +199,8 @@ export function portsOf(part: Part, turn: Turn = 'left'): readonly Port[] {
    */
   // A buffer stop has its one end at the entry, like every other part's first.
   if (part.kind === 'buffer') return [{ kind: 'end', at: ENTRY, polarity: part.end }];
+  // A block (a pier) has no ends: it joins nothing.
+  if (part.kind === 'block') return [];
   if (part.kind === 'multi-road') {
     return part.ports.map((e, i) => ({
       kind: e.kind ?? 'end',
@@ -217,16 +219,18 @@ export function portsOf(part: Part, turn: Turn = 'left'): readonly Port[] {
    * on that), so the rise moves from the far port to the entry port.
    */
   const rise = part.kind === 'straight' ? (part.rise ?? 0) : 0;
+  // A raised deck lifts both ends above the frame, which stays at the footprint.
+  const deck = part.kind === 'straight' ? (part.deck ?? 0) : 0;
   const flippedRamp = rise !== 0 && turn === 'right';
   const entry: Port = {
     kind: 'end',
-    at: flippedRamp ? frameOf(ENTRY.pos, ENTRY.heading, rise) : ENTRY,
+    at: flippedRamp ? frameOf(ENTRY.pos, ENTRY.heading, rise) : deck !== 0 ? frameOf(ENTRY.pos, ENTRY.heading, deck) : ENTRY,
     polarity: part.ends.start,
   };
   const far = part.ends.end;
   if (part.kind === 'straight') {
     // A ramp's high end sits `rise` levels above its low end; compose adds it.
-    return [entry, { kind: 'end', at: frameOf(straightEnd(part.lengthMm), 0, flippedRamp ? 0 : rise), polarity: far }];
+    return [entry, { kind: 'end', at: frameOf(straightEnd(part.lengthMm), 0, (flippedRamp ? 0 : rise) + deck), polarity: far }];
   }
   return [
     entry,
@@ -255,8 +259,8 @@ export interface PlacedRoad {
 }
 
 export function roadsOf(part: Part, turn: Turn = 'left'): readonly PlacedRoad[] {
-  // A train cannot run through a buffer stop: one end, no road.
-  if (part.kind === 'buffer') return [];
+  // A train cannot run through a buffer stop or a block: no road.
+  if (part.kind === 'buffer' || part.kind === 'block') return [];
   if (part.kind === 'straight') return [{ from: 0, to: 1, shape: { kind: 'straight', lengthMm: part.lengthMm } }];
   if (part.kind === 'curve') {
     return [{
@@ -334,6 +338,7 @@ function arcEnd(r: number, s: number, turn: Turn): Frame {
 export function portPolarity(part: Part, portIndex: number): Polarity {
   if (part.kind === 'multi-road') return part.ports[portIndex]!.polarity;
   if (part.kind === 'buffer') return part.end;
+  if (part.kind === 'block') throw new Error(`${part.id} is a block: it has no ends`);
   return portIndex === 0 ? part.ends.start : part.ends.end;
 }
 

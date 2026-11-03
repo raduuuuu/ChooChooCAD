@@ -647,7 +647,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         : solveGraph(graph, ports, resolve, (pieceId: string) => slopById.get(pieceId) ?? 0, placement, {
             parts: library,
             brandFit,
-          }, render.segments),
+          }, render.segments, render.bodies),
     [graph, ports, resolve, slopById, placement, library, render],
   );
 
