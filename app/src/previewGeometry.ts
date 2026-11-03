@@ -20,7 +20,7 @@ import { BUILT_IN } from '../../engine/data/library.js';
 import type { Segment } from '../../engine/src/geom/fk.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Graph, type Piece } from '../../engine/src/graph/model.js';
-import { bodyCorners, renderGraph } from '../../engine/src/graph/render.js';
+import { bodyCorners, drawnFlat, renderGraph } from '../../engine/src/graph/render.js';
 import type { Part, Polarity } from '../../engine/src/parts/schema.js';
 import { segmentPath } from './trackPath.js';
 
@@ -89,7 +89,7 @@ export function previewOf(part: Part): Preview {
   const pts = [
     ...drawn.segments.flatMap(sample),
     ...drawn.ports.map((p) => [p.x, p.y] as const),
-    ...drawn.bodies.flatMap(bodyCorners),
+    ...drawn.bodies.filter(drawnFlat).flatMap(bodyCorners),
   ];
   if (pts.length === 0) throw new Error(`${part.id} draws nothing`);
   const xs = pts.map((p) => p[0]);
@@ -115,7 +115,7 @@ export function previewOf(part: Part): Preview {
     transform: `translate(${PREVIEW_W / 2 - cx * k}, ${PREVIEW_H / 2 + cy * k}) scale(${k}, ${-k})`,
     roads: drawn.segments.map(segmentPath),
     ends: drawn.ports.map((p) => ({ ...px(p.x, p.y), polarity: p.polarity })),
-    bodies: drawn.bodies.map((b) => ({
+    bodies: drawn.bodies.filter(drawnFlat).map((b) => ({
       points: bodyCorners(b).map(([x, y]) => { const q = px(x, y); return `${q.x},${q.y}`; }).join(' '),
       roof: b.body === 'roof',
     })),

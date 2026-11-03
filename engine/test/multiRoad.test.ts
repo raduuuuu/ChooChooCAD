@@ -34,8 +34,10 @@ const at = (x: number, y: number, heading: number): Frame => ({
 describe('every road lands exactly on the end it names (D9)', () => {
   it('the catalogue has every multi-road piece found on the grid', () => {
     expect(MULTI.map((p) => p.id)).toEqual([
-      'L', 'M', 'O1', 'P1', 'H', 'H1', 'H2', 'I', 'J', 'O', 'P', 'T', 'TJ', 'X', 'EE', 'HH', 'F', 'G', 'F1', 'G1',
+      'L', 'M', 'O1', 'P1', 'H', 'H1', 'H2', 'I', 'J', 'O', 'P', 'T', 'TJ', 'X', 'EE', 'HP', 'HH', 'F', 'G', 'F1', 'G1',
       'IKEA-SW', 'IKEA-SW-P', 'IKEA-X145',
+      // Decorated pieces come after every plain part (decorated-pieces plan).
+      'LC',
     ]);
   });
 

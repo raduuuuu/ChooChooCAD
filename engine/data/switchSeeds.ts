@@ -420,6 +420,38 @@ export const MULTI_ROAD_SEEDS: readonly MultiRoadPart[] = [
   },
 
   /*
+   * THE PRINTED CROSSING, 150 BY 117 (decorated-pieces plan T3): two tracks
+   * crossing square, read off its 3MF mesh. The first road is 150, peg to
+   * socket, crossed at its middle; the second 117, socket to peg, crossed
+   * 63 from its socket end (63.3 and 53.9 measured, to whole millimetres).
+   * The plain piece under the level crossing (LC). A one-sided print with
+   * grooves on one face, so it has no `flip`: it cannot be turned over.
+   */
+  {
+    id: 'HP', brand: 'GENERIC', kind: 'multi-road', name: 'Crossing, printed',
+    ports: [
+      { at: { pos: ORIGIN, heading: 8 }, polarity: 'peg', name: "first road's near end" },
+      { at: { pos: xy(150, 0), heading: 0 }, polarity: 'socket', name: "first road's far end" },
+      { at: { pos: xy(75, -63), heading: 12 }, polarity: 'socket', name: "second road's near end" },
+      { at: { pos: xy(75, 54), heading: 4 }, polarity: 'peg', name: "second road's far end" },
+    ],
+    roads: [
+      { from: 0, to: 1, shape: { kind: 'straight', lengthMm: 150 } },
+      { from: 2, to: 3, shape: { kind: 'straight', lengthMm: 117 } },
+    ],
+    sizeLabel: '150×117',
+    dimensions: {
+      status: 'unverified',
+      source: 'a printed design, measured off the 3MF mesh on 2026-11-03',
+      note:
+        'A printable design with its own sizes, not a measurement of a shop piece. Roads 150 and 117.2 long, ' +
+        'grooves 25 apart within each; they cross at the first road\'s middle and 63.3 from the second road\'s ' +
+        'socket end. Rounded to whole millimetres: 117 and 63.',
+    },
+    slop: ESTIMATED_SLOP, ...PROFILE,
+  },
+
+  /*
    * THE DOUBLE CROSSING (more parts plan 2026-11-03): two tracks each way,
    * 46 apart, crossing square in a 150 by 150 plank. A printable design
    * (its origin in origins.ts), read off its 3MF mesh. Its mirror image is

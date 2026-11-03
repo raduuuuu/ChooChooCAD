@@ -9,7 +9,7 @@
  * The pieces themselves arrive one at a time (plan tasks T3-T5).
  */
 
-import type { DecorShape, DimensionSource } from '../src/parts/schema.js';
+import type { DecorShape, DecorSlab, DimensionSource } from '../src/parts/schema.js';
 
 export interface DecoratedSpec {
   readonly id: string;
@@ -23,4 +23,24 @@ export interface DecoratedSpec {
   readonly partNumber?: string;
 }
 
-export const DECORATED_SEEDS: readonly DecoratedSpec[] = [];
+/*
+ * THE LEVEL CROSSING (plan T3), read off 3MF 681643: the printed crossing
+ * (HP) with a barrier post at two opposite corners, 38 along and 36.5 across
+ * from where the roads cross, each 10 square and 31 tall, and a 107 arm on
+ * each. The arms are drawn raised (open) and are not solid: a lowered arm
+ * is a toy's moving part, not wood a layout is planned around.
+ */
+const post = (x: number, y: number): DecorSlab => ({ kind: 'slab', atMm: [x, y], lengthMm: 10, widthMm: 10, bottomMm: 0, topMm: 31, noun: 'barrier post' });
+const arm = (x: number, y: number): DecorSlab => ({ kind: 'slab', atMm: [x, y], lengthMm: 6, widthMm: 6, bottomMm: 31, topMm: 132, solid: false, noun: 'barrier' });
+
+export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
+  {
+    id: 'LC', name: 'Level crossing', base: 'HP',
+    decor: [post(113, 36.5), post(37, -36.5), arm(113, 36.5), arm(37, -36.5)],
+    dimensions: {
+      status: 'unverified',
+      source: 'a printed design, measured off the 3MF mesh on 2026-11-03',
+      note: 'Barrier posts 10 square and 31 tall at two opposite corners, 38 along and 36.5 across from the crossing point; arms 107 long, drawn raised.',
+    },
+  },
+];

@@ -727,7 +727,7 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
   - Surfaced by: G1 (D2), G3 (D4), O2 (D9), O3 (D10), O4, O5, F5 (D8), structure (D1)
   - Files: engine/src/parts/schema.ts, engine/data/library.ts, engine/data/decoratedSeeds.ts (new), engine/src/view3d/decor.ts (new), engine/src/view3d/mesh.ts, engine/src/graph/render.ts
   - Verify: tripwire (joins equal base), opening and level fixtures, 3,000-triangle budget, submission refusal
-- [ ] **T3 (P1, human: ~1d / CC: ~30min)** — parts — Level crossing as the first decorated piece, with "works like" (E9)
+- [x] **T3 (P1, human: ~1d / CC: ~30min)** — parts — Level crossing as the first decorated piece, with "works like" (E9)
   - Surfaced by: CEO D5/D6; Section 3 test diagram
   - Files: engine/data/decoratedSeeds.ts, engine/data/origins.ts, app/src/App.tsx, app/src/PartPreview.tsx
   - Verify: card text test; clash and pass fixtures
@@ -823,7 +823,7 @@ declined. Calibrated against DESIGN.md rules 7, 10 and 11.
 - Mockups: no image key in this project.
 
 ### Implementation Tasks (design)
-- [ ] **D-T1 (P1, human: ~2h / CC: ~10min)** — app — "Decorated" library heading and "Works like <code>, <name>" card line
+- [x] **D-T1 (P1, human: ~2h / CC: ~10min)** — app — "Decorated" library heading and "Works like <code>, <name>" card line
   - Surfaced by: decisions 1, 2
   - Files: app/src/App.tsx, app/src/app.css
   - Verify: dom test: heading lists decorated cards; card label sentence; tooltip

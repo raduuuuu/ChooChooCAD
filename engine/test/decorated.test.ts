@@ -180,3 +180,41 @@ describe('every piece draws within its 3D budget (eng D8)', () => {
     }
   });
 });
+
+describe('the level crossing, the first decorated piece (plan T3)', () => {
+  const lc = ['lc', 'LC', at(0, 0, 0)] as const;
+
+  /*
+   * MUTATION PROOF, run: decorated ids left out of the fixed set fails with
+   * `expected 'Not a level crossing' to be 'Level crossing'`.
+   */
+  it('is built in only: a stored submission with its id is refused (eng O5)', () => {
+    const forged = { ...resolve('HP'), id: 'LC', name: 'Not a level crossing' };
+    const lib = resolveLibrary([{ submissionId: 's', at: '2026-11-03T10:00:00Z', part: forged as never }]);
+    expect(lib.find((p) => p.id === 'LC')!.name).toBe('Level crossing');
+  });
+
+  /*
+   * MUTATION PROOF, run: the posts marked not solid fails with `expected [] to
+   * deeply equal [ 'into lc' ]`.
+   */
+  it('works like the printed crossing, and its posts are wood: track into one clashes, track past them does not', () => {
+    expect(resolve('LC').decoratedFrom).toBe('HP');
+    // A post stands at 113 along, 36.5 across (108 to 118, 31.5 to 41.5); a 54 straight
+    // coming down at 120 along covers 100 to 140 by 26 to 80, clear of both roads.
+    expect(clashes(scene([lc, ['into', 'A2', at(120, 80, 12)]]))).toEqual(['into lc']);
+    expect(clashes(scene([['hp', 'HP', at(0, 0, 0)], ['into', 'A2', at(120, 80, 12)]]))).toEqual([]);
+    expect(clashes(scene([lc, ['past', 'A', at(150, 60, 0)]]))).toEqual([]);
+  });
+
+  /*
+   * MUTATION PROOF, run: the arms dropped from the seed fails with `expected [
+   * [ 'barrier post', true ], …(1) ] to deeply equal [ …(3) ]`.
+   */
+  it('its arms are drawn but never collide', () => {
+    const decor = resolve('LC').decorBody!;
+    expect(decor.map((b) => [b.noun, b.solid])).toEqual([
+      ['barrier post', true], ['barrier post', true], ['barrier', false], ['barrier', false],
+    ]);
+  });
+});
