@@ -977,6 +977,12 @@ ever likely, widen BEFORE any file exists.
 
 ## P2 — Support and pier modelling
 
+**2026-11-02 update (X4, deferred by owner):** piers and stations are planned in
+`docs/plan/2026-11-02-photo-parts-and-stations.md`; the catalogue half of this
+entry lands there. What remains here is the CHECK that raised track stands on a
+ramp, station or pier. Deferred because the safe unsupported span is an
+unmeasured guess; trigger: a measured span length, and piers shipped.
+
 **What:** Support and riser parts in the catalogue, a requirement that elevated
 runs be supported, and pier footprints participating in the same-level overlap
 test so a pier landing on lower track is a short.
