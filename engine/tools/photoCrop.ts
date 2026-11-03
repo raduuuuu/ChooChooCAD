@@ -35,6 +35,25 @@ export function fromCrop(w: Window, cx: number, cy: number): readonly [number, n
   return [w.x0 + cx / ZOOM, w.y0 + cy / ZOOM];
 }
 
+export type CropArgs = { readonly photo: string; readonly x: number; readonly y: number; readonly half: number };
+
+/**
+ * The command line, or why it is refused. A coordinate must be one plain
+ * number: "63 17" passed as one argument (a shell that does not split) is
+ * refused here, not cropped at NaN.
+ */
+export function parseArgs(argv: readonly string[]): CropArgs | { readonly error: string } {
+  const [photo, xs, ys, halfs, ...rest] = argv;
+  if (!photo || xs === undefined || ys === undefined || rest.length > 0) {
+    return { error: 'usage: bun engine/tools/photoCrop.ts <photo> <x> <y> [half=60]' };
+  }
+  const num = (s: string) => (/^\s*-?\d+(\.\d+)?\s*$/.test(s) ? Number(s) : NaN);
+  const x = num(xs), y = num(ys), half = halfs === undefined ? 60 : num(halfs);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return { error: `x and y must each be one number, got "${xs}" and "${ys}"` };
+  if (!Number.isFinite(half) || half <= 0) return { error: `half must be a positive number, got "${halfs}"` };
+  return { photo, x, y, half };
+}
+
 function sipsGet(photo: string, key: string): string {
   const out = execFileSync('sips', ['-g', key, photo], { encoding: 'utf8' });
   const m = out.match(new RegExp(`${key}:\\s*(\\S+)`));
@@ -43,11 +62,12 @@ function sipsGet(photo: string, key: string): string {
 }
 
 if (import.meta.main) {
-  const [photo, xs, ys, halfs] = process.argv.slice(2);
-  if (!photo || xs === undefined || ys === undefined) {
-    console.error('usage: bun engine/tools/photoCrop.ts <photo> <x> <y> [half=60]');
+  const args = parseArgs(process.argv.slice(2));
+  if ('error' in args) {
+    console.error(args.error);
     process.exit(2);
   }
+  const { photo, x, y, half } = args;
   // A rotated phone photo stores its pixels sideways; crop coordinates would not match what is seen.
   const orientation = sipsGet(photo, 'orientation');
   if (orientation !== '1' && orientation !== '<nil>') {
@@ -56,7 +76,7 @@ if (import.meta.main) {
   }
   const width = Number(sipsGet(photo, 'pixelWidth'));
   const height = Number(sipsGet(photo, 'pixelHeight'));
-  const w = windowAround(width, height, Number(xs), Number(ys), Number(halfs ?? 60));
+  const w = windowAround(width, height, x, y, half);
   const out = join(dirname(photo), `${basename(photo).replace(/\.[^.]+$/, '')}.crop-${w.x0}-${w.y0}-${w.side}.png`);
   execFileSync('sips', ['-s', 'format', 'png', '-c', String(w.side), String(w.side), '--cropOffset', String(w.y0), String(w.x0), photo, '--out', out], { stdio: 'ignore' });
   execFileSync('sips', ['-z', String(w.side * ZOOM), String(w.side * ZOOM), out], { stdio: 'ignore' });

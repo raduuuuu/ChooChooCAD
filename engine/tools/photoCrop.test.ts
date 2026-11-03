@@ -11,7 +11,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { fromCrop, windowAround, ZOOM } from './photoCrop.js';
+import { fromCrop, parseArgs, windowAround, ZOOM } from './photoCrop.js';
 
 describe('crop windows', () => {
   it('centres on the point, and a point read in the crop comes back to it', () => {
@@ -31,5 +31,26 @@ describe('crop windows', () => {
 
   it('a window at the photo edge stays inside it', () => {
     expect(windowAround(4000, 3000, 10, 2995, 60)).toEqual({ x0: 0, y0: 2880, side: 120 });
+  });
+});
+
+describe('the command line', () => {
+  it('takes a photo, two numbers and an optional half size', () => {
+    expect(parseArgs(['p.jpg', '63', '17.5'])).toEqual({ photo: 'p.jpg', x: 63, y: 17.5, half: 60 });
+    expect(parseArgs(['p.jpg', '63', '17', '40'])).toEqual({ photo: 'p.jpg', x: 63, y: 17, half: 40 });
+  });
+
+  /*
+   * MUTATION PROOF, run: the finite check on x and y removed fails with
+   * `expected { photo: 'p.jpg', x: NaN, y: 50, …(1) } to have property "error"`.
+   * That NaN is the crop once written as p1.crop-NaN-0-120.png (2026-11-03).
+   */
+  it('refuses "63 17" passed as one argument instead of cropping at NaN', () => {
+    expect(parseArgs(['p.jpg', '63 17', '50'])).toHaveProperty('error');
+  });
+
+  it('refuses a half size that is not a positive number', () => {
+    expect(parseArgs(['p.jpg', '63', '17', '0'])).toHaveProperty('error');
+    expect(parseArgs(['p.jpg', '63', '17', 'big'])).toHaveProperty('error');
   });
 });
