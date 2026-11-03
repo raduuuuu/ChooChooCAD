@@ -16,6 +16,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver, resolveLibrary } from '../../engine/data/library.js';
+import { PIER, TUNNEL } from '../../engine/data/structureSeeds.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Graph, type Piece, type Port } from '../../engine/src/graph/model.js';
 import { renderBounds, renderGraph } from '../../engine/src/graph/render.js';
@@ -25,7 +26,8 @@ import { EMPTY_GRAPH, ghostFit, shiftMm } from './layoutModel.js';
 import { previewOf } from './previewGeometry.js';
 import { trackExtent } from './tableModel.js';
 
-const resolve = makeResolver(BUILT_IN);
+// The retired pier and roofed tunnel stay as fixtures: the only block and the only roof over a floor road.
+const resolve = makeResolver([...BUILT_IN, PIER, TUNNEL]);
 const ports = (piece: Piece): readonly Port[] => portsOf(resolve(piece.partId), piece.turn);
 const half = (id: string) => resolve(id).plankWidthMm / 2;
 const drawnAlone = (partId: string) => {
@@ -62,6 +64,8 @@ describe('every reader of "all wood" reads the bodies', () => {
   it("a structure's card draws its footprint, and its roof hatched", () => {
     expect(previewOf(resolve('ST')).bodies.map((b) => b.roof)).toEqual([false, true]);
     expect(previewOf(resolve('TU')).bodies.map((b) => b.roof)).toEqual([false, false, true]);
+    expect(previewOf(resolve('RS')).bodies.map((b) => b.roof)).toEqual([false, false, false, false]);
+    expect(previewOf(resolve('TO')).bodies.map((b) => b.roof)).toEqual([false, false]);
     const pier = previewOf(resolve('PR'));
     expect(pier.bodies).toHaveLength(1);
     expect(pier.ends).toEqual([]);
@@ -109,5 +113,20 @@ describe('every reader of "all wood" reads the bodies', () => {
     ]);
     const clear = act(act(placed, { kind: 'pick', partId: 'PR' }), { kind: 'floatGhost', pos: shiftMm(72, 200) });
     expect(ghostFit(clear.graph, ports, clear.ghost!, undefined, undefined, { resolve }).conflicts).toEqual([]);
+  });
+});
+
+describe('a piece with no ends lands selected (design decision 3)', () => {
+  /*
+   * MUTATION PROOFS, run:
+   * - `add` not selecting a piece with no ends: fails with `expected
+   *   undefined to be 'p0'`.
+   * - `placeGhost` not selecting one: fails with `expected null to be 'p0'`.
+   */
+  it('added straight away or picked and placed, the pier is the selected piece', () => {
+    const act = (s: EditorState, a: EditorAction) => reduce(s, a, ports, { resolve });
+    const empty: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null };
+    expect(act(empty, { kind: 'add', partId: 'PR', turn: 'left' }).selected).toBe('p0');
+    expect(act(act(empty, { kind: 'pick', partId: 'PR' }), { kind: 'placeGhost' }).selected).toBe('p0');
   });
 });

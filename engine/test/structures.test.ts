@@ -236,3 +236,33 @@ describe('"not a loop yet" counts track (eng EO4)', () => {
     expect(detail(scene([['pier', 'PR', at(500, 500, 0)]]))).toBe('1 piece with no track connections');
   });
 });
+
+describe('the measured riser and tunnel with overpass (2026-11-03)', () => {
+  /*
+   * MUTATION PROOF, run: the riser's legs 4mm further in (y ±21) fails with
+   * `expected [ 'rs under' ] to deeply equal []`: a 40mm plank no longer
+   * fits between them.
+   */
+  /*
+   * MUTATION PROOF, run: bodies held to the 100 mm² plank line again fails
+   * with `expected [] to deeply equal [ 'rs short' ]`: one 8 by 8 leg shares
+   * only 64 mm².
+   */
+  it('a short straight laid through one riser leg is caught', () => {
+    expect(clashes(scene([['rs', 'RS', at(0, 0, 0)], ['short', 'A2', at(4, 0, 4)]]))).toEqual(['rs short']);
+  });
+
+  it('floor track passes under a riser both ways, between its legs', () => {
+    expect(clashes(scene([['rs', 'RS', at(0, 0, 0)], ['under', 'A', at(29, -72, 4)]]))).toEqual([]);
+    expect(clashes(scene([['rs', 'RS', at(0, 0, 0)], ['under', 'D', at(-79, 0, 0)]]))).toEqual([]);
+  });
+
+  /*
+   * MUTATION PROOF, run: the tunnel's walls as one box across the whole
+   * deck fails with `expected [ 'through to' ] to deeply equal []`.
+   */
+  it('floor track goes through the tunnel passage, and runs into a wall alongside the road', () => {
+    expect(clashes(scene([['to', 'TO', at(0, 0, 0)], ['through', 'A', at(36, -72, 4)]]))).toEqual([]);
+    expect(clashes(scene([['to', 'TO', at(0, 0, 0)], ['along', 'D', at(-72, 0, 0)]]))).toEqual(['along to']);
+  });
+});
