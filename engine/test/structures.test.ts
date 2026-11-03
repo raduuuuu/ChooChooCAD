@@ -18,8 +18,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { BUILT_IN, makeResolver } from '../data/library.js';
-import { PIER, STATION, TUNNEL } from '../data/structureSeeds.js';
+import { BUILT_IN, isStructure, makeResolver, resolveLibrary } from '../data/library.js';
+import { PIER, STATION, STRUCTURE_WORDS, TUNNEL } from '../data/structureSeeds.js';
 import { add, fromInt, scale, zetaPow, type Cyc } from '../src/geom/cyclotomic.js';
 import { bendRender } from '../src/graph/bendPose.js';
 import { connectorSites } from '../src/graph/feasible.js';
@@ -264,5 +264,92 @@ describe('the measured riser and tunnel with overpass (2026-11-03)', () => {
   it('floor track goes through the tunnel passage, and runs into a wall alongside the road', () => {
     expect(clashes(scene([['to', 'TO', at(0, 0, 0)], ['through', 'A', at(36, -72, 4)]]))).toEqual([]);
     expect(clashes(scene([['to', 'TO', at(0, 0, 0)], ['along', 'D', at(-72, 0, 0)]]))).toEqual(['along to']);
+  });
+});
+
+describe('the stone arch bridge: a road up, over and down (bridges plan 2026-11-03)', () => {
+  const sa = ['sa', 'SA', at(0, 0, 0)] as const;
+
+  /*
+   * MUTATION PROOF, run: the hump drawn as one floor straight (the render's
+   * hump branch skipped) fails with `expected [ '0/0/false' ] to deeply
+   * equal [ Array(3) ]`.
+   */
+  it('renders three stretches: up a level, along the top, and down (eng D1)', () => {
+    const g = scene([sa]);
+    const r = renderGraph(g, ports, resolve, placeAll(g, ports));
+    expect(r.segments.map((s) => `${s.level ?? 0}/${s.rise ?? 0}/${Boolean(s.highAtStart)}`)).toEqual(['0/1/false', '1/0/false', '0/1/true']);
+    expect(r.segments.map((s) => s.alongMm)).toEqual([[0, 120], [120, 356], [356, 476]]);
+  });
+
+  /*
+   * MUTATION PROOF, run: the first embankment's footprint lifted off the floor
+   * (levels [5, 5]) fails with `expected [] to deeply equal [ 'floor sa' ]`:
+   * floor track ran through the abutment.
+   */
+  it('floor track crosses under the arch square, offset or slantwise, and not through an abutment (eng D8)', () => {
+    // Square under the middle, square near each abutment, and at 45 degrees through the middle.
+    for (const [x, y, heading] of [[238, -72, 4], [180, -72, 4], [300, -72, 4], [187, -51, 2]] as const) {
+      expect(clashes(scene([sa, ['under', 'A', at(x, y, heading)]])), `${x},${y} heading ${heading}`).toEqual([]);
+    }
+    // At 45 degrees but crossing near an abutment, the plank's corner reaches it.
+    expect(clashes(scene([sa, ['under', 'A', at(238, -72, 2)]]))).toEqual(['sa under']);
+    expect(clashes(scene([sa, ['floor', 'A', at(100, -72, 4)]]))).toEqual(['floor sa']);
+    // Under the raised top but inside the abutment: only the footprint can catch it.
+    expect(clashes(scene([sa, ['floor', 'A', at(141, -72, 4)]]))).toEqual(['floor sa']);
+  });
+
+  /*
+   * MUTATION PROOF, run: the solver's `climbsAboveEnds` left at its default
+   * fails with `expected [] to deeply equal [ 'sa' ]`.
+   */
+  it('laid on raised track, its top would reach a third level (eng D6)', () => {
+    const g: Graph = {
+      pieces: [{ pieceId: 'n', partId: 'N', turn: 'left' }, { pieceId: 'sa', partId: 'SA', turn: 'left' }],
+      welds: [{ a: { pieceId: 'n', port: 1 }, b: { pieceId: 'sa', port: 0 } }],
+    };
+    const r = solveGraph(g, ports, resolve, () => 0, placeAll(g, ports));
+    expect(r.thirdLevels.map((t) => t.pieceId)).toEqual(['sa']);
+  });
+
+  /*
+   * MUTATION PROOF, run: structures counted in `raised` again fails with
+   * `expected true to be false`: the supports note appeared for a bridge.
+   */
+  it('a bridge carries its own road: no supports note, and the track under it is listed for its clearance (eng D3, D7)', () => {
+    const g = scene([sa, ['under', 'A', at(238, -72, 4)]]);
+    const r = solveGraph(g, ports, resolve, () => 0, placeAll(g, ports));
+    expect(r.raised).toBe(false);
+    expect(r.bridges).toEqual([]);
+    expect(r.underBridges).toEqual([{ bridge: 'sa', under: 'under' }]);
+  });
+
+  it('every bridge seed adds up: up, top and down make its length (eng D10)', () => {
+    for (const p of BUILT_IN) {
+      if (p.kind !== 'straight' || !p.hump) continue;
+      expect(p.hump.upMm + p.hump.topMm + p.hump.downMm, p.id).toBe(p.lengthMm);
+    }
+  });
+});
+
+describe('structures are built-in, and named (eng D4, D10)', () => {
+  /*
+   * MUTATION PROOF, run: `hump` left out of withRise fails with `expected {
+   * upMm: 10, topMm: 124, …(4) } to be undefined`.
+   */
+  it('a stored correction cannot make a bridge', () => {
+    const a = resolve('A');
+    const forged = { ...a, id: 'X9', hump: { upMm: 10, topMm: 124, downMm: 10, profileMm: [], clearanceMm: 1, arch: { fromMm: 0, toMm: 1, riseMm: 1, depthMm: 1, baseMm: 0 } } };
+    const lib = resolveLibrary([{ submissionId: 's', at: '2026-11-03T10:00:00Z', part: forged as never }]);
+    const got = lib.find((p) => p.id === 'X9')!;
+    expect(got.kind === 'straight' ? got.hump : null).toBeUndefined();
+  });
+
+  /*
+   * MUTATION PROOF, run: SA's entry removed from STRUCTURE_WORDS fails with
+   * `SA: expected false to be true`.
+   */
+  it('every structure has its words', () => {
+    for (const p of BUILT_IN) if (isStructure(p)) expect(STRUCTURE_WORDS[p.id] !== undefined, p.id).toBe(true);
   });
 });

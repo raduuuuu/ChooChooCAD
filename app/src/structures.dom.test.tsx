@@ -46,10 +46,11 @@ describe('structures in the library and on the floor', () => {
       'Add Elevated station. Raised road. Unverified size.',
       'Add Riser. Raised road. Unverified size.',
       'Add Tunnel with overpass. Raised road. Unverified size.',
+      'Add Stone arch bridge. Road over, track passes under. Unverified size.',
     ]);
-    expect(within(group).getAllByText('Estimated size')).toHaveLength(3);
+    expect(within(group).getAllByText('Estimated size')).toHaveLength(4);
     const trackList = container.querySelector('.palette-parts .palette-row') as HTMLElement;
-    expect(within(trackList).queryAllByRole('button', { name: /Elevated station|Riser|Tunnel/ }).length).toBe(0);
+    expect(within(trackList).queryAllByRole('button', { name: /Elevated station|Riser|Tunnel|bridge/ }).length).toBe(0);
   });
 
   /*
@@ -78,5 +79,16 @@ describe('structures in the library and on the floor', () => {
     expect(
       within(strip).getByText(/Placing this station raises this run of track \(2 pieces\)\. Add a ramp to keep the rest on the floor\./),
     ).toBeTruthy();
+  });
+
+  /*
+   * MUTATION PROOF, run: the outlines left out of the canvas fails with
+   * `expected  to have a length of 2 but got +0`.
+   */
+  it('a stone arch bridge is outlined, with the passage edges across its road (bridges design DD3)', async () => {
+    const { user, container } = mount();
+    await user.dblClick(screen.getByRole('button', { name: /^Add Stone arch bridge\./ }));
+    expect(container.querySelectorAll('path.bridge-outline')).toHaveLength(2);
+    expect(container.querySelectorAll('path.body')).toHaveLength(2);
   });
 });

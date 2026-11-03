@@ -130,13 +130,84 @@ export const TUNNEL_OVERPASS: StraightPart = {
   slop: ESTIMATED_SLOP, ...PROFILE,
 };
 
-export const STRUCTURE_SEEDS = [STATION, RISER, TUNNEL_OVERPASS] as const;
+/*
+ * THE STONE ARCH BRIDGE (SA), measured off its 3MF mesh on 2026-11-03
+ * (bridges plan; eng D1, D7, D8, D9; design DD3-DD6):
+ *
+ *   socket end                 ___crown ~100___                 socket end
+ *   (floor)        ramp up    /   stone arch   \   ramp down     (floor)
+ *     0 ------------------- 120 ---- 153 ...... 323 ---- 356 ------------ 476
+ *                  embankment  |abut| passage 170 |abut| embankment
+ *                   61 ---------- 153            323 ---------- 415
+ *
+ * - Each base: a ramp road climbing on a curve from 12mm (track height) at its
+ *   socket end to 57.1mm at 120mm in; its abutment's inner face meets the
+ *   12mm foot plate at 153mm. The arch's frame spans the 170mm between the
+ *   two inner feet and rises 57.2mm from the plate: a 69.2mm opening.
+ * - The stones (46 wide, 30.8 deep) carry the road over the arch; its crown
+ *   is about 100mm, ESTIMATED from frame plus stone, not read off the kit
+ *   assembled.
+ * - Length 476: 2 x 153 + 170, rounded from 475.6 to the whole millimetre.
+ * - Collision (eng D8): each embankment and abutment a 54-wide floor footprint
+ *   from 61 to 153 (and 323 to 415); the passage between is open floor. The
+ *   kit's foot plates under the passage carry the crossing; here any floor
+ *   track may cross there, which is the same thing.
+ */
+const SA_LEN = 476;
+const SA_RAMP = 120;
+const SA_FOOT = 153;
+const SA_CROWN = 100;
+/** The ramp's measured top surface, every 5mm from 20mm in to 120mm. */
+const SA_RAMP_PROFILE: readonly (readonly [number, number])[] = [
+  [0, 12], [20, 13.3], [25, 14], [30, 14.9], [35, 15.9], [40, 17.1], [45, 18.5], [50, 20], [55, 21.8],
+  [60, 23.7], [65, 25.8], [70, 28.2], [75, 30.7], [80, 33.5], [85, 36.5], [90, 39.7], [95, 42.9],
+  [100, 46.2], [105, 49.4], [110, 52.7], [115, 55.9], [120, 57.1],
+];
+/** Over the arch: a circle through both ramp tops and the crown, every 16mm. */
+function overArch(): (readonly [number, number])[] {
+  const chord = SA_LEN - 2 * SA_RAMP;
+  const sag = SA_CROWN - 57.1;
+  const radius = (chord * chord / 4 + sag * sag) / (2 * sag);
+  const mid = SA_LEN / 2;
+  const out: (readonly [number, number])[] = [];
+  for (let a = SA_RAMP + 16; a < SA_LEN - SA_RAMP; a += 16) {
+    const d = a - mid;
+    out.push([a, SA_CROWN - (radius - Math.sqrt(radius * radius - d * d))]);
+  }
+  return out;
+}
+const SA_PROFILE = [
+  ...SA_RAMP_PROFILE,
+  ...overArch(),
+  ...SA_RAMP_PROFILE.slice().reverse().map(([a, h]) => [SA_LEN - a, h] as const),
+];
+const SA_EMBANK = SA_FOOT - 61;
+
+export const STONE_ARCH_BRIDGE: StraightPart = {
+  id: 'SA', brand: 'GENERIC', kind: 'straight', name: 'Stone arch bridge',
+  lengthMm: SA_LEN, ends: { start: 'socket', end: 'socket' },
+  hump: {
+    upMm: SA_RAMP, topMm: SA_LEN - 2 * SA_RAMP, downMm: SA_RAMP,
+    profileMm: SA_PROFILE,
+    clearanceMm: 69.2,
+    arch: { fromMm: SA_FOOT, toMm: SA_LEN - SA_FOOT, riseMm: 57.2, depthMm: 30.8, baseMm: 12 },
+  },
+  body: [
+    { role: 'footprint', atMm: [61 + SA_EMBANK / 2, 0], lengthMm: SA_EMBANK, widthMm: 54, levels: [0, 0], profileMm: [[0, 11], [59, 45], [SA_EMBANK, 12]] },
+    { role: 'footprint', atMm: [SA_LEN - 61 - SA_EMBANK / 2, 0], lengthMm: SA_EMBANK, widthMm: 54, levels: [0, 0], profileMm: [[0, 12], [SA_EMBANK - 59, 45], [SA_EMBANK, 11]] },
+  ],
+  dimensions: printed('A 476 road up a curved ramp, over a stone arch and down, on two embankments; a 170 passage under the arch, 69.2 high.'),
+  slop: ESTIMATED_SLOP, ...PROFILE,
+};
+
+export const STRUCTURE_SEEDS = [STATION, RISER, TUNNEL_OVERPASS, STONE_ARCH_BRIDGE] as const;
 
 /** How the app names each structure in a sentence, and what its list line says it carries (design decision 5). */
 export const STRUCTURE_WORDS: Readonly<Record<string, { readonly word: string; readonly carries: string }>> = {
   ST: { word: 'station', carries: 'road raised, footprint on the floor' },
   RS: { word: 'riser', carries: 'road raised on legs, floor track passes under' },
   TO: { word: 'tunnel', carries: 'road raised over a passage, floor track passes through' },
+  SA: { word: 'bridge', carries: 'road over the arch, floor track passes under' },
   PR: { word: 'pier', carries: 'no track connections' },
   TU: { word: 'tunnel', carries: 'road between walls, under a roof' },
 };

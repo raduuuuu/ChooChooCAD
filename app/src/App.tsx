@@ -82,7 +82,7 @@ import { isMeasured } from '../../engine/data/measured.js';
 import { AppName } from './AppName.js';
 import { previews } from './previewGeometry.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
-import { JoinStart, VerdictLine, VerdictScope } from './VerdictLine.js';
+import { JoinStart, VerdictLine, VerdictScope, type BridgeNote } from './VerdictLine.js';
 import { markLists } from './markLists.js';
 import { EMPTY_GRAPH, ghostFit, joinRefusal, otherLevelEndNear, shiftMm, snapRunMove, woodOf, type JoinRefusal } from './layoutModel.js';
 import { ghostKeys } from './ghostKeys.js';
@@ -157,7 +157,11 @@ function paletteSize(part: Part): string {
 const isRamp = (p: Part) => p.kind === 'straight' && p.rise !== undefined;
 /** What a structure carries, in the floor/raised words (design decision 2, rule 7). */
 const structureUse = (p: Part): string =>
-  p.kind === 'block' ? 'No track connections' : p.kind === 'straight' && p.deck !== undefined ? 'Raised road' : 'Floor road';
+  p.kind === 'block'
+    ? 'No track connections'
+    : p.kind === 'straight' && p.hump !== undefined
+      ? 'Road over, track passes under'
+      : p.kind === 'straight' && p.deck !== undefined ? 'Raised road' : 'Floor road';
 const partsByBrand = (lib: readonly Part[], b: Brand) => {
   const own = lib.filter((p) => p.brand === b && !isStructure(p));
   const ramps = own.filter(isRamp);
@@ -1099,6 +1103,19 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
    * its whole connected run (decision D10).
    */
   const pieceNumber = useMemo(() => new Map(graph.pieces.map((p, i) => [p.pieceId, i + 1])), [graph]);
+  // Each bridge track passes under, once, for its clearance sentence (bridges design DD5).
+  const bridgeNotes = useMemo((): BridgeNote[] => {
+    if (!result) return [];
+    const partOf = new Map(graph.pieces.map((p) => [p.pieceId, p.partId]));
+    const seen = new Set<string>();
+    return result.underBridges.flatMap(({ bridge }) => {
+      if (seen.has(bridge)) return [];
+      seen.add(bridge);
+      const part = resolve(partOf.get(bridge)!);
+      if (part.kind !== 'straight' || !part.hump) return [];
+      return [{ name: part.name.toLowerCase(), piece: pieceNumber.get(bridge)!, clearanceMm: part.hump.clearanceMm }];
+    });
+  }, [result, graph, pieceNumber, resolve]);
   // Track that runs into a building, said with the building's name (design decision 5).
   const buildingClashes = useMemo(() => {
     if (!result) return [];
@@ -1692,6 +1709,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             levelUnmarked={levelMarks.hidden}
             polarityUnmarked={refusedMarks.hidden}
             buildings={buildingClashes}
+            bridgeNotes={bridgeNotes}
           />
         }
         verdictPass={verdictView.kind === 'EXACT' || verdictView.kind === 'NEEDS_GIVE'}
@@ -1719,6 +1737,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         levelUnmarked={levelMarks.hidden}
         polarityUnmarked={refusedMarks.hidden}
         buildings={buildingClashes}
+        bridgeNotes={bridgeNotes}
       />
     );
     const n = graph.pieces.length;

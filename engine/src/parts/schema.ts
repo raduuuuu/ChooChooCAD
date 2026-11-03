@@ -300,6 +300,33 @@ export interface StraightPart extends PartBase {
    * with no change to how levels are worked out. Built-in only, like `rise`.
    */
   readonly deck?: 1;
+  /**
+   * AN UP-AND-OVER ROAD (bridges plan 2026-11-03, eng D1): both ends on the
+   * piece's own level, the middle one level up. Built-in only, like `rise`.
+   */
+  readonly hump?: Hump;
+}
+
+/**
+ * The road of an up-and-over bridge, along the piece from its start end:
+ * `upMm` climbing (one level), `topMm` raised, `downMm` coming back down.
+ * The three add up to `lengthMm` (eng D10). Checks read only these levels;
+ * the millimetre figures below are for drawing and the clearance note.
+ */
+export interface Hump {
+  readonly upMm: number;
+  readonly topMm: number;
+  readonly downMm: number;
+  /**
+   * The road's real top-surface height above the floor, as (along, height)
+   * points from the start end, for the 3D view only (eng D9): a measured
+   * bridge climbs past the one raised level at its crown.
+   */
+  readonly profileMm: readonly (readonly [number, number])[];
+  /** The opening under the span, floor to the arch's underside at its crown (eng D7). */
+  readonly clearanceMm: number;
+  /** The arch drawn under the span in 3D: where it springs along the piece, its rise and depth (eng D5, design DD6). */
+  readonly arch: { readonly fromMm: number; readonly toMm: number; readonly riseMm: number; readonly depthMm: number; readonly baseMm: number };
 }
 
 /**
@@ -313,7 +340,23 @@ export interface BodyBox {
   readonly lengthMm: number;
   readonly widthMm: number;
   readonly levels: readonly [number, number];
+  /**
+   * Its top outline in the 3D view, as (along the box from its start, height
+   * above the floor) points: an embankment rising under a ramp, an
+   * abutment's falling face (bridges plan, eng D5). Absent: a flat box as tall
+   * as its levels. Collisions always use the whole box.
+   */
+  readonly profileMm?: readonly (readonly [number, number])[];
 }
+
+/**
+ * A STRUCTURE (plan 2026-11-02; bridges plan): a part that carries its own
+ * road or stands on its own wood: a block, any part with a body, a raised
+ * deck or an up-and-over road. Built-in only (OV2), and its raised road needs
+ * no supports from the user (bridges eng D3).
+ */
+export const isStructure = (p: Part): boolean =>
+  p.kind === 'block' || p.body !== undefined || (p.kind === 'straight' && (p.deck !== undefined || p.hump !== undefined));
 
 /**
  * A BLOCK: wood with no ends, only a body (plan 2026-11-02, X1: the bridge

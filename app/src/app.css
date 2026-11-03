@@ -216,6 +216,8 @@
 .body-roof { stroke: var(--ink-soft); stroke-width: 1; vector-effect: non-scaling-stroke; pointer-events: none; }
 .body { fill: var(--slab-side); }
 .roof-hatch { stroke: var(--ink-soft); stroke-width: 1; vector-effect: non-scaling-stroke; }
+/* A bridge, outlined (bridges design DD3): ink round road and abutments, and across the road where the arch springs. */
+.bridge-outline { fill: none; stroke: var(--ink); stroke-width: 1.5; vector-effect: non-scaling-stroke; pointer-events: none; }
 .piece-label {
   font-size: 13px;
   fill: var(--ink);

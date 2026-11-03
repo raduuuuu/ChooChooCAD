@@ -29,7 +29,7 @@
  * camera's up vector to z rather than this file swapping axes.
  */
 
-import type { FPose, Segment } from '../geom/fk.js';
+import type { Segment } from '../geom/fk.js';
 import { bodyCorners, type RenderedPort } from '../graph/render.js';
 import type { Part } from '../parts/schema.js';
 
@@ -142,6 +142,8 @@ export const SEAM_OVERHANG_MM = 4;
 export const FOOTPRINT_LIFT_MM = 0.1;
 /** How deep a roof's rim hangs below its top, mm. Drawn, not measured: a roof is an outline. */
 export const ROOF_RIM_MM = 4;
+/** Half the width of a bridge's arch band in 3D: the stones are 46mm across. */
+export const ARCH_HALF_WIDTH_MM = 23;
 /** The largest turn between two cross-sections of a curve: 3.75 degrees. */
 export const ARC_STEP_RAD = Math.PI / 48;
 
@@ -212,27 +214,41 @@ export function stations(s: Segment): readonly Station[] {
 }
 
 /**
- * The level at each end of a segment, read from its own piece's ports at those
- * spots. `byPiece` is built once per scene: filtering every port for every
- * segment was quadratic, 1.4s at the 10,000-segment ceiling (measured).
+ * The level at each end of a segment, read off the segment itself (bridges
+ * plan, eng D2): the render already knows each road's level, its rise and
+ * which end is high, so 3D draws what the render says. It used to guess from
+ * the nearest end of the piece, which drew a bridge's raised top flat.
  */
-function endLevels(s: Segment, byPiece: ReadonlyMap<string, readonly RenderedPort[]>): readonly [number, number] {
-  const own = s.pieceId !== undefined ? (byPiece.get(s.pieceId) ?? []) : [];
-  const at = (q: FPose): number => {
-    let best: RenderedPort | undefined;
-    let bestD = Infinity;
-    for (const p of own) {
-      const d = Math.hypot(p.x - q.x, p.y - q.y);
-      if (d < bestD) {
-        bestD = d;
-        best = p;
-      }
+function endLevels(s: Segment): readonly [number, number] {
+  const lo = s.level ?? 0;
+  const hi = lo + (s.rise ?? 0);
+  return s.highAtStart ? [hi, lo] : [lo, hi];
+}
+
+/** A height profile's value at `a` along it, by straight lines between its points. */
+export function profileAt(profile: readonly (readonly [number, number])[], a: number): number {
+  if (a <= profile[0]![0]) return profile[0]![1];
+  for (let i = 1; i < profile.length; i++) {
+    const [a1, h1] = profile[i]!;
+    if (a <= a1) {
+      const [a0, h0] = profile[i - 1]!;
+      return h0 + ((h1 - h0) * (a - a0)) / (a1 - a0);
     }
-    return best?.level ?? 0;
-  };
-  // The chain walk has no piece ids or ports; it is flat by construction.
-  if (own.length === 0) return [s.level ?? 0, (s.level ?? 0) + (s.rise ?? 0)];
-  return [at(s.from), at(s.to)];
+  }
+  return profile[profile.length - 1]![1];
+}
+
+/** How finely a measured road is sampled along its length, mm. */
+export const PROFILE_STEP_MM = 8;
+
+/** Stations along a segment, finer along a measured road so its curve shows (eng D9). */
+function stationsFor(s: Segment): readonly Station[] {
+  if (!s.profileMm || !s.alongMm || s.kind !== 'straight') return stations(s);
+  const n = Math.max(1, Math.ceil(Math.abs(s.alongMm[1] - s.alongMm[0]) / PROFILE_STEP_MM));
+  return Array.from({ length: n + 1 }, (_, i) => {
+    const t = i / n;
+    return { x: s.from.x + (s.to.x - s.from.x) * t, y: s.from.y + (s.to.y - s.from.y) * t, h: s.from.h, t };
+  });
 }
 
 /** The plank's top at a fraction `t` along a segment whose ends sit at `z0` and `z1` (underside). */
@@ -247,10 +263,9 @@ function fractionAt(s: Segment, x: number, y: number): number {
     if (len2 === 0) return 0;
     return Math.min(1, Math.max(0, ((x - s.from.x) * dx + (y - s.from.y) * dy) / len2));
   }
-  const st = stations(s);
   let best = 0;
   let bestD = Infinity;
-  for (const p of st) {
+  for (const p of stations(s)) {
     const d = Math.hypot(p.x - x, p.y - y);
     if (d < bestD) {
       bestD = d;
@@ -294,8 +309,20 @@ export function buildScene(input: SceneInput): SceneArrays {
       boxOf.max[2] = Math.max(boxOf.max[2], z);
     }
   };
-  /** The underside's height at each end of every segment, keyed by the segment. */
-  const undersides = new Map<Segment, readonly [number, number]>();
+  /**
+   * A road's top at a fraction `t` along a segment: its measured profile
+   * where it has one (eng D9), else the plank's top over its levels. A
+   * measured road's heights are above its piece's own floor: one level below
+   * the top segment, the level of the slopes.
+   */
+  const topOf = (s: Segment, t: number): number => {
+    if (s.profileMm && s.alongMm) {
+      const base = (s.level ?? 0) - (s.rise ? 0 : 1);
+      return base * riseMm + profileAt(s.profileMm, s.alongMm[0] + (s.alongMm[1] - s.alongMm[0]) * t);
+    }
+    const [l0, l1] = endLevels(s);
+    return lerp(l0 * riseMm, l1 * riseMm, t) + plankMm;
+  };
   const byPiece = new Map<string, RenderedPort[]>();
   for (const p of ports) {
     const list = byPiece.get(p.pieceId);
@@ -318,19 +345,18 @@ export function buildScene(input: SceneInput): SceneArrays {
     } else boxOf = null;
     const width = part?.plankWidthMm ?? 40;
     const half = width / 2;
-    const [l0, l1] = endLevels(s, byPiece);
+    const [l0, l1] = endLevels(s);
     const z0 = l0 * riseMm;
     const z1 = l1 * riseMm;
-    undersides.set(s, [z0, z1]);
-    const st = stations(s);
+    const st = stationsFor(s);
     const startIdx = top.triangles;
 
     // Cross-sections: left and right edges, underside and top.
     const ring = st.map((p) => {
       const nx = -Math.sin(p.h);
       const ny = Math.cos(p.h);
-      const zb = lerp(z0, z1, p.t);
-      const zt = zb + plankMm;
+      const zt = topOf(s, p.t);
+      const zb = zt - plankMm;
       grow(p.x + nx * half, p.y + ny * half, zt);
       grow(p.x - nx * half, p.y - ny * half, zb);
       return { p, nx, ny, zb, zt };
@@ -419,6 +445,30 @@ export function buildScene(input: SceneInput): SceneArrays {
   const solid = new Builder();
   const rim = new Builder();
   const bodyEdges: number[] = [];
+  /**
+   * A body whose top follows (along, height) points from its start: a solid
+   * from `zb` up to that outline, with its outline and upright ends edged.
+   */
+  const prism = (b: Segment, zb: number, tops: readonly (readonly [number, number])[]) => {
+    const len = Math.hypot(b.to.x - b.from.x, b.to.y - b.from.y);
+    const ux = (b.to.x - b.from.x) / len, uy = (b.to.y - b.from.y) / len;
+    const w = b.halfWidthMm ?? 0;
+    const at = (a: number, side: 1 | -1, z: number) =>
+      [b.from.x + ux * a - uy * w * side, b.from.y + uy * a + ux * w * side, z] as const;
+    for (let i = 0; i + 1 < tops.length; i++) {
+      const [a0, z0] = tops[i]!, [a1, z1] = tops[i + 1]!;
+      solid.quad(solid.vertex(...at(a0, 1, z0)), solid.vertex(...at(a0, -1, z0)), solid.vertex(...at(a1, -1, z1)), solid.vertex(...at(a1, 1, z1)));
+      for (const side of [1, -1] as const) {
+        solid.quad(solid.vertex(...at(a0, side, zb)), solid.vertex(...at(a1, side, zb)), solid.vertex(...at(a1, side, z1)), solid.vertex(...at(a0, side, z0)));
+        bodyEdges.push(...at(a0, side, z0), ...at(a1, side, z1));
+      }
+    }
+    for (const [a, z] of [tops[0]!, tops[tops.length - 1]!]) {
+      solid.quad(solid.vertex(...at(a, 1, zb)), solid.vertex(...at(a, -1, zb)), solid.vertex(...at(a, -1, z)), solid.vertex(...at(a, 1, z)));
+      for (const side of [1, -1] as const) bodyEdges.push(...at(a, side, zb), ...at(a, side, z));
+    }
+    for (const [a, z] of tops) for (const side of [1, -1] as const) grow(...at(a, side, z));
+  };
   for (const b of input.bodies ?? []) {
     if (b.pieceId !== undefined) {
       boxOf = pieceBox.get(b.pieceId) ?? { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
@@ -445,6 +495,11 @@ export function buildScene(input: SceneInput): SceneArrays {
     }
     const zb = lo * riseMm;
     for (const [x, y] of c) grow(x, y, zb);
+    if (b.profileMm) {
+      // An embankment or abutment: its top follows its measured outline (eng D5, design DD6).
+      prism(b, zb, b.profileMm.map(([a, h]) => [a, zb + h] as const));
+      continue;
+    }
     const bottom = ring(zb).map((v) => solid.vertex(...v));
     const top = ring(zt).map((v) => solid.vertex(...v));
     solid.quad(top[0]!, top[1]!, top[2]!, top[3]!);
@@ -454,6 +509,45 @@ export function buildScene(input: SceneInput): SceneArrays {
     }
     edgeLoop(ring(zt));
     for (const [x, y] of c) bodyEdges.push(x, y, zb, x, y, zt);
+  }
+
+  /*
+   * A BRIDGE'S ARCH (eng D5, D9; design DD6): a curved band under the span,
+   * drawn from the piece's measured arch, its top meeting the road's
+   * underside. Decoration only: collisions use the bodies and the road.
+   */
+  for (const s of segments) {
+    if (!s.alongMm || s.alongMm[0] !== 0 || s.pieceId === undefined) continue;
+    const part = partOf(s.pieceId);
+    if (part.kind !== 'straight' || !part.hump) continue;
+    const { fromMm, toMm, riseMm: archRise, depthMm, baseMm } = part.hump.arch;
+    const base = (s.level ?? 0) * riseMm + baseMm;
+    const chord = toMm - fromMm;
+    const radius = (chord * chord / 4 + archRise * archRise) / (2 * archRise);
+    const under = (a: number) => {
+      const d = a - (fromMm + toMm) / 2;
+      return base + archRise - (radius - Math.sqrt(Math.max(0, radius * radius - d * d)));
+    };
+    const band = Math.max(1, depthMm - plankMm);
+    const steps = 24;
+    const tops: (readonly [number, number])[] = [];
+    for (let i = 0; i <= steps; i++) tops.push([fromMm + (chord * i) / steps, under(fromMm + (chord * i) / steps) + band]);
+    // The band: from the arch's underside up `band`, as a prism whose floor follows the curve.
+    const len = Math.hypot(s.to.x - s.from.x, s.to.y - s.from.y);
+    const ux = (s.to.x - s.from.x) / len, uy = (s.to.y - s.from.y) / len;
+    const at = (a: number, side: 1 | -1, z: number) =>
+      [s.from.x + ux * a - uy * ARCH_HALF_WIDTH_MM * side, s.from.y + uy * a + ux * ARCH_HALF_WIDTH_MM * side, z] as const;
+    for (let i = 0; i < steps; i++) {
+      const a0 = tops[i]![0], a1 = tops[i + 1]![0];
+      const lo0 = under(a0), lo1 = under(a1), hi0 = lo0 + band, hi1 = lo1 + band;
+      solid.quad(solid.vertex(...at(a0, 1, lo0)), solid.vertex(...at(a1, 1, lo1)), solid.vertex(...at(a1, -1, lo1)), solid.vertex(...at(a0, -1, lo0)));
+      solid.quad(solid.vertex(...at(a0, 1, hi0)), solid.vertex(...at(a0, -1, hi0)), solid.vertex(...at(a1, -1, hi1)), solid.vertex(...at(a1, 1, hi1)));
+      for (const side of [1, -1] as const) {
+        solid.quad(solid.vertex(...at(a0, side, lo0)), solid.vertex(...at(a1, side, lo1)), solid.vertex(...at(a1, side, hi1)), solid.vertex(...at(a0, side, hi0)));
+        bodyEdges.push(...at(a0, side, lo0), ...at(a1, side, lo1), ...at(a0, side, hi0), ...at(a1, side, hi1));
+      }
+      grow(...at(a0, 1, hi0));
+    }
   }
 
   // The table and the rest grow the scene's box, never the last piece's.
@@ -493,14 +587,27 @@ export function buildScene(input: SceneInput): SceneArrays {
   }
 
   // Marks on their wood (eng D21, D25; design 16A).
+  /*
+   * The top of the piece's road at the stretch nearest the mark, not its
+   * highest point (eng D11): the mark is projected onto each segment, and the
+   * nearest projection's height is the one it sits on.
+   */
   const topAtPiece = (pieceId: string, x: number, y: number): number => {
-    let best = -Infinity;
+    let best = plankMm;
+    let bestD = Infinity;
     for (const s of segments) {
       if (s.pieceId !== pieceId) continue;
-      const [z0, z1] = undersides.get(s)!;
-      best = Math.max(best, lerp(z0, z1, fractionAt(s, x, y)) + plankMm);
+      const t = fractionAt(s, x, y);
+      const p = s.kind === 'straight'
+        ? { x: s.from.x + (s.to.x - s.from.x) * t, y: s.from.y + (s.to.y - s.from.y) * t }
+        : stations(s).reduce((m, q) => (Math.abs(q.t - t) < Math.abs(m.t - t) ? q : m));
+      const d = Math.hypot(p.x - x, p.y - y);
+      if (d < bestD) {
+        bestD = d;
+        best = topOf(s, t);
+      }
     }
-    return best === -Infinity ? plankMm : best;
+    return best;
   };
   const portTop = (k: PortKey): number => (portAt.get(`${k.pieceId}#${k.port}`)?.level ?? 0) * riseMm + plankMm;
   const marks: PlacedMark[] = (input.marks ?? []).map((m) => ({ ...place(m), ...(m.figure !== undefined ? { figure: m.figure } : {}) }));
