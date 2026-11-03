@@ -3011,3 +3011,31 @@ adapter diamond's stroke is non-scaling since that review (7A); its size and bot
 **Priority:** P2
 **Depends on:** nothing
 
+
+## P2 — Check that raised track is held up (filed by /plan-ceo-review, 2026-11-03)
+
+**What:** Replace the blanket "Raised track: supports are not checked." note with a real check: every raised piece has a track support (TS), a riser or a structure under it within a measured reach, and the verdict names the piece that isn't held up.
+
+**Why:** It is the last part of "will this layout work?" the app doesn't check, and the measured track support (PR #130) makes it checkable.
+
+**Needs first:** one measurement from the owner, with a diagram: how far a raised straight can reach past its support before it sags or tips. Without it the check would guess and raise false alarms.
+
+**Context:** Deferred in docs/plan/2026-11-03-next-parts-ceo-review.md (D4), to keep that round on decorated pieces.
+
+**Effort:** human L / CC M
+**Priority:** P2
+**Depends on:** the reach measurement
+
+## P3 — Say "from a newer version" for an unknown part (filed by /plan-eng-review, 2026-11-03)
+
+**What:** When a saved layout or share link names a part this copy of the app doesn't know, say it may come from a newer version and suggest reloading, instead of "Your saved track used a part the library no longer has".
+
+**Why:** Decorated pieces add new part ids often; someone with a cached app who opens a friend's link is told the part was removed when they only need to reload.
+
+**Pros:** a clear next step; the refusal itself stays. **Cons:** one message and one test.
+
+**Context:** app/src/layoutStore.ts:347 (refusal) and :560 (wording). From docs/plan/2026-11-03-next-parts-ceo-review.md, eng D11.
+
+**Effort:** human S / CC S
+**Priority:** P3
+**Depends on:** nothing
