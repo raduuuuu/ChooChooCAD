@@ -30,6 +30,7 @@
  */
 
 import { useEffect, useRef, type ReactNode } from 'react';
+import { codeOf } from '../../engine/src/parts/schema.js';
 import { AppName } from './AppName.js';
 import { CATALOGUE_SIZES, linkTitle, PHONE_DESIGN_ELSEWHERE } from './linkWords.js';
 import { OpenInEditor } from './OpenInEditor.js';
@@ -108,7 +109,7 @@ export function FriendScreen(props: FriendScreenProps | PhoneScreenProps) {
                 {props.parts.map((r) => (
                   <tr key={r.partId}>
                     <td>{r.name}</td>
-                    <td className="num">{r.partId}</td>
+                    <td className="num">{codeOf(r.partId)}</td>
                     <td className="num">{r.count}</td>
                   </tr>
                 ))}

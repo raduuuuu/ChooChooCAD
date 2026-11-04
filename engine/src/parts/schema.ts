@@ -21,6 +21,22 @@ import type { Cyc } from '../geom/cyclotomic.js';
 export type Brand = 'GENERIC' | 'IKEA' | 'PLAYTIVE' | 'HAPE' | 'THOMAS' | 'MELISSA_DOUG';
 
 /**
+ * WHAT THE APP CALLS EACH TRACK SYSTEM (design review 2026-11-04, D1, D2):
+ * a physical trait, never a maker's name. The `Brand` values stay as they
+ * are because saved layouts, share links and stored parts carry them.
+ * Small-peg pieces do not plug into Generic; look-alike pieces are sold as
+ * Generic-compatible, unconfirmed. The three with no pieces share one name.
+ */
+export const SYSTEM_NAME: Readonly<Record<Brand, string>> = {
+  GENERIC: 'Generic',
+  IKEA: 'Small-peg',
+  PLAYTIVE: 'Look-alike',
+  HAPE: 'Another system',
+  THOMAS: 'Another system',
+  MELISSA_DOUG: 'Another system',
+};
+
+/**
  * How much the DIMENSIONS of a part can be trusted. Separate from `SlopBudget`'s
  * `calibrationStatus`, which is about tolerances, not sizes.
  *
@@ -705,6 +721,17 @@ export function isUncorroborated(part: Part): boolean {
 export function shortCode(part: Part): string {
   const prefix = `${part.brand}-`;
   return part.id.startsWith(prefix) ? part.id.slice(prefix.length) : part.id;
+}
+
+/**
+ * The code a person sees for a bare part id, where only the id is at hand:
+ * any system prefix is dropped, because the prefix spells a maker's name
+ * (design review 2026-11-04, D1). The same as `shortCode` for every part
+ * whose id carries its own brand.
+ */
+export function codeOf(id: string): string {
+  const prefix = (Object.keys(SYSTEM_NAME) as Brand[]).find((b) => id.startsWith(`${b}-`));
+  return prefix ? id.slice(prefix.length + 1) : id;
 }
 
 export function centrelineRadiusMm(part: { readonly innerRadiusMm: number; readonly plankWidthMm: number }): number {

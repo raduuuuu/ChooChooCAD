@@ -74,11 +74,11 @@ const IKEA_UNVERIFIED: DimensionSource = {
   status: 'unverified',
   source: '3D-print reproductions and an OpenSCAD generator',
   note:
-    'IKEA publishes no piece dimensions. The 150 is a customizer default, not a copy of ' +
-    'a real piece: the Lillabo reproduction in IKEA_REPRODUCTION has a 145 and no 150. ' +
+    'The maker publishes no piece dimensions. The 150 is a customizer default, not a copy of ' +
+    'a real piece: the printed reproduction of this track has a 145 and no 150. ' +
     'Upgrade to community-measured only when ' +
     'someone states a measured figure for a specific piece, or to published if ' +
-    'IKEA ever lists one.',
+    'the maker ever lists one.',
 };
 
 /**
@@ -92,22 +92,19 @@ const IKEA_REPRODUCTION: DimensionSource = {
   status: 'unverified',
   source:
     'a printed reproduction, modelled on ' +
-    'Lillabo track bought in 2025, measured off the 3MF meshes on 2026-10-29',
+    'small-peg track bought in 2025, measured off the 3MF meshes on 2026-10-29',
   note:
     'A 3D-print reproduction, not a measurement of real track. Straights read 50.0, ' +
     '100.0, 145.0, 205.0 and 240.0mm end face to end face. Curves read a centreline ' +
     'radius of 202.1 to 202.6mm and are modelled at 202, the nearest integer. ' +
-    'Upgrade when someone measures real Lillabo track.',
+    'Upgrade when someone measures real small-peg track.',
 };
 
 const PLAYTIVE_UNVERIFIED: DimensionSource = {
   status: 'unverified',
-  source: '3D-print reproductions (printed reproduction titles for Lidl Playtive compatible track)',
+  source: '3D-print reproductions (printed reproduction titles for look-alike track)',
   note:
-    'Lidl publishes no piece dimensions. NOTE ON THE BRAND: Lidl wooden railway ' +
-    'is PLAYTIVE, sometimes Playtive Junior. Lupilu is Lidl\'s baby and clothing ' +
-    'line and makes no wooden railway, so a request for a "Lupilu catalogue" is ' +
-    'a request for this one.',
+    'The maker publishes no piece dimensions.',
 };
 
 /**
@@ -129,7 +126,7 @@ export const IKEA_CONNECTOR = {
 const LILLABO_PROFILE = { heightMm: 0, gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12 } as const;
 
 const lillaboStraight = (lengthMm: number): StraightPart => ({
-  id: `IKEA-${lengthMm}`, brand: 'IKEA', kind: 'straight', name: 'Lillabo straight',
+  id: `IKEA-${lengthMm}`, brand: 'IKEA', kind: 'straight', name: 'Small-peg straight',
   lengthMm,
   dimensions: IKEA_REPRODUCTION, slop: UNMEASURED_SLOP, ends: STANDARD_ENDS, ...LILLABO_PROFILE,
 });
@@ -143,9 +140,9 @@ const lillaboCurve = (code: string, arcSteps: number, name: string): CurvePart =
 const LILLABO_STRAIGHTS: readonly StraightPart[] = [50, 100, 145, 205, 240].map(lillaboStraight);
 
 const LILLABO_CURVES: readonly CurvePart[] = [
-  lillaboCurve('C22', 1, 'Lillabo curve, 22.5°'),
-  lillaboCurve('C45', 2, 'Lillabo curve, 45°'),
-  lillaboCurve('C90', 4, 'Lillabo curve, 90°'),
+  lillaboCurve('C22', 1, 'Small-peg curve, 22.5°'),
+  lillaboCurve('C45', 2, 'Small-peg curve, 45°'),
+  lillaboCurve('C90', 4, 'Small-peg curve, 90°'),
 ];
 
 /**
@@ -181,7 +178,7 @@ const xy = (x: number, y: number): Cyc => [x, 0, 0, 0, y, 0, 0, 0];
 const lillaboSwitch = (heel: Polarity): MultiRoadPart => ({
   id: heel === 'socket' ? 'IKEA-SW' : 'IKEA-SW-P',
   brand: 'IKEA', kind: 'multi-road',
-  name: heel === 'socket' ? 'Lillabo switch' : 'Lillabo switch, peg heel',
+  name: heel === 'socket' ? 'Small-peg switch' : 'Small-peg switch, peg heel',
   ports: [
     { at: { pos: xy(0, 0), heading: 8 }, polarity: heel, name: 'heel', kind: 'heel' },
     { at: { pos: xy(145, 0), heading: 0 }, polarity: other(heel), name: 'straight road' },
@@ -200,7 +197,7 @@ const LILLABO_MULTI_ROAD: readonly MultiRoadPart[] = [
   lillaboSwitch('socket'),
   lillaboSwitch('peg'),
   {
-    id: 'IKEA-X145', brand: 'IKEA', kind: 'multi-road', name: 'Lillabo crossing',
+    id: 'IKEA-X145', brand: 'IKEA', kind: 'multi-road', name: 'Small-peg crossing',
     ports: [
       { at: { pos: xy(0, 0), heading: 8 }, polarity: 'socket', name: "first road's near end" },
       { at: { pos: xy(145, 0), heading: 0 }, polarity: 'peg', name: "first road's far end" },
@@ -227,7 +224,7 @@ const LILLABO_MULTI_ROAD: readonly MultiRoadPart[] = [
  */
 export const THIRD_PARTY_SEEDS: readonly Part[] = [
   {
-    id: 'IKEA-150', brand: 'IKEA', kind: 'straight', name: 'Lillabo straight',
+    id: 'IKEA-150', brand: 'IKEA', kind: 'straight', name: 'Small-peg straight',
     lengthMm: 150,
     dimensions: IKEA_UNVERIFIED,
     slop: UNMEASURED_SLOP, ends: STANDARD_ENDS, heightMm: 0,
@@ -239,35 +236,35 @@ export const THIRD_PARTY_SEEDS: readonly Part[] = [
   ...LILLABO_CURVES,
   ...LILLABO_MULTI_ROAD,
   {
-    id: 'PLAYTIVE-30', brand: 'PLAYTIVE', kind: 'straight', name: 'Playtive straight, short',
+    id: 'PLAYTIVE-30', brand: 'PLAYTIVE', kind: 'straight', name: 'Look-alike straight, short',
     lengthMm: 30,
     dimensions: PLAYTIVE_UNVERIFIED,
     slop: UNMEASURED_SLOP, ends: STANDARD_ENDS, heightMm: 0,
     gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12,
   },
   {
-    id: 'PLAYTIVE-60', brand: 'PLAYTIVE', kind: 'straight', name: 'Playtive straight',
+    id: 'PLAYTIVE-60', brand: 'PLAYTIVE', kind: 'straight', name: 'Look-alike straight',
     lengthMm: 60,
     dimensions: PLAYTIVE_UNVERIFIED,
     slop: UNMEASURED_SLOP, ends: STANDARD_ENDS, heightMm: 0,
     gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12,
   },
   {
-    id: 'PLAYTIVE-110', brand: 'PLAYTIVE', kind: 'straight', name: 'Playtive straight, medium',
+    id: 'PLAYTIVE-110', brand: 'PLAYTIVE', kind: 'straight', name: 'Look-alike straight, medium',
     lengthMm: 110,
     dimensions: PLAYTIVE_UNVERIFIED,
     slop: UNMEASURED_SLOP, ends: STANDARD_ENDS, heightMm: 0,
     gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12,
   },
   {
-    id: 'PLAYTIVE-150', brand: 'PLAYTIVE', kind: 'straight', name: 'Playtive straight, long',
+    id: 'PLAYTIVE-150', brand: 'PLAYTIVE', kind: 'straight', name: 'Look-alike straight, long',
     lengthMm: 150,
     dimensions: PLAYTIVE_UNVERIFIED,
     slop: UNMEASURED_SLOP, ends: STANDARD_ENDS, heightMm: 0,
     gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12,
   },
   {
-    id: 'PLAYTIVE-200', brand: 'PLAYTIVE', kind: 'straight', name: 'Playtive straight, extra long',
+    id: 'PLAYTIVE-200', brand: 'PLAYTIVE', kind: 'straight', name: 'Look-alike straight, extra long',
     lengthMm: 200,
     dimensions: PLAYTIVE_UNVERIFIED,
     slop: UNMEASURED_SLOP, ends: STANDARD_ENDS, heightMm: 0,
@@ -286,9 +283,9 @@ const FIT: ReadonlyArray<readonly [Brand, Brand, BrandFit, string]> = [
   ['IKEA', 'IKEA', 'joins', 'Same system.'],
   ['PLAYTIVE', 'PLAYTIVE', 'joins', 'Same system.'],
   ['GENERIC', 'IKEA', 'does-not-join',
-    'The IKEA plug is shorter and the Generic nest longer; forcing them "may be impossible without braking or damaging one of the parts". IKEA reviews report the pegs and holes are smaller and do not fit Generic.'],
+    'The small-peg plug is shorter and the Generic nest longer; forcing them "may be impossible without braking or damaging one of the parts". Owners report the pegs and holes are smaller and do not fit Generic.'],
   ['GENERIC', 'PLAYTIVE', 'unknown',
-    'Playtive is advertised as Generic-compatible and some owners report it works, but no measurement supports it and the reference says every brand deviates deliberately.'],
+    'Look-alike track is advertised as Generic-compatible and some owners report it works, but no measurement supports it and the reference says every maker deviates deliberately.'],
   ['IKEA', 'PLAYTIVE', 'unknown', 'No source either way.'],
 ];
 

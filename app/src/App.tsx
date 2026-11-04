@@ -73,7 +73,7 @@ import { PutAsideNotice } from './PutAsideNotice.js';
 import { ShareControl } from './ShareControl.js';
 import { saveFailureNotice, type SavedStore } from './saveNotice.js';
 import { bridgeNotesOf, buildingClashSentence, buildingWord, tunnelNotesOf, viewOf } from './verdictView.js';
-import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
+import { SYSTEM_NAME, centrelineRadiusMm, codeOf, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
 import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
 import { CANVAS_SEGMENT_CEILING, TrackCanvas } from './TrackCanvas.js';
 import { MeasuredTick, OriginGlyph, PartPreview } from './PartPreview.js';
@@ -134,14 +134,6 @@ import './app.css';
 
 /** Generic first, because it is the only brand whose dimensions are published. */
 const BRAND_ORDER: readonly Brand[] = ['GENERIC', 'IKEA', 'PLAYTIVE', 'HAPE', 'THOMAS', 'MELISSA_DOUG'];
-const BRAND_LABEL: Record<Brand, string> = {
-  GENERIC: 'Generic',
-  IKEA: 'IKEA Lillabo',
-  PLAYTIVE: 'Lidl Playtive',
-  HAPE: 'Hape',
-  THOMAS: 'Thomas',
-  MELISSA_DOUG: 'Melissa & Doug',
-};
 /**
  * A brand's parts in library order, except that a ramp sits right after the
  * long straight it shares a length with (design 12A): the ascending track is
@@ -1645,7 +1637,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
               */
             <>
             <summary className="brand-note">
-              <span className="brand-name">{BRAND_LABEL[brand]}</span>
+              <span className="brand-name">{SYSTEM_NAME[brand]} track</span>
               <span className="brand-warn">unverified</span>
               <span className="brand-count">
                 {partsByBrand(library, brand).length}
@@ -2045,7 +2037,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
           {shortfalls.map((sf, i) => (
             <span key={sf.partId}>
               {i > 0 && ', '}
-              <span className="num">{sf.shortBy}</span>&nbsp;{sf.partId}
+              <span className="num">{sf.shortBy}</span>&nbsp;{codeOf(sf.partId)}
             </span>
           ))}
           {adapterShort > 0 && (

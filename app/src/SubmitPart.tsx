@@ -2,7 +2,7 @@
  * Submit a part the library does not have, or correct one it has wrong.
  *
  * This is the mechanism that makes the library work at all. No manufacturer
- * publishes piece dimensions for IKEA Lillabo or Lidl Playtive, and the
+ * publishes piece dimensions for small-peg or look-alike track, and the
  * authoritative reference says there is no dimensional standard because brands
  * deviate deliberately to avoid patents. So the only reliable source for
  * third-party track is somebody holding the piece. This is that somebody.
@@ -22,17 +22,11 @@
 
 import { useState } from 'react';
 import { newSubmissionId, RESERVED_ID_PREFIX, userMeasured, type Submission } from '../../engine/data/library.js';
-import type { Brand, Part, Polarity } from '../../engine/src/parts/schema.js';
+import { SYSTEM_NAME, type Brand, type Part, type Polarity } from '../../engine/src/parts/schema.js';
 
-const BRANDS: readonly Brand[] = ['GENERIC', 'IKEA', 'PLAYTIVE', 'HAPE', 'THOMAS', 'MELISSA_DOUG'];
-const BRAND_LABEL: Record<Brand, string> = {
-  GENERIC: 'Generic',
-  IKEA: 'IKEA Lillabo',
-  PLAYTIVE: 'Lidl Playtive',
-  HAPE: 'Hape',
-  THOMAS: 'Thomas',
-  MELISSA_DOUG: 'Melissa & Doug',
-};
+// Named by trait, never by maker (design review 2026-11-04, D2). The three
+// systems with no pieces read "Another system"; one option stands for them.
+const BRANDS: readonly Brand[] = ['GENERIC', 'IKEA', 'PLAYTIVE', 'HAPE'];
 
 /** Published Generic profile, used as the default for a brand nobody has measured. */
 const PROFILE_DEFAULTS = { gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12 };
@@ -111,15 +105,15 @@ export function SubmitPart({ existingIds, notTwoEndedIds, onSubmit, onCancel }: 
       </header>
 
       <p className="submit-why">
-        Nobody publishes piece sizes for IKEA or Lidl track, so the only reliable source
+        Nobody publishes piece sizes for small-peg or look-alike track, so the only reliable source
         is someone measuring their own. Yours will outrank anything we shipped.
       </p>
 
       <div className="submit-grid">
         <label className="submit-field">
-          <span>Brand</span>
+          <span>Track system</span>
           <select value={brand} onChange={(e) => setBrand(e.target.value as Brand)}>
-            {BRANDS.map((b) => <option key={b} value={b}>{BRAND_LABEL[b]}</option>)}
+            {BRANDS.map((b) => <option key={b} value={b}>{SYSTEM_NAME[b]}</option>)}
           </select>
         </label>
 

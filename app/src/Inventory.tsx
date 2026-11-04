@@ -14,7 +14,7 @@
 
 
 import { useState } from 'react';
-import { isUncorroborated, isUnverified, type Part } from '../../engine/src/parts/schema.js';
+import { codeOf, isUncorroborated, isUnverified, type Part } from '../../engine/src/parts/schema.js';
 import {
   ADAPTER_INVENTORY_KEY,
   QUICK_FILLS,
@@ -106,7 +106,7 @@ export function InventoryPanel({
                 'inventory-row' + (short ? ' is-short' : '') + (bad ? ' is-invalid' : '')
               }
             >
-              <span className="inventory-row-id num">{part.id}</span>
+              <span className="inventory-row-id num">{codeOf(part.id)}</span>
               <span className="inventory-row-name">{part.name}</span>
               <input
                 className="inventory-row-input num"
@@ -183,7 +183,7 @@ export function InventoryPanel({
           {shortfalls.map((s, i) => (
             <span key={s.partId}>
               {i > 0 && ', '}
-              <span className="num">{s.shortBy}</span> more {s.partId}
+              <span className="num">{s.shortBy}</span> more {codeOf(s.partId)}
             </span>
           ))}
           . You can still place them; the drawing does not care what is in your box.
