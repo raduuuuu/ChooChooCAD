@@ -123,7 +123,22 @@
 </div>
 
 <h2>Q6 · A switch, if you have one</h2>
-<p class="do">Measure along the centreline, between the two grooves, from the heel (the single end).</p>
+<p class="do">Measure along the centreline, between the two grooves, from the heel (the single end). Easier: lay the switch flat on millimetre paper with a medium straight (A, 144) beside it and photograph it from straight above, as for the T switch; Claude reads all three from the photo.</p>
+<svg class="dwg" viewBox="0 0 180 72" role="img" aria-label="Plan view of a switch from above. From the heel, the straight road runs to its end; the curved road leaves and ends higher up. THROUGH is the heel to the straight road's end along the centreline. CHORD is the straight line from the heel to the curved road's end. OFFSET is that end's distance square off the straight road's line.">
+  <path class="trackline" d="M 20 50 L 150 50 M 20 50 C 70 50 105 40 130 18"/>
+  <circle cx="20" cy="50" r="1.4" class="part"/><circle cx="150" cy="50" r="1.4" class="part"/><circle cx="130" cy="18" r="1.4" class="part"/>
+  <text x="18" y="44" text-anchor="end" class="note">heel</text>
+  <line class="ext" x1="20" y1="53" x2="20" y2="66"/><line class="ext" x1="150" y1="53" x2="150" y2="66"/>
+  <line class="dim" x1="20" y1="63" x2="150" y2="63" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text x="85" y="61" text-anchor="middle">THROUGH = ?  (heel to the straight road's end, along the centreline)</text>
+  <line class="dimref" x1="20" y1="50" x2="130" y2="18" style="stroke-dasharray:1 1"/>
+  <text x="62" y="28" text-anchor="middle">CHORD = ?  (straight line, heel to curved end)</text>
+  <line class="dim" x1="138" y1="18" x2="138" y2="50" marker-start="url(#a)" marker-end="url(#a)"/>
+  <line class="ext" x1="132" y1="18" x2="142" y2="18"/>
+  <text x="141" y="36">OFFSET = ?</text>
+  <text x="141" y="40" class="note">square to the straight road</text>
+  <text x="90" y="71" text-anchor="middle" class="note">plan view, centreline dots mark each end's middle; not to scale</text>
+</svg>
 <table>
   <tr><td>Heel to the straight road's end<code class="field">q6.throughMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
   <tr><td>Heel to the diverging road's end, in a straight line<code class="field">q6.chordMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
