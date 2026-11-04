@@ -42,7 +42,7 @@ import { scale, toXY, zetaPow, type Cyc } from '../../engine/src/geom/cyclotomic
 import { placeAll, portFrame, type PortsOf } from '../../engine/src/graph/frames.js';
 import { CHAIN_STORAGE_KEY, GRAPH_RESCUE_KEY, GRAPH_STORAGE_KEY } from './storageKeys.js';
 import { EMPTY_GRAPH, RUN_SPACING_MM } from './layoutModel.js';
-import { stored, write } from '../../engine/data/storage.js';
+import { remove, stored, write } from '../../engine/data/storage.js';
 
 
 
@@ -153,6 +153,24 @@ function isAnchorLevel(v: unknown): v is number | undefined {
 function rescue(raw: string): boolean {
   return write(GRAPH_RESCUE_KEY, raw) === 'ok';
 }
+
+/**
+ * THE RESCUE COPY CAN BE TAKEN OUT (generic-TODOS.md P2, "The rescue copy can
+ * fail on a full storage"). The copy shares the browser's storage with the
+ * layout it protects, so a large one can be what makes every save fail. It is
+ * never removed on its own: App offers it as a download first, and only then
+ * offers to remove it.
+ */
+export function rescueCopy(): string | null {
+  try {
+    return localStorage.getItem(GRAPH_RESCUE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** Whether the rescue copy is gone from this browser. */
+export const dropRescueCopy = (): boolean => remove(GRAPH_RESCUE_KEY) === 'ok';
 
 /**
  * Where every orphan goes: past the FOOTPRINT of what is already placed, not

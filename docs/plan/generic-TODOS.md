@@ -832,43 +832,6 @@ bound with a measurement behind it.
 
 **Effort:** spent, CC ~20m. **Priority:** done.
 
-## P2 — The rescue copy can fail on a full storage (was: the three save functions swallow every failure)
-
-**2026-11-04 (D6, P1 → P2, retitled) (/plan-ceo-review 2026-11-04, app-focus review, docs/plan/2026-11-04-app-focus-review.md):** every save now returns a boolean and the notice exists (layoutStore.ts:673, library.ts:524, inventoryModel.ts:242, tableModel.ts:232). Still open: `rescue()` (layoutStore.ts:153) can fail on a full storage.
-
-**SAVE HALF DONE (2026-10-24).** All four saves (`saveGraph`, `saveTable`,
-`saveInventory`, `saveSubmissions`) now return whether storage took the write.
-App.tsx keeps one flag per store and shows a dismissable notice naming what was
-not stored: "Not saved: this browser refused to store your layout. It stays on
-screen, but is lost when you close or reload this tab. …". An empty layout or
-parts list that fails to save loses nothing, so the notice waits for the first
-piece; a later save that succeeds takes its store off the notice. Specs:
-app/src/saveFailure.dom.test.tsx. **Still open:** the rescue copy's share of
-the quota (the "Compounding" paragraph below). Evicting it would delete bytes
-the user may need, so it wants a decision, not a keystroke.
-
-**What:** `saveGraph`, `saveInventory` and `saveSubmissions` each wrap
-`localStorage.setItem` in an empty `catch`. Private browsing and a full quota
-both throw. The app then silently stops persisting anything, for the rest of
-the session, with no notice.
-
-`library.ts:193-196` is explicit that this is not acceptable for one of them:
-"unlike the chain this IS data the user cannot trivially recreate, so the
-caller should surface a failure." `saveSubmissions` returns `void`, so the
-caller cannot. The obligation is unmeetable as typed.
-
-**Compounding:** `loadGraph.rescue()` copies the full refused blob to a second
-key. A 2.5MB bad graph plus its 2.5MB rescue copy sits at the ~5MB origin
-budget, after which all three saves start throwing. The safety net can consume
-the budget of the thing it protects.
-
-**Fix:** have the three save functions return whether they succeeded, surface a
-failure for the submissions at minimum, and cap or evict the rescue copy rather
-than letting it compete for the live budget.
-
-**Effort:** human ~2h / CC ~30m. **Priority:** P1.
-**Depends on / blocked by:** nothing.
-
 ## P2 — `dimensions.status` is a self-asserted claim, which blocks sharing (filed by /ship, 2026-10-14)
 
 **What:** `looksLikePart` now validates that `dimensions.status` is a KNOWN
