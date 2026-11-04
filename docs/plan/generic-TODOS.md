@@ -3039,3 +3039,15 @@ adapter diamond's stroke is non-scaling since that review (7A); its size and bot
 **Effort:** human S / CC S
 **Priority:** P3
 **Depends on:** nothing
+
+## P3 — A short list when a piece has three or more versions (filed in decorated-pieces T6, 2026-11-04)
+
+**What:** Design 3A says a piece with three or more versions to swap to shows a short list instead of one "Make it a <name>" button each. Today the strip shows one button per version.
+
+**Why not now:** no piece has more than one version yet (A: station, D: tunnel, HP: level crossing), so the list could not be shown or tested on a real piece.
+
+**Context:** app/src/App.tsx `selectedSwaps`; docs/plan/2026-11-03-next-parts-ceo-review.md, design decision 3.
+
+**Effort:** human S / CC S
+**Priority:** P3
+**Depends on:** a third version of one base piece

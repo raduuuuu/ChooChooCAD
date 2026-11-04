@@ -84,7 +84,7 @@ import { previews } from './previewGeometry.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
 import { JoinStart, VerdictLine, VerdictScope, type BridgeNote } from './VerdictLine.js';
 import { markLists } from './markLists.js';
-import { EMPTY_GRAPH, ghostFit, joinRefusal, otherLevelEndNear, shiftMm, snapRunMove, woodOf, type JoinRefusal } from './layoutModel.js';
+import { EMPTY_GRAPH, ghostFit, joinRefusal, otherLevelEndNear, shiftMm, snapRunMove, swapsOf, woodOf, type JoinRefusal } from './layoutModel.js';
 import { ghostKeys } from './ghostKeys.js';
 import { InventoryPanel } from './Inventory.js';
 import { TablePanel } from './TablePanel.js';
@@ -462,6 +462,11 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     const part = piece ? resolve(piece.partId) : null;
     return part?.kind === 'straight' && part.flip ? part.flip : null;
   }, [selected, graph, resolve]);
+  // The versions the selected piece can be swapped for, plain or decorated (CEO E8, design 3A, O1).
+  const selectedSwaps = useMemo(() => {
+    const piece = selected === null ? undefined : graph.pieces.find((p) => p.pieceId === selected);
+    return piece ? swapsOf(resolve(piece.partId), library, resolve) : [];
+  }, [selected, graph, library, resolve]);
 
   const graphSaveBlocked = savesSuppressed({
     notice: layoutNotice,
@@ -1199,6 +1204,12 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         <button onClick={() => moveRunBy(selected, 0, 0, 1)}>Rotate run (R)</button>
         {/* A one-sided decorated piece: its decoration to the other side, ends unchanged (design 5A). */}
         {selectedFlip && <button onClick={() => dispatch({ kind: 'flipPiece', pieceId: selected })}>{selectedFlip.label} (F)</button>}
+        {/* Dressed or plain, the joints kept (design 3A): one button per version. */}
+        {selectedSwaps.map((p) => (
+          <button key={p.id} onClick={() => dispatch({ kind: 'swapPiece', pieceId: selected, partId: p.id })}>
+            {p.decoratedFrom === undefined ? 'Make it plain' : `Make it a ${p.name}`}
+          </button>
+        ))}
         <button onClick={() => removePiece(selected)}>Remove piece</button>
       </div>
     ) : null;

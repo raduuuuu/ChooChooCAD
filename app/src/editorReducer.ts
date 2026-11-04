@@ -44,6 +44,7 @@ import {
   lastPieceId,
   moveRun,
   flipPiece,
+  swapPiece,
   nextRunAnchor,
   hasFlip,
   rotateCycle,
@@ -217,7 +218,7 @@ export interface Ghost {
 }
 
 export interface Step {
-  readonly kind: 'place' | 'placeJoin' | 'break' | 'join' | 'remove' | 'move' | 'flip' | 'clear' | 'preset';
+  readonly kind: 'place' | 'placeJoin' | 'break' | 'join' | 'remove' | 'move' | 'flip' | 'swap' | 'clear' | 'preset';
   /** In `past`, the graph before the step; in `future`, the graph after it. */
   readonly graph: Graph;
 }
@@ -265,6 +266,8 @@ export type EditorAction =
   | { readonly kind: 'removePiece'; readonly pieceId: string }
   /** Put a placed one-sided decorated straight's decoration on the other side (eng D5). */
   | { readonly kind: 'flipPiece'; readonly pieceId: string }
+  /** Swap a placed piece for a plain or decorated version of it, joints kept (decorated-pieces CEO E8). */
+  | { readonly kind: 'swapPiece'; readonly pieceId: string; readonly partId: string }
   /** Start placing a piece: show it where it would go (decision R3). */
   | { readonly kind: 'pick'; readonly partId: string }
   /** Turn the pending piece to its next way of going on (R). */
@@ -469,7 +472,7 @@ export function reduce(
   if (raw === state) return raw;
   // A refusal is said until the next action, whatever that is.
   const stepped =
-    action.kind !== 'moveRun' && action.kind !== 'flipPiece' && (raw.refusal || raw.dropHint)
+    action.kind !== 'moveRun' && action.kind !== 'flipPiece' && action.kind !== 'swapPiece' && (raw.refusal || raw.dropHint)
       ? { ...raw, refusal: null, refusalOf: null, dropHint: null }
       : raw;
   // A selection never outlives its piece, whichever action removed it.
@@ -797,6 +800,16 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
       const refusalOf = part.flip.verb;
       if (result.refused !== null) return { ...state, refusal: result.refused, refusalOf, dropHint: null };
       return { ...state, graph: result.graph, refusal: null, refusalOf: null, ...remember(state, 'flip') };
+    }
+
+    case 'swapPiece': {
+      if (state.ghost || !geometry) return state;
+      const result = swapPiece(state.graph, ports, action.pieceId, action.partId, geometry);
+      if (result.refused !== null) {
+        return { ...state, refusal: result.refused, refusalOf: `make it a ${geometry.resolve(action.partId).name}`, dropHint: null };
+      }
+      if (result.graph === state.graph) return state;
+      return { ...state, graph: result.graph, refusal: null, refusalOf: null, ...remember(state, 'swap') };
     }
 
     case 'removePiece': {

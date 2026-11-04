@@ -27,7 +27,7 @@ import { VerdictLine } from './VerdictLine.js';
 import { bridgeNotesOf, tunnelNotesOf, viewOf } from './verdictView.js';
 import { buildScene, PLATE_DROP_MM } from '../../engine/src/view3d/mesh.js';
 import { reduce, type EditorAction, type EditorState } from './editorReducer.js';
-import { EMPTY_GRAPH, ghostFit, shiftMm } from './layoutModel.js';
+import { EMPTY_GRAPH, ghostFit, shiftMm, swapsOf } from './layoutModel.js';
 import { previewOf } from './previewGeometry.js';
 import { afterKey, ghostKeys } from './ghostKeys.js';
 import { describeAction } from './announce.js';
@@ -261,6 +261,79 @@ describe('the station straight, placed and flipped (plan T4, eng D5, design 4A/5
     const r = drawnAlone('SS');
     const s = buildScene({ segments: r.segments, bodies: r.bodies, ports: r.ports, welds: [], partOf: () => resolve('SS'), riseMm: 61, plankMm: 12 });
     expect(s.bounds.max[2]).toBeCloseTo(136, 6);
+  });
+});
+
+describe('swapping a placed piece, plain and decorated (plan T6, CEO E8, design 3A/4A, O1)', () => {
+  const act = (st: EditorState, a: EditorAction) => reduce(st, a, ports, { resolve });
+  const empty: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null };
+  const offers = (id: string, lib = BUILT_IN, res = resolve) => swapsOf(res(id), lib, res).map((p) => p.id);
+
+  /*
+   * MUTATION PROOF, run: the base left out of a decorated piece's options
+   * fails with `expected [ [ 'SS' ], [], [ 'TT' ], [], …(4) ] to deeply
+   * equal [ [ 'SS' ], [ 'A' ], [ 'TT' ], …(5) ]`.
+   */
+  it('a plain piece offers its decorated versions, a decorated one its plain base, others nothing', () => {
+    expect(['A', 'SS', 'D', 'TT', 'HP', 'LC', 'E', 'HB'].map((id) => offers(id))).toEqual([['SS'], ['A'], ['TT'], ['D'], ['LC'], ['HP'], [], []]);
+  });
+
+  /*
+   * MUTATION PROOF, run: `swapsOf` offering every version unchecked fails with
+   * `expected [ [ 'SS' ], [ 'A' ] ] to deeply equal [ [], [] ]`.
+   */
+  it('a stored correction of the base whose length differs hides the swap both ways (O1)', () => {
+    const a = resolve('A');
+    if (a.kind !== 'straight') throw new Error('A is a straight');
+    const lib = resolveLibrary([
+      {
+        submissionId: 'sub-a',
+        at: '2026-11-04T10:00:00Z',
+        part: { ...a, lengthMm: 145, dimensions: { status: 'user-measured', source: 'test', submittedAt: '2026-11-04T10:00:00Z', corroborations: 1 } },
+      },
+    ]);
+    const res = makeResolver(lib);
+    expect([offers('A', lib, res), offers('SS', lib, res)]).toEqual([[], []]);
+  });
+
+  /*
+   * MUTATION PROOF, run: the swap left out of undo history fails with
+   * `expected { pieces: [ { …(3) } ], …(2) } to deeply equal { Object
+   * (pieces, welds, ...) }`: undo took back the last piece instead.
+   */
+  it('makes a placed straight a station and back, keeping its joint, said aloud and undoable', () => {
+    const two = act(act(empty, { kind: 'add', partId: 'A', turn: 'left' }), { kind: 'add', partId: 'A', turn: 'left' });
+    const second = two.graph.pieces[1]!.pieceId;
+    const dress = { kind: 'swapPiece', pieceId: second, partId: 'SS' } as const;
+    const dressed = act(two, dress);
+    expect([dressed.graph.pieces[1]!.partId, dressed.graph.welds]).toEqual(['SS', two.graph.welds]);
+    expect(describeAction(two, dress, dressed, resolve)).toBe('Piece 2 is now a Station straight.');
+    const undone = act(dressed, { kind: 'undo' });
+    expect(undone.graph).toEqual(two.graph);
+    expect(describeAction(dressed, { kind: 'undo' }, undone, resolve)).toBe('Undid the swap. The piece is back as it was.');
+    const plain = { kind: 'swapPiece', pieceId: second, partId: 'A' } as const;
+    const back = act(dressed, plain);
+    expect(back.graph.pieces).toEqual(two.graph.pieces);
+    expect(describeAction(dressed, plain, back, resolve)).toBe('Piece 2 is now a Medium straight.');
+  });
+
+  /*
+   * MUTATION PROOF, run: the clash check left out of `swapPiece` fails with
+   * `expected [ { …(3) }, null, null ] to deeply equal [ { …(3) }, …(2) ]`;
+   * a swap between unrelated parts (A to E) allowed fails with `expected
+   * { …(10) } to be { …(8) } // Object.is equality`.
+   */
+  it('a swap whose platform would sit on other track is refused, naming the piece; unrelated parts never swap', () => {
+    // A straight at the origin and another 70 across, where the station's platform would go.
+    const placed = act(empty, { kind: 'add', partId: 'A', turn: 'left' });
+    const first = placed.graph.pieces[0]!.pieceId;
+    const both = act(act(act(placed, { kind: 'pick', partId: 'A' }), { kind: 'floatGhost', pos: shiftMm(0, -70) }), { kind: 'placeGhost' });
+    expect(both.graph.pieces).toHaveLength(2);
+    const dress = { kind: 'swapPiece', pieceId: first, partId: 'SS' } as const;
+    const refused = act(both, dress);
+    expect([refused.graph, refused.refusalOf, refused.refusal]).toEqual([both.graph, 'make it a Station straight', 'its platform would sit on piece 2']);
+    expect(describeAction(both, dress, refused, resolve)).toBe("Can't make it a Station straight: its platform would sit on piece 2.");
+    expect(act(both, { kind: 'swapPiece', pieceId: first, partId: 'E' })).toBe(both);
   });
 });
 
