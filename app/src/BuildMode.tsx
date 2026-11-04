@@ -26,6 +26,7 @@ import type { Segment } from '../../engine/src/geom/fk.js';
 import { buildSteps, type BuildItem, type BuildVerdict } from '../../engine/src/graph/buildSteps.js';
 import type { Graph, PortRef } from '../../engine/src/graph/model.js';
 import type { GraphResult } from '../../engine/src/graph/solve.js';
+import { codeOf } from '../../engine/src/parts/schema.js';
 import { bendWords } from '../../engine/src/joints/bendWords.js';
 import type { MarkInput, SceneInput } from '../../engine/src/view3d/mesh.js';
 import { clearResume, enterHistory, keepAwake, loadResume, saveResume, type Awake, type BuildHistory } from './buildSession.js';
@@ -230,7 +231,7 @@ export default function BuildMode(props: BuildModeProps) {
               {props.pull.rows.map((r) => (
                 <tr key={r.partId}>
                   <td>{r.name}</td>
-                  <td className="num">{r.partId}</td>
+                  <td className="num">{codeOf(r.partId)}</td>
                   <td className="num">{r.count}</td>
                   <td className="build-short">{r.short > 0 && <><span className="num">{r.short}</span> short</>}</td>
                   {/* Where to print one, the library's own link (printable-mark plan, 12A, 13B). */}
@@ -386,7 +387,7 @@ function Label(props: { item: BuildItem; partName: (id: string) => string; befor
     <>
       {item.adapter && <p className="build-name build-adapter">Adapter first: male-male</p>}
       <p className="build-name">{props.partName(item.partId)}</p>
-      <p className="build-code num">{item.partId}</p>
+      <p className="build-code num">{codeOf(item.partId)}</p>
       {props.standsAlone && <p className="build-note">{STANDS_ALONE}</p>}
       <Note item={item} />
     </>
@@ -456,7 +457,7 @@ function announce(item: BuildItem, steps: number, partName: (id: string) => stri
       const adapter = item.adapter ? 'Adapter first: male-male. ' : '';
       const sentence = noteSentence(item);
       const note = sentence ? ` ${sentence}` : '';
-      return `${adapter}${partName(item.partId)}, ${item.partId}. Step ${item.step} of ${steps}.${note}`;
+      return `${adapter}${partName(item.partId)}, ${codeOf(item.partId)}. Step ${item.step} of ${steps}.${note}`;
     }
   }
 }

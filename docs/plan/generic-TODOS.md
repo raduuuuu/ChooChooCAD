@@ -3054,6 +3054,8 @@ adapter diamond's stroke is non-scaling since that review (7A); its size and bot
 
 **Why not now:** no piece has more than one version yet (A: station, D: tunnel, HP: level crossing), so the list could not be shown or tested on a real piece.
 
+**Designed 2026-11-04** (/plan-design-review, D3-D9): the whole family with the current piece marked "now", one "Make it…" button that opens it in place, blocked versions greyed with their reason, the standard keyboard flow. Spec in docs/plan/2026-11-04-version-list-and-trait-names.md. `app/src/versionListTripwire.test.ts` fails the day a piece reaches three swaps.
+
 **Context:** app/src/App.tsx `selectedSwaps`; docs/plan/2026-11-03-next-parts-ceo-review.md, design decision 3.
 
 **Effort:** human S / CC S

@@ -16,7 +16,7 @@
  * and anything later cannot drift on what counts as trustworthy.
  */
 
-import { isMultiRoad, isUncorroborated, isUnverified, type Brand, type Layout, type Part } from '../parts/schema.js';
+import { SYSTEM_NAME, isMultiRoad, isUncorroborated, isUnverified, shortCode, type Brand, type Layout, type Part } from '../parts/schema.js';
 
 export interface TrustIssue {
   readonly kind:
@@ -55,7 +55,7 @@ export function layoutTrust(
   const parts = layout.placements.map((p) => resolve(p.partId));
 
   // 1. Sizes nobody measured. The strongest caveat: the geometry is a guess.
-  const unverified = [...new Set(parts.filter(isUnverified).map((p) => p.id))];
+  const unverified = [...new Set(parts.filter(isUnverified).map(shortCode))];
   if (unverified.length > 0) {
     issues.push({
       kind: 'unverified-size',
@@ -94,7 +94,7 @@ export function layoutTrust(
   }
 
   const single = [...new Set(
-    parts.filter((p) => !isUnverified(p) && isUncorroborated(p)).map((p) => p.id),
+    parts.filter((p) => !isUnverified(p) && isUncorroborated(p)).map(shortCode),
   )];
   if (single.length > 0) {
     issues.push({
@@ -112,7 +112,7 @@ export function layoutTrust(
       if (fit === 'does-not-join') {
         issues.push({
           kind: 'brands-do-not-join',
-          detail: `${brands[i]} and ${brands[j]} track do not physically join. ${why}`,
+          detail: `${SYSTEM_NAME[brands[i]!]} and ${SYSTEM_NAME[brands[j]!]} track do not physically join. ${why}`,
         });
       }
     }

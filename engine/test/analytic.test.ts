@@ -360,7 +360,7 @@ describe('the trust register: what the verdict is worth', () => {
     expect(k).toContain('unverified-size');
     const issue = layoutTrust(layoutOf(['A', 'PLAYTIVE-110']), r, brandFit)
       .find((t) => t.kind === 'unverified-size')!;
-    expect(issue.detail).toContain('PLAYTIVE-110');
+    expect(issue.detail).toMatch(/^110 has a size/);
     expect(issue.detail).toMatch(/exact about an estimate/);
   });
 
@@ -368,8 +368,7 @@ describe('the trust register: what the verdict is worth', () => {
     const issue = layoutTrust(layoutOf(['A', 'IKEA-150']), r, brandFit)
       .find((t) => t.kind === 'brands-do-not-join');
     expect(issue).toBeDefined();
-    expect(issue!.detail).toContain('GENERIC');
-    expect(issue!.detail).toContain('IKEA');
+    expect(issue!.detail).toContain('Generic and Small-peg track do not physically join.');
     // The reason travels with the claim, not just the claim.
     expect(issue!.detail.length).toBeGreaterThan(60);
   });
