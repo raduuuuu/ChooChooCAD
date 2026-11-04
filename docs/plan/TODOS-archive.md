@@ -1908,3 +1908,25 @@ adapter diamond's stroke is non-scaling since that review (7A); its size and bot
 **Priority:** P3
 **Depends on:** nothing
 
+## DONE 2026-11-04 — Raised track over floor track shows a negative clearance with no warning (was: A 55mm train may not fit under a one-level bridge)
+
+**DONE 2026-11-04 (branch clearance-warning).** Raised crossings, bridge pieces and tunnels share one sentence (`TrainFit`, app/src/VerdictLine.tsx): at 0mm or less, "Your 55mm train may not pass under …: 61mm opening." in the fail register with the X; the margin is judged unrounded; the verdict glyph is unchanged. Reviewed in docs/plan/2026-11-04-app-focus-review.md (eng D1, D2). Calibration F2 refines the 61/12/55 figures.
+
+**2026-11-04 (D2, raised to P1) (/plan-ceo-review 2026-11-04, app-focus review, docs/plan/2026-11-04-app-focus-review.md):** the floor test landed: rise 61 (measurements.ts q5), so RaisedNote (app/src/VerdictLine.tsx:371-383) prints "clearance is about −6mm" as a plain note, while the bridge pieces already warn. Warn now, like the bridge pieces, with "may not pass"; calibration F2 (push the train under) refines the figure later.
+
+**Also (2026-10-31, /plan-ceo-review D6):** once the train is measured, draw its
+clearance in the 3D viewer as a faint box along floor track that passes under
+raised track. Deferred because an estimated height drawn solid looks measured.
+
+**What:** The floor readings (CALIBRATION.md Q5) give 64mm rise - 12mm plank -
+55mm train = -3mm clearance. Push the 55mm train under a real bridge on its
+supports first: wheels ride in 3mm grooves, so the real gap may be a few mm
+larger than the formula. Then make the clearance note per-train, with a warning
+when a train will not pass.
+**Why:** Once the readings land, the bridge note reads "clearance is about -3mm"
+with no warning, so a user can plan a bridge their train cannot pass.
+**Pros:** Turns a measured problem into a clear warning. **Cons:** Needs train
+heights per user, not one number.
+**Context:** Left out of the joint-bend design by owner decision (docs/designs/joint-bend.md,
+Premise 3). `CLEARANCE` in engine/data/rampSeeds.ts; Q5 in `bun run calibration`.
+**Depends on:** the floor test.
