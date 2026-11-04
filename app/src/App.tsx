@@ -72,7 +72,7 @@ import { holdsOwnLayout, loadGraph, partialLoadNotice, saveGraph, savesSuppresse
 import { PutAsideNotice } from './PutAsideNotice.js';
 import { ShareControl } from './ShareControl.js';
 import { saveFailureNotice, type SavedStore } from './saveNotice.js';
-import { bridgeNotesOf, buildingClashSentence, buildingWord, viewOf } from './verdictView.js';
+import { bridgeNotesOf, buildingClashSentence, buildingWord, tunnelNotesOf, viewOf } from './verdictView.js';
 import { centrelineRadiusMm, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
 import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
 import { CANVAS_SEGMENT_CEILING, TrackCanvas } from './TrackCanvas.js';
@@ -1123,7 +1123,11 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
   const bridgeNotes = useMemo((): BridgeNote[] => {
     if (!result) return [];
     const partOf = new Map(graph.pieces.map((p) => [p.pieceId, p.partId]));
-    return bridgeNotesOf(result.underBridges, (id) => partOf.get(id)!, resolve, (id) => pieceNumber.get(id)!);
+    const numberOf = (id: string) => pieceNumber.get(id)!;
+    return [
+      ...bridgeNotesOf(result.underBridges, (id) => partOf.get(id)!, resolve, numberOf),
+      ...tunnelNotesOf(graph.pieces, resolve, numberOf),
+    ];
   }, [result, graph, pieceNumber, resolve]);
   // Track that runs into a building, said with the building's name (design decision 5).
   const buildingClashes = useMemo(() => {

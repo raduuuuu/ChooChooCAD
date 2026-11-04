@@ -1027,7 +1027,8 @@ export function TrackCanvas({
           * raised track.
           */}
         {bodies.map((b, i) =>
-          ((b.level ?? 0) >= 1) !== raised || (b.pieceId !== undefined && hiddenRun?.has(b.pieceId)) ? null : (
+          // A roof is always drawn over the floor track, whatever its level (DESIGN.md 11): a tunnel's starts at the floor.
+          ((b.level ?? 0) >= 1 || b.body === 'roof') !== raised || (b.pieceId !== undefined && hiddenRun?.has(b.pieceId)) ? null : (
             <path
               key={`body-${i}`}
               d={bodyPath(b)}

@@ -77,4 +77,20 @@ export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
       note: 'Platform 144 by 104, 14 tall, beside the plank; stairs 79 by 22; hall 144 by 78 and 47 tall on the platform, roof 140 by 69, clock tower 40 square reaching 136.',
     },
   },
+  /*
+   * THE TUNNEL STRAIGHT (plan T5), read off 3MF 607215: a long straight (D,
+   * 216) under a 200 tunnel shell standing on the floor astride the plank,
+   * centred on it. The shell is 51 wide outside, its walls 6 thick (39
+   * between them), straight to 60, then a round arch to 85.5 outside: the
+   * opening is 79.5 from the floor to the arch's underside.
+   */
+  {
+    id: 'TT', name: 'Tunnel straight', base: 'D',
+    decor: [{ kind: 'vault', atMm: [108, 0], lengthMm: 200, widthMm: 51, wallMm: 6, springMm: 60, topMm: 85.5, noun: 'tunnel' }],
+    dimensions: {
+      status: 'unverified',
+      source: 'a printed design, measured off the 3MF mesh on 2026-11-03',
+      note: 'A 200 shell, 51 wide outside with 6 walls (39 inside), straight to 60, arched to 85.5; 79.5 from the floor to the underside of the arch.',
+    },
+  },
 ];

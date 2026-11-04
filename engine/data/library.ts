@@ -79,15 +79,35 @@ export function deriveDecorated(specs: readonly DecoratedSpec[], builtIn: readon
     const base = byId.get(spec.base);
     if (!base) throw new Error(`Decorated piece ${spec.id}: no built-in part ${spec.base} to take its track from.`);
     if (byId.has(spec.id)) throw new Error(`Decorated piece ${spec.id}: that id is already a built-in part.`);
-    const decorBody: DecorBox[] = spec.decor.map((shape) => {
-      if (!(shape.topMm > shape.bottomMm) || shape.bottomMm < 0 || !Number.isFinite(shape.topMm)) {
-        throw new Error(`Decorated piece ${spec.id}: a ${shape.kind} needs a height: a bottom no lower than the floor, and a top higher than its bottom.`);
+    const boxOf = (
+      role: BodyBox['role'], atMm: readonly [number, number], lengthMm: number, widthMm: number,
+      bottomMm: number, topMm: number, more: Partial<DecorBox> & { solid: boolean; draw: boolean },
+    ): DecorBox => {
+      if (!(topMm > bottomMm) || bottomMm < 0 || !Number.isFinite(topMm)) {
+        throw new Error(`Decorated piece ${spec.id}: a shape needs a height: a bottom no lower than the floor, and a top higher than its bottom.`);
       }
-      const box: BodyBox = {
-        role: 'footprint', atMm: shape.atMm, lengthMm: shape.lengthMm, widthMm: shape.widthMm,
-        levels: decorLevels(shape.bottomMm, shape.topMm, riseMm),
-      };
-      return { ...box, bottomMm: shape.bottomMm, topMm: shape.topMm, solid: shape.solid !== false, ...(shape.noun ? { noun: shape.noun } : {}) };
+      return { role, atMm, lengthMm, widthMm, levels: decorLevels(bottomMm, topMm, riseMm), bottomMm, topMm, ...more };
+    };
+    const decorBody: DecorBox[] = spec.decor.flatMap((shape): DecorBox[] => {
+      const noun = shape.noun ? { noun: shape.noun } : {};
+      if (shape.kind === 'slab') {
+        return [boxOf('footprint', shape.atMm, shape.lengthMm, shape.widthMm, shape.bottomMm, shape.topMm, { solid: shape.solid !== false, draw: true, ...noun })];
+      }
+      /*
+       * A vault's solid parts only (eng D10): its two walls, from the floor
+       * to where the arch springs, and its roof across the top; the passage
+       * between the walls stays open. One more box, not solid, draws it.
+       */
+      const [x, y] = shape.atMm;
+      const { lengthMm: l, widthMm: w, wallMm: t, springMm: spring, topMm: top } = shape;
+      if (!(t > 0 && 2 * t < w && spring < top)) throw new Error(`Decorated piece ${spec.id}: a vault needs walls thinner than half its width and a top higher than its spring.`);
+      const wall = (side: 1 | -1) => boxOf('wall', [x, y + side * (w - t) / 2], l, t, 0, spring, { solid: true, draw: false, ...noun });
+      return [
+        wall(1),
+        wall(-1),
+        boxOf('roof', [x, y], l, w, spring, top, { solid: true, draw: false, ...noun }),
+        boxOf('footprint', [x, y], l, w, 0, top, { solid: false, draw: true, ...noun, vault: { widthMm: w, wallMm: t, springMm: spring } }),
+      ];
     });
     const { partNumber: _theBases, ...track } = base;
     return {

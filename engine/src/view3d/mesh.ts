@@ -31,7 +31,7 @@
 
 import type { Segment } from '../geom/fk.js';
 import { bodyCorners, type RenderedPort } from '../graph/render.js';
-import { decorSpan } from './decor.js';
+import { decorSpan, vaultSection } from './decor.js';
 import type { Part } from '../parts/schema.js';
 
 /** Triangles: xyz per vertex, three indices per triangle. */
@@ -488,11 +488,47 @@ export function buildScene(input: SceneInput): SceneArrays {
     }
     for (const [a, z] of tops) for (const side of [1, -1] as const) grow(...at(a, side, z));
   };
+  /**
+   * A VAULT, drawn round (decorated-pieces plan T5, eng D10): its section
+   * swept from one end of its box to the other, outer and inner faces, the
+   * arch rings at each end and the feet closed; edged at its two end rings.
+   */
+  const drawVault = (b: Segment, floor: number, v: { readonly widthMm: number; readonly wallMm: number; readonly springMm: number }) => {
+    const len = Math.hypot(b.to.x - b.from.x, b.to.y - b.from.y);
+    const ux = (b.to.x - b.from.x) / len, uy = (b.to.y - b.from.y) / len;
+    const at = (t: number, [across, h]: readonly [number, number]) =>
+      [b.from.x + ux * t - uy * across, b.from.y + uy * t + ux * across, floor + h] as const;
+    const { outer, inner } = vaultSection(v.widthMm, v.wallMm, v.springMm);
+    const sweep = (ring: readonly (readonly [number, number])[], facing: 1 | -1) => {
+      for (let i = 0; i + 1 < ring.length; i++) {
+        const [a0, a1, b0, b1] = [at(0, ring[i]!), at(len, ring[i]!), at(0, ring[i + 1]!), at(len, ring[i + 1]!)];
+        const q = [a0, a1, b1, b0].map((p) => solid.vertex(...p));
+        if (facing === 1) solid.quad(q[0]!, q[1]!, q[2]!, q[3]!);
+        else solid.quad(q[3]!, q[2]!, q[1]!, q[0]!);
+      }
+    };
+    sweep(outer, 1);
+    sweep(inner, -1);
+    for (const t of [0, len]) {
+      for (let i = 0; i + 1 < outer.length; i++) {
+        const q = [at(t, outer[i]!), at(t, outer[i + 1]!), at(t, inner[i + 1]!), at(t, inner[i]!)].map((p) => solid.vertex(...p));
+        solid.quad(q[0]!, q[1]!, q[2]!, q[3]!);
+      }
+      for (const ring of [outer, inner]) for (let i = 0; i + 1 < ring.length; i++) bodyEdges.push(...at(t, ring[i]!), ...at(t, ring[i + 1]!));
+    }
+    for (const p of outer) for (const t of [0, len]) grow(...at(t, p));
+  };
   for (const b of input.bodies ?? []) {
     if (b.pieceId !== undefined) {
       boxOf = pieceBox.get(b.pieceId) ?? { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
       pieceBox.set(b.pieceId, boxOf);
     } else boxOf = null;
+    // A box that only collides is not drawn: its shape draws itself (eng D10, O4).
+    if (b.decor && !b.decor.draw) continue;
+    if (b.decor?.vault) {
+      drawVault(b, b.decor.floorLevel * riseMm, b.decor.vault);
+      continue;
+    }
     const lo = b.level ?? 0;
     // A decoration stands at its measured heights; a structure's body fills its levels.
     const span = decorSpan(b, riseMm);

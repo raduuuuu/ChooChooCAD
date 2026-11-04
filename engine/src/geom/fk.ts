@@ -70,7 +70,16 @@ export interface Segment {
    * above the piece's floor level, for drawing; whether it is solid (a thin
    * barrier arm is not, and never collides); and what a sentence calls it.
    */
-  readonly decor?: { readonly floorLevel: number; readonly bottomMm: number; readonly topMm: number; readonly solid: boolean; readonly noun?: string };
+  readonly decor?: {
+    readonly floorLevel: number;
+    readonly bottomMm: number;
+    readonly topMm: number;
+    readonly solid: boolean;
+    readonly noun?: string;
+    /** False for a box that only collides; a vault draws itself instead (eng D10). */
+    readonly draw: boolean;
+    readonly vault?: { readonly widthMm: number; readonly wallMm: number; readonly springMm: number };
+  };
   /**
    * A bridge's road (bridges plan, eng D9): the measured top-surface heights
    * of the whole road, and this segment's span along it, for the 3D view.

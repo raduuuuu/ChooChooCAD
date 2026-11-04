@@ -172,7 +172,13 @@ export function renderGraph(
         halfWidthMm: box.widthMm / 2,
         ...(box.profileMm ? { profileMm: box.profileMm } : {}),
         ...(decor && 'bottomMm' in box
-          ? { decor: { floorLevel: levelOf(frame), bottomMm: box.bottomMm, topMm: box.topMm, solid: box.solid, ...(box.noun ? { noun: box.noun } : {}) } }
+          ? {
+              decor: {
+                floorLevel: levelOf(frame), bottomMm: box.bottomMm, topMm: box.topMm, solid: box.solid, draw: box.draw,
+                ...(box.noun ? { noun: box.noun } : {}),
+                ...(box.vault ? { vault: box.vault } : {}),
+              },
+            }
           : {}),
         ...(lo !== 0 ? { level: lo } : {}),
         ...(boxRise !== 0 ? { rise: boxRise } : {}),
