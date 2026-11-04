@@ -1,0 +1,1910 @@
+# TODOS archive — finished entries
+
+Moved word for word from `docs/plan/generic-TODOS.md` on 2026-11-04 (/plan-ceo-review 2026-11-04, app-focus review, docs/plan/2026-11-04-app-focus-review.md). Nothing here is open work.
+
+## CLOSED 2026-11-04 — Nothing bounds a layout's size (merged)
+
+Merged into "Canvas virtualisation and a layout-size cap" (D6) (/plan-ceo-review 2026-11-04, app-focus review, docs/plan/2026-11-04-app-focus-review.md).
+
+**What:** `loadGraph` validates every field's type and never bounds
+`pieces.length` or `welds.length`. `findVertexClashes` compares all pairs of
+ports. Measured on an open run (rank 0, so this is NOT the cycle-enumeration
+P0):
+
+```
+   100 pieces     200 ports   solveGraph      5 ms   blob    9 KiB
+   500 pieces    1000 ports   solveGraph     27 ms   blob   48 KiB
+  1000 pieces    2000 ports   solveGraph     66 ms   blob   95 KiB
+  2000 pieces    4000 ports   solveGraph    267 ms   blob  194 KiB
+  4000 pieces    8000 ports   solveGraph   1148 ms   blob  391 KiB
+  8000 pieces   16000 ports   solveGraph   4702 ms   blob  786 KiB
+```
+
+Clean quadratic. A ~5MB `localStorage` budget holds roughly 50,000 pieces,
+which is about 5x10^9 pairs, on the order of minutes per render, doubled by
+StrictMode in development.
+
+**HALF FIXED 2026-10-15. The quadratic is gone; the absence of a cap is not.**
+
+`findVertexClashes` now groups ports by their exact lattice position instead
+of comparing all pairs -- the replacement `gstack-shortcut(dec-f333f98f)`
+already prescribed -- so the figures above no longer reproduce. Measured on 20
+rings of ordinary straights, anchored apart so nothing overlaps:
+
+```
+   1,000 pieces   clash scan  85ms ->  3ms   solveGraph  101ms ->  8ms
+   5,000 pieces               2221 ->  8                 2332  -> 21
+  10,000 pieces               8337 -> 16-18              9114  -> 45
+  20,000 pieces                 --  -> 33                  --  -> 86
+```
+
+Byte-identical output over 582 fixtures. `App.tsx`'s scanning `slop` callback
+was the other half of the end-to-end figure and is now a Map.
+
+**WHAT REMAINS, which is what this entry is now about.** Linear is not
+bounded. Both halves of the clash scan are now linear -- the spread case by
+grouping on the exact lattice position, the coincident case by counting
+pile-ups per piece rather than per pair -- so what is left here is purely the
+absence of a size cap. Nothing caps `pieces.length` or `welds.length` in `loadGraph`, so a
+large enough stored layout still costs whatever it costs, and a freeze is
+still not a throw. Two specifics for whoever takes it:
+
+1. **The cap is unwritten.** It is the cheap half and it converts an
+   unrecoverable hang into the recoverable refusal every other loader failure
+   already gets (notice, `GRAPH_RESCUE_KEY` copy, suppressed save). The
+   port-occupancy refusal added the same day does NOT help: it rejects a weld
+   on an already-claimed port, and this needs only a large number of
+   perfectly legal pieces.
+2. **The all-coincident case is FIXED** (2026-10-15, see the DONE entry): a
+   pile of 1,000 stacked pieces was 999,000 records in 968ms and is now 2
+   records in 8ms, because the count is places rather than pairs of ends.
+
+Also still open and unrelated to the cap: `solveGraph` runs synchronously
+inside a render `useMemo`, and `App.tsx` calls `placeAll` once itself and
+`solve.ts` calls it again.
+
+**Why it is worse than slow:** it is a HANG, not a throw.
+`getDerivedStateFromError` never fires, so the crash screen never paints and
+the "Clear saved data" button is unreachable — permanently, on every reload.
+Every other failure in this app has an escape; this one does not.
+
+**Fix:** two halves. The cheap half is a hard piece/weld cap in `loadGraph`,
+refusing the whole layout above it, which turns an unrecoverable hang into a
+recoverable refusal with a notice and a rescue copy. The real half is the
+spatial grid `graph/feasible.ts:115-123` already describes, keyed on the exact
+lattice position and never on a tolerance. That same comment names the limit —
+"Upgrade when a layout exceeds roughly 500 ports" — and nothing enforces it.
+The cap value is a product decision: 500 ports is about 250 pieces, which may
+be below what someone with a big floor actually builds.
+
+**Effort:** human ~1d / CC ~2h. **Priority:** P1 (the cap alone is ~20m).
+**Depends on / blocked by:** the cap value needs an owner's call.
+
+## CLOSED 2026-11-04 — Two give caveats ride on a verdict that says no give is needed (filed by /qa, 2026-10-19)
+
+Closed (D5) (/plan-ceo-review 2026-11-04, app-focus review, docs/plan/2026-11-04-app-focus-review.md): both disclosure rules are retired (engine/src/joints/trust.ts:122-127, #73/#74).
+
+**What:** On the EXACT verdict the headline reads "This works. Closes exactly, no
+give needed at any joint." Directly beneath it the trust register prints two lines
+about the give figure: `estimated-give` ("Joint give is estimated, not measured, so
+the give total and any verdict resting on it are provisional.") and `axial-only-give`
+("The give total counts pull-apart slack only, and the play from joints rotating is
+not modelled."). Observed live in a browser at `localhost` on branch
+`scope-the-exceeds-verdict`; see `.gstack/qa-reports/qa-report-localhost-2026-10-19.md`
+and its `screenshots/exact-state.jpg`.
+
+**Why it matters.** The verdict has just said the give figure is not load-bearing for
+this layout, and then two lines qualify it anyway. That is noise in the one state
+where the engine is most certain, and it is the state a happy user sees most often.
+It also dilutes the caveats where they DO matter: a reader who learns to skip them on
+every exact layout will skip them on the refusal too.
+
+**History.** Half of this predates the change. `estimated-give` has always been gated
+only on `calibrationStatus`, so it fired on EXACT before anything here. The
+`axial-only-give` rule added on 2026-10-19 is unconditional by design, so it doubled
+the line count and made the oddity visible.
+
+**Fix:** a product decision first, not a code change. Either suppress give caveats
+when `closesExactly` is true, on the grounds that a verdict needing no give cannot be
+wrong about the give, or keep them and accept this as the register's standing
+behaviour. Note the first option weakens the `axial-only-give` rule's whole argument,
+which is that the disclosure must survive conditions rather than disappear under them,
+so it is not obviously right. No regression test was written, deliberately: writing
+one would freeze a behaviour nobody has chosen.
+
+**Effort:** human ~1h to decide plus ~30m to implement / CC ~15m once decided.
+**Priority:** P3.
+**Depends on / blocked by:** nothing technical; it needs the product call.
+
+## CLOSED 2026-11-04 — The axial-only disclosure is unreadable on any layout holding a third-party part (filed by /qa, 2026-10-19)
+
+Closed (D5) (/plan-ceo-review 2026-11-04, app-focus review, docs/plan/2026-11-04-app-focus-review.md): the `axial-only-give` rule is retired (trust.ts:122-127); the notes fold replaced the two-line cap.
+
+**What:** The verdict shows at most `TRUST_INLINE_LIMIT` (2) disclosures, serious
+kinds first. Any unverified third-party part adds a serious `unverified-size` note,
+which takes a slot and pushes `axial-only-give` into the overflow count. Reproduced
+live: with the Near miss preset plus one Playtive 60mm straight, the register rendered
+
+```
+shown:    "PLAYTIVE-60 has a size nobody has measured, so this answer is exact about an estimate."
+          "Joint give is estimated, not measured, so the give total and any verdict resting on it are provisional."
+overflow: "and 1 more note about this layout."
+```
+
+The hidden note is the axial-only one. The overflow sentence is deliberately
+non-interactive (finding E7), and the full list is only reachable through task U7a,
+which is unbuilt. So the engine emits a disclosure the product cannot show.
+
+**Why it matters, and why it is P3 rather than P1.** This was raised during the
+2026-10-19 eng review as finding F5 and was the reason that review first proposed
+raising the inline limit. That proposal was superseded: the EXCEEDS headline now
+scopes its own claim ("Exceeds the modelled give"), so a reader who never sees the
+hidden note is no longer misled by the verdict. Confirmed in the same browser run,
+where the headline kept its scoped wording while the note was truncated away. What
+remains is an information gap, not a wrong claim.
+
+**Fix:** ships with U7a, which makes the full list reachable. Raising
+`TRUST_INLINE_LIMIT` is NOT the fix and was explicitly rejected: `axial-only-give` is
+emitted last and the sort is stable, so it is the first thing truncated at any limit,
+and a four-issue layout hides it again at 3. `app/src/verdictLine.test.ts` already
+pins both the singular overflow wording and that the headline keeps its claim while
+the note is hidden, so the behaviour is protected while this waits.
+
+**Effort:** human 0 here / CC 0 here; absorbed by U7a.
+**Priority:** P3.
+**Depends on / blocked by:** U7a (build the graph listing), currently unscheduled.
+
+## CLOSED 2026-11-04 — `add` is the one transition that can still hand back a null cursor unchecked (filed by /ship's review, 2026-10-20)
+
+Closed (D5) (/plan-ceo-review 2026-11-04, app-focus review, docs/plan/2026-11-04-app-focus-review.md): fixed: editorReducer.ts:541 falls back to resumeCursor; the clickPort freeness check is in (:671).
+
+**What:** `undo`, `preset` and `initialEditor` all derive their cursor through
+`resumeCursor`. The `add` branch takes `next.select` straight from `addPiece`,
+which returns null whenever a part has one port or fewer
+(`app/src/layoutModel.ts:137`). That would be a fifth accidental route to the
+reported bug, and no spec watches it.
+
+**Why it matters.** It is unreachable today only because every catalogue part
+has exactly two ports and `looksLikePart` restricts submissions to
+`straight`/`curve`. `layoutModel.ts:118` already names the case that changes
+that: "when a one-port buffer or T2's three-port switch makes the unattached
+step reachable". On the day a buffer stop lands, this fix regresses on a path
+its tests do not cover. Either derive from `resumeCursor` when `next.select` is
+null, or add the spec with a one-port stub part.
+
+**Related, same shape:** `clickPort`'s arming branch sets `cursor` and `armed`
+to the clicked ref with no freeness check, so calling the exported `reduce`
+with a click on an already-welded port yields a stale cursor and the next piece
+starts a new run. Not reachable from the canvas, which only renders free ports,
+so this is defensive only.
+
+## CLOSED 2026-11-04 — What the printed reproductions switch seeds left open (filed 2026-10-22)
+
+Closed (D5) (/plan-ceo-review 2026-11-04, app-focus review, docs/plan/2026-11-04-app-focus-review.md): items 1-2 shipped (#65, #66); item 4 duplicates "Measure a real Generic switch". Left over as a one-line fix: sources.ts:334-335 still say needs-graph for the shipped F/G and F1/G1.
+
+**What landed:** four Generic switches (L, M, O1, P1) in the library as
+`unverified` seeds, measured off the 3MF meshes of one designer's printed reproductions
+reproductions (`engine/data/switchSeeds.ts`). In the same change the heel
+stopped being exempt from give and polarity: port 0 is the plank's end face
+and carries a peg or a socket, and the exemption came from an earlier model
+in which the heel was a point inside the piece.
+
+**Still open:**
+1. **The other switches need part kinds the schema does not have.** I/J
+   (three-way, four ends), O/P (a Y: an E1 either side, no straight road),
+   F/G and F1/G1 (parallel offset roads, 46 to 47mm apart). All were found
+   and measured; none fits `SwitchPart`.
+2. ~~**T3b's switch disclosure has not landed**, so a layout with a seed switch
+   carries only the generic unverified-size note.~~ **Done 2026-10-22**: a
+   layout with a switch now says its geometry is modelled, not measured.
+3. **`GENERIC_PIECE_TABLE` is stale for these four.** Its rows for L/M and O1/P1
+   still say `needs-graph`; they are now present as seeds, and the graph has
+   existed since the rewrite.
+4. **The seeds rest on one designer.** Another designer's reproduction independently agrees on the O/P
+   Y-switch geometry, but nobody else modelled L/M. A real measurement (the
+   entry above, and `CALIBRATION.md` Q6) replaces them through the normal
+   submission override.
+
+**Priority:** P2. Items 1 and 2 are the ones a user meets first.
+
+## CLOSED 2026-11-04 — A direct `solveGraph` suite (filed by the eng review, 2026-10-14)
+
+Closed (D5) (/plan-ceo-review 2026-11-04, app-focus review, docs/plan/2026-11-04-app-focus-review.md): its last arm cannot be reached (solve.ts:385,464): won't do.
+
+**MOSTLY OVERTAKEN 2026-10-15. Re-checked before trusting it; three of its
+facts no longer hold.** It said `solve.ts` had "exactly one importer among the
+15 test files"; it now has four (`differential`, `trustBoundary`, `cycles`,
+`verdictView`). It said `TOO_MANY_LOOPS` "by construction cannot be" exercised
+because the chain model has no rank above 1; `engine/test/cycles.test.ts` now
+drives it and `TOO_BIG_TO_CHECK` directly through `solveGraph` on graph
+fixtures, which the chain model never had to reach. And the union has six
+return sites now, not five.
+
+**What is actually left:** the new `rank > 0 && cycles.length === 0` arm has
+no spec driving its FIRING, because nothing can drive it (every fundamental
+traces; a weld naming a missing piece throws first). Its misfire direction is
+pinned. The non-finite `NUMERIC` cause IS covered, at
+`engine/test/differential.test.ts`. The clash-precedence ordering is pinned
+only at the `viewOf` layer. Both narrow.
+
+**Why still deferred:** the branches that mattered got specs as a side effect
+of the work that needed them, which is the principle this project applies: a
+test earns its place by catching something the existing layers cannot. Pick
+the remainder up with K1.
+
+**Effort:** human M / CC S. **Priority:** P3.
+**Depends on / blocked by:** nothing. Scheduled with K1's wave by preference.
+
+## CLOSED 2026-11-04 — Retire or annotate the eight stale G-tasks from the first design review
+
+Closed (D5) (/plan-ceo-review 2026-11-04, app-focus review, docs/plan/2026-11-04-app-focus-review.md): stale: build mode shipped G1/G2, and the shipped GraphListing replaced G10.
+
+**What:** Annotate G1-G5, G6's two cut arcs, G8's joint-glyph framing and G10's
+joint-data framing as deferred to v2, naming the scope decision that cut each
+surface. Keep the specifications intact; remove only the implication that they
+are current P1 work.
+
+**Why:** Eight of the twelve design tasks target surfaces the CEO re-review cut
+hours after they were written. G1 and G2 are build mode, G3 is library browse,
+G4 and G5 are publish and moderation. G10 is worse than stale: it specifies a
+keyboard-navigable text view of per-joint data, justified on the grounds that
+`evaluateJoint` already produced every needed fact, and R21 deleted that data.
+Following G10 as written leads to a dead end rather than to a wrong but
+buildable feature.
+
+**Pros:** Anyone opening the backlog stops planning against four surfaces that
+are not being built. The specifications survive for v2, and they are good work:
+the library card-grid rejection on structural grounds and the three failure-arc
+tone rules are the strongest design reasoning in the plan.
+
+**Cons:** It is a TODO about TODOs, and it needs revisiting the moment any cut
+surface returns.
+
+**Context:** Added by the second design review, 2026-10-08, decision 26A. The
+first design review ran on 2026-10-07 against a seven-surface product; the CEO
+re-review reduced v1 to a single-chain append-only validator the same day, and
+the eng review then deleted the minimax LP at R21. Nobody re-read the design
+backlog against either change, which is why the second review's audit step had
+to reconstruct it. G10's replacement is decision 20A: a live region plus a
+keyboard-navigable list of the chain, retargeted from per-joint verdicts, which
+no longer exist, to per-piece facts, which do.
+
+**Effort:** human ~30min / CC ~5min
+**Priority:** P2
+**Depends on:** nothing
+
+## CLOSED 2026-11-04 — Support and pier modelling (merged)
+
+Merged into "Check that raised track is held up" (D5) (/plan-ceo-review 2026-11-04, app-focus review, docs/plan/2026-11-04-app-focus-review.md). Its catalogue half shipped (TS, RS, PR, ST in structureSeeds.ts); the check waits on calibration F4.
+
+**2026-11-02 update (X4, deferred by owner):** piers and stations are planned in
+`docs/plan/2026-11-02-photo-parts-and-stations.md`; the catalogue half of this
+entry lands there. What remains here is the CHECK that raised track stands on a
+ramp, station or pier. Deferred because the safe unsupported span is an
+unmeasured guess; trigger: a measured span length, and piers shipped.
+
+**2026-11-04 update:** the supports shipped (track support TS, riser RS, the
+three bridges). The span is asked as calibration sheet F4: the largest clear
+gap between two supports that two medium straights, joined in the middle,
+cross with the joint dipping 2mm or less and a train passing by hand. The
+check waits for that figure.
+
+**What:** Support and riser parts in the catalogue, a requirement that elevated
+runs be supported, and pier footprints participating in the same-level overlap
+test so a pier landing on lower track is a short.
+
+**Why:** Raised Generic track does not float. It rests on risers or stacked track,
+and those occupy floor footprint. In the user's own example, a loop crossing over
+a track that continues underneath, the pier frequently lands on the lower track.
+
+**Pros:** Turns the layer feature from geometrically trustworthy into physically
+trustworthy, which is the difference between a drawing and a build plan.
+
+**Cons:** A new part class with its own placement rules, and the plan has no
+support dimensions to work from.
+
+**Context:** Raised by the outside voice and verified by absence from the plan,
+the schema and K4's part list. v1 chose at D10 to STATE the gap rather than check
+it, with accepted ceiling logged as decision
+`2f1af71e-4277-4cab-ae07-bd5f205d0b7f`. **Upgrade trigger: the first report of a
+bridge that passed but could not be supported, or support parts entering the
+catalogue.** Until then the verdict says plainly that support is not verified.
+
+**Effort:** human ~2 weeks / CC ~2 hours
+**Priority:** P2
+**Depends on:** K4's catalogue; measured support dimensions
+
+## CLOSED 2026-11-04 — Five dead exports (merged)
+
+Merged into the review backlog's item B (D5) (/plan-ceo-review 2026-11-04, app-focus review, docs/plan/2026-11-04-app-focus-review.md). breakWeld is live now; IKEA_CONNECTOR and INITIAL_SELECTION are gone; still dead: walkFloat, nominalFinalHeading, bounds (fk.ts:103,163,178), VEHICLE (generic.ts:243).
+
+**What:** `walkFloat`, `bounds` and `nominalFinalHeading` (`engine/src/geom/fk.ts`),
+`breakWeld` (`app/src/layoutModel.ts`) and `VEHICLE` (`engine/data/generic.ts`) have
+no production caller anywhere in `app/`, `engine/` or `try.ts`.
+
+**Why it is worth a line:** `walkFloat`'s only remaining caller is its own test,
+and until 2026-10-14 `.gstack/pregate.json` declared `engine/test/render.test.ts`
+as the test lane for `engine/src/graph/render.ts` on the strength of it. The lane
+was green, the module it named had zero coverage, and the live renderer `App.tsx`
+draws from was untested. The lane is fixed; the dead code is what let it look
+fine. `breakWeld` is also listed in task U5's file set, so check before deleting:
+U5 may be about to give it a caller.
+
+**Effort:** human S / CC S. **Priority:** P3. `/test-audit` territory.
+**Depends on / blocked by:** nothing. Confirm U5's intent for `breakWeld` first.
+
+## CLOSED 2026-11-04 — The success state's payoff beat (merged)
+
+Merged into "Animated train playback and the completion arc" (D5) (/plan-ceo-review 2026-11-04, app-focus review, docs/plan/2026-11-04-app-focus-review.md).
+
+**What:** For a validator whose entire purpose is telling you the loop closes,
+the reward for closing it is currently one CSS class. The interaction state
+table written into `docs/plan/2026-10-13-open-work.md` has five states across
+three surfaces, and Success is the thinnest cell in it: no reinforcement, no
+motion, no change of weight. Every other cell got work this phase.
+
+**Why:** the phase that just ran is a hardening phase, and four of its five
+states are about things going wrong. The one state the product exists to produce
+is the one nobody designed.
+
+**Effort:** human S / CC S. **Priority:** P2.
+**Depends on / blocked by:** nothing. Named here so the next design pass starts
+from it rather than rediscovering it.
+
+## DONE 2026-10-23 — A raised look for raised track
+
+Raised track casts an offset shadow onto the floor and a ramp's shadow tapers
+from its low end to its high end (owner's choice of the cast shadow over pier
+marks and a heavier outline, which rule 11 reserves for selection). Recorded in
+DESIGN.md rule 11; `--track-shadow` measured 3.03:1 on `--floor`.
+
+## DONE — Every Generic piece from printed reproductions (owner, 2026-10-29)
+
+**DONE (2026-11-01).** All phases shipped: Lillabo (#64), the multi-road type
+and H (#65), nine more multi-road pieces (#66), buffer stops (#67, #68), the
+off-grid pieces (#69), and the printed T-junction (#103). They are unverified
+seeds until measured; the measuring is its own entries below.
+
+Plan and measurements: `docs/plan/2026-10-29-printed-pieces.md`. Scope
+chosen by the owner: phased, all Generic types.
+
+- PR 1, DONE in this branch: the Lillabo set (five straights, curves of 22.5,
+  45 and 90 degrees) from a printed reproduction.
+- DONE (eng-reviewed 2026-10-30, D2-D14 in the plan doc): PR A (#65), one
+  multi-road part type that replaced `SwitchPart` (ports at exact poses with
+  their own polarity and names, plus straight or arc roads checked exactly
+  against them) and the H crossing; PR B, H1, H2, I, J, O, P, T, X and EE.
+  F1/G1, F/G and the Lillabo multi-road pieces moved to the off-grid P2 below.
+- DONE: R and S buffer stops, as a one-ended `buffer` kind (unverified; body 40mm from the
+  piece table). The canvas caps its far end with a solid ink beam (DESIGN.md rule 11).
+- DONE in PR B: T and X are exact at a 108 centreline (three reproductions
+  agree), and `GENERIC_PIECE_TABLE` no longer calls them approximate.
+
+## DONE — Multi-road pieces that sit off the whole-millimetre grid (filed by /plan-eng-review 2026-10-30)
+
+**Done 2026-10-30.** Owner chose "Round, state it" for half millimetres and
+"Smooth S, approximate" for S-bends. F, G, F1 and G1 are in (switchSeeds.ts),
+and so are the Lillabo crossing and the Lillabo switch (thirdParty.ts). The
+two "y" files turned out to be an ordinary switch read from its far end. The
+`-tt` files, with a quarter circle of about 84mm, match no Lillabo piece and
+were left out.
+
+**What:** Decide how to model, and then add, the measured multi-road pieces
+that the exact lattice cannot hold: Generic F1/G1 (a 144 straight plus a branch
+ending parallel 46mm over: the branch is an S-bend, and no pair of 22.5 degree
+arcs reaches 46 over in 144), Generic F/G (a fork to two tracks 47mm apart, so
+each end sits 23.5 off the heel's line), and the Lillabo crossing (145 x 145,
+so the second road's ends are at x = 72.5) plus the two Lillabo "Y" files,
+whose readings do not match a Y of two 45 degree curves (`y-fmm.step`: a road
+ending at (40.6, 43.3) heading 135; `y-fmm-tt.step`: a road ending at (83.9,
+83.9) heading 90, about r84).
+
+**Why:** Deferred by eng review decisions D2 and D13
+(`docs/plan/2026-10-29-printed-pieces.md`): the multi-road type ships with
+straight and arc roads only, all exact.
+
+**Pros:** Four more Generic pieces and Lillabo's multi-road set.
+
+**Cons:** Needs either a drawn-only road shape with an approximate footprint
+(touching render, overlap, trackPath and tableModel) or a stated rounding of
+half millimetres; both introduce the engine's first inexact geometry.
+
+**Context:** Measurements are in the plan doc's table and in the printed reproductions
+3MF files (a printed reproduction for F/G, a printed reproduction for F1/G1, a printed reproduction for
+Lillabo). Re-measure the Lillabo Ys first.
+
+**Depends on / blocked by:** the multi-road type (PR A of the plan).
+
+## CLOSED — The printed sheet's type and spacing are not tokens (filed by /design-review 2026-10-31, D2)
+
+**CLOSED (2026-11-01): the printed sheet was removed** (`docs/plan/2026-10-31-share-and-polish.md`, OH-cut: "too much overlap with build mode"). Kept as written.
+
+**What:** The print block in app.css sets 18pt/12pt/10pt/9pt and mm spacing directly; only `--sheet-paper` is a token.
+**Why:** DESIGN.md: every type role and spacing value lives in tokens.css.
+**Pros:** The sheet joins the system. **Cons:** Print units (pt, mm) next to screen tokens need a short note on why.
+**Context:** Codex design voice, 2026-10-31. Add `--sheet-title`, `--sheet-body`, `--sheet-meta` and a spacing pair.
+**Effort:** human S / CC S. **Depends on:** nothing.
+
+## CLOSED — "Sheet n of m" can undercount when a list runs past one page (filed by /design-review 2026-10-31, D3)
+
+**CLOSED (2026-11-01): the printed sheet was removed** (`docs/plan/2026-10-31-share-and-polish.md`, OH-cut: "too much overlap with build mode"). Kept as written.
+
+**What:** `BuildSheet.tsx` counts one page each for the parts list and the step list; a long list breaks onto more physical pages than the header says.
+**Why:** A header that miscounts pages makes a loose sheet look missing.
+**Pros:** Honest page count. **Cons:** Browsers do not expose physical page numbers to the page; the fix is either paginating the tables by row count or calling them sections.
+**Context:** Codex design voice. Simplest: "Build order · Step list" without a count on list pages, and count only the drawing pages.
+**Effort:** human S / CC S. **Depends on:** nothing.
+
+## DONE — The raised level reads faintly from the 3D view's starting angle (filed by /design-review 2026-10-31, D1)
+
+**DONE (2026-10-31).** The owner chose 25° for layouts with raised track only; flat layouts keep 35° (21A amended in the 3D plan). `startElevationDeg` in `app/src/Viewer3D.tsx` reads it from whether the scene draws footprints; pinned in `app/src/viewer3dScene.test.ts`.
+
+**What:** From the start pose (35° up, design 21A) a raised run 64mm above a metre-wide layout reads as a thin strip in the distance; height is clear only after turning the view.
+**Why:** Showing the levels apart is the reason the 3D view exists (3D plan, 0A).
+**Pros:** The first five seconds would show it. **Cons:** Reopens an approved decision (21A); a lower angle shows less of the plan.
+**Context:** Try 25° for layouts with two levels only, or keep 35° and rely on the footprint cue. Screenshots in the design audit of 2026-10-31.
+**Effort:** human S / CC S. **Depends on:** the owner's call on 21A.
+
+## DONE — A missing colour token draws the 3D scene in black (filed by /design-review 2026-10-31, D2)
+
+**DONE (2026-10-31).** `tokenColors` logs the missing token's name and draws it in `--ink`; pinned in `app/src/viewer3dTokens.dom.test.tsx`.
+
+**What:** `tokenColors` in `app/src/Viewer3D.tsx` falls back to `#000` when a CSS token is missing.
+**Why:** A renamed token would paint a surface pure black, outside the palette (DESIGN.md rule 1), with no error.
+**Pros:** A rename fails loudly. **Cons:** None beyond a console line.
+**Context:** Log the missing token name once with `console.error`, and fall back to `--ink`'s value.
+**Effort:** human S / CC S. **Depends on:** nothing.
+
+## DONE — Part-count badges are cut off at the rail's edge (filed by /design-review 2026-10-31, D3)
+
+**DONE (2026-10-31).** `.piece-count` sits `var(--s1)` inside the card's right edge; checked in the browser at 1280px (badge right edge 1256, rail edge 1260).
+
+**What:** The dark count badges on part cards ("2", "1") sit half outside the rail's right edge and are clipped in every screenshot at 1280-1440px.
+**Why:** A count you can only half read is a count you misread.
+**Pros:** A visible fix on every screen. **Cons:** 2D rail, outside the 3D review.
+**Context:** `.piece-count` in `app/src/app.css`; the card is full width since part previews (eng D5).
+**Effort:** human S / CC S. **Depends on:** nothing.
+
+## DONE — The picked part's card looks like every other card (filed by /plan-design-review 2026-10-30)
+
+**DONE (2026-10-31).** The picked card's edge is 2px of --ink (its 1px border
+plus a 1px inset line, so the row stays 36px), and the card is `aria-pressed`
+while its ghost is out. Pinned by `app/src/pickedCard.dom.test.tsx`.
+
+**What:** Clicking a part puts a ghost on the canvas, but its card has no look of its own (`data-picked` only sets touch-action).
+**Why:** With a drawing on every card it will be less obvious which one you picked.
+**Pros:** The pick is visible where it was made. **Cons:** One more card state to test against the dotted (unverified) and dashed (unowned) borders.
+**Context:** Fix idea: a 2px ink border, matching the canvas's weight-means-importance rule, plus `aria-pressed`. Plan: docs/plan/2026-10-30-part-previews.md.
+**Depends on:** nothing.
+
+## DONE — Unverified cards spend the verdict red (filed by /plan-design-review 2026-10-30, from the Codex review)
+
+**DONE (2026-10-31).** The dotted border, the asterisk and the shelves'
+"unverified" word are all --ink now (the word keeps its weight). --fail is
+back to meaning only a layout that cannot be built.
+
+**What:** `.piece.is-unverified` draws its dotted border and asterisk in `--fail`, and the brand shelves' "unverified" word is `--fail` too.
+**Why:** DESIGN.md rule 1: the palette gets no colour; `--fail` means a layout cannot be built. Most new Generic parts are unverified seeds, so the red now dominates the list.
+**Pros:** "This size is a guess" stops reading as "this layout fails". **Cons:** A visible change to a long-standing look.
+**Context:** Fix idea: the same dotted border and asterisk in `--ink`. Decide the shelf word with it.
+**Depends on:** nothing.
+
+## DONE — The app's name is not on screen (filed by /plan-design-review 2026-10-30, from the Codex review)
+
+**DONE (2026-10-30).** The rail's first line reads "ChooChooCAD wooden railway
+layouts" beside the logo mark (an open loop of track, in ink), and the tab
+carries the full-colour mark as its icon. Spec: app/src/appName.dom.test.tsx.
+
+**What:** "ChooChooCAD" appears only in the tab title (app/index.html).
+**Why:** Screenshots and first visits show a track tool without saying which one.
+**Pros:** Identity at no cost to the canvas. **Cons:** Takes a line from the 320px rail.
+**Context:** Fix idea: a quiet "ChooChooCAD · wooden railway layouts" line at the top of the rail, no header bar.
+**Depends on:** nothing.
+
+## DONE — Point mouse users to the list for ends hidden under a bridge
+
+**DONE (2026-10-24).** When a free floor end's centre lies on raised wood, the
+canvas shows one quiet line at top left: "1 free end is under raised track.
+Reach it from “This layout, as a list”." The plank test is `onPlank` in
+overlap.ts. Specs: app/src/hiddenEndHint.test.ts.
+
+**What:** When a free floor end sits under raised track, show a one-line hint
+that it can be reached from the piece list.
+
+**Why:** Raised track wins clicks where it crosses floor track (OV4 of the
+2026-10-23 two-layer review), so such an end is reachable only through the
+list. Keyboard users already use the list; a mouse user may not know it exists.
+
+**Context:** Filed by the 2026-10-23 design review. Rare: needs an end exactly
+under a bridge. **Effort:** human ~2h / CC ~10min. **Priority:** P3.
+**Depends on:** two-layer circuits landing.
+
+## DONE — 3D viewer, build mode and the printable sheet
+
+**DONE (2026-10-31).** Build mode and the printable sheet shipped in PRs #85 to #88, as planned in `docs/plan/2026-10-31-build-mode.md` (CEO, eng and design reviewed, D1-D53). The 3D viewer shipped earlier. The text below is kept as written. The printable sheet was removed again on 2026-11-01 (share-and-polish plan, OH-cut): build mode covers it.
+
+**Split 2026-10-31 (/plan-ceo-review, D2/D3).** The 3D viewer itself is planned in
+`docs/plan/2026-10-31-3d-viewer.md`. Build mode and the printable sheet stay here,
+deferred until the viewer exists; they will use its meshes for the per-step render.
+
+**What:** 3D viewer with procedurally generated meshes instanced per part type;
+build mode as a tablet-first step walkthrough in physical assembly order; a
+printable build sheet; step position persisted across navigation.
+
+**Why:** The only part of the plan that touches the physical build, which is
+where the pain actually is, and where multi-level layouts really fail.
+
+**Pros:** The design work is done and recorded: D3 chose build mode and library
+as the two designed surfaces, G1 fixed the hierarchy (next piece dominant, name
+and part code legible at 60cm, step position small), G2 chose a swipe-back
+gesture deliberately instead of a visible button. Nothing needs re-deciding.
+
+**Cons:** Both surfaces are downstream of an editor that cannot yet place a
+switch or a second level, so building them now means building against a model
+that cannot express what they would walk you through.
+
+**Context:** T31, T33, T41, G1, G2. **This deferral reverses N2 on sequencing
+only.** After OR-6 disproved the original justification for these two surfaces,
+the CEO re-review examined them as N2 and N3 and the user chose to keep both.
+D4 on 2026-10-07 resequenced them behind the core; the decision that they are
+worth building stands, as do G1 and G2.
+
+**Effort:** human ~2-3 weeks / CC ~4 hours
+**Priority:** P2
+**Depends on:** K2 arbitrary topology, K3 levels and bridges, T18 assembly order
+
+> **Prerequisites met (2026-10-27).** K2 and K3 shipped (graph engine with
+> switches; two levels with ramps and bridges). The assembly order is
+> `assemblyOrder(graph, segments)` in `engine/src/graph/assembly.ts`: floor,
+> then ramps, then raised track, each band walked along its welds so every step
+> clips onto a piece already down, with the pieces it joins named per step.
+> Under-before-over is pinned against `findBridges` in
+> `engine/test/assembly.test.ts`. Not yet consumed by any UI: build mode and
+> the printable sheet are its first readers. Supports are not modelled, so it
+> places no piers.
+
+---
+
+## DONE — Switches and the coupled multi-cycle solve
+
+**DONE.** Switches are in the catalogue and the editor (the multi-road part
+type, #65), and loops that share joints are solved together for the bend each
+joint needs (#73), within an honest work budget (#105, #106). The text below
+is kept as written.
+
+> **CORRECTED 2026-10-09 by the fourth eng review.** This entry described work
+> that no longer exists. A coupled minimax solve over a cycle basis with
+> per-(joint, cycle) sensitivities was the LP that decision R21 DELETED, and
+> there is nothing left to couple: the verdict is now a necessary-condition
+> bound, `gap <= sum of give`, which is order-independent because addition is.
+> `Depends on: K0c engine repair proven` is likewise stale, because R21 removed
+> K0c. What remains is graph TOPOLOGY, not numerical method, and it is no longer
+> deferred: it is the live C-series (C6 graph model, C8 spanning forest and
+> per-cycle bound, C9 basis-independent reporting). The original text is kept
+> below for history.
+>
+> One correction to the Pros paragraph as well: it claims the eng review
+> "confirmed that one spanning forest can serve both the cycle basis and the pose
+> walker". That remains true and is now an approved requirement (D6 of the fourth
+> eng review), but the forest has THREE consumers, not two: the exact pose walk,
+> the float render walk, and cycle extraction.
+
+**What:** Track branching. A switch puts one joint on two cycles at once, so the
+cycles can no longer be solved independently and need a coupled minimax solve
+over a full cycle basis, with per-(joint, cycle) sensitivities and a
+spanning-forest walker.
+
+**Why:** Switches are what large real layouts are made of, and the exact lattice
+makes arbitrary topology genuinely tractable here in a way floating-point CAD
+never is. This is the part of the plan with real technical edge.
+
+**Pros:** Unlocks the layouts serious builders actually make. The design is
+already analysed: the eng review's D1 settled the arrangement and confirmed that
+one spanning forest can serve both the cycle basis and the pose walker (parent
+pointers give pose propagation downward and fundamental cycles upward to the LCA).
+
+**Cons:** It is the largest work item in the plan, and it sits directly on top of
+the measured defects. Adding cycles to a solver that fails on one cycle is the
+specific mistake R18 was raised to avoid.
+
+**Context:** Deferred at D4 (2026-10-07) in favour of **multiple independent
+components without switches**, which was kept in v1. That choice is cheap for a
+precise reason worth preserving: with no switches, no joint is ever shared
+between components, so the constraint system is block-diagonal and the solve is
+the existing single-cycle machinery run once per component. Switches are exactly
+what breaks that property. Revisit once K0c's repair has proven itself on one
+cycle, with the gauge sweep passing across every cut point at four sizes.
+
+**WHAT THE 2026-10-15 ENUMERATION FIX LEFT FOR THIS TASK.** One thing, and it
+is smaller than the first version of this note claimed.
+
+`CYCLE_WORK_BUDGET` is unpinned against a frame target, the same gap
+`CYCLE_RANK_CEILING` has (eng finding E13). 150,000 weld-slots was chosen by
+measurement -- it refuses the worst dense layout in 12-22ms and still answers a
+legitimate 10,000-piece layout in full -- but not derived from a frame budget.
+A real switch catalogue is what makes it measurable against something.
+
+**CORRECTED, SAME DAY.** This note first said that the dense-sharing-graph
+regime and the budget were "unreachable until a part carries a third port", and
+that the refusal wording could therefore wait for this task. Both were wrong,
+and the reasoning error is worth keeping: shared pieces do NOT require extra
+ports. Two fundamentals share a piece whenever that piece sits in both of them,
+and a second weld on ONE port is enough to put it there. `loadGraph` validated
+a weld's port RANGE and never its OCCUPANCY, so a stored layout could claim the
+same track end many times over and reach the dense regime with nothing but
+ordinary two-port parts. Measured: 11,058ms of frozen main thread from a
+303,940-byte blob the loader accepted without a word. The port count was never
+the gate; the trust boundary was. Both were fixed on the branch instead of
+deferred here.
+
+
+**Effort:** human ~3-4 weeks / CC ~4 hours
+**Priority:** P1 for v2
+**Depends on:** K0c engine repair proven; K4's switch part with its centreline shift
+
+---
+
+## DONE — Drag-and-drop, with undo, the drop-overlap guard and keyboard parity
+
+**DONE (2026-10-23).** Shipped by the editing plan
+(`docs/plan/2026-10-22-editing-and-canvas.md`): select and remove with
+multi-step undo (#27), placing through a preview (#28), dragging placed runs
+(#29), dragging from the palette (#30), refusing a drop onto track (#35) and a
+run moved onto track (#37). The text below is kept as written.
+
+**What:** One body of work, not four features: pieces drag from the palette and
+reposition after placement; a rigid forward-kinematics preview during the drag
+with one solve on release; undo/redo over layout-document snapshots with
+keyboard shortcuts; a guard that refuses a drop overlapping an existing piece;
+and keyboard equivalents for place, rotate and remove plus ARIA landmarks so the
+editor is not mouse-only.
+
+**Why:** "A graphical editor that allows the user to drag and drop" was a named
+ask in the original brief. v1 does not deliver it. Appending pieces to the end is
+tedious beyond a few dozen pieces.
+
+**Pros:** Delivers a named brief ask. The interaction is already designed: 9A
+specified the rigid preview and the single settle on release, and the eng
+review's R17 worked through the solve-trigger question. Undo's design is settled
+by T27, including the trap of snapshotting solver output rather than the document.
+
+**Cons:** Drag makes undo, the overlap guard and keyboard parity mandatory rather
+than optional, so v1 would grow by four things rather than one. It is the largest
+remaining app-side item.
+
+**Context:** Deferred at D5 (2026-10-07) with an explicitly accepted ceiling:
+the v1 editor is Completeness 4/10 as an editor, logged as decision
+`cebd0e6d-567b-4811-9f0d-62c6f4d10b87`. **Upgrade trigger: the first time a
+layout exceeds roughly 40 pieces in practice, or any edit richer than append is
+needed (repositioning or rotating a placed piece).** The eng review's R17 is
+suspended, so the solve-trigger question reopens with this. Note finding 12:
+undo consumes K5's document type, so K5's type must land before undo.
+
+**Effort:** human ~2 weeks / CC ~2 hours
+**Priority:** P1 for v2
+**Depends on:** K5's layout document type (not its file I/O); R16's fingerprint
+re-decision; K0c repair for the solve-on-release contract
+
+> **IN PLAN 2026-10-22.** The upgrade trigger fired ("any edit richer than append": remove any
+> piece). Drag-and-drop is accepted scope in `docs/plan/2026-10-22-editing-and-canvas.md` (E6),
+> delivered as PRs 4 and 5 after seams+grid, select/remove and ghost placement. Prerequisites
+> checked there: K5's document type is the persisted Graph; K0c is moot (R21); R16 needs no new field
+> because snapping is exact lattice arithmetic. Undo becomes multi-step (supersedes U5, D12).
+
+---
+
+## DONE — A manual join can re-lay a loop that does not close (filed by /plan-eng-review 2026-10-22, D7)
+
+**What:** Make `spanningForest` (engine/src/graph/forest.ts) prefer the previous tree edges when a
+weld merges two components, so no join or edit re-lays track that was already placed.
+
+**Why:** Measured with a probe: a run whose loop misses by 389 mm, joined exactly and facing at the
+spare road of a switch inside that loop, moved three pieces 507-611 mm and turned them two steps.
+The forest walks each component from its first-declared piece, so a join changes the entry point and
+a different weld becomes the loop's gap.
+
+**Pros:** No join of any kind moves track; auto-join could then always join (eng D6 currently skips
+the risky ones and announces manual-join movement).
+
+**Cons:** Changes which joint the verdict reports as a loop's gap on such layouts; touches the most
+heavily tested engine code, so the forest/verdict fixtures must be re-run and reconciled.
+
+**Context:** Found in the eng review of docs/plan/2026-10-22-editing-and-canvas.md (ENG-R5). The
+editing plan's before/after frame comparison (D19 for remove/break, D6 for auto-join) is the guard
+until this lands; start from that comparison and make it pass for manual joins too.
+
+**Effort:** human M / CC S
+**Priority:** P2
+**Depends on:** the editing plan's before/after frame comparison (PR 2)
+
+> **DONE 2026-10-23.** Fixed in `spanningForest` rather than by remembering the previous tree: the
+> closing welds are now chosen by weld ORDER (union-find in declaration order; a weld joining pieces
+> already connected closes), and the walk follows tree welds only. A new weld can never change an
+> earlier weld's status, so an exact join moves nothing, whichever piece the walk enters at. The
+> full suite, including the differential harness and every verdict fixture, passed unchanged except
+> the two specs that pinned D6's refusal, which now pin the join being welded with no frame moving.
+> The D6 before/after guard in `autoJoin` and `moveRun` stays as a backstop; nothing reaches it today.
+
+---
+
+## DONE — Draw your table or room on the grid (deferred by /plan-ceo-review 2026-10-22, E4)
+
+**What:** A width x depth input that draws the table or room outline on the metric grid, so "does
+it fit" is answered on screen.
+
+**Why:** The grid (R4) shows size in centimetres, but comparing it with a real table is still
+mental arithmetic, and fit is the question people actually have.
+
+**Pros:** Builds directly on the grid; small UI; high value for anyone planning on a fixed surface.
+
+**Cons:** A new persisted value, which in this codebase means a loader that reports losses, a
+lossy-load notice, its own acted flag and mounted save-gate specs (see suppression.dom.test.tsx).
+Where the rectangle sits relative to the layout also needs deciding (origin, or draggable).
+
+**Context:** Deferred at D7 (2026-10-22) to keep the editing plan free of a fourth storage key.
+Start from the grid helper (`gridStep` in trackPath.ts once PR 1 lands) and the inventory store as
+the model for a small persisted value.
+
+**Effort:** human M / CC S
+**Priority:** P2
+**Depends on:** the metric grid (PR 1 of the 2026-10-22 editing plan)
+
+> **DONE 2026-10-23.** Owner ruling: the outline is centred on the track and only its size is saved
+> (`generic.table.v0`), so the "origin or draggable" question closed as neither. "Your table" sits beside
+> "Your box"; the outline draws over the grid and under the track, red when the track hangs over, and
+> a caption names the overhang against the table's own sides. The fit is measured on the plank edges
+> and curve bulges (`trackExtent` in `app/src/tableModel.ts`), not on `renderBounds`, and the table is
+> tried both ways round. Its own notice, dismissal, acted flag and save gate, pinned in
+> `app/src/tableOutline.dom.test.tsx`.
+
+---
+
+## DONE — The overlap narrowphase primitive
+
+> **DONE 2026-10-23, after an owner bug report:** two planks laid across each other drew as one
+> merged shape that read as a switch, and the verdict said nothing. `engine/src/graph/overlap.ts`
+> cuts each plank into convex quads (curves in 5.6 degree slices), clips pairs from different pieces
+> through a spatial hash, and reports pairs sharing over 100 mm². It uses the catalogue's plank width
+> (40 mm). Exempt: a piece against itself (a switch's roads), welded pieces, and pieces with ends on
+> one exact spot (the vertex check owns those). It feeds IMPOSSIBLE in the verdict, the canvas
+> markers and the placing preview. Measured at 69 ms for 10,000 pieces. The drop guard followed the
+> same day: `ghostFit` takes optional part geometry and reports an `over` conflict, the reducer is
+> handed it, so a palette drop onto track places nothing (6A). A placed run moved onto track (drag,
+> arrow keys, strip buttons) is refused the same way, through `moveRun`: "it would lie over other
+> track". Overlaps the move neither causes nor keeps are left to the verdict.
+
+> **SUPERSEDED 2026-10-09 by the fourth eng review.** Decision D10 of the CEO
+> re-review replaced the whole footprint-overlap approach with an exact
+> coincident-connector refusal: no two non-adjacent connector positions may be
+> exactly equal. That is one `equals()` loop over integer coordinates, so it
+> needs no AABB filter, no narrowphase, no arc-against-arc test and no measured
+> plank width. It shipped on 2026-10-08 in `engine/src/feasible.ts` and catches
+> both known false passes, the 16xE double circle at 9 pairs and the 8L+8R
+> tangency at 2 pairs, while leaving the 8xE circle and the stadium clean.
+>
+> The AABB inflation table below is still correct and still worth keeping, because
+> it is the reason a bounding-box test could never have been the decision
+> primitive. What is dead is the conclusion: an exact arc-and-segment narrowphase
+> is NOT the likely answer and is not needed. What remains genuinely uncovered is
+> narrower than this entry implies: a plank crossing a plank mid-span, with no
+> connector coincidence anywhere. That needs a measured plank width and follows
+> the calibration deferral.
+>
+> Measured 2026-10-09: the shipped check costs 11.02ms and reports 25,359 pairs
+> at 640 stacked curves, which is about an eighth of the 204,480 pairs recorded
+> against decision A4 for the footprint approach.
+
+Not deferred, not decided. X4 kept planar overlap in v1, but the primitive that
+actually decides overlap has no owner.
+
+R15 chose AABB all-pairs over a spatial grid, and that cost reasoning is sound:
+this check runs once per edit over static geometry, not sixty times a second
+over moving bodies. But **AABB is a reject filter, not a decision primitive.**
+Measured inflation for the real parts:
+
+```
+  E curve (r182, 45deg), best orientation   1.46x its true footprint
+  E curve rotated 22.5deg                   3.11x
+  E curve rotated 45deg                     3.80x
+  D straight (216x40) at 45deg              3.79x
+```
+
+Generic headings are multiples of 22.5 degrees, so the inflated cases are the common
+ones, and a check whose job is to REFUSE layouts would refuse buildable ones. An
+exact arc-and-segment narrowphase is the likely answer: arc-against-arc reduces
+to a centre-distance test against the radii plus an angular-interval check.
+Needs a decision before X4 is implemented.
+
+---
+
+## DONE — Multiple independent components (several separate tracks in one layout)
+
+**DONE (2026-10-24).** The premise below is from the chain engine and no longer
+holds. The graph engine already kept several runs: each run has its own anchor,
+a lattice point with a heading in sixteenths (so exact closure holds per run),
+and runs are placed, dragged, snapped and checked for overlap against each
+other. What was missing was the verdict speaking about each run. It said
+"Nothing to fix. Build it." beside a second run still open, said a turned loop's
+reason twice without naming the loop, and read two closed loops as one. Now
+`solveGraph` returns a `runs` summary (count, open, and each loop's lowest
+piece number), and the verdict says "Both loops close exactly", "1 other run of
+track is not a loop yet." with "Join the free ends of the open run, or remove
+it." in place of "Build it", and "In the loop through piece 9." beside a gap or
+a turn when there are several loops. Specs: app/src/verdictRuns.test.ts.
+
+**What:** Let a layout hold more than one connected run of track, so a loop can
+sit beside or under another unrelated loop.
+
+**Why:** Real large layouts are several tracks, not one. It was approved at D4
+and then reversed at Y1.
+
+**Pros:** Cheap on the solver: with no switches no joint is shared between
+components, so the constraint system is block-diagonal and each component solves
+with the existing single-cycle machinery run once per component. The outside
+voice established the cheapest implementation is a `Document { components:
+Layout[] }` wrapper plus a map over `solveLayout` plus a reducer, with ZERO lines
+changed in `fk.ts`, `residual.ts` or `result.ts`.
+
+**Cons:** Needs a component origin, which does not exist: `fk.ts:58-60` and
+`pose.ts:61` hardcode the origin and `Layout` has no field for it. Setting an
+origin is repositioning, which reopens the append-only decision.
+
+**Context:** Reversed at Y1 (2026-10-07) because multi-component and append-only
+are incompatible as decided: a second component would default to the origin,
+overlap the first, and be correctly failed by the overlap check with no user
+action available to fix it. **Hard requirement for whoever picks this up: a
+component origin MUST be a lattice point in Z[zeta16] with a heading that is a
+multiple of 22.5 degrees, or exact closure dies for that component.** That makes
+the snap/vertex-identity epsilon a prerequisite, and it is still undecided.
+
+**Effort:** human ~2 weeks / CC ~2 hours, mostly the origin and its snapping
+**Priority:** P1 for v2
+**Depends on:** the snap epsilon decision; drag-and-drop (positioning is repositioning)
+
+---
+
+## DONE — Where the app is published, and whether the fonts may travel with it
+
+**DONE.** Published at woodentrain.world. The OFL licence travels with the
+fonts: `app/public/fonts/IBM-Plex-Sans-OFL.txt` and `IBM-Plex-Mono-OFL.txt`
+are copied into every build.
+
+**What:** the half of the old CI entry that X1b did NOT do. A decision about
+where the app is published, and whether the self-hosted woff2 fonts plus their
+OFL licence file travel with it. The OFL requires the licence to accompany the
+fonts, and they are this project's first bundled assets.
+
+**Why:** CI landed on 2026-10-14 (X1b) and runs typecheck, tests and build on
+every push, so the testing half of this entry is done and moved to Completed.
+The distribution question it was bundled with is untouched and is not a CI
+question at all.
+
+**Context:** the CI half was added by the third eng review, 2026-10-08, decision
+D16 option A. Its stated blocker, "CI needs a remote, and a remote needs the two
+P1 pre-launch questions resolved", was resolved differently than expected: X1
+created a PRIVATE remote, which carries none of the provenance exposure a public
+one would, so CI stopped being blocked without the counsel questions closing.
+Those questions still gate a PUBLIC remote and any deploy.
+
+**Effort:** human S / CC S. **Priority:** P2.
+**Depends on / blocked by:** overlaps "Deploy the app to a URL" below; the same
+counsel question gates both.
+## DONE — The polarity marker, and three things it does not yet do (filed by /ship, 2026-10-16)
+
+> **DONE 2026-10-24.** (1) A refused joint is marked at BOTH ends when they
+> are apart, so the self-welded B2 shows a mark at 0 and at 54 whichever end
+> was clicked first. (2) The IMPOSSIBLE sentence for refused joints now also
+> names the clashes and the crossings: "And 2 spots have two or more track
+> ends on top of each other." (3) Where a clash or crossing ring holds a spot,
+> the bar is left out instead of drawn inside the X, and a joint left with no
+> mark is said ("1 is not marked, because a clash is drawn there"), as for
+> level faults. The resolution moved out of App.tsx into `badJointMarks`
+> beside `gapAnnotations` in trackPath.ts, with its own spec
+> (app/src/badJointMarks.test.ts), and returns early when nothing is refused,
+> which was the adversarial pass's allocation finding. Not done: the ceiling
+> ambiguity of an empty result, still harmless for the reason given below.
+
+A refused joint is now marked on the canvas (`App.tsx`'s `badJoints`, drawn by
+`TrackCanvas` as a ring and bar). Three limits were found in review and left
+deliberately, rather than widened mid-branch:
+
+**1. The marker sits at end `a`, which is not always both ends.** For a tree
+weld the two ends coincide and one mark is the whole truth. A CLOSING weld can
+have a gap -- that is exactly what the `gaps` annotation exists to draw -- and
+then end `b` is somewhere else and unmarked, with `a` chosen by click order
+rather than by meaning. Fix: mark both ends when they differ, or the midpoint
+with a leader.
+
+MINIMAL REPRODUCTION, from the Codex outside review and verified here. Weld
+the two ends of a SINGLE B2 to each other. Two clicks in the editor: arm port
+0, click port 1 of the same piece (`clickPort` only refuses the identical
+port, so a self-weld is reachable). The engine places the ends at `(0,0)` and
+`(54,0)`, reports ONE polarity violation, and claims both ports -- so both
+polarity dots disappear and the single marker lands on `(0,0)`. Reverse the
+click order and the same violation on the same geometry puts the marker on
+`(54,0)` instead. The verdict stays IMPOSSIBLE throughout, so this is
+misleading fault localisation rather than a false pass. Note the rendering
+specs cannot catch it: they hand `badJoints` coordinates directly and so
+bypass the resolution in `App.tsx` that chooses the end.
+
+**2. When a layout has BOTH a polarity violation and a clash, only the
+polarity sentence prints.** `VerdictLine`'s IMPOSSIBLE branch is a ternary on
+`polarityCount > 0`, so the clash rings on the canvas are named by no number.
+This PREDATES the polarity marker (the ternary is unchanged on `main`), but
+the marker makes it visible: the canvas now carries two kinds of red mark and
+the words account for one. Fix: render both sentences when both counts are
+above zero, and add a `viewOf`/`VerdictLine` spec for the both-present case,
+which nothing covers today.
+
+**3. The two red marks differ only by size and glyph.** A clash is r=28 with
+an X, a refused joint r=18 with a bar, both in `--fail` at the same stroke
+width. In greyscale they differ by shape alone, the bar is outside the
+canvas's existing glyph vocabulary, and when both land on one spot the result
+is a bar inside an X inside two rings. Fix: make the difference structural (a
+dashed ring, say), or suppress the inner mark where they coincide.
+
+**Also unfiled until now:** ~~`render.ts` tests `kind === 'heel'` inline, while
+the polarity check reaches the same exemption through `weldHasPolarity`.~~
+**Resolved 2026-10-22 by deleting the exemption.** A heel is a peg or a socket
+like any end, so neither copy exists any more and there is nothing to share.
+**And** the `badJoints` resolution in `App.tsx` (weld lookup, guards,
+end choice) has no spec of its own -- only its rendering is covered. Fix:
+extract it beside `gapAnnotations` in `trackPath.ts` and spec it.
+
+**Found by the Step 11 adversarial pass, after the fix budget closed:**
+`badJoints` builds its `byPort` Map on EVERY edit, including the common case
+where `polarityViolations` is empty. Near the canvas ceiling that is roughly
+20,000 strings and Map entries allocated per keystroke for nothing. One line
+fixes it -- `if (result.polarityViolations.length === 0) return [];` before
+the Map -- and it has no correctness impact, which is why it is filed rather
+than applied: the review's three-cycle fix limit was already reached, and an
+unreviewed edit at that point is what the limit exists to prevent. The same
+guard is worth considering for the `gaps` memo above it.
+
+Also noted: `badJoints` returns `[]` both when nothing is wrong and when the
+layout is above the drawing ceiling. Harmless today, because the canvas shows
+its own notice and the verdict sentence stays truthful, but the empty array is
+ambiguous for anyone who reuses it.
+
+**Effort:** human ~1d / CC ~1h for all of it. **Priority:** P2, except item 2
+which is P1 because it is user-visible today.
+
+## DONE — Offer only polarity-compatible free ends in the editor
+
+**DONE (2026-10-24).** With an end selected, the editor refuses a join that can
+never be built: two pegs, or ends on different levels (only a ramp joins
+levels). Two sockets are NOT refused: since the adapter work they join through
+a male-male adapter. The refused ends are dimmed on the canvas with the reason
+in their name and hover title, the layout list names the reason, and clicking
+one makes no joint and says why. One rule, `joinRefusal` in layoutModel.ts;
+the verdict-level checks stay as the backstop for stored layouts. Specs:
+app/src/joinRefusal.test.ts.
+
+**What:** When one free end is armed, grey out or ignore the free ends that
+cannot physically mate with it, so the editor stops inviting a join it will
+then refuse. Keep the verdict-level check as a backstop for layouts restored
+from storage, which bypass the click path entirely.
+
+**Why deferred (D4, 2026-10-13):** The failure is already caught and reported,
+not silent: `findWeldPolarityViolations` is tested and IMPOSSIBLE outranks an
+exact closure. And the editor is about to change shape when switches land.
+(This said a heel would be exempt from polarity altogether. It is not: since
+2026-10-22 a heel is checked like any end, so the rule this entry describes
+needs no switch special case.)
+
+**Upgrade trigger:** after the switch catalogue row (S2) ships and the set of
+port kinds has settled.
+
+**Origin:** task C2 of the fourth eng review, second half. The first half,
+polarity in the schema, already shipped.
+
+**A THIRD HALF NOBODY HAD FILED, now shipped (2026-10-16).** This entry is
+about the EDITOR refusing to offer a bad join. It assumed all along that the
+user could see what they were joining, and they could not. Reported from the
+live site: "there is no difference when i place a piece with 2 pegs or 2
+sockets or a normal one." Measured on woodentrain.world, A2, B2 and C2 drew
+BYTE-IDENTICAL geometry -- four paths each, same `d`, same fills, two
+identical hollow dots -- so a layout the polarity check refuses looked exactly
+like one it accepts, and the only difference reached the user as a sentence
+after the join was already made.
+
+The check was never broken: A2+B2 reports one violation and says so. What was
+missing was the picture. `RenderedPort` now carries `polarity`, derived with
+the same `portPolarity` the check applies. (It also carried a heel exemption
+held in two copies, one in `render.ts` and one in `weldHasPolarity`; both were
+deleted on 2026-10-22 when the heel became an ordinary connector.)
+(This paragraph said "so the two cannot drift" until the documentation audit
+caught it contradicting `render.ts`, which says plainly that it is a separate
+copy.) The canvas draws a peg filled and a socket hollow at the same radius,
+which adds no ink to a dense layout. Every new spec carries a mutation
+proof that was RUN, recorded beside the spec itself rather than counted here.
+
+This does NOT close the entry above. Showing which end is which is not the
+same as declining to offer a join that cannot work, and the deferral reason
+for that half still stands.
+
+## DONE — Deploy the app to a URL (filed by the CEO review, 2026-10-13)
+
+**DONE.** The app is live at woodentrain.world, deployed by GitHub Pages after
+CI passes on main (#43). The counsel question this entry said gates a public
+deploy was not settled first: see the IP entry.
+
+**What:** Put the current app on a public URL. One hour, after a remote exists.
+
+**Why:** Nothing this project has built in three weeks is visible to anyone
+outside one machine. The moat is real (exact Z[zeta16] closure plus sourced
+dimensions is hard to copy and hard to do in floating-point CAD) and it is
+undemonstrated and undated. The competitive risk is not that someone builds a
+better cyclotomic solver; it is that a generic generative tool plus a photo of
+someone's pieces becomes good enough at the user's actual question first.
+
+**Pros:** Forces the font OFL distribution question this file already says is
+owed. Makes the thing shareable, which is a precondition for any user contact.
+
+**Cons:** Touches the P1 data-provenance question: a public deploy publishes the
+transcribed dimensions, exactly as a public remote would. Gated on the same
+counsel, or on X3 converting the catalogue to self-measured figures.
+
+**Context:** Raised as M2 by the CEO voice in the /autoplan run of 2026-10-13,
+which noted deployment has gone untouched across six reviews.
+
+**Effort:** human S / CC S. **Priority:** P2.
+**Depends on / blocked by:** X1 (a remote), and either counsel or X3.
+
+## Completed
+
+### DONE — A recovered orphan could be placed inside a surviving run (P0, fixed 2026-10-15)
+
+**Was:** `loadGraph` re-anchored orphans into lanes chosen by stepping over
+occupied ANCHOR POINTS. An anchor names where a component starts; a run
+marching along the lane axis occupies lanes its root never mentions, so an
+orphan could land on an already-welded joint inside it. A welded end is spoken
+for, so `findVertexClashes` reported it rather than excusing it the way it
+excuses two free ends meeting, and the verdict read "Can't be built" about a
+layout the user built correctly.
+
+**Fix:** the loader clears the FOOTPRINT of everything already placed, which is
+what `layoutModel.nextRunAnchor` has always done for the in-app path. It takes
+port geometry (`PortsOf`) instead of a port count, which it needed anyway to
+validate weld indices, so the parameter got smaller rather than larger.
+
+ONE placement, not one per orphan: moving an anchor along zeta^4 without
+changing its heading translates a component rigidly, so every component's
+height is measured once and the orphans are stacked using those heights.
+MEASURED linear, 400 orphans in 1.4ms and 800 in 2.6ms.
+
+**It took three commits, and the first two were wrong.** The footprint rule
+landed in `57b891e`, which then left a stale provisional anchor on orphans
+that are not component roots. `captureAnchors` prefers an existing anchor over
+the frame a piece was actually at, so the first "Remove last" promoted that
+piece to a root and the stale lane won: measured 0 clashes at load and 2 after
+one edit, at the same coordinate as the original P0. `06e513f` deletes the
+anchor instead, and a differential sweep of 3205 app-built layouts with every
+single-edit follow-up found 0 violations against 298 on its parent.
+
+The same commit found `isCyc` accepting any finite coefficient, so a stored
+anchor of eight 1e308s produced NaN coordinates that make every closure and
+clash test silently answer "no". Tightened to safe integers, then tightened
+again: 2^53 - 1 is a safe integer and still breaks exactness, reporting an
+eight-curve loop that closes exactly as `closesExactly: false`. The ceiling is
+2^31.
+
+**Verified:** the two specs that pinned the original are un-skipped and pass.
+Reverting to the anchor-point rule fails 6 tests including both; never
+advancing the frontier between orphans fails the two-orphan case; deleting the
+non-root anchor deletion fails the lifecycle spec. In the browser, the exact
+reproducing layout now reads "Not a loop yet. 2 separate runs of track" with
+the position notice still shown, where it used to read "Can't be built".
+
+Also removed on the way: an optional port-count parameter that let the suite
+exercise a weaker branch than production, and an `orphans.indexOf(id)` inside
+the loop over `orphans` that I wrote in the first draft of the fix.
+
+### P1 — No remote, no backup, no CI
+**Completed:** 2026-10-14 (tasks X1 and X1b)
+
+`raduuuuu/ChooChooCAD`, created private and verified `PRIVATE` by
+`gh repo view --json visibility` BEFORE anything was pushed, which is the order
+this entry's own Cons section asked for: a public remote would have touched the
+counsel-gated provenance question, a private one carries none of it. A fresh
+clone installs, typechecks, runs 261 tests and builds. CI followed in the same
+hour, so the entry's "Unlocks CI" prediction held.
+
+### P2 — Continuous integration (the testing half)
+**Completed:** 2026-10-14 (task X1b)
+
+`.github/workflows/ci.yml` runs typecheck, tests and build on push and
+pull_request, bun pinned to 1.3.14 and the runner pinned to `ubuntu-24.04`.
+Verified by deliberate breakage, not by assumption: `PLANK_WIDTH_MM` 40 -> 41
+failed CI red at `engine/test/analytic.test.ts:341`.
+
+A first attempt at that proof is worth recording, because it found something.
+`CYCLE_RANK_CEILING` 20 -> 3 passed CI green at the time: cycles.test.ts
+imported the constant and built fixtures as `CYCLE_RANK_CEILING + 5`, which is
+right for the behaviour under test but pinned no VALUE. Changing it to 3
+silently narrowed what the product will rank, with no test objecting.
+
+**NO LONGER SILENT, re-run 2026-10-15: that mutation now fails five specs**,
+because the dense-sharing-graph block added with the work budget builds
+fixtures at fixed ranks (14 and 20) rather than relative to the constant, and
+a ceiling of 3 refuses them. The ceiling's VALUE is still unpinned against a
+frame target, which is the part of E13 that remains; what is closed is the
+"no test objecting" half. Tracked as eng
+finding E13 in `docs/plan/2026-10-13-open-work.md`.
+
+The distribution and font-licence half of the old entry is NOT done and stays
+open above.
+
+### DONE — The cycle enumeration froze the tab for 12 seconds (P0, fixed 2026-10-15)
+
+**Was:** `cycles.ts` walked `for (let mask = 1; mask < 1 << rank; mask++)` with
+per-subset work proportional to the selected fundamentals' total length. At the
+accepted `CYCLE_RANK_CEILING = 20` that is 1,048,575 subsets, and the solve runs
+synchronously inside render, so the cost landed on the main thread with no
+timeout and no cancel. A freeze is not a throw, so `ErrorBoundary` could not
+catch it.
+
+**Fixed in two parts, because the first part was not enough.**
+
+**Part one, the enumeration.** `forEachConnectedSubset` visits only the
+CONNECTED subsets of the fundamental-sharing graph (fundamental i adjacent to j
+when their piece sets intersect). Lossless, not a heuristic: a disconnected
+subset's symmetric difference is a disconnected even subgraph, and
+`traceSimpleCycle` already rejects anything that is not one simple circuit, so
+every subset skipped could only ever have been discarded. On today's catalogue
+the sharing graph has no edges at all, so the walk yields `rank` subsets instead
+of 2^rank - 1:
+
+```
+  rank 12 /  96 pieces      41ms  ->  0.75ms
+  rank 16 / 128 pieces     521ms  ->  0.33ms
+  rank 18 / 144 pieces    2348ms  ->  0.37ms
+  rank 20 / 160 pieces   12289ms  ->  1.65ms
+```
+
+**Part two, the budget, which the review caught.** Part one shipped with a cap
+of 20,000 SUBSETS, and subsets are the wrong axis. A subset costs the total
+length of the fundamentals it selects, and a fundamental is as long as the tree
+path between its closing weld's ends, so cost scales with PIECE count while the
+rank ceiling bounds only rank. Measured on a dense sharing graph built from
+ordinary two-port parts:
+
+```
+  rank 14,  8402 pieces   16,383 subsets, UNDER the 20,000 cap, so nothing
+                          truncated at all: 6905ms and then a normal verdict
+  rank 20,  6302 pieces   capped, but only after spending 8875ms getting there
+```
+
+The first is the worse one: a seven-second frozen tab and no refusal. So the
+budget is now `CYCLE_WORK_BUDGET = 150_000` counted in weld-slots and charged
+BEFORE each subset's work, which makes it independent of layout size:
+
+```
+  analyseCycles on a dense graph    602 pieces 14ms   2102 12ms
+                                   5102 pieces 11ms   8402 20ms
+  a legitimate 10,000-piece layout at rank 20   answered in full, 10ms
+```
+
+Flat in piece count, which is the property that was missing.
+
+**Part three, the trust boundary.** The dense regime was reachable because
+`loadGraph` validated a weld's port RANGE and never its OCCUPANCY, so a stored
+layout could weld the same track end twenty times. Each duplicate becomes
+another closing weld, which inflates the rank AND makes the sharing graph
+dense. Measured end to end before the check existed: a 303,940-byte blob loaded
+with NO discarded sentence and the solve then blocked for 11,058ms, with
+`ErrorBoundary` unable to fire and the key never cleared, so every reload did it
+again. `loadGraph` now refuses the whole layout, the same call it already makes
+for an out-of-range port index, because a weld is a declared intent about two
+specific ends and there is no way to tell which duplicate was meant.
+
+**Part four, the sentence.** Both limits used to report `TOO_MANY_LOOPS` with
+`${rank} independent loops is more than this can rank`, and `verdictAction` then
+advised "Break this into fewer loops". At rank 14 that is simply untrue -- 14 is
+inside the ceiling of 20 -- and the advice points at loops that are not the
+problem. `CycleSpace.truncated` is now `false | 'rank' | 'work'` and the work
+case gets its own reason, `TOO_BIG_TO_CHECK`.
+
+**Part five, the two things that were actually freezing the tab.** Round two
+found that bounding `analyseCycles` had not stopped a large layout freezing,
+because two other things on the same path were unbounded and BOTH ran outside
+every bound added above.
+
+`findVertexClashes` compared all pairs of ports, and it runs before the rank
+ceiling and before `analyseCycles`, on every branch including `rank === 0`. Its
+own `gstack-shortcut(dec-f333f98f)` note said to upgrade "when a layout exceeds
+roughly 500 ports" and nothing enforced it. Measured on 20 clean rings of
+ordinary straights -- every port claimed once, no duplicate weld, catalogue
+parts only, so no guard anywhere objects -- a 1MB stored layout of 10,000
+pieces took 8337ms in that scan alone and still reported "ok". It now groups
+ports by their exact lattice position, which is the replacement that decision
+note already prescribed: 8337ms becomes 16-18ms across runs, and the output is byte-identical
+across 582 fixtures (every catalogue part at both turns as chains and loops,
+400 random soups, the 16xE double circle, the 8L8R tangent pair; 749 clash
+records in all).
+
+`App.tsx` passed a `slop` callback that did `graph.pieces.find(...)`, and
+`giveOfWeld` calls it once per edge, so the solve was O(welds x pieces) at the
+only call site that matters. Clean quadratic -- 23ms at 4,000 pieces rising
+to 1,426ms at 32,000, against 0.4ms and 2.2ms with a Map -- with the budget
+never firing, because the engine prices weld-slots assuming a slot is O(1)
+and a scanning callback breaks that from outside. Both callers now pass a
+Map. (Measured as the lookup mechanism, one call per weld end, which is what
+`App.tsx`'s comment records and what anyone can re-run; an earlier version of
+this paragraph quoted `analyseCycles` timings on a fixture it never named.)
+
+End to end on the same fixture, `solveGraph`:
+
+```
+   1,000 pieces   101ms  ->    8ms
+   5,000 pieces  2332ms  ->   21ms
+  10,000 pieces  9114ms  ->   45ms
+  20,000 pieces      --   ->   86ms
+```
+
+**STILL OPEN, and this is the honest limit of the fix.** Nothing caps
+`pieces.length` or `welds.length` at load, so the remaining cost is linear
+rather than bounded. `solveGraph` also still runs on the synchronous render
+path and still recomputes `placeAll` instead of taking the placement
+`App.tsx` memoized: its own P1, still open.
+
+**CORRECTION, 2026-10-15.** This entry used to end the paragraph above with
+"a layout whose ports genuinely all coincide is still quadratic in the
+coincidences (792ms at 1,000 stacked pieces, which produces 999,000 clash
+records -- work proportional to the answer)". That was true of the grouping
+fix alone, and grouping is exactly why: when every port is at ONE position,
+every port lands in one group and the comparison inside that group is still
+all-pairs. A later commit on this same branch removed it, by reformulating
+the rule per PIECE instead of per pair (`graph/feasible.ts`, which now
+retracts the same phrase in its own comment). MEASURED on this branch at
+1,000 stacked pieces: **2.2ms and 2 records**, against the 792ms and 999,000
+this paragraph claimed. The coincident case is no longer the quadratic
+exception to the fix; there is no quadratic exception left.
+
+**Correctness evidence, and WHERE IT LIVES, which the first version of this
+entry got wrong.** It cited three differential runs -- 33,867 graphs on 6 or
+fewer vertices, 5,054 hostile random graphs, 3,315 graphs comparing `gapMm`,
+`giveMm` and `withinGive` -- as though they were repo artifacts. They were
+review-time measurements made by reviewers in scratch directories and they
+exist nowhere in the tree. Citing them here as evidence was the same defect
+as a mutation comment nobody ran, one level up: a durable document asserting a
+run a reader cannot reproduce.
+
+What IS committed and reproducible:
+
+- `engine/test/cycles.test.ts`, `forEachConnectedSubset` vs a brute-force
+  subset walk over 660 random sharing graphs: identical sets, no duplicates.
+- `sharingGraph`'s five specs, including the shared-piece branch that no
+  catalogue layout can reach.
+- The `analyseCycles`-level spec that loses a real loop (3 cycles become 2)
+  the moment the sharing graph is replaced with zeros.
+
+What was measured during review and is NOT in the tree, recorded as such: the
+three runs above, plus a 582-fixture byte-identical check of
+`findVertexClashes` and a 1,202-set byte-identical check of `sharingGraph`,
+both done at the terminal while changing those two functions. Worth redoing as
+committed differentials; filed below rather than claimed here.
+
+Give is still reduced over each cycle's OWN welds, so T6 is untouched, and
+`closesExactly` comes from residuals rather than the enumeration, so the exact
+verdict never depended on the walk.
+
+**Suite: 446 passing, ZERO skipped.** Three trees, three numbers, because the
+first version of this line conflated two of them: the merge base `0cba762` is
+399 passing with 2 skipped (401 total), the mid-branch commit `11dbfd5` is 405
+passing with none skipped, and HEAD is 446 passing with none skipped. No tree
+has ever had 405 specs with 2 skipped.
+
+**THE REVIEW FOUND MORE IN THE COMMENTS THAN IN THE CODE**, which is this
+repo's recurring defect and the reason the test file now opens with a note
+about it. Four mutation claims I wrote were wrong and all four were caught by
+running them: a reversed `expected false to be true` (really
+`expected true to be false`), a predicted `[ 0, 2 ]` that was `[ 1, 2 ]`, a
+claim that one mutation would HANG when it fails in 9ms, and a failure count of
+four that was really five. A fifth was wrong only because I truncated the
+output. None of them weakened a test; all of them were records a reader is told
+to trust instead of re-running.
+
+**Two coverage holes the review closed.** The sharing graph's edge-finding
+branch was unreachable from the whole suite -- made to throw, all 405 specs
+passed -- and so was `analyseCycles`' USE of it: replacing the adjacency with
+all zeros, the exact "missing edge" false-pass direction, also left everything
+green. Both are now pinned, the second by a theta graph that loses a real loop
+(3 cycles become 2) the moment the wiring breaks. Separately,
+`verdictView.test.ts` claimed to check that every `VerdictKind` is reachable
+while holding a hand-maintained array, which a SUBSET satisfies; adding a kind
+left it green. It is a `Record<VerdictKind, true>` now, so tsc fails instead.
+
+**And one spec of mine that flaked.** The first dense-graph timing specs timed
+the whole `analyse()` -- including `placeAll` over 8402 pieces -- against a
+100ms bound, and failed 2 runs in 8 at 162ms and 100.19ms. They now time
+`analyseCycles` alone against 250ms, which still catches the regression by 27x,
+and 10 consecutive runs are clean.
+
+
+### DONE — The overlap scan was quadratic in coincident ports (P0, fixed 2026-10-15)
+
+**Was:** `findVertexClashes` emitted one record per PAIR of vertices in a
+place, which is C(k,2) when k of them land together. Grouping by exact lattice
+position (earlier the same day) made the SPREAD case linear and did nothing
+here, because when ports coincide the group is the layout.
+
+**It needed no hostile input.** `E` turns 45 degrees, so eight close a circle
+and an open run laps the same EIGHT places. 800 `add` actions through the real
+reducer -- one palette click each -- reached 39,699 records, visible by 200
+clicks. A second route needed no curves at all: a blob with no welds and no
+anchors stacks every piece at the identity, 32KB for 999,000 records.
+
+```
+  lapped run of E     old       new    old records   new records
+    1,000 pieces     48ms       3ms        62,124              8
+    4,000 pieces    825ms       8ms       998,499              8
+    8,000 pieces   5907ms      29ms     3,996,999              8
+
+  pile at identity
+    1,000 pieces    968ms       8ms       999,000              2
+    2,000 pieces   4922ms      16ms     3,998,000              2
+```
+
+`solveGraph` end to end on the 8,000-piece lapped run is 63ms. In the browser a
+446KB layout of 4,000 lapped curves renders a verdict in 333ms.
+
+**Fixed by REFORMULATING the rule, not re-deciding it.** The old rule reported
+a place when either some vertex there was welded, or some pair of pieces had
+free ends in two or more places. The second half is what cost C(k,2), and it
+does not need pairs: two pieces share two all-free places exactly when both
+SPAN the same pair of places, and a piece has two ports, so it spans at most
+one pair. Counting per piece instead of per pair gives the identical answer in
+one linear pass.
+
+**VERIFIED IDENTICAL over 1,088 fixtures** -- every catalogue part at both
+turns as chains and loops of 3/4/8/9/16/17/24 pieces, 700 random soups, lapped
+runs of 9/17/33/64 of every part, piles of 2..60 loose pieces, mixed-part
+piles, the 16xE double circle and the 8L8R tangent pair. The set of reported
+PLACES is identical in all 1,088 and no layout changes verdict.
+
+**A FIRST ATTEMPT WAS WRONG IN BOTH DIRECTIONS AND WAS REVERTED**, which is
+why the differential above is the headline. It read the file's "a third thing
+landing on it is a clash" as covering loose ends and reported any place holding
+three or more vertices: measured, that flipped 84 layouts from fine to
+impossible -- three loose ends meeting at one point, which the product calls an
+invitation. A second attempt classified each place as either welded or free,
+losing 30 places, because a place can hold a welded vertex AND two or more free
+ones, and the old pair walk let the welded pairs become clashes while the
+free-free pairs there still counted toward the pile-up. Both were caught by the
+differential, not by reasoning.
+
+**What changed for the user:** the count is PLACES, not pairs of ends. That is
+forced -- a place can hold n vertices and C(n,2) is quadratic in the input --
+and it is also the right number, because `clashMarkers` already dedupes to one
+marker per place and over 582 of those fixtures the old count disagreed with
+the markers drawn in 142 of the 241 that clash at all. The copy follows it:
+"8 spots have track ends in exactly the same place" rather than "8 pairs of
+track ends land in...". This is the same defect `feasible.ts` records being
+half-fixed once before, when the 16xE double circle said 32 over 8 markers:
+counting vertex pairs matched that case only because each place held exactly
+two vertices. 16xE still reports 8, verified in the browser, and the tangent
+pair still reports 1. The mechanism lives in `feasible.ts`; this entry keeps
+the history.
+
+**Specs:** the lapped run and the pile each have one, asserting the place count
+and a 300ms backstop. The record COUNT is the primary assertion, because
+restoring the pair walk fails it by five orders of magnitude
+(`1000 pieces, 62124 records: expected 62124 to be 8`) long before any clock.
+
+
+## DONE — `solveGraph` computes a second placement instead of accepting the one App.tsx already made (filed by /ship, 2026-10-14)
+
+**DONE (2026-10-24, #55 and #56; #59 then shared the drawing too).** Both
+halves below are done; the heading kept "half" from when only one was.
+
+**`solveGraph` HALF DONE (2026-10-24).** `solveGraph(graph, ports, resolve,
+slop, placement, library?)` takes the placement as a required argument and
+places nothing itself; App.tsx hands it the same `placement` memo the canvas
+draws from, so a clash mark is in the drawing's frame by construction. Spec:
+engine/test/solvePlacement.test.ts.
+
+**`nextRunAnchor` HALF DONE (2026-10-24).** App hands the reducer its
+placement with the graph it is of (`FitGeometry.placed`), and `placementOf`
+in editorReducer.ts uses it when handed that same graph object, else places
+afresh. That covers the unattached add and pick (`nextRunAnchor`), and the
+float, drop and join-refusal checks, which also placed the layout again.
+Measured at 42,000 pieces before the change: `placeAll` 48ms of
+`nextRunAnchor`'s 68ms, the port scan the other 26ms. Spec:
+app/src/reducerPlacement.test.ts.
+
+**DONE 2026-10-24, the rest.** App hands the reducer its `render` with the
+placement, and `solveGraph` takes it too (an optional last argument, drawn
+there only when omitted). `nextRunAnchor` reads the drawn ends instead of
+composing a frame per port, and the drop's wood check reads the drawn
+segments instead of drawing the layout again. Measured at 42,000 loose
+straights: the scan 17.5ms to 1.1ms, `solveGraph` 335ms to 243ms, and each
+drop one `renderGraph` (51ms) fewer. Specs: engine/test/solvePlacement.test.ts,
+app/src/reducerPlacement.test.ts.
+
+**What:** `App.tsx` builds `placement = placeAll(graph, ports)` and passes it to
+`renderGraph`. `solveGraph` does not take it — `solve.ts:90` calls
+`placeAll(graph, ports)` itself. So the canvas draws from placement A and the
+verdict, including `findVertexClashes` whose `at` coordinates `TrackCanvas`
+draws markers at, is computed from placement B.
+
+**Why it matters:** they agree today only because `placeAll` is pure and
+deterministic. Nothing enforces it, and `placeAll` takes an `anchors` third
+parameter defaulting to `graph.anchors`. The moment any caller passes explicit
+anchors to one and not the other, the clash markers land somewhere the drawing
+never drew, and the two modules disagree about where a piece is — which is the
+exact failure T4's single forest was built to make impossible. It also repeats
+the forest and placement work on every edit, plus twice more per delete in
+`captureAnchors`.
+
+**What it costs, MEASURED 2026-10-15** (this entry carried no price when it was
+filed, which is why it sat at P1 without anyone being able to weigh it). On a
+42,000-piece layout, one `placeAll` is the dominant term of a ~191ms
+`solveGraph`, and the per-edit sequence recomputes `portFrame` across three to
+four callers. The duplicate placement is real work, not a theoretical tidy-up.
+
+**A THIRD placement nobody filed: `nextRunAnchor`.** `layoutModel.ts:84` runs
+its own `placeAll` AND then scans every port through `portFrame` to find the
+vertical extent, and `addPiece` calls it whenever a piece does NOT attach
+(`layoutModel.ts:134`, gated on `!attaching && graph.pieces.length > 0`) — that
+is every palette click with nothing selected. MEASURED, as the delta between an
+unattached and an attached add:
+
+```
+   1,000 pieces    1.9ms
+   5,000 pieces    8.9ms
+  20,000 pieces   31.2ms
+  42,000 pieces   58.5ms   (vs 1.1ms for an attached add at the same size)
+```
+
+Linear per click, so O(k·n) across a session: the cost is paid again, in full,
+on every unattached add. At 42,000 pieces an unattached add is ~53x an attached
+one. This is the most expensive thing on the add path and it appears in no other
+entry; the two placements named above are `App.tsx`'s and `captureAnchors`'.
+
+**Fix:** `solveGraph(graph, ports, resolve, slop, placement)` — accept it, do
+not derive it. `App.tsx`'s comment then becomes true by construction rather
+than by convention; it currently says so and is wrong, which is corrected in
+place at `cc89914` pending this. `nextRunAnchor` is a separate half: it needs
+the placement passed in too, and its port scan wants the extent it already
+computed rather than a fresh `portFrame` per port.
+
+**Effort:** human ~1h / CC ~15m for the `solveGraph` half; human ~2h / CC ~20m
+for the `nextRunAnchor` half. **Priority:** P1.
+**Depends on / blocked by:** nothing.
+
+## DONE — A no-op edit counts as consent to overwrite, and an engine throw from a handler is uncatchable (filed by /ship, 2026-10-14)
+
+Two small correctness items from the delta review, both narrow enough to
+defer and both real.
+
+> **DONE 2026-10-22 in PR 1 of `docs/plan/2026-10-22-editing-and-canvas.md`.** Item 1: the graph's
+> acknowledgement is now `EditorState.edited`, set by `reduce` only when the graph changes
+> (suppression.dom.test.tsx, "selecting an end writes nothing"). Item 2 turned out NOT to be a defect
+> for the editor: `dispatch` calls the reducer only inside the `setEditor` updater, React discards a
+> throw from its eager computation and recomputes during render, and the boundary catches it. The
+> planned catch in `dispatch` was built, shown to change nothing, and removed;
+> editFailure.dom.test.tsx pins the real hazard, computing the next state in the handler. Code that
+> calls the engine directly from a pointer handler (drag, PR 4) must still route through `dispatch`.
+
+**1. `setUserHasActed(true)` fires on every dispatch**, including actions the
+reducer turns into no-ops: a click on an already-selected port, `clear` on an
+empty canvas. That flips `lossUnacknowledged` false, the effect dep arrays
+change, and the saves run. A click that changes nothing visible is read as
+consent to overwrite stored bytes. Mitigated but not closed by the `rescued`
+check landed in `d49dd87`: with a rescue copy the original is recoverable, so
+the cost is bounded. **Fix:** set the flag from the reducer's RESULT rather
+than the attempt — only when `reduce` returns a graph that differs from the
+previous one.
+
+**2. A throw out of `placeAll` is only catchable on the render path.** From
+`App.tsx` a React error boundary catches it and the crash screen appears. From
+`graph/edit.ts` through the editor reducer the throw is inside an event
+handler, where boundaries do not catch: console error, frozen UI, no crash
+screen, no repro. Pre-existing and unchanged by this ship; the comment in
+`frames.ts` now says so rather than implying the boundary always catches.
+**Fix:** catch in `dispatch` and re-throw into state so the boundary sees it.
+
+**Effort:** human ~2h / CC ~25m for both. **Priority:** P2.
+**Depends on / blocked by:** nothing.
+
+## DONE — The give bound ignores angular slop entirely, which can make a definite "will not fit" false (filed by /ship's docs audit, 2026-10-14)
+
+**DONE (2026-10-30, PRs #73 and #74).** Angular give is modelled: the bend
+model (`engine/src/graph/bend.ts`, `bendRun.ts`, docs/designs/joint-bend.md)
+solves the smallest worst-joint bend that closes each looped run, crediting
+every joint with a bend limit as well as its stretch (`solveGraph`'s
+`sideOf`, `engine/src/graph/solve.ts`). The axial-only total this entry was
+about no longer decides anything, and the `axial-only-give` disclosure is
+retired because it would now be false (`engine/src/joints/trust.ts`). The
+verdict changed direction with it: it claims closure ("closes with bend")
+rather than a definite non-fit, so the bend figure now has to be no larger
+than real joints manage; see the third entry below for what that rests on.
+
+**What:** `totalGiveMm` (`engine/src/solver/residual.ts:135`) sums
+`axialMaxMm` across joints and nothing else. `angularMaxDeg` is recorded on
+every `Joint` by the schema and is **read nowhere** in `engine/src` or
+`app/src`. Verified by grep: every occurrence is an assignment.
+
+**Why it matters, in the engine's own terms.** The docblock twelve lines above
+that function states the rule: `totalGiveMm` backs a NECESSARY condition, "gap
+exceeds give, therefore this definitely will not fit", and that is "only sound
+if the give figure is an upper bound on the give really available", because
+understating give "would turn the one definite verdict this engine makes into a
+false one, which is the worst failure mode here."
+
+If a joint's angular play contributes real give, then omitting it understates
+the total, `gap > give` fires on layouts that would actually seat, and the
+engine reports IMPOSSIBLE about track that fits. That is the third invariant,
+from the other side: a passing layout styled as a failure.
+
+**Is the contribution real?** Unknown, and that is the point.
+`CALIBRATION.md`'s opening argues the lever arms are on the order of 300mm
+against axial budgets around 1mm, so a small rotation moves a layout's far end
+much further than a pull-apart does. If that holds, the engine is ignoring the
+larger of the two effects. Nobody has measured it; the evidence is "a few
+degrees".
+
+**History:** the minimax LP deleted at decision R21 did model the angular
+budget. Dropping it left `angularMaxDeg` in the schema as a vestige and left
+`CALIBRATION.md` asserting an angular-dominated verdict for a release that had
+stopped computing one. The sheet is corrected; the engine gap is this entry.
+
+**Fix:** either model angular give in the bound (needs the measurement, so it
+is gated on the calibration afternoon), or state in the schema and the verdict
+copy that the bound is axial-only and argue why that is still an upper bound.
+Deleting `angularMaxDeg` is the third option and the worst: it would erase the
+evidence that the question exists.
+
+**Effort:** human ~half a day plus the measurement / CC ~1h once a number
+exists. **Priority:** P1.
+**Depends on / blocked by:** the calibration afternoon (`CALIBRATION.md` Q2).
+
+**Partly addressed 2026-10-19, and NOT closed.** This entry asked for one of
+two fixes: model angular give in the bound, or "state in the schema and the
+verdict copy that the bound is axial-only and argue why that is still an upper
+bound". Tasks X7, T1 and T2 did the stating, in `SlopBudget`'s docblock, in
+`totalGiveMm`'s docblock, in the trust register as the `axial-only-give` kind,
+and in the verdict copy. **The argument was not made, because it cannot be:**
+the eng review of 2026-10-19 established that no measurement is needed to know
+the figure is not an upper bound, since a real term is missing AND the
+per-joint value is `Math.max` of two per-part summaries. So the verdict stopped
+claiming a definite non-fit instead: it now says a gap exceeds the MODELLED
+give. This entry stays open on the modelling half.
+
+## DONE — `HEADING_MISMATCH` refuses layouts on the same unproven bound, one branch before give is considered (filed by /plan-eng-review's outside voice, 2026-10-19)
+
+**DONE (2026-10-30, PR #73).** There is no separate heading gate any more. A
+loop that comes back turned is a walk whose end points the wrong way, and the
+bend model weighs it like any other misfit (`engine/src/graph/bendRun.ts`
+header, eng review D4); the verdict says how far it comes back turned. Pinned
+by `engine/test/analytic.test.ts`, "a loop that comes back turned is weighed by
+the bend, not refused", whose mutation proof restores the old refusal.
+
+**What:** `solveGraph` returns `HEADING_MISMATCH` whenever
+`space.rotationBroken` is true, which it computes from any nonzero
+`headingSteps` on a closing weld. That return happens BEFORE any give
+assessment, so the angular budget is not consulted even in principle. The user
+is told "The track does not come back pointing the right way."
+(`app/src/verdictAction.ts`).
+
+**Why it matters.** Joints rotate. A dozen small rotations distributed around a
+loop can change the accumulated heading, which is exactly what an angular give
+budget would quantify. With no angular bound anywhere in the engine, the
+product treats every nonzero NOMINAL heading mismatch as physically
+uncorrectable. That does not establish that any particular refused layout
+actually seats, but it does mean the refusal rests on the same unproven
+assumption the sibling entry above describes, and it was never disclosed.
+
+**Why it is filed rather than fixed.** The sibling was fixable by removing a
+claim, because "the gap exceeds the modelled allowance" is a true statement the
+arithmetic supports. There is no equivalent true statement here: the engine has
+no modelled heading allowance to compare against, so there is nothing to scope
+the claim to. Saying so needs a derivation of how much accumulated heading
+error distributed joint rotation can absorb, which is geometry plus a measured
+angular figure.
+
+**Found by:** the Codex outside voice during `/plan-eng-review` on 2026-10-19
+(finding OV3), verified natively against `engine/src/graph/solve.ts` and
+`app/src/verdictAction.ts`. The native review had looked only at the `EXCEEDS`
+path and missed this one.
+
+**Fix:** derive the absorbable heading error, then either consult it in
+`solveGraph` before refusing, or scope the refusal's wording the way `EXCEEDS`
+was scoped. Deleting the check is not an option: a heading mismatch is a real
+failure, and most of them will be gross rather than marginal.
+
+**Effort:** human ~2 days including the geometry / CC ~2h once the bound
+exists. **Priority:** P1.
+**Depends on / blocked by:** the calibration afternoon
+(`CALIBRATION.md` Q2) for the angular figure, and a derivation that does not
+exist yet.
+
+## DONE — `Math.max` and `calibrationStatus: 'measured'` do not establish an upper bound, so the give disclosure can retire on evidence that does not support retiring it (filed by /plan-eng-review's outside voice, 2026-10-19)
+
+**DONE (2026-10-30, PRs #73 and #74), by the question turning over.** Both
+halves are gone. (1) A joint now takes the WEAKER side, `Math.min`, in both
+`computeResidual` and the bend model, because the verdict claims closure and
+a joint is only as loose as its tighter half (`engine/src/solver/residual.ts`
+`Joint` docblock, eng review D10); an upper bound is no longer what is
+needed. (2) No caveat retires on `calibrationStatus` any more: the
+`estimated-give` rule is retired, and every verdict that leans on bend carries
+the limits note, which always says where the Generic figure came from: measured,
+"A built loop needed Generic joints to bend …", or estimated
+(`engine/src/joints/bendWords.ts`). What is left is the honest residue, not a
+defect: the inferred figure comes from one loop on one set of track, and the
+note names its source on every verdict rather than going quiet. A Q2
+reading of one joint's bend would replace it (the first entry above).
+
+**What:** two separate gaps in the same chain.
+
+1. `computeResidual` sets each joint's `axialMaxMm` to `Math.max` of the two
+   parts' `slop.axialMm`. Taking the larger of two per-part summaries avoids
+   the smaller estimate; it does not prove that a real peg in a real socket
+   cannot exceed both. The existing docblock argues max over min on contract
+   grounds, which is correct and is a different claim from being an upper
+   bound.
+2. The `estimated-give` trust disclosure is gated on
+   `parts.some((p) => p.slop.calibrationStatus !== 'measured')`. The day task
+   X3 records measured figures, that disclosure retires. But measuring one
+   joint on one afternoon bounds nothing across brands, specimens, or worn
+   track.
+
+**Why it matters.** Together these mean the product can get QUIETER without
+getting more correct: the caveat disappears on the strength of a measurement
+that does not support the conclusion the caveat was protecting. This is a
+sibling of the defect task X7 fixed, inside the very guard X7 split, and the
+native review did not see it.
+
+**Found by:** the Codex outside voice during `/plan-eng-review` on 2026-10-19
+(finding OV4), verified natively against `engine/src/solver/residual.ts`.
+
+**Fix:** X3's verify list now requires a stated measurement scope and an
+aggregation rule that yields a maximum rather than a mean, which blocks the
+naive path at its source. What remains here is the engine half: decide whether
+`axialMaxMm` should carry a derived upper bound rather than a max of
+summaries, and whether `calibrationStatus` is the right gate for retiring a
+soundness caveat at all.
+
+**Effort:** human ~1 day / CC ~2h. **Priority:** P1.
+**Depends on / blocked by:** X3's measurement scope being defined (done, in the
+task body); the engine half depends on what the measurement actually yields.
+
+
+## DONE — `loadGraph` reports a rescue for bytes that were never at risk, on the legacy-chain path (filed by /ship, 2026-10-14)
+
+**DONE (2026-10-27).** `loadGraph` returns `uncopied`: true only when the layout
+key held bytes the load did not keep whole AND the copy aside failed. The graph
+gate reads it in place of `!rescued`. The legacy path reports false (no save
+writes the chain key), and so do the clean and empty loads, by construction now
+rather than by the notice being absent. Pinned in `layoutStore.test.ts`
+(every return path, under a full quota) and `suppression.dom.test.tsx` (an
+old-format load whose copy failed saves on the first edit).
+
+**What:** `loadGraph`'s legacy-blob path returns `rescued: rescue(legacy)`
+while `raw` is null, i.e. `GRAPH_STORAGE_KEY` held nothing. `App.tsx` turns
+that into `noRescueCopy: !graphLoad.rescued`, which gates the graph save.
+
+**The failure:** a user upgrading from the old `generic.chain.v0` format with a
+full quota. The rescue write fails, `noRescueCopy` is true, and graph saves
+are held until an explicit Dismiss -- protecting bytes that do not exist,
+because `saveGraph` writes `GRAPH_STORAGE_KEY` and never touches the chain
+key. They build a track and nothing is saved, behind a banner that only says
+the canvas started empty. That is verbatim the failure `layoutStore.ts`'s own
+docstring calls worse than the bug the gate fixes, now on a third path.
+
+Two of the five return paths (`nothing stored`, and `droppedAnchors === 0`)
+also return `rescued: false` and so set `noRescueCopy` true, but `layoutNotice`
+is undefined on both, so `savesSuppressed` short-circuits first. They are safe
+by accident rather than by construction, which is worth fixing in the same
+pass.
+
+**Fix:** make the flag mean "there were live bytes and we failed to copy them
+aside". Either have `loadGraph` return `rescued: true` on the legacy path's
+success and false only when live bytes could not be copied, or add a
+`hadLiveBytes` field and gate on `discarded !== undefined && !rescued &&
+hadLiveBytes`.
+
+**Effort:** human ~1h / CC ~15m. **Priority:** P1.
+**Depends on / blocked by:** nothing.
+
+## DONE — `droppedAnchors` counts entries, and a valid anchor can lose to a bad one (filed 2026-10-15)
+
+**DONE (2026-10-27).** The loader collects the ids with an unreadable entry in
+a set, and only those with no readable entry anywhere become orphans; the
+count is those pieces plus the entries too broken to name one. Pinned in
+`layoutStore.test.ts` ("one piece named twice…", "…keeps the good one…").
+
+**What:** two small defects in the same loop, both pre-existing and both
+surfaced by the review of the orphan-lane fix.
+
+`droppedAnchors` counts stored ENTRIES, not affected pieces. The anchors field
+is an array out of an untrusted blob and may name an id twice, so two
+unreadable entries for one piece report "2 had unreadable positions" when one
+piece is affected. The notice overstates the loss.
+
+Worse: when an id has BOTH an unreadable entry and a VALID one, the valid
+position is discarded. The good entry is taken into `anchorMap`, then the id
+is in `orphans` regardless, so it is re-laned anyway. Measured: a valid
+`[0,0,0,0,432,0,0,0]` replaced by lane 3. Safe -- no clash results -- but a
+recoverable position is thrown away for no reason.
+
+**Fix:** count `new Set` of affected ids for the notice, and skip the
+provisional lane for any id `anchorMap` already holds a valid frame for.
+
+**Effort:** human ~45m / CC ~10m. **Priority:** P2.
+**Depends on / blocked by:** nothing.
+
+## CLOSED — `captureAnchors` honours a stale anchor on any demoted root, not just orphans (filed 2026-10-15)
+
+**OVERTAKEN (closed 2026-10-27).** Fixed on 2026-10-22 by the codex review of
+the editing plan: `captureAnchors` now takes the measured frame for every
+root and no longer keeps an existing anchor, so a demoted root's leftover
+anchor is never read again. Pinned by `editorReducer.test.ts` "break, rejoin
+by the other end, break: the rejoined half stays where the join put it". Undo
+restores whole graph values, so it never promotes a stale anchor either. Two
+comments that still described the old behaviour (`layoutStore.ts`,
+`editorReducer.ts`) were corrected.
+
+**What:** the orphan-lane fix closed one case of a general problem.
+`weldEnds` appends a weld without touching anchors, so merging two components
+leaves the demoted component's root anchor in place. `clickPort` is the
+user-facing path that does it, and `undo` or a future `breakWeld` is the
+promotion that makes `captureAnchors` read that anchor again.
+
+**Why it is milder than the P0 it resembles:** the stale anchor is a real
+position the component once held, not a manufactured lane, so the measured
+simple case (add, add, add, add, weld, break) reports 0 clashes. It is wrong
+rather than dangerous. But `layoutStore.ts`'s comment that "something does
+read it" applies verbatim to valid non-root anchors too.
+
+**Fix:** have `weldEnds` drop the anchor of any root it demotes, or have
+`captureAnchors` prefer the measured frame for a root whose anchor predates
+its last topology change.
+
+**Effort:** human ~2h / CC ~25m. **Priority:** P2.
+**Depends on / blocked by:** relates to U5, which wires `breakWeld` to the UI
+and makes the promotion path reachable deliberately rather than only via undo.
+
+## DONE — Three interaction routes to the cursor bug have no interactive test (filed by /ship's review, 2026-10-20; done 2026-10-22)
+
+**What:** the reported append bug had five routes to a null cursor. All five are
+closed and pinned in `app/src/editorReducer.test.ts`. Review then showed only
+four are reachable: the non-closing preset needs synthetic input, because every
+shipped preset closes exactly. Of the four, two are pinned only at the reducer,
+by constructing the state and calling `reduce` directly: a weld that consumes
+neither end of the cursor, and disarming. The browser QA run drove disarm and
+reload through the real app.
+
+**Why it matters.** The two defects this repository has actually shipped here
+were both WIRING, not model: eight palette clicks building eight runs because
+each handler read a stale `selected` from its render closure, and a reload
+restoring the graph without a cursor. A reducer spec cannot see either. The
+gap is `vitest.config.ts` collecting `.test.ts` only, in the node environment
+with no DOM, so nothing can dispatch a click; `renderToStaticMarkup` renders
+but cannot fire events. This is task E11, and these three routes are concrete
+cases waiting on it.
+
+**Unblocked 2026-10-22: E11 has landed.** Write these as `app/**/*.dom.test.tsx`
+files in the `dom` project (see `CLAUDE.md`); `app/src/App.dom.test.tsx` shows the
+pattern, mounting `App` in `StrictMode` and driving it with `user-event`.
+
+**Done 2026-10-22**, in `app/src/cursorRoutes.dom.test.tsx`, driving the real App:
+deselecting the end the next piece attaches to, and eight palette clicks
+dispatched from one render (the first shipped defect). Reload is
+`reload.dom.test.tsx`. **One route was not real:** "a weld that consumes neither
+end of the cursor" cannot happen through the UI, because selecting an end also
+moves the cursor there, so a join always consumes it. Trying to drive it found a
+real gap instead: a join that consumed the cursor nulled it even with free ends
+left, and the next piece started a separate run. By the owner's ruling the
+cursor now resumes on the newest free end (`resumeCursor`), as Remove last and a
+reload do; closing the last loop still clears it.
+
+## DONE — The App.tsx wiring pin is a source-text check and wants E11 (filed by /ship's review, 2026-10-20; done 2026-10-22)
+
+**What:** `app/src/editorReducer.test.ts` proves the reload fix is WIRED by
+reading `App.tsx` as text. An adversarial review defeated two earlier versions
+of it (a `.slice(0, 1)` on the ports argument, and a wrapper that dropped the
+cursor after the call); both are closed, and the spec now pins the call's
+position and both arguments as one expression.
+
+**Why it matters.** It still cannot prove the initializer runs, that React
+calls it, or that the ports function it receives is right -- only that those
+exact bytes are present. Every further evasion is another regex. The property
+wants one DOM test that mounts `App` with a stored graph and asserts the cursor
+came back, which is task E11. Until then this pin is the only thing between a
+correct `initialEditor` and a call site that ignores it.
+
+**Unblocked 2026-10-22: E11 has landed.** Seed `localStorage` with a graph before
+`render(<App />)` in a `*.dom.test.tsx`, add a piece, and assert it joined the run;
+then this source-text pin can be retired.
+
+**Done 2026-10-22.** `app/src/reload.dom.test.tsx` saves a three-curve run,
+mounts App in StrictMode, adds a piece and checks it joined the saved run
+("4 pieces, open at both ends", announced as joined to the end of piece 3).
+The source-text pin in `editorReducer.test.ts` is retired. Both mutations it
+recorded were re-run against the mount: a nulled cursor fails the verdict
+check, and a narrowed port list, which the old pin also caught, fails the
+announcement because the piece goes on the wrong end.
+
+**Same treatment for the save-gate wiring, 2026-10-22.** `layoutStore.test.ts`'s
+`describe('the suppression wiring is present in App.tsx')` sliced App.tsx by
+string offsets to check which action set which store's flag. It is replaced by
+`app/src/suppression.dom.test.tsx`: the graph, inventory and submissions stores
+are seeded with losses, App is mounted, and a graph edit, an inventory change
+and a submission must each write only their own blob, with the graph's
+no-rescue-copy exception checked by failing the rescue write. Twenty mutations
+of the wiring were run and every one fails a spec, including the four graph-gate
+mutations that only the text check used to catch.
+
+## DONE — A turned-round piece reads "turning right" in the layout list (filed 2026-10-22; done 2026-10-22)
+
+**What landed:** the editor now puts a piece on whichever way round lets peg
+meet socket (`orientation` in `app/src/layoutModel.ts`). Reported: the M switch
+(socket roads) then an E was "Can't be built", because the E went on by its
+socket start. Now it goes on by its peg, with its stored turn flipped so it
+bends the way the palette button asked along the direction of building; it ends
+exactly where L-then-E does. A piece with no end of the other kind (B, C, B2,
+C2 onto the wrong end) is still refused, honestly.
+
+**What is left:** the graph listing names a piece's bend from its own start
+(`pieceName` in `GraphListing.tsx`). A turned-round E's start is its free far
+end, so it reads "turning right" although the user pressed "Add Large curve"
+(left) and sees it bend left as they build. True in the list's own frame,
+surprising in the user's. Options: name the bend from the end that was joined
+first, or say "turned round" beside it.
+
+**Priority:** P3. No verdict or geometry is wrong; it is wording.
+
+**Done 2026-10-22.** Took the first option. `laidFrom` in `GraphListing.tsx`
+finds the end each piece went on by (its first joint to an earlier-placed
+piece), and a piece that went on by anything but its start is named from that
+end and says so: M then E reads "Piece 2: Large curve (E), turning left, joined
+by its end". A piece that started a run, or went on by its start, reads as
+before. Pinned in `GraphListing.test.ts` through the real reducer.
+
+---
+
+## DONE — Canvas marks keep their screen size (filed by /plan-design-review 2026-10-23)
+
+**DONE (2026-10-24).** Every red fault mark (clash, refused joint, both level
+faults) and the adapter diamond are enlarged by one factor, `markScale` in
+TrackCanvas.tsx, so none is drawn below 0.75px per millimetre; the red strokes
+are non-scaling, 3px on a 5px paper halo (app.css `.red-mark`). DESIGN.md
+rule 11 records the floor. Spec: app/src/markScale.dom.test.tsx.
+
+**What:** Give the red clash mark, the red refused-joint mark and the adapter diamond a minimum
+on-screen size, and the two red marks non-scaling strokes.
+
+**Why:** The canvas shrinks a big board to fit, and these marks are drawn in millimetres, so they
+thin and shrink to dots (DESIGN.md rule 11), exactly where a fault or an adapter is hardest to find.
+
+**Pros:** Every mark stays findable at any zoom, on one consistent scale.
+
+**Cons:** Touches three marks and their specs; the size floor needs the measured pixels-per-mm,
+which exists only after layout (`shown.pxPerMm` in TrackCanvas).
+
+**Context:** Found in the design review of docs/plan/2026-10-23-socket-adapter.md (D11, D12). The
+adapter diamond's stroke is non-scaling since that review (7A); its size and both red marks are not.
+
+**Effort:** human S / CC S
+**Priority:** P2
+**Depends on:** nothing
+
+
+## DONE — Say "from a newer version" for an unknown part (filed by /plan-eng-review, 2026-11-03)
+
+**Done 2026-11-04.** The saved-layout notice names the part, says it may come from a newer version and to reload before changing anything; a test shows the older load leaves the stored layout untouched and the newer one reads it whole. Share links already said to reload (linkWords.ts).
+
+**What:** When a saved layout or share link names a part this copy of the app doesn't know, say it may come from a newer version and suggest reloading, instead of "Your saved track used a part the library no longer has".
+
+**Why:** Decorated pieces add new part ids often; someone with a cached app who opens a friend's link is told the part was removed when they only need to reload.
+
+**Pros:** a clear next step; the refusal itself stays. **Cons:** one message and one test.
+
+**Context:** app/src/layoutStore.ts:347 (refusal) and :560 (wording). From docs/plan/2026-11-03-next-parts-ceo-review.md, eng D11.
+
+**Effort:** human S / CC S
+**Priority:** P3
+**Depends on:** nothing
+
