@@ -3032,7 +3032,9 @@ adapter diamond's stroke is non-scaling since that review (7A); its size and bot
 **Priority:** P2
 **Depends on:** the reach measurement
 
-## P3 — Say "from a newer version" for an unknown part (filed by /plan-eng-review, 2026-11-03)
+## DONE — Say "from a newer version" for an unknown part (filed by /plan-eng-review, 2026-11-03)
+
+**Done 2026-11-04.** The saved-layout notice names the part, says it may come from a newer version and to reload before changing anything; a test shows the older load leaves the stored layout untouched and the newer one reads it whole. Share links already said to reload (linkWords.ts).
 
 **What:** When a saved layout or share link names a part this copy of the app doesn't know, say it may come from a newer version and suggest reloading, instead of "Your saved track used a part the library no longer has".
 
