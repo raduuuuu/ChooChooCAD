@@ -68,10 +68,11 @@ import {
   type EditorAction,
   type EditorState,
 } from './editorReducer.js';
-import { holdsOwnLayout, loadGraph, partialLoadNotice, saveGraph, savesSuppressed, storedGraphOf } from './layoutStore.js';
+import { dropRescueCopy, holdsOwnLayout, loadGraph, partialLoadNotice, rescueCopy, saveGraph, savesSuppressed, storedGraphOf } from './layoutStore.js';
+import { downloadBytes } from './downloadBytes.js';
 import { PutAsideNotice } from './PutAsideNotice.js';
 import { ShareControl } from './ShareControl.js';
-import { saveFailureNotice, type SavedStore } from './saveNotice.js';
+import { rescueCopyLine, saveFailureNotice, type SavedStore } from './saveNotice.js';
 import { bridgeNotesOf, buildingClashSentence, buildingWord, tunnelNotesOf, viewOf } from './verdictView.js';
 import { SYSTEM_NAME, centrelineRadiusMm, codeOf, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
 import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
@@ -572,11 +573,22 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
   }, []);
   // Dismissing hides THIS sentence; another store failing changes it, and it shows again.
   const [unsavedDismissed, setUnsavedDismissed] = useState<string | undefined>(undefined);
+  /*
+   * THE RESCUE COPY, WHILE A SAVE FAILS (P2, "The rescue copy can fail on a
+   * full storage"). It may be what fills the storage, so the notice offers it:
+   * Download first, and only then Remove. Removing it re-runs every save
+   * (`saveRetry`), so the notice goes as soon as there is room.
+   *
+   *   save fails ─▶ notice + rescue line ─▶ [Download it] ─▶ [Remove it] ─▶ saves re-run
+   */
+  const stuckRescue = unsavedNotice !== undefined ? rescueCopy() : null;
+  const [rescueDownloaded, setRescueDownloaded] = useState(false);
+  const [saveRetry, setSaveRetry] = useState(0);
 
   useEffect(() => {
     if (submissionsSaveBlocked) return;
     saved('submissions', saveSubmissions(submissions) || submissions.length === 0);
-  }, [submissions, submissionsSaveBlocked, saved]);
+  }, [submissions, submissionsSaveBlocked, saved, saveRetry]);
 
   /*
    * On a whole-layout refusal an unguarded save wrote `EMPTY_GRAPH` over an
@@ -596,17 +608,17 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     const ok = saveGraph(graph);
     if (ok) layoutWritten.current = true;
     saved('layout', ok || graph.pieces.length === 0);
-  }, [graph, graphSaveBlocked, staleTab, screen.saveLayout, saved]);
+  }, [graph, graphSaveBlocked, staleTab, screen.saveLayout, saved, saveRetry]);
 
   useEffect(() => {
     if (inventorySaveBlocked) return;
     saved('inventory', saveInventory(inventory));
-  }, [inventory, inventorySaveBlocked, saved]);
+  }, [inventory, inventorySaveBlocked, saved, saveRetry]);
 
   useEffect(() => {
     if (tableSaveBlocked) return;
     saved('table', saveTable(table));
-  }, [table, tableSaveBlocked, saved]);
+  }, [table, tableSaveBlocked, saved, saveRetry]);
 
   const ports = useMemo(
     () => (piece: GPiece): readonly Port[] => portsOf(resolve(piece.partId), piece.turn),
@@ -1940,6 +1952,33 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         <div className="notice" role="status" aria-live="polite" aria-atomic="false">
           <div>
             <p className="notice-line">{unsavedNotice}</p>
+            {stuckRescue !== null && (
+              <>
+                <p className="notice-line">{rescueCopyLine(stuckRescue.length)}</p>
+                <div className="put-aside-buttons">
+                  <button
+                    className="put-aside-button"
+                    onClick={() => {
+                      downloadBytes(stuckRescue, 'choochoocad-unreadable-layout.json');
+                      setRescueDownloaded(true);
+                    }}
+                  >
+                    Download it
+                  </button>
+                  {rescueDownloaded && (
+                    <button
+                      className="put-aside-button"
+                      onClick={() => {
+                        dropRescueCopy();
+                        setSaveRetry((n) => n + 1);
+                      }}
+                    >
+                      Remove it
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
           <button className="notice-close" onClick={() => setUnsavedDismissed(unsavedNotice)}>
             Dismiss

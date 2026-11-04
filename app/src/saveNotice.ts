@@ -34,3 +34,17 @@ export function saveFailureNotice(failed: ReadonlySet<SavedStore>): string | und
     'Private browsing and a full browser storage both cause this.'
   );
 }
+
+/**
+ * The second sentence when a save fails and a rescue copy is stored (P2, "The
+ * rescue copy can fail on a full storage"). The copy may be what fills the
+ * storage, and it is bytes the user may want back, so it is offered as a file
+ * before it can be removed. Sizes are in KB, rounded up: never "0 KB".
+ */
+export function rescueCopyLine(chars: number): string {
+  const kb = Math.max(1, Math.ceil(chars / 1024));
+  return (
+    `This browser also keeps a copy of a layout it could not read earlier (${kb} KB), in case you want it back. ` +
+    'Download it, then remove it here to make room.'
+  );
+}
