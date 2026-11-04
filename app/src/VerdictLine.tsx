@@ -318,17 +318,6 @@ function AdapterNote({ n, unmarked }: { n: number; unmarked: number }) {
   );
 }
 
-/**
- * THE RAISED-TRACK NOTE (two-layer plan, L3 and design decision 3A). Never
- * truncated, like the adapter note: it is a green verdict's only word on what
- * was NOT checked, and folding it into "and 1 more note" would claim more
- * than was checked (DESIGN.md rule 3). Supports whenever any track is
- * raised; the clearance figure, with the numbers it is made of, only where
- * raised track crosses floor track. Only the train's height is called an
- * estimate, and only until it is measured: the rise and the plank are
- * published (rampSeeds.ts `CLEARANCE`).
- * Every number in the number face (rule 4).
- */
 /** A bridge that track passes under, for its clearance sentence (design DD5). */
 export interface BridgeNote {
   /** The bridge's name, as the sentence says it: "stone arch bridge". */
@@ -342,46 +331,70 @@ export interface BridgeNote {
 }
 
 /**
- * THE CLEARANCE UNDER A BRIDGE (design DD5): the opening, less the track
- * under it and the tallest train. When the train does not fit it is said in
- * the fail register, in words with the X (rule 2); the layout's verdict is
+ * WHETHER THE TRAIN PASSES UNDER (design DD5; app-focus review 2026-11-04,
+ * CEO D2, eng D1 and D2): one sentence for every opening a train runs
+ * under, a bridge's arch, a tunnel's vault or plain raised track. The margin
+ * is the opening less the track under it and the tallest train, and it is
+ * judged UNROUNDED: rounding first let -0.2mm read as "about 0mm to spare".
+ * At 0mm or less the roof touches, so it is said in the fail register, in
+ * words with the X (rule 2), as "may not pass": the wheels ride 3mm down in
+ * the grooves, which calibration F2 will measure. The layout's verdict is
  * unchanged, since the layout can be built and only the train cannot pass.
+ * Every number in the number face (rule 4).
  */
-function BridgeClearance({ note }: { note: BridgeNote }) {
-  const { plankMm, trainMm, trainMeasured } = CLEARANCE;
-  const opening = Math.round(note.clearanceMm);
-  const spare = Math.round(note.clearanceMm - plankMm - trainMm);
-  const estimate = (note.estimated ? ' The opening is an estimate.' : '') + (trainMeasured ? '' : " The train's height is an estimate.");
-  if (spare < 0) {
+function TrainFit({ under, openingMm, estimate }: { under: ReactNode; openingMm: number; estimate: string }) {
+  const { plankMm, trainMm } = CLEARANCE;
+  const opening = Math.round(openingMm);
+  const margin = openingMm - plankMm - trainMm;
+  if (margin <= 0) {
     return (
       <p className="verdict-raised verdict-fail">
-        <span aria-hidden="true">X </span>Your <span className="num">{trainMm}</span>mm train won&rsquo;t fit under the {note.name}{' '}
-        (piece <span className="num">{note.piece}</span>): <span className="num">{opening}</span>mm opening.{estimate}
+        <span aria-hidden="true">X </span>Your <span className="num">{trainMm}</span>mm train may not pass under {under}:{' '}
+        <span className="num">{opening}</span>mm opening.{estimate}
       </p>
     );
   }
   return (
     <p className="verdict-raised">
-      Under the {note.name} (piece <span className="num">{note.piece}</span>): about <span className="num">{spare}</span>mm to spare (
+      Under {under}: about <span className="num">{Math.round(margin)}</span>mm to spare (
       <span className="num">{opening}</span>mm opening, <span className="num">{plankMm}</span>mm track, <span className="num">{trainMm}</span>mm train).{estimate}
     </p>
   );
 }
 
-function RaisedNote({ bridges }: { bridges: number }) {
-  const { riseMm, plankMm, trainMm, trainMeasured } = CLEARANCE;
+const trainEstimate = () => (CLEARANCE.trainMeasured ? '' : " The train's height is an estimate.");
+
+function BridgeClearance({ note }: { note: BridgeNote }) {
   return (
-    <p className="verdict-raised">
-      Raised track: supports are not checked.
+    <TrainFit
+      under={<>the {note.name} (piece <span className="num">{note.piece}</span>)</>}
+      openingMm={note.clearanceMm}
+      estimate={(note.estimated ? ' The opening is an estimate.' : '') + trainEstimate()}
+    />
+  );
+}
+
+/**
+ * THE RAISED-TRACK NOTE (two-layer plan, L3 and design decision 3A). Never
+ * truncated, like the adapter note: it is a green verdict's only word on what
+ * was NOT checked, and folding it into "and 1 more note" would claim more
+ * than was checked (DESIGN.md rule 3). Supports whenever any track is
+ * raised; where plain raised track crosses floor track, whether the train
+ * passes under it, through the bridges' sentence: the opening is the rise,
+ * floor to the raised plank's underside (rampSeeds.ts `CLEARANCE`).
+ */
+function RaisedNote({ bridges }: { bridges: number }) {
+  return (
+    <>
+      <p className="verdict-raised">Raised track: supports are not checked.</p>
       {bridges > 0 && (
-        <>
-          {' '}It crosses other track at <span className="num">{bridges}</span> {bridges === 1 ? 'place' : 'places'};
-          clearance is about <span className="num">{riseMm - plankMm - trainMm}</span>mm (
-          <span className="num">{riseMm}</span>mm rise, <span className="num">{plankMm}</span>mm plank,{' '}
-          <span className="num">{trainMm}</span>mm train){trainMeasured ? '.' : <>; the train&rsquo;s height is an estimate.</>}
-        </>
+        <TrainFit
+          under={<>raised track (<span className="num">{bridges}</span> {bridges === 1 ? 'place' : 'places'})</>}
+          openingMm={CLEARANCE.riseMm}
+          estimate={trainEstimate()}
+        />
       )}
-    </p>
+    </>
   );
 }
 

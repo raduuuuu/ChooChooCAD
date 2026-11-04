@@ -91,31 +91,54 @@ describe('raised track on a verdict that works (3A, 4A)', () => {
    *   supports an…'`.
    * - `raisedOf` returning null: the same, to contain `'Raised track:
    *   supports are not checke…'`.
-   * - the note back to calling the whole figure "estimated": the same, to
-   *   contain `'44mm train); the train’s height is an…'` (before the train
-   *   was measured).
    * - the train back to unmeasured (`vehicleHeightMm: null` in
-   *   measurements.ts): `expected 'OThis works. Closes exactly, no give …' to
-   *   match /crosses other track at 2 places; clea…/`.
+   *   measurements.ts): `expected 'OThis works. Closes exactly,
+   *   no give …' to contain 'X Your 55mm train may not pass under …'` (44mm
+   *   leaves 5mm to spare).
    *
-   * THE CLEARANCE IS NEGATIVE AND THE NOTE DOES NOT WARN YET. -6mm is the
-   * measured result (CALIBRATION.md Q5: 61 rise, from the owner's 73mm ramp
-   * top on 2026-11-03, - 12 plank - 55 train from 2026-10-30).
-   * MUTATION PROOF, run: `riseMm: null` (back to the published 64) fails
-   * with `expected 'OThis works. Closes exactly, no give …' to match
-   * /crosses other track at 2 places; clea…/`. A per-train warning is filed in docs/plan/generic-TODOS.md ("A 55mm
-   * train may not fit under a one-level bridge"); this pins today's wording.
+   * THE TRAIN MAY NOT PASS (app-focus review 2026-11-04, CEO D2, eng D1):
+   * 61mm rise (the owner's 73mm ramp top, 2026-11-03) - 12 plank - 55 train
+   * (2026-10-30) is -6mm, said in the bridges' fail sentence, with the
+   * verdict unchanged (DD5).
+   * - `RaisedNote` without the crossing sentence: `expected 'OThis works.
+   *   Closes exactly, no give …' to contain 'X Your 55mm train may not pass
+   *   under …'`.
    */
   it('says what was not checked, past a long notes list, and never "Build it"', () => {
     const out = verdict(view({ kind: 'EXACT', gapKnown: true, raised: true, bridgeCount: 2 }), { trust: FIVE });
+    expect(out).toMatch(/^OThis works\./);
     expect(out).toContain('Raised track: supports are not checked.');
-    expect(out).toMatch(/crosses other track at 2 places; clearance is about -6mm/);
+    expect(out).toContain('X Your 55mm train may not pass under raised track (2 places): 61mm opening.');
     // The train is measured now (Q5), so nothing in the figure is called a guess.
-    expect(out).toContain('55mm train).');
     expect(out).not.toContain('height is an estimate');
-    expect(out).not.toContain('), estimated.');
     expect(out).toContain('The track fits. Check the supports and the clearance under each bridge before you build.');
     expect(out).not.toContain('Build it.');
+  });
+
+  it('with no crossing, raised track says only that supports are not checked', () => {
+    const out = verdict(view({ kind: 'EXACT', gapKnown: true, raised: true, bridgeCount: 0 }));
+    expect(out).toContain('Raised track: supports are not checked.');
+    expect(out).not.toMatch(/may not pass|to spare/);
+  });
+
+  /*
+   * MUTATION PROOFS, run:
+   * - the X no longer aria-hidden: `expected '<div class="verdict verdict-pass"
+   *   rol…' to match /<span aria-hidden="true">X <…/span>Your`.
+   * - a bridge piece also counted as a plain crossing is the engine's job
+   *   (structures are left out of `bridges`, solve.ts); here, each sentence
+   *   is said once: the bridges listed twice in `notesFor`
+   *   fails with `expected [ …(2) ] to have a length of 1 but got 2`.
+   */
+  it('a bridge piece and a plain crossing each keep their own sentence, the X silent', () => {
+    const html = renderToStaticMarkup(createElement(VerdictLine, {
+      view: view({ kind: 'EXACT', gapKnown: true, raised: true, bridgeCount: 1 }),
+      bridgeNotes: [{ name: 'stone arch bridge', piece: 3, clearanceMm: 69.2 }],
+    }));
+    const out = text(html);
+    expect(out.match(/may not pass under raised track \(1 place\): 61mm opening\./g)).toHaveLength(1);
+    expect(out.match(/Under the stone arch bridge \(piece 3\): about 2mm to spare/g)).toHaveLength(1);
+    expect(html).toMatch(/<span aria-hidden="true">X <\/span>Your/);
   });
 
   it('a flat layout keeps its action and gets no note', () => {

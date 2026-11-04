@@ -12,27 +12,6 @@ as written.
 **2026-11-04:** finished entries moved word for word to `docs/plan/TODOS-archive.md`;
 only open work stays here (/plan-ceo-review 2026-11-04, app-focus review, docs/plan/2026-11-04-app-focus-review.md).
 
-## P1 — Raised track over floor track shows a negative clearance with no warning (was: A 55mm train may not fit under a one-level bridge)
-
-**2026-11-04 (D2, raised to P1) (/plan-ceo-review 2026-11-04, app-focus review, docs/plan/2026-11-04-app-focus-review.md):** the floor test landed: rise 61 (measurements.ts q5), so RaisedNote (app/src/VerdictLine.tsx:371-383) prints "clearance is about −6mm" as a plain note, while the bridge pieces already warn. Warn now, like the bridge pieces, with "may not pass"; calibration F2 (push the train under) refines the figure later.
-
-**Also (2026-10-31, /plan-ceo-review D6):** once the train is measured, draw its
-clearance in the 3D viewer as a faint box along floor track that passes under
-raised track. Deferred because an estimated height drawn solid looks measured.
-
-**What:** The floor readings (CALIBRATION.md Q5) give 64mm rise - 12mm plank -
-55mm train = -3mm clearance. Push the 55mm train under a real bridge on its
-supports first: wheels ride in 3mm grooves, so the real gap may be a few mm
-larger than the formula. Then make the clearance note per-train, with a warning
-when a train will not pass.
-**Why:** Once the readings land, the bridge note reads "clearance is about -3mm"
-with no warning, so a user can plan a bridge their train cannot pass.
-**Pros:** Turns a measured problem into a clear warning. **Cons:** Needs train
-heights per user, not one number.
-**Context:** Left out of the joint-bend design by owner decision (docs/designs/joint-bend.md,
-Premise 3). `CLEARANCE` in engine/data/rampSeeds.ts; Q5 in `bun run calibration`.
-**Depends on:** the floor test.
-
 ## P2 — The ramp measures 225mm on the floor, not 216 (filed by /plan-eng-review 2026-10-30)
 
 **What:** Re-measure the ramp N's run flat on the floor, end face to end face. If

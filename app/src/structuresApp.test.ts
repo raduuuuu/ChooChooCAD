@@ -352,6 +352,10 @@ describe('the tunnel straight in words, flat and in 3D (plan T5, eng D7, D10)', 
     const html = renderToStaticMarkup(createElement(VerdictLine, { view: viewOf(solveGraph(g, ports, resolve, () => 0, placement, undefined, r.segments, r.bodies)), bridgeNotes: notes }))
       .replace(/<[^>]+>/g, '').replace(/&#x27;|&rsquo;|’/g, "'");
     expect(html).toContain('Under the tunnel straight (piece 2): about 13mm to spare (80mm opening, 12mm track, 55mm train).');
+    // A lower vault says it the bridges' way, in the fail register (eng D1).
+    const low = renderToStaticMarkup(createElement(VerdictLine, { view: viewOf(solveGraph(g, ports, resolve, () => 0, placement, undefined, r.segments, r.bodies)), bridgeNotes: [{ ...notes[0]!, clearanceMm: 60 }] }))
+      .replace(/<[^>]+>/g, '').replace(/&#x27;|&rsquo;|’/g, "'");
+    expect(low).toContain('Your 55mm train may not pass under the tunnel straight (piece 2): 60mm opening.');
   });
 
   it('its card draws the two walls as slabs and the roof as a roof', () => {
@@ -474,7 +478,29 @@ describe('the clearance under a bridge (bridges design DD5)', () => {
    */
   it('says the room to spare, and says plainly when the train will not fit', () => {
     expect(text(69.2)).toContain('Under the stone arch bridge (piece 1): about 2mm to spare (69mm opening, 12mm track, 55mm train).');
-    expect(text(60)).toContain("Your 55mm train won't fit under the stone arch bridge (piece 1): 60mm opening.");
+    expect(text(60)).toContain("Your 55mm train may not pass under the stone arch bridge (piece 1): 60mm opening.");
+  });
+
+  /*
+   * THE MARGIN IS JUDGED UNROUNDED, AND 0MM DOES NOT PASS (app-focus review
+   * 2026-11-04, eng D2 and the outside voice's rounding finding): 66.8 is
+   * -0.2mm, 67 touches, 67.3 clears by 0.3 (shown as about 0mm, but it does
+   * clear), 67.6 by 0.6.
+   * MUTATION PROOFS, run:
+   * - the margin rounded before it is judged: `expected '?Not a loop yet. 1 piece,
+   *   open at bot…' to contain 'Under the stone arch bridge (piece 1)…'`
+   *   (+0.3 rounds to 0 and warns).
+   * - `margin < 0` in place of `<= 0`: `expected '?Not a loop yet. 1 piece, open
+   *   at bot…' to contain 'Your 55mm train may not pass under th…'`.
+   * - "won't fit" restored: seven specs fail, e.g. `expected '?Not a loop
+   *   yet. 1 piece, open at bot…' to contain 'Your 55mm train may not pass
+   *   under th…'`.
+   */
+  it('a margin just under or at zero may not pass; just over it clears', () => {
+    expect(text(66.8)).toContain('Your 55mm train may not pass under the stone arch bridge (piece 1): 67mm opening.');
+    expect(text(67)).toContain('Your 55mm train may not pass under the stone arch bridge (piece 1): 67mm opening.');
+    expect(text(67.3)).toContain('Under the stone arch bridge (piece 1): about 0mm to spare (67mm opening, 12mm track, 55mm train).');
+    expect(text(67.6)).toContain('Under the stone arch bridge (piece 1): about 1mm to spare (68mm opening, 12mm track, 55mm train).');
   });
 });
 
@@ -491,7 +517,7 @@ describe('the harbour arch bridge in words, and every bridge in its own bounds (
     const r = renderGraph(g, ports, resolve, placement);
     const html = renderToStaticMarkup(createElement(VerdictLine, { view: viewOf(solveGraph(g, ports, resolve, () => 0, placement, undefined, r.segments, r.bodies)), bridgeNotes: notes }))
       .replace(/<[^>]+>/g, '').replace(/&#x27;|&rsquo;|’/g, "'");
-    expect(html).toContain("Your 55mm train won't fit under the harbour arch bridge (piece 1): 61mm opening.");
+    expect(html).toContain("Your 55mm train may not pass under the harbour arch bridge (piece 1): 61mm opening.");
   });
 
   /*
@@ -560,7 +586,7 @@ describe('the suspension bridge in 3D and in words (bridges plan B-T6)', () => {
   /*
    * MUTATION PROOF, run: `estimated` ignored by the sentence fails with
    * `expected '?Not a loop yet. 1 piece, open at bot…' to contain 'Your 55mm
-   * train won\'t fit under the …'`.
+   * train won\'t fit under the …'` (before "may not pass", 2026-11-04).
    */
   it('says when the opening under a bridge is an estimate', () => {
     const g: Graph = { pieces: [{ pieceId: 'p', partId: 'SB', turn: 'left' }], welds: [] };
@@ -569,6 +595,6 @@ describe('the suspension bridge in 3D and in words (bridges plan B-T6)', () => {
     const view = viewOf(solveGraph(g, ports, resolve, () => 0, placement, undefined, r.segments, r.bodies));
     const html = renderToStaticMarkup(createElement(VerdictLine, { view, bridgeNotes: [{ name: 'suspension bridge', piece: 1, clearanceMm: 61, estimated: true }] }))
       .replace(/<[^>]+>/g, '').replace(/&#x27;|&rsquo;|’/g, "'");
-    expect(html).toContain("Your 55mm train won't fit under the suspension bridge (piece 1): 61mm opening. The opening is an estimate.");
+    expect(html).toContain("Your 55mm train may not pass under the suspension bridge (piece 1): 61mm opening. The opening is an estimate.");
   });
 });
