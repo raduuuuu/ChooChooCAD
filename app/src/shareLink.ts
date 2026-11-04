@@ -190,6 +190,15 @@ export async function decodeLink(fragment: string): Promise<LinkResult> {
   const stored = storedOf(parsed);
   if (stored === null) return { ok: false, reason: 'malformed' };
   if ((stored as { pieces: unknown[] }).pieces.length > LINK_MAX_PIECES) return { ok: false, reason: 'too-many-pieces' };
+  return graphOfStored(stored);
+}
+
+/**
+ * A layout in its SAVED shape, judged as a link judges it: the built-in
+ * catalogue only, and no guessed positions. The link's last step, and how a
+ * downloaded backup (layoutFile.ts) becomes a link.
+ */
+export function graphOfStored(stored: unknown): LinkResult {
   const checked = checkStored(stored, catalogueIds, cataloguePorts);
   if (!checked.ok) {
     return checked.reason === 'unknown-part'
