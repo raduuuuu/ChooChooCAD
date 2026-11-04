@@ -30,6 +30,7 @@ import {
   levelOf,
   norm16,
   opposed,
+  portsOf,
   type Frame,
   type Graph,
   type Piece,
@@ -834,6 +835,16 @@ export function flipPiece(
     ...graph,
     pieces: graph.pieces.map((p) => (p.pieceId === pieceId ? { ...p, turn: p.turn === 'right' ? 'left' : 'right' } : p)),
   };
+  const refused = newlyHit(graph, flipped, ports, pieceId, geometry);
+  return refused === null ? { graph: flipped, refused: null } : { graph, refused };
+}
+
+/**
+ * Why `next`, the same layout with one piece re-dressed, is refused: its
+ * decoration would lie over a piece it did not touch in `graph`, named by
+ * number with the decoration's own noun (design 4A); null when it is clear.
+ */
+function newlyHit(graph: Graph, next: Graph, ports: PortsOf, pieceId: string, geometry: FitGeometry): string | null {
   const touching = (g: Graph) => {
     const placed = placeAll(g, ports);
     return new Set(
@@ -842,13 +853,60 @@ export function flipPiece(
     );
   };
   const before = touching(graph);
-  const hit = [...touching(flipped)].find((other) => !before.has(other));
-  if (hit !== undefined) {
-    const n = graph.pieces.findIndex((p) => p.pieceId === hit) + 1;
-    const noun = part.decorBody?.find((b) => b.solid && b.noun)?.noun ?? 'decoration';
-    return { graph, refused: `its ${noun} would sit on piece ${n}` };
-  }
-  return { graph: flipped, refused: null };
+  const hit = [...touching(next)].find((other) => !before.has(other));
+  if (hit === undefined) return null;
+  const n = graph.pieces.findIndex((p) => p.pieceId === hit) + 1;
+  const part = geometry.resolve(next.pieces.find((p) => p.pieceId === pieceId)!.partId);
+  const noun = part.decorBody?.find((b) => b.solid && b.noun)?.noun ?? 'decoration';
+  return `its ${noun} would sit on piece ${n}`;
+}
+
+/**
+ * WHETHER TWO PARTS JOIN ALIKE (decorated-pieces CEO E8, outside voice O1):
+ * the same ends, either way up, and the same plank, so swapping one for the
+ * other keeps every joint and the layout's shape. Read off the RESOLVED
+ * parts: a stored correction of a base whose ends differ from the built-in
+ * one its decorated version was made from hides the swap.
+ */
+export function joinsAlike(a: Part, b: Part): boolean {
+  const ends = (p: Part) => JSON.stringify([portsOf(p, 'left'), portsOf(p, 'right'), p.plankWidthMm]);
+  return ends(a) === ends(b);
+}
+
+/**
+ * WHAT A PLACED PIECE CAN BE SWAPPED FOR (CEO E8, design 3A): a plain piece,
+ * its decorated versions; a decorated piece, its plain base, then the base's
+ * other versions. Only parts that join alike are offered.
+ */
+export function swapsOf(part: Part, library: readonly Part[], resolve: (id: string) => Part): readonly Part[] {
+  const baseId = part.decoratedFrom ?? part.id;
+  const versions = library.filter((p) => p.decoratedFrom === baseId && p.id !== part.id);
+  const options = part.decoratedFrom === undefined ? versions : [resolve(baseId), ...versions];
+  return options.filter((p) => joinsAlike(part, p));
+}
+
+/**
+ * SWAP A PLACED PIECE FOR A VERSION OF IT (CEO E8, design 3A/4A): the piece
+ * keeps its id, its place and its joints, and takes the other part id.
+ * Refused, like a flip, when the new decoration would lie over other track;
+ * not done at all between parts that do not join alike.
+ */
+export function swapPiece(
+  graph: Graph,
+  ports: PortsOf,
+  pieceId: string,
+  partId: string,
+  geometry: FitGeometry,
+): { graph: Graph; refused: string | null } {
+  const piece = graph.pieces.find((p) => p.pieceId === pieceId);
+  if (!piece || piece.partId === partId) return { graph, refused: null };
+  const from = geometry.resolve(piece.partId);
+  const to = geometry.resolve(partId);
+  const related = from.decoratedFrom === to.id || to.decoratedFrom === from.id || (from.decoratedFrom !== undefined && from.decoratedFrom === to.decoratedFrom);
+  if (!related || !joinsAlike(from, to)) return { graph, refused: null };
+  const swapped: Graph = { ...graph, pieces: graph.pieces.map((p) => (p.pieceId === pieceId ? { ...p, partId } : p)) };
+  const refused = newlyHit(graph, swapped, ports, pieceId, geometry);
+  return refused === null ? { graph: swapped, refused: null } : { graph, refused };
 }
 
 /**

@@ -739,7 +739,7 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
   - Surfaced by: G2 (D7)
   - Files: engine/data/decoratedSeeds.ts, app/src/VerdictLine.tsx, app/src/verdictView.ts
   - Verify: fits / doesn't fit / estimated sentences
-- [ ] **T6 (P2, human: ~4h / CC: ~20min)** — app — Swap plain and decorated (E8), checked against the resolved library (O1)
+- [x] **T6 (P2, human: ~4h / CC: ~20min)** — app — Swap plain and decorated (E8), checked against the resolved library (O1)
   - Surfaced by: O1; CEO D6
   - Files: app/src/editorReducer.ts, app/src/App.tsx
   - Verify: dom test; corrected base hides the swap; 670-layout swap differential, closure identical
@@ -827,7 +827,7 @@ declined. Calibrated against DESIGN.md rules 7, 10 and 11.
   - Surfaced by: decisions 1, 2
   - Files: app/src/App.tsx, app/src/app.css
   - Verify: dom test: heading lists decorated cards; card label sentence; tooltip
-- [ ] **D-T2 (P1, human: ~4h / CC: ~20min)** — app — Swap buttons, refusal and announcement
+- [x] **D-T2 (P1, human: ~4h / CC: ~20min)** — app — Swap buttons, refusal and announcement
   - Surfaced by: decisions 3, 4; carried announcement
   - Files: app/src/App.tsx, app/src/editorReducer.ts
   - Verify: dom test: "Make it a Station straight", "Make it plain", hidden with no version, refusal names the piece, announcement, undo
