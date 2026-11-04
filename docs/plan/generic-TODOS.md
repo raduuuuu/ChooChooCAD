@@ -983,6 +983,12 @@ entry lands there. What remains here is the CHECK that raised track stands on a
 ramp, station or pier. Deferred because the safe unsupported span is an
 unmeasured guess; trigger: a measured span length, and piers shipped.
 
+**2026-11-04 update:** the supports shipped (track support TS, riser RS, the
+three bridges). The span is asked as calibration sheet F4: the largest clear
+gap between two supports that two medium straights, joined in the middle,
+cross with the joint dipping 2mm or less and a train passing by hand. The
+check waits for that figure.
+
 **What:** Support and riser parts in the catalogue, a requirement that elevated
 runs be supported, and pier footprints participating in the same-level overlap
 test so a pier landing on lower track is a short.
