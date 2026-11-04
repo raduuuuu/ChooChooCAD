@@ -131,7 +131,7 @@ fine, no usage signal               shelved, analytics queued          (ramp, be
   - Surfaced by: D2; `VerdictLine.tsx:371-383`
   - Files: `app/src/VerdictLine.tsx`, its tests
   - Verify: a layout with a raised crossing and the 61mm rise shows the warning; a positive clearance shows none; mutation run per the project's rule
-- [ ] **T2 (P1, human: ~3h / CC: ~20min)**: README: describe the app as it ships; fix the trademark line
+- [x] **T2 (P1, human: ~3h / CC: ~20min)**: README: describe the app as it ships; fix the trademark line
   - Surfaced by: D3; `README.md:117-125`, `README.md:207`
   - Files: `README.md`
   - Verify: every claim checked against the app; no maker named
