@@ -19,7 +19,7 @@ export const LINK_FRAGMENT = /^#v(\d+)\./;
  */
 
 /** The GoatCounter site code, public (the NAME in NAME.goatcounter.com). Empty: no counter. */
-export const GOATCOUNTER_CODE = '';
+export const GOATCOUNTER_CODE = 'raduuuuu';
 
 /** The path a visit is counted under: `/shared-link` for any shared layout, else the page's path. */
 export function countedPath(hash: string, pathname: string): string {

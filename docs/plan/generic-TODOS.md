@@ -1077,7 +1077,7 @@ Measurement and method: `.gstack/qa-reports/20261020T163029Z-split-cursor/`.
 
 ## P2 — Wire the approved analytics (D8, 2026-11-04)
 
-**2026-11-04, built (branch analytics), waiting for the site code:** `app/public/count.js` (the reviewed copy, sha-pinned), `countedPath`/`counterPath`/`counterTag` in app/src/linkFragment.ts, inserted by main.tsx in production only. `GOATCOUNTER_CODE` is empty, so no counter runs until the owner creates the GoatCounter site and its public code is set there.
+**2026-11-04, built (branch analytics), site code set (`raduuuuu`):** `app/public/count.js` (the reviewed copy, sha-pinned), `countedPath`/`counterPath`/`counterTag` in app/src/linkFragment.ts, inserted by main.tsx in production only. `GOATCOUNTER_CODE` is `raduuuuu`. Left: after the deploy, open the GoatCounter dashboard and confirm visits arrive, and that a shared link shows as `/shared-link`.
 
 
 **What:** wire the privacy-friendly page counter exactly as approved on 2026-11-01 (docs/plan/2026-11-01-editing-tjunction-analytics.md); no other tracking.
