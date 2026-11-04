@@ -2,7 +2,7 @@
  * Reading and writing the layout graph.
  *
  * Same discipline as the chain loader it replaces: a blob that does not parse,
- * or that names a part the library no longer has, is DISCARDED WHOLE and the
+ * or that names a part the library does not have, is DISCARDED WHOLE and the
  * user is told. Repairing it would change the layout's geometry without
  * saying so, and dropping one piece out of the middle of a loop changes its
  * shape.
@@ -557,8 +557,12 @@ export function loadGraph(
     if (!checked.ok) {
       return refuse(
         checked.reason === 'unknown-part'
-          ? `Your saved track used a part the library no longer has (${checked.partId}), ` +
-              'so the whole layout was cleared. Dropping one piece would have changed its shape.'
+          ? // Reload is safe advice: nothing is saved over the stored layout
+            // until the user edits or dismisses (`savesSuppressed`), and a
+            // newer version that knows the part loads it whole (eng D11).
+            `Your saved track uses a part this version of ChooChooCAD doesn't have (${checked.partId}). ` +
+              'It may come from a newer version: reload the page before changing anything, and your track should come back. ' +
+              'The canvas started empty because dropping one piece would have changed its shape.'
           : DISCARDED,
       );
     }

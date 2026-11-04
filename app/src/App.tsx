@@ -122,7 +122,7 @@ import './app.css';
  *
  * The chain loader and saver that lived here are gone with the chain. Their
  * replacement is `layoutStore.ts`, which keeps the same discipline: a blob
- * that does not parse, or that names a part the library no longer has, is
+ * that does not parse, or that names a part the library does not have, is
  * DISCARDED WHOLE and the user is told, because repairing it would change the
  * layout's geometry without saying so.
  *

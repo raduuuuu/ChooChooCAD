@@ -164,7 +164,35 @@ describe('whole-layout refusals', () => {
   it('an unknown partId names the part, because a generic message is not actionable', () => {
     const r = load(blob({ pieces: [{ pieceId: 'a', partId: 'NOPE' }], welds: [] }));
     expect(r.discarded).toContain('NOPE');
-    expect(r.discarded).toContain('no longer has');
+  });
+
+  /*
+   * A NEWER PART IN AN OLDER APP (eng D11): a layout saved with the station
+   * straight, opened by a cached copy that predates it, is told to reload,
+   * and the reload works: the older load writes nothing over the stored
+   * layout, and the newer one reads it whole.
+   *
+   * MUTATION PROOF, run:
+   * - the old "no longer has" sentence back: `expected 'Your saved track used
+   *   a part the libr…' to contain 'newer version: reload the page before…'`.
+   * - the refusal saving EMPTY_GRAPH over the live key: `expected
+   *   '{"pieces":[],"welds":[],"anchors":[]}' to be '{"pieces":[{"pieceId":"a",
+   *   "partId":"S…'`.
+   * The app's own save waiting for an edit or Dismiss is suppression.dom.test.tsx.
+   */
+  it('a part from a newer version says reload, and the reload brings the track back', () => {
+    const saved = JSON.stringify({ pieces: [{ pieceId: 'a', partId: 'SS' }], welds: [] });
+    const older = new Set([...KNOWN].filter((id) => id !== 'SS'));
+    withStore({ [GRAPH_STORAGE_KEY]: saved }, (store) => {
+      const r = loadGraph(older, ports);
+      expect(r.value.pieces).toHaveLength(0);
+      expect(r.discarded).toContain('(SS)');
+      expect(r.discarded).toContain('newer version: reload the page before changing anything');
+      expect(store.get(GRAPH_STORAGE_KEY)).toBe(saved);
+      const newer = loadGraph(KNOWN, ports);
+      expect(newer.discarded).toBeUndefined();
+      expect(newer.value.pieces.map((p) => p.partId)).toEqual(['SS']);
+    });
   });
 
   it('a valid blob round-trips through saveGraph unchanged', () => {
