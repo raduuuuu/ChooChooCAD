@@ -1637,6 +1637,8 @@
    */
   .palette-controls > button { grid-column: span 2; font-size: 14px; }
   .palette-controls .inventory-hint { grid-column: span 6; }
+  /* Save and Open share their row half and half: "Open a layout file" does not fit a third. */
+  .layout-file > button { grid-column: span 3; }
 }
 
 /*

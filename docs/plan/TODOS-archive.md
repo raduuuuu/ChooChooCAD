@@ -89,3 +89,24 @@ than letting it compete for the live budget.
 **Effort:** human ~2h / CC ~30m. **Priority:** P1.
 **Depends on / blocked by:** nothing.
 
+
+## DONE 2026-11-04 — Layout file when a link is too long (deferred by /plan-ceo-review D4, 2026-10-31)
+
+**DONE 2026-11-04 (branch layout-file).** "Save to a file" (once there is a layout) downloads `layout.choochoo`, holding the link's own `v1.…` string, checked by the decoder first. "Open a layout file" reads a `.choochoo` file, a pasted fragment or whole link, or a downloaded `.json` backup (the storage-full and rescue-copy downloads), and opens it through the address, which is the pasted-link road: saves flushed or the link held, the read-only view, its exits. Same decoder and caps as a link; a refusal is one sentence (`FILE_REFUSED`). The storage-full warning no longer says these files can't be opened. Left: drop on the canvas (new P3). Specs: app/src/layoutFile.test.ts, app/src/layoutFile.dom.test.tsx. Differs from the design doc in one way: the address carries the fragment after opening, as a pasted link's does.
+
+**What:** a `.choochoo` text file holding the same `v1.` share string, offered
+by Share when the link is too long, opened with "Open a layout file" or by
+dropping it on the canvas. It opens the same read-only view, goes through the
+same pure decoder and caps, and follows the link's storage rules.
+**Why deferred:** nobody has measured whether real layouts make links too long.
+The share wave measures the presets and the largest corpus layouts first.
+**Trigger:** a measured preset or corpus layout over the chosen link threshold,
+or a user who can't share a layout, or a user restoring a "Download a copy"
+backup (eng review D36: the storage-full warning downloads raw bytes that only
+this feature can open again).
+**Spec:** docs/designs/share-and-polish.md, step 3 "Layout file".
+**Effort:** human ~1 day / CC ~30 min
+**Priority:** P2
+
+---
+

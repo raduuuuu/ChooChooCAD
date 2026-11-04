@@ -214,23 +214,11 @@ docs/plan/2026-11-04-partnership-pitch.md.
 
 ---
 
-## P2 — Layout file when a link is too long (deferred by /plan-ceo-review D4, 2026-10-31)
+## P3 — Drop a layout file on the canvas (left from the layout-file P2, 2026-11-04)
 
-**What:** a `.choochoo` text file holding the same `v1.` share string, offered
-by Share when the link is too long, opened with "Open a layout file" or by
-dropping it on the canvas. It opens the same read-only view, goes through the
-same pure decoder and caps, and follows the link's storage rules.
-**Why deferred:** nobody has measured whether real layouts make links too long.
-The share wave measures the presets and the largest corpus layouts first.
-**Trigger:** a measured preset or corpus layout over the chosen link threshold,
-or a user who can't share a layout, or a user restoring a "Download a copy"
-backup (eng review D36: the storage-full warning downloads raw bytes that only
-this feature can open again).
-**Spec:** docs/designs/share-and-polish.md, step 3 "Layout file".
-**Effort:** human ~1 day / CC ~30 min
-**Priority:** P2
-
----
+**What:** dropping a `.choochoo` file or a downloaded `.json` backup on the canvas opens it, as "Open a layout file" does (`LayoutFileControls.tsx`, `fragmentOfFile`).
+**Why:** the design doc names drop as the second way in; the picker shipped first because it is the one every device has.
+**Effort:** human ~1h / CC ~15m. **Priority:** P3. **Depends on:** nothing.
 
 ## P3 — Backend: library, publish, moderation, auth
 

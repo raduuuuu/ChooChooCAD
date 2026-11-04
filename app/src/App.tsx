@@ -70,6 +70,7 @@ import {
 } from './editorReducer.js';
 import { dropRescueCopy, holdsOwnLayout, loadGraph, partialLoadNotice, rescueCopy, saveGraph, savesSuppressed, storedGraphOf } from './layoutStore.js';
 import { downloadBytes } from './downloadBytes.js';
+import { LayoutFileControls } from './LayoutFileControls.js';
 import { PutAsideNotice } from './PutAsideNotice.js';
 import { ShareControl } from './ShareControl.js';
 import { rescueCopyLine, saveFailureNotice, type SavedStore } from './saveNotice.js';
@@ -925,7 +926,8 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
    * says so.
    */
   const corrected = useMemo(() => new Set(submissions.map((s) => s.part.id).filter((id) => BUILT_IN_IDS.has(id))), [submissions]);
-  const shareIt = <ShareControl graph={graph} usesCorrections={graph.pieces.some((p) => corrected.has(p.partId))} announce={setSaid} />;
+  const usesCorrections = graph.pieces.some((p) => corrected.has(p.partId));
+  const shareIt = <ShareControl graph={graph} usesCorrections={usesCorrections} announce={setSaid} />;
   // Shown by the 3D panel only while there is a view to reset (design review FINDING-005).
   const resetButton = (
     <button className="view-reset" onClick={() => setResetSignal((n) => n + 1)}>
@@ -2163,6 +2165,8 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             </button>
           ))}
         </div>
+
+        <LayoutFileControls graph={graph} usesCorrections={usesCorrections} announce={setSaid} />
 
         {/*
           * The inventory invitation appears only once a layout EXISTS (D10). On a

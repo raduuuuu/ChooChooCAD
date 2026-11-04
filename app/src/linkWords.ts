@@ -65,7 +65,7 @@ export const discardQuestion = (pieces: number | null) =>
     : `Discard the put-aside layout (${piecesWord(pieces)})? This can't be undone.`;
 export const RESTORE_FAILED = "Storage is full, so your layouts couldn't be swapped. Both are as they were.";
 export const STRANDED =
-  "Storage is full, so your previous layout is only in this tab now. Download a copy to keep it safe. ChooChooCAD can't open these files yet, so keep this tab open until you've freed some space.";
+  'Storage is full, so your previous layout is only in this tab now. Download a copy to keep it safe: Open a layout file brings it back.';
 export const RESTORE_WAITS = "Restore waits until your changes are saved.";
 export const STALE_TAB = 'This layout was changed in another tab. Reload to see the latest.';
 
@@ -92,3 +92,37 @@ export const SHARE_REFUSED: Record<LinkRefusal, string> = {
   malformed: SHARE_FAILED,
   invalid: SHARE_FAILED,
 };
+
+/*
+ * A LAYOUT FILE (layoutFile.ts). Opening says what a link would, about a file;
+ * saving says what Share would, about a file.
+ */
+const FILE_UNREADABLE = "This file isn't a layout ChooChooCAD can open.";
+const FILE_TOO_BIG = 'This layout is too big for a file: files carry 500 pieces at most.';
+export const FILE_REFUSED: Record<LinkRefusal, string> = {
+  version: 'This file was made by a newer ChooChooCAD. Reloading usually fixes this.',
+  'unknown-part': "This file uses a piece this version of ChooChooCAD doesn't have, or one added in another browser.",
+  'old-browser': "This browser can't open layout files. Updating it should fix this.",
+  'too-long': FILE_TOO_BIG,
+  'too-large': FILE_TOO_BIG,
+  'too-many-pieces': FILE_TOO_BIG,
+  'bad-encoding': FILE_UNREADABLE,
+  corrupt: FILE_UNREADABLE,
+  malformed: FILE_UNREADABLE,
+  invalid: FILE_UNREADABLE,
+};
+const SAVE_FAILED = "This layout couldn't be saved to a file.";
+export const FILE_SAVE_REFUSED: Record<LinkRefusal, string> = {
+  'unknown-part': "This layout uses a part you added, and a file can only carry the catalogue's parts.",
+  'old-browser': 'Saving to a file needs a newer browser.',
+  'too-long': FILE_TOO_BIG,
+  'too-large': FILE_TOO_BIG,
+  'too-many-pieces': FILE_TOO_BIG,
+  version: SAVE_FAILED,
+  'bad-encoding': SAVE_FAILED,
+  corrupt: SAVE_FAILED,
+  malformed: SAVE_FAILED,
+  invalid: SAVE_FAILED,
+};
+export const FILE_USES_CORRECTIONS = 'The file uses standard part sizes; your corrected sizes stay with you.';
+export const FILE_SAVED = 'Saved to a file.';
