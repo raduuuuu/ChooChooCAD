@@ -1,30 +1,73 @@
 # ChooChooCAD
 
-MVP of the engine for a Generic wooden-track layout designer. Answers one question
-no existing tool answers: **will this layout actually work?**
+A layout designer for wooden toy-train track that answers one question no
+other tool answers: **will this layout actually work?** Live at
+[woodentrain.world](https://woodentrain.world).
 
 ```
-bun install        # once
-bun run dev        # the UI, at http://localhost:5173
-bun run test       # the whole suite, nothing skipped
-bun try.ts         # one layout from the command line; edit PIECES at the top
+bun install          # once
+bun run dev          # the app, at http://localhost:5173
+bun run test         # the whole suite, nothing skipped
+bun run typecheck    # strict, must be clean
+bun run build        # the production build, rooted at app/
+bun run calibration  # what your floor measurements change
+bun try.ts           # one layout from the command line; edit PIECES at the top
 ```
 
-## What this MVP proves
+## What it does
 
-The engine is two stages, and the split is the whole idea.
+- **Design on a canvas.** Drag pieces from the palette onto free ends, move
+  and rotate whole runs, undo and redo. Switches, crossings, buffer stops and
+  several loops in one layout all work.
+- **A verdict on every change.** One line says whether the layout works, and
+  why:
 
-**Stage 1, exact.** Every Generic heading is a multiple of 22.5 degrees and every
-straight length is a whole number of millimetres, so every reachable pose is an
-exact element of `Z[zeta16]`, the 16th cyclotomic integers. The closure residual
-of a layout is therefore an exact algebraic constant and "does this loop close"
-is an integer equality test. No floating point, no convergence, no NaN.
+  ```
+    O    This works.        closes; nothing needs forcing
+    /\   Tight.             closes only by using the joints' give; may well seat, not a promise
+    X    Beyond / Can't     needs more bend than has been tested, or can't be built
+                            (track overlaps, ends that don't join, a level out of reach)
+    ?    Could not check    never shown as a pass
+  ```
 
-That matters because the usual framing is wrong. It is often said that
-45-degree curves make loop closure impossible, since diagonals come out as
-multiples of sqrt(2). They do, but closure is a decidable Diophantine condition,
-not an impossibility: an element `a + b*sqrt2` is zero only when `a` and `b` are
-both zero, so exact closures exist and the tests find them.
+- **Two levels.** Ramps lift track one level; bridges, risers and a track
+  support carry it. Track crossing underneath is checked, and the verdict says
+  when your train may not pass under raised track, a bridge or a tunnel.
+- **Decorated pieces.** A station straight, a tunnel straight and a level
+  crossing work exactly like their plain pieces and can be swapped in place.
+- **See it in 3D**, raised level, bridges and decoration included.
+- **Build mode.** Step through the layout piece by piece, with a pull list of
+  what to take out of the box.
+- **What you own.** Count your pieces; the palette marks what you would run
+  out of, and the layout says what it is short of.
+- **Add or correct a piece** you have measured yourself; your figure outranks
+  anything shipped.
+- **Share a layout** as a link; it opens read-only, on a phone too.
+
+Phones get a read-only view; editing needs a screen at least 620px wide.
+
+## The pieces and their sizes
+
+The main system, "Generic", uses the published sizes of the common wooden
+track. Two other systems sit on shelves of their own because they differ
+physically: **Small-peg** track has smaller pegs and holes and does not plug
+into Generic, and **Look-alike** track is sold as compatible but nobody has
+confirmed it. Their sizes come from 3D-print reproductions and say so.
+
+Every size records where it came from, and the verdict says when an answer
+rests on a size nobody has measured. Pieces checked against a real one carry a
+measured mark.
+
+## How the check works
+
+**Stage 1, exact.** Every heading is a multiple of 22.5 degrees and every
+straight is a whole number of millimetres, so every position a piece can reach
+is an exact element of `Z[zeta16]`, the 16th cyclotomic integers. Whether a
+loop closes is an integer equality test: no floating point, no tolerance, no
+NaN. It is often said that 45-degree curves make closure impossible because
+diagonals come out as multiples of sqrt(2). They do, but an element
+`a + b*sqrt2` is zero only when `a` and `b` are both zero, so exact closures
+exist and the tests find them.
 
 ```
 8 x E (radius 182, 45 deg)       residual exactly 0
@@ -33,177 +76,79 @@ both zero, so exact closures exist and the tests find them.
 4E + D + 4E + A                  residual exactly 72mm  (216 - 144)
 ```
 
-**Stage 2, a bound, not an allocation.** Generic's Vario System is deliberate give
-in every joint, so when a loop does not close exactly the remaining question is
-whether the joints can absorb the gap. This reports a **necessary condition**:
+**Stage 2, what the joints can give.** Wooden track has deliberate play in
+every joint. When a loop does not close exactly, the check asks whether the
+joints can take up the gap, by stretching and by bending:
 
 ```
-  gap  <=  sum of every joint's give      ->  it MIGHT fit
-  gap  >   sum of every joint's give      ->  it definitely does NOT fit
+  gap  within what the joints are known to give   ->  it MIGHT fit
+  gap  beyond it                                  ->  not promised: past what has been tested
 ```
 
-That is all the available data supports, and the verdict says so. It never
-claims the gap *will* be absorbed, only that it is not ruled out.
+It never claims the gap *will* be absorbed, only that it is not ruled out. An
+earlier per-joint optimiser was deleted on purpose: it flipped a user-visible
+verdict depending on which piece was listed first, and its precision rested on
+guessed tolerances. A bound over all the joints cannot depend on their order.
 
-There used to be a Chebyshev minimax linear program here that allocated the gap
-joint by joint and reported a per-joint ratio. It was deleted, deliberately,
-and the reasons are worth recording because they were measured rather than felt:
+## What is not checked, or not measured yet
 
-- Every defect ever found in this engine lived in it. It returned a hard failure
-  on buildable 321-piece layouts, blocked for 4.6 seconds at 641 pieces,
-  exhausted its refinement budget from 21 pieces onward, and **flipped a
-  user-visible verdict between "won't fit" and "tight" depending on which piece
-  happened to be listed first** at 42 pieces.
-- Its precision was manufactured. It sliced a ratio at 0.8 using tolerances this
-  very repository labels `estimated`. A threshold on a guess.
-- Deleting it removed about 350 lines, took the failure taxonomy from eight
-  reasons to three, and left the engine with **no runtime dependencies at all**.
+- **Supports.** Raised track is not checked for a support under it; the
+  verdict says so on every raised layout.
+- **The joints.** Joint stretch is measured (2mm, pulled apart). The bend
+  limit is inferred from one loop of one set that closed and carried a train;
+  a direct reading would replace it.
+- **The ramp.** It is modelled 216mm long; one floor reading said 225.
+- **The train.** Clearances use one 55mm train, the owner's tallest. Under
+  raised track it leaves about -6mm, and the verdict says the train may not
+  pass.
+- **Large layouts.** The bound grows with the number of joints, so on a very
+  large layout "might fit" says little.
 
-What was lost is real: the tool can no longer say *which* joint is the problem.
-That returns when the tolerances are measured rather than guessed, which is what
-`CALIBRATION.md` exists to do.
+The open readings are on the printable calibration sheet
+(`docs/calibration-sheet.html`, every question with a drawing), and
+`bun run calibration` shows what each answer changes. What is planned is in
+`docs/plan/generic-TODOS.md`.
 
-One property came for free. The bound is a sum over joints, and addition does
-not care about order, so the gauge dependence that made the old solver
-contradict itself is now **impossible rather than merely small**. The test
-asserts it exactly, at every cut point, with no tolerance.
-
-```
-measured, same fixtures, before and after the deletion
-  n=321   hard failure, 2323ms   ->   ok, 0.8ms
-  n=641   4629ms                 ->   1.4ms
-  42-piece gauge sweep: verdict flipped   ->   one verdict, one gap, every cut
-```
-
-## The UI
-
-Desktop editor. Click palette pieces to append them to the chain; the circular
-arrow on a curve adds it turning right. Three presets load the known cases.
-
-Hierarchy is deliberate and in this order: the canvas dominates, then one
-unmistakable verdict line, then the palette. No sidebar and no toolbar strip:
-navigation will be full-screen modes you enter and leave, because the canvas is
-meant to dominate. A card appears only where the card IS the interaction, which
-on this screen means palette pieces and nothing else.
-
-**There are no per-joint glyphs.** There used to be, on four channels (colour,
-shape, a ratio on hover, and a dotted ring when the tolerance was unmeasured),
-and it was the best accessibility work in this project. It is gone because the
-solver that produced per-joint ratios is gone: with nothing to say about an
-individual joint, drawing a marker on each one would assert that each was
-checked. The four channels come back with per-joint allocation.
-
-The layout verdict has four states and the middle one is deliberately hedged:
-
-```
-  O   EXACT        closes exactly, no give needed anywhere
-  /\  NEEDS GIVE   gap is inside the total give; may well seat, not a promise
-  X   EXCEEDS      gap is larger than the total give; definitely will not fit
-  ?   UNKNOWN      could not be checked. NEVER rendered as a pass
-```
-
-SVG rather than a canvas library, for now. The engine is single-cycle and there
-is no drag yet, so nothing needs a scene graph; SVG gives exact arcs, native
-dotted strokes for the estimated-tolerance channel, and it prints legibly in
-greyscale, which the build sheet will need. A real canvas layer becomes the
-right call when drag-and-drop and large layouts arrive.
-
-Styling lives entirely in `app/src/tokens.css` and is PROVISIONAL. A researched
-design system is separate work; these tokens exist so the first screen is not
-assembled from browser defaults.
-
-## What this MVP does NOT do
-
-- **No drag-and-drop.** Pieces append and remove from the end of the chain,
-  because the engine models a chain. Free placement needs arbitrary topology.
-- **Single cycle only.** A layout is a chain, optionally closed. Switches create
-  multiple cycles sharing joints, which needs a coupled solve over a full cycle
-  basis. Not here.
-- **No traversal checker.** Connectivity, grade and under-bridge clearance are
-  designed but unbuilt, so the verdict line has only one axis today. Its shape
-  already accounts for a second one.
-- **No inventory, no 3D, no build mode, no library.**
-- **The settle is partial.** Joint glyphs transition with a stagger that
-  propagates outward from the changed piece, which is the intent. The track path
-  itself does not morph; that needs the real canvas layer.
-- **Phone is refused, not degraded.** Under 620px the editor says to use a
-  larger screen rather than cramming a track editor into 375px.
-
-## The numbers are not measured
-
-Every slop budget in `engine/data/generic.ts` is `calibrationStatus: 'estimated'`.
-Nobody has put calipers on real track. They are plausible placeholders
-(0.8mm axial, 1.5 degrees angular) and they must be fitted against a physical
-corpus of built-and-measured layouts, split into a calibration set and a
-never-fitted validation set, before any verdict is shown to a user as confident.
-
-Until then every verdict the engine produces is arithmetic on a guess. The
-schema carries the status field and `evaluateLayout` surfaces it in its reasons
-for exactly this reason.
-
-The same applies to `VEHICLE.heightMm` and `maxGradePercent`.
-
-## Known limitations, measured not guessed
-
-**The bound is weak at scale, by construction.** Give accumulates with joint
-count while the gap does not, so a 641-piece layout with a 54mm gap has 512mm of
-give and sits comfortably inside the bound. That is correct and nearly
-uninformative. Being inside the bound means the gap *could* fit if any joint
-could absorb any share of it, which the geometry does not guarantee.
-
-**Every tolerance is still a guess.** See below.
-
-**A layout that crosses itself is still blessed.** Sixteen large curves traverse
-the same circle twice and report `EXACT`, because nothing checks whether two
-pieces occupy the same floor. The overlap check is specified and unbuilt.
-
-## Layout
+## Where things are
 
 ```
 engine/
-  data/generic.ts              part data + vehicle scalars, all 'estimated'
-  data/sources.ts           published figures + citations the catalogue is checked against
-  src/parts/schema.ts       multi-brand parametric schema, continuous heightMm
-  src/geom/cyclotomic.ts    exact Z[zeta16] arithmetic
-  src/geom/pose.ts          exact forward kinematics
-  src/solver/residual.ts    stage 1: exact residual + per-joint give
-  src/solver/result.ts      stage 2: the bound; SolveResult union, finiteness assert
-  src/geom/fk.ts            float walker + drawable segments, shared
-  src/joints/evaluate.ts    the ONE shared LAYOUT predicate
-  test/analytic.test.ts     known-answer fixtures + solver contract properties
-  test/sources.test.ts      the one place generic.ts is compared against sources.ts
-  test/render.test.ts       SVG arc centres, so arcs cannot silently bow wrong
+  data/            the pieces, where each size came from, and the owner's measurements
+  src/geom/        exact Z[zeta16] arithmetic and the piece walker
+  src/graph/       layouts as graphs: placement, closure, overlaps, levels, bends, build steps
+  src/joints/      the give bound and what a verdict is worth (trust notes)
+  src/view3d/      the 3D meshes, decoration included
+  tools/           calibration and the measure-from-a-photo tools
 app/
-  src/App.tsx               layout-as-home shell
-  src/TrackCanvas.tsx       SVG track + four-channel joint glyphs
-  src/VerdictLine.tsx       grey-is-not-green, names the axis
-  src/tokens.css            PROVISIONAL tokens
+  src/App.tsx            the editor
+  src/TrackCanvas.tsx    the SVG canvas
+  src/VerdictLine.tsx    the verdict and its notes
+  src/Viewer3D.tsx       the 3D view
+  src/BuildMode.tsx      build mode
+  src/tokens.css         every colour, type and spacing value (the rules are in DESIGN.md)
+docs/
+  calibration-sheet.html, and plan/: plans, reviews, the TODO list and its archive
 ```
-
-`evaluateLayout` is deliberately the only place a verdict is computed. The
-verdict line renders it; build mode and the diagnostics panel will too. None
-recomputes it. Independent implementations drift, and the visible symptom of
-drift is the product contradicting itself.
 
 ## Licence, and what it does and does not cover
 
 The source code is MIT licensed. See `LICENSE`.
 
 **The MIT grant covers the code, not the part data.** Part dimensions in
-`engine/data/` are transcribed from the published track guide and
-Track Math pages. Individual measurements of physical objects are facts, but a
-curated compilation of them may be protected, and that question is open. It was
-filed as a pre-launch item before this went public and is still unresolved, so
-the MIT licence should not be read as a grant over that compilation: it is not
-mine to give until the question is settled or the figures are re-derived from
-physical measurement.
+`engine/data/` are partly transcribed from a published track guide's tables.
+Individual measurements of physical objects are facts, but a curated
+compilation of them may be protected, and that question is open. It is not
+mine to grant until it is settled or the figures are re-derived from physical
+measurement.
 
-If you are the maintainer of the published guide and object to this use, open an
-issue and I will take the data down.
+If you maintain that guide and object to this use, open an issue and I will
+take the data down.
 
 The self-hosted IBM Plex fonts are SIL Open Font License 1.1, and both notices
 ship with the build at `/fonts/`.
 
-Generic is a live trademark of Generic AB. This project is not affiliated with,
-endorsed by, or connected to Generic. The name `woodentrain.world` is descriptive
-and deliberately does not reference the trademark.
+Wooden toy-train track is made by several companies, and their names are
+trademarks of their owners. This project is not affiliated with, endorsed by
+or connected to any of them, and names none of them. "Generic", "Small-peg"
+and "Look-alike" describe kinds of track, not brands. The name
+`woodentrain.world` is descriptive.
