@@ -14,7 +14,7 @@
  *   right  disp = r * ( sin(h) - sin(h-th),  cos(h-th) - cos(h) )   h -= th
  */
 
-import { centrelineRadiusMm, type Layout, type Part } from '../parts/schema.js';
+import { centrelineRadiusMm, type DrawnShape, type Layout, type Part } from '../parts/schema.js';
 import { refuseMultiRoad } from './pose.js';
 
 export interface Slop {
@@ -76,9 +76,9 @@ export interface Segment {
     readonly topMm: number;
     readonly solid: boolean;
     readonly noun?: string;
-    /** False for a box that only collides; a vault draws itself instead (eng D10). */
+    /** False for a box that only collides; a shape with its own drawing draws itself instead (eng D10). */
     readonly draw: boolean;
-    readonly vault?: { readonly widthMm: number; readonly wallMm: number; readonly springMm: number };
+    readonly shape?: DrawnShape;
   };
   /**
    * A bridge's road (bridges plan, eng D9): the measured top-surface heights

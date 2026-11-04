@@ -176,7 +176,7 @@ export function renderGraph(
               decor: {
                 floorLevel: levelOf(frame), bottomMm: box.bottomMm, topMm: box.topMm, solid: box.solid, draw: box.draw,
                 ...(box.noun ? { noun: box.noun } : {}),
-                ...(box.vault ? { vault: box.vault } : {}),
+                ...(box.shape ? { shape: box.shape } : {}),
               },
             }
           : {}),

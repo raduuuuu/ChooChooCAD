@@ -21,6 +21,7 @@
  */
 
 import type { BlockPart, DimensionSource, SlopBudget, StraightPart } from '../src/parts/schema.js';
+import { CLEARANCE } from './rampSeeds.js';
 
 const ESTIMATED_SLOP: SlopBudget = { axialMm: 0.8, angularDeg: 1.5, calibrationStatus: 'estimated' };
 
@@ -103,15 +104,23 @@ const printed = (what: string): DimensionSource => ({
 /**
  * A riser leg: 8mm square, at a corner of the 58mm deck, 25mm either side of
  * the road. In 3D (riser plan 2026-11-03, read off 3MF 597436): the legs are
- * posts up to the deck, which is a 58 by 58 plate under the road.
+ * posts up to the deck, which is a 58 by 58 plate under the road, from the
+ * posts' tops to just under the road's top. The plate is drawn only: the legs
+ * and the road are what collide.
  */
 const LEG = 8;
 const RISER_LEN = 58;
+/** A deck plate's top sits this far under the road's, so the track reads on it and the two never share a face. */
+export const PLATE_DROP_MM = 1;
 const leg = (x: number, y: number) => ({ role: 'footprint' as const, atMm: [x, y] as const, lengthMm: LEG, widthMm: LEG, levels: [0, 0] as const });
 
 export const RISER: StraightPart = {
   id: 'RS', brand: 'GENERIC', kind: 'straight', name: 'Riser',
-  lengthMm: RISER_LEN, ends: { start: 'socket', end: 'peg' }, deck: 1, plate: { widthMm: 58 },
+  lengthMm: RISER_LEN, ends: { start: 'socket', end: 'peg' }, deck: 1,
+  decor: [{
+    kind: 'slab', atMm: [RISER_LEN / 2, 0], lengthMm: RISER_LEN, widthMm: 58,
+    bottomMm: CLEARANCE.riseMm, topMm: CLEARANCE.riseMm + CLEARANCE.plankMm - PLATE_DROP_MM, solid: false, noun: 'plate',
+  }],
   body: [
     leg(LEG / 2, 25), leg(LEG / 2, -25),
     leg(RISER_LEN - LEG / 2, 25), leg(RISER_LEN - LEG / 2, -25),
@@ -194,8 +203,8 @@ export const STONE_ARCH_BRIDGE: StraightPart = {
     upMm: SA_RAMP, topMm: SA_LEN - 2 * SA_RAMP, downMm: SA_RAMP,
     profileMm: SA_PROFILE,
     clearanceMm: 69.2,
-    arch: { fromMm: SA_FOOT, toMm: SA_LEN - SA_FOOT, riseMm: 57.2, depthMm: 30.8, baseMm: 12 },
   },
+  decor: [{ kind: 'arch', fromMm: SA_FOOT, toMm: SA_LEN - SA_FOOT, baseMm: 12, riseMm: 57.2, depthMm: 30.8, widthMm: 46, noun: 'arch' }],
   body: [
     { role: 'footprint', atMm: [61 + SA_EMBANK / 2, 0], lengthMm: SA_EMBANK, widthMm: 54, levels: [0, 0], profileMm: [[0, 11], [59, 45], [SA_EMBANK, 12]] },
     { role: 'footprint', atMm: [SA_LEN - 61 - SA_EMBANK / 2, 0], lengthMm: SA_EMBANK, widthMm: 54, levels: [0, 0], profileMm: [[0, 12], [SA_EMBANK - 59, 45], [SA_EMBANK, 11]] },
@@ -246,12 +255,23 @@ export const SUSPENSION_BRIDGE: StraightPart = {
     profileMm: SB_PROFILE,
     clearanceMm: SB_DECK - 12,
     clearanceEstimated: true,
+  },
+  /*
+   * Each tower two 8mm posts 30 either side of the road, a crossbeam 70 over
+   * it; the cables reach the road 100 back from the top of each climb. All
+   * estimated, like the towers' heights.
+   */
+  decor: [{
+    kind: 'towers',
     towers: [
       { atMm: SB_TOWERS[0]!, heightMm: 200 },
       { atMm: SB_TOWERS[1]!, heightMm: 240 },
       { atMm: SB_TOWERS[2]!, heightMm: 200 },
     ],
-  },
+    postMm: 8, spreadMm: 30, openingMm: 70,
+    cableFromMm: SB_UP - 100, cableToMm: SB_LEN - SB_UP + 100,
+    noun: 'towers',
+  }],
   body: SB_TOWERS.map(sbBase),
   dimensions: {
     status: 'unverified',
@@ -315,7 +335,7 @@ export const HARBOUR_BRIDGE: StraightPart = {
     pylon(HB_LEN - PORTAL_IN + PORTAL / 2, 1), pylon(HB_LEN - PORTAL_IN + PORTAL / 2, -1),
   ],
   deckClearanceMm: 60.8,
-  trussArch: { fromMm: 20.5, toMm: 195.5, springMm: 19.8, crownMm: 142.5, innerCrownMm: 118.3, sideMm: 28 },
+  decor: [{ kind: 'truss', fromMm: 20.5, toMm: 195.5, springMm: 19.8, crownMm: 142.5, innerCrownMm: 118.3, sideMm: 28, noun: 'arch' }],
   dimensions: printed('A 216 road one level up between two portals 121.4 apart; floor track passes under between them.'),
   slop: ESTIMATED_SLOP, ...PROFILE,
 };

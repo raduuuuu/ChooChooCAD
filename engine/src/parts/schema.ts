@@ -274,7 +274,11 @@ interface PartBase {
    * joint give are that part's; only its decoration is its own. Built-in only.
    */
   readonly decoratedFrom?: string;
-  /** The decoration, as measured shapes in the piece's own frame (eng D4). Built-in only. */
+  /**
+   * The decoration, as measured shapes in the piece's own frame (eng D4). A
+   * structure's drawn detail (a riser's plate, a bridge's arch or towers) is
+   * shapes too (eng D3, D6). Built-in only.
+   */
   readonly decor?: readonly DecorShape[];
   /**
    * The decoration's boxes, DERIVED from `decor` by the library (eng D4, D9),
@@ -298,8 +302,8 @@ interface PartBase {
  * `widthMm` across, from `bottomMm` to `topMm` above the piece's floor.
  * Solid unless `solid: false` (a thin barrier arm): a solid shape blocks
  * other track at every level its height reaches (eng D9). `noun` is what a
- * sentence calls it ("platform"). Further shapes (roof, arch) arrive with the
- * pieces that need them (eng D10 gives each its own solid parts).
+ * sentence calls it ("platform"). Each further shape arrives with the piece
+ * that needs it (eng D10 gives each its own solid parts).
  */
 export interface DecorSlab {
   readonly kind: 'slab';
@@ -330,7 +334,61 @@ export interface DecorVault {
   readonly noun?: string;
 }
 
-export type DecorShape = DecorSlab | DecorVault;
+/**
+ * A TRUSS ARCH over a deck (Sydney bridge plan 2026-11-03; eng D3): a rib
+ * either side of the road, `sideMm` from its middle, springing at `springMm`
+ * above the floor at `fromMm` and `toMm` along the piece; its outer chord's
+ * crown at `crownMm`, its inner chord's at `innerCrownMm`. Drawn only.
+ */
+export interface DecorTruss {
+  readonly kind: 'truss';
+  readonly fromMm: number;
+  readonly toMm: number;
+  readonly springMm: number;
+  readonly crownMm: number;
+  readonly innerCrownMm: number;
+  readonly sideMm: number;
+  readonly noun?: string;
+}
+
+/**
+ * AN ARCH BAND under a span (bridges eng D5, design DD6; eng D6): the stones,
+ * `widthMm` across, springing at `fromMm` and `toMm` along the piece from
+ * `baseMm` above the floor, rising `riseMm` to the crown, `depthMm` deep
+ * with the road on top. Drawn only.
+ */
+export interface DecorArch {
+  readonly kind: 'arch';
+  readonly fromMm: number;
+  readonly toMm: number;
+  readonly baseMm: number;
+  readonly riseMm: number;
+  readonly depthMm: number;
+  readonly widthMm: number;
+  readonly noun?: string;
+}
+
+/**
+ * A SUSPENSION BRIDGE'S TOWERS AND CABLES (bridges plan B-T6; eng D6): each
+ * tower two square posts `postMm` across, `spreadMm` either side of the
+ * road's middle, standing at `atMm` along the piece to `heightMm` above the
+ * floor, with a crossbeam `openingMm` over the road; the cables reach the
+ * road at `cableFromMm` and `cableToMm`. Drawn only.
+ */
+export interface DecorTowers {
+  readonly kind: 'towers';
+  readonly towers: readonly { readonly atMm: number; readonly heightMm: number }[];
+  readonly postMm: number;
+  readonly spreadMm: number;
+  readonly openingMm: number;
+  readonly cableFromMm: number;
+  readonly cableToMm: number;
+  readonly noun?: string;
+}
+
+export type DecorShape = DecorSlab | DecorVault | DecorTruss | DecorArch | DecorTowers;
+/** A shape with its own drawing, which one decoration box carries (eng D10). */
+export type DrawnShape = DecorVault | DecorTruss | DecorArch | DecorTowers;
 
 /** A derived decoration box: a body box at whole levels, carrying the shape's real heights for drawing. */
 export interface DecorBox extends BodyBox {
@@ -340,8 +398,8 @@ export interface DecorBox extends BodyBox {
   readonly noun?: string;
   /** False for a box that only collides (a vault's walls and roof); the shape is drawn by its own box. */
   readonly draw: boolean;
-  /** The vault this box draws, when it draws one (eng D10). */
-  readonly vault?: { readonly widthMm: number; readonly wallMm: number; readonly springMm: number };
+  /** The shape this box draws, when it is more than a box (eng D10). */
+  readonly shape?: DrawnShape;
 }
 
 export interface StraightPart extends PartBase {
@@ -375,32 +433,11 @@ export interface StraightPart extends PartBase {
    */
   readonly deck?: 1;
   /**
-   * The deck's plate in the 3D view only: as long as the piece, this wide
-   * across, as thick as a plank, its top just under the road's (riser plan
-   * 2026-11-03). Collisions use the body; built-in only, like `deck`.
-   */
-  readonly plate?: { readonly widthMm: number };
-  /**
    * The opening under a raised deck that floor track passes beneath, floor to
    * the road's underside (next-parts plan R2): a deck bridge's clearance,
    * stated like a hump's (bridges design DD5). Built-in only, like `deck`.
    */
   readonly deckClearanceMm?: number;
-  /**
-   * A truss arch over the deck, in the 3D view only (Sydney bridge plan
-   * 2026-11-03): a rib either side of the road, `sideMm` from its middle,
-   * springing at `springMm` above the floor at `fromMm` and `toMm` along the
-   * piece; its outer chord's crown at `crownMm`, its inner chord's at
-   * `innerCrownMm`. Collisions use the body; built-in only, like `deck`.
-   */
-  readonly trussArch?: {
-    readonly fromMm: number;
-    readonly toMm: number;
-    readonly springMm: number;
-    readonly crownMm: number;
-    readonly innerCrownMm: number;
-    readonly sideMm: number;
-  };
   /**
    * AN UP-AND-OVER ROAD (bridges plan 2026-11-03, eng D1): both ends on the
    * piece's own level, the middle one level up. Built-in only, like `rise`.
@@ -428,14 +465,6 @@ export interface Hump {
   readonly clearanceMm: number;
   /** True when the opening is an estimate, not read off the piece; the clearance sentence says so. */
   readonly clearanceEstimated?: true;
-  /** The arch drawn under the span in 3D: where it springs along the piece, its rise and depth (eng D5, design DD6). */
-  readonly arch?: { readonly fromMm: number; readonly toMm: number; readonly riseMm: number; readonly depthMm: number; readonly baseMm: number };
-  /**
-   * A suspension bridge's towers, drawn in 3D with the cables hung between
-   * their tops (bridges plan B-T6): where each stands along the road, and its
-   * height above the floor.
-   */
-  readonly towers?: readonly { readonly atMm: number; readonly heightMm: number }[];
 }
 
 /**

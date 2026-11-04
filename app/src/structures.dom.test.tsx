@@ -125,13 +125,18 @@ describe('structures in the library and on the floor', () => {
   });
 
   /*
-   * MUTATION PROOF, run: the outlines left out of the canvas fails with
-   * `expected  to have a length of 2 but got +0`.
+   * MUTATION PROOFS, run: the outlines left out of the canvas fails with
+   * `expected  to have a length of 2 but got +0`; the arch's springing
+   * points not read (decorated-pieces T7) fails with `expected [] to have
+   * a length of 2 but got +0`.
    */
   it('a stone arch bridge is outlined, with the passage edges across its road (bridges design DD3)', async () => {
     const { user, container } = mount();
     await user.dblClick(screen.getByRole('button', { name: /^Add Stone arch bridge\./ }));
-    expect(container.querySelectorAll('path.bridge-outline')).toHaveLength(2);
+    const outlines = container.querySelectorAll('path.bridge-outline');
+    expect(outlines).toHaveLength(2);
+    // Two lines across the road, one where the arch springs at each end of the passage.
+    expect(outlines[1]!.getAttribute('d')!.match(/M /g) ?? []).toHaveLength(2);
     expect(container.querySelectorAll('path.body')).toHaveLength(2);
   });
 });

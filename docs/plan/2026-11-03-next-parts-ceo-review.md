@@ -743,7 +743,7 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
   - Surfaced by: O1; CEO D6
   - Files: app/src/editorReducer.ts, app/src/App.tsx
   - Verify: dom test; corrected base hides the swap; 670-layout swap differential, closure identical
-- [ ] **T7 (P2, human: ~1.5d / CC: ~1h)** — 3D — RS, HB, SA and SB onto the shared shapes (D3, D6)
+- [x] **T7 (P2, human: ~1.5d / CC: ~1h)** — 3D — RS, HB, SA and SB onto the shared shapes (D3, D6)
   - Surfaced by: F2 (D3), Q1 (D6)
   - Files: engine/data/structureSeeds.ts, engine/src/view3d/mesh.ts, engine/src/view3d/decor.ts, engine/src/parts/schema.ts
   - Verify: existing SA/SB/HB/RS 3D tests unchanged; saved RS/HB layouts load
@@ -835,7 +835,7 @@ declined. Calibrated against DESIGN.md rules 7, 10 and 11.
   - Surfaced by: decision 5
   - Files: engine/data/decoratedSeeds.ts, app/src/ghostKeys.ts
   - Verify: keys line and announcement text; copyPosition.test.ts stays green
-- [ ] **D-T4 (P2, human: ~2h / CC: ~10min)** — canvas — Decoration drawn as slab and hatch on canvas and card
+- [x] **D-T4 (P2, human: ~2h / CC: ~10min)** — canvas — Decoration drawn as slab and hatch on canvas and card
   - Surfaced by: decision 6; Pass 7 note (a level crossing's own road never clashes with its own track)
   - Files: app/src/TrackCanvas.tsx, app/src/previewGeometry.ts
   - Verify: card drawing and canvas marks tests; own-road no-clash test

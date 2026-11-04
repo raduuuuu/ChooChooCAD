@@ -932,7 +932,7 @@ export function TrackCanvas({
     const at = (a: number, side: number) => `${seg.from.x + ux * a - uy * half * side} ${seg.from.y + uy * a + ux * half * side}`;
     const len = part.lengthMm;
     // Across the road: where an arch springs, or where each tower stands.
-    const across = part.hump.arch ? [part.hump.arch.fromMm, part.hump.arch.toMm] : (part.hump.towers ?? []).map((t) => t.atMm);
+    const across = (part.decor ?? []).flatMap((d) => (d.kind === 'arch' ? [d.fromMm, d.toMm] : d.kind === 'towers' ? d.towers.map((t) => t.atMm) : []));
     return [
       <path key={`bridge-${i}`} className="bridge-outline" d={`M ${at(0, 1)} L ${at(len, 1)} L ${at(len, -1)} L ${at(0, -1)} Z`} />,
       <path key={`bridge-spring-${i}`} className="bridge-outline" d={across.map((a) => `M ${at(a, 1)} L ${at(a, -1)}`).join(' ')} />,
