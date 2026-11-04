@@ -1077,6 +1077,9 @@ Measurement and method: `.gstack/qa-reports/20261020T163029Z-split-cursor/`.
 
 ## P2 — Wire the approved analytics (D8, 2026-11-04)
 
+**2026-11-04, built (branch analytics), waiting for the site code:** `app/public/count.js` (the reviewed copy, sha-pinned), `countedPath`/`counterPath`/`counterTag` in app/src/linkFragment.ts, inserted by main.tsx in production only. `GOATCOUNTER_CODE` is empty, so no counter runs until the owner creates the GoatCounter site and its public code is set there.
+
+
 **What:** wire the privacy-friendly page counter exactly as approved on 2026-11-01 (docs/plan/2026-11-01-editing-tjunction-analytics.md); no other tracking.
 **Why:** the app is live and nothing says whether anyone opens it, builds a layout or reaches a "this works" verdict; every other priority is a guess until then.
 **Pros:** already designed and approved; small. **Cons:** little to learn until people know the app exists.

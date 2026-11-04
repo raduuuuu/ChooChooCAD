@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { startReadOnlySession } from '../../engine/data/storage.js';
 import { App } from './App.js';
 import { ErrorBoundary } from './ErrorBoundary.js';
-import { LINK_FRAGMENT } from './linkFragment.js';
+import { counterPath, counterTag, GOATCOUNTER_CODE, LINK_FRAGMENT } from './linkFragment.js';
 import { moveOldNames } from './oldNames.js';
 import { BUILD_LINK_STORAGE_KEY } from './storageKeys.js';
 
@@ -38,4 +38,16 @@ if (LINK_FRAGMENT.test(location.hash)) {
       </ErrorBoundary>
     </StrictMode>,
   );
+}
+
+// Visits only, counted after the page is up, in production builds with a site
+// code (linkFragment.ts). The path is ours, so a shared layout is never sent.
+const counter = counterTag(GOATCOUNTER_CODE, import.meta.env.PROD);
+if (counter) {
+  window.goatcounter = { path: counterPath };
+  const script = document.createElement('script');
+  script.async = true;
+  script.src = counter.src;
+  script.dataset.goatcounter = counter.endpoint;
+  document.body.appendChild(script);
 }
