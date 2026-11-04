@@ -18,20 +18,21 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver, resolveLibrary } from '../../engine/data/library.js';
-import { PIER, TUNNEL } from '../../engine/data/structureSeeds.js';
+import { PIER, PLATE_DROP_MM, TUNNEL } from '../../engine/data/structureSeeds.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Graph, type Piece, type Port } from '../../engine/src/graph/model.js';
 import { renderBounds, renderGraph } from '../../engine/src/graph/render.js';
 import { solveGraph } from '../../engine/src/graph/solve.js';
 import { VerdictLine } from './VerdictLine.js';
 import { bridgeNotesOf, tunnelNotesOf, viewOf } from './verdictView.js';
-import { buildScene, PLATE_DROP_MM } from '../../engine/src/view3d/mesh.js';
+import { buildScene } from '../../engine/src/view3d/mesh.js';
 import { reduce, type EditorAction, type EditorState } from './editorReducer.js';
 import { EMPTY_GRAPH, ghostFit, shiftMm, swapsOf } from './layoutModel.js';
 import { previewOf } from './previewGeometry.js';
 import { afterKey, ghostKeys } from './ghostKeys.js';
 import { describeAction } from './announce.js';
 import { trackExtent } from './tableModel.js';
+import { checkStored } from './layoutStore.js';
 
 // The retired pier and roofed tunnel stay as fixtures: the only block and the only roof over a floor road.
 const resolve = makeResolver([...BUILT_IN, PIER, TUNNEL]);
@@ -428,6 +429,20 @@ describe('the stone arch bridge in 3D (bridges eng D2, D5, D9, D11)', () => {
   });
 
   /*
+   * MUTATION PROOF, run: the arch band dropped from the seed fails with
+   * `expected [] to deeply equal [ '-23.000', '23.000' ]`.
+   */
+  it('draws the stone arch band, 46 across, its underside at the 69.2 opening at the crown', () => {
+    const p = scene3d().structures.solid.positions;
+    const crown: string[] = [];
+    for (let i = 0; i < p.length; i += 3) {
+      // Float32 positions: a thousandth of a millimetre.
+      if (Math.abs(p[i]! - 238) < 1e-3 && Math.abs(p[i + 2]! - 69.2) < 1e-3) crown.push(p[i + 1]!.toFixed(3));
+    }
+    expect([...new Set(crown)].sort()).toEqual(['-23.000', '23.000']);
+  });
+
+  /*
    * MUTATION PROOF, run: a marker taking the piece's highest stretch again
    * fails with `expected 57.1 to be close to 14.9`: it floated at the top.
    */
@@ -480,12 +495,15 @@ describe('the harbour arch bridge in words, and every bridge in its own bounds (
   });
 
   /*
-   * MUTATION PROOFS, run:
+   * MUTATION PROOFS, run (before the shared shapes, eng D6):
    * - the arch pass not setting its piece's bounds fails with `hb: expected
    *   { min: [ -24, -51.5, +0 ], …(1) } to deeply equal { … }`: the stone arch
    *   grew the harbour bridge's box.
    * - the tower pass not setting them fails with `sa: expected { min: [ +0,
    *   -27, +0 ], …(1) } to deeply equal { … }`: the towers grew the arch's.
+   * Run since, with every shape drawn from its own box in mesh.ts: a shape
+   * growing no piece's box fails with `expected [ 127, 100, 73 ] to deeply
+   * equal [ 143, 100, 240 ]`.
    */
   it("a bridge's arch and towers grow its own piece's bounds, never another's", () => {
     const g: Graph = {
@@ -503,6 +521,27 @@ describe('the harbour arch bridge in words, and every bridge in its own bounds (
       return buildScene({ segments: r1.segments, bodies: r1.bodies, ports: r1.ports, welds: [], partOf: () => resolve(byPiece.get(id)!), riseMm: 61, plankMm: 12 }).pieceBounds.get(id)!;
     };
     for (const id of ['hb', 'sa', 'sb']) expect(s.pieceBounds.get(id), id).toEqual(alone(id));
+    // Each piece's own box holds its own shape: the truss's crown, the road's, the tallest tower.
+    expect(['hb', 'sa', 'sb'].map((id) => Math.round(s.pieceBounds.get(id)!.max[2]))).toEqual([143, 100, 240]);
+  });
+});
+
+describe('structures on the shared shapes still load (decorated-pieces T7, eng D3, D6)', () => {
+  /*
+   * MUTATION PROOF, run: the harbour bridge's id changed in its seed fails
+   * with `expected { ok: false, …(2) } to have property "ok" with value true`.
+   */
+  it('a layout saved with a riser, the harbour bridge and both other bridges loads, the riser joined to the bridge', () => {
+    // As main saved it before the move: part ids and one weld, nothing about decoration.
+    const saved = JSON.parse(
+      '{"pieces":[{"pieceId":"p0","partId":"RS","turn":"left"},{"pieceId":"p1","partId":"HB","turn":"left"},' +
+        '{"pieceId":"p2","partId":"SA","turn":"left"},{"pieceId":"p3","partId":"SB","turn":"right"}],' +
+        '"welds":[{"a":{"pieceId":"p0","port":1},"b":{"pieceId":"p1","port":0}}]}',
+    );
+    const checked = checkStored(saved, new Set(BUILT_IN.map((p) => p.id)), ports);
+    expect(checked).toHaveProperty('ok', true);
+    expect(checked.ok && checked.pieces.map((p) => p.partId)).toEqual(['RS', 'HB', 'SA', 'SB']);
+    expect(checked.ok && checked.welds).toHaveLength(1);
   });
 });
 

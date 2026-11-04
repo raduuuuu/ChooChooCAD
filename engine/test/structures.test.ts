@@ -346,17 +346,15 @@ describe('structures are built-in, and named (eng D4, D10)', () => {
   });
 
   /*
-   * MUTATION PROOFS, run: `plate` left out of withRise fails with `expected {
-   * widthMm: 500 } to be undefined`; `trussArch` left out fails with
-   * `expected { fromMm: +0, toMm: 100, …(4) } to be undefined`; `deckClearanceMm`
-   * left out fails with `expected 999 to be undefined`.
+   * MUTATION PROOFS, run: `decor` left out of withRise fails with `expected
+   * [ { kind: 'truss', fromMm: +0, …(5) } ] to be undefined`;
+   * `deckClearanceMm` left out fails with `expected 999 to be undefined`.
    */
-  it('a stored correction cannot lay a plate or raise a truss arch', () => {
-    const arch = { fromMm: 0, toMm: 100, springMm: 0, crownMm: 900, innerCrownMm: 800, sideMm: 28 };
-    const forged = { ...resolve('A'), id: 'X8', plate: { widthMm: 500 }, trussArch: arch };
+  it('a stored correction cannot raise a truss arch or lay a plate', () => {
+    const truss = { kind: 'truss', fromMm: 0, toMm: 100, springMm: 0, crownMm: 900, innerCrownMm: 800, sideMm: 28 };
+    const forged = { ...resolve('A'), id: 'X8', decor: [truss] };
     const got = resolveLibrary([{ submissionId: 's', at: '2026-11-03T10:00:00Z', part: forged as never }]).find((p) => p.id === 'X8')!;
-    expect(got.kind === 'straight' ? got.plate : null).toBeUndefined();
-    expect(got.kind === 'straight' ? got.trussArch : null).toBeUndefined();
+    expect(got.decor).toBeUndefined();
     const clear = resolveLibrary([{ submissionId: 's2', at: '2026-11-03T10:00:00Z', part: { ...resolve('A'), id: 'X7', deckClearanceMm: 999 } as never }]).find((p) => p.id === 'X7')!;
     expect(clear.kind === 'straight' ? clear.deckClearanceMm : null).toBeUndefined();
   });

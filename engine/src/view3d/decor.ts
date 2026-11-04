@@ -1,14 +1,69 @@
 /**
- * DECORATION IN 3D (decorated-pieces plan 2026-11-03, eng D1/D4): where a
- * decoration box stands, from its measured heights. A structure's body is
- * drawn as tall as the levels it fills; a decoration is drawn as measured,
- * a 6mm road surface as 6mm, never as a level-tall block (eng O4).
+ * DECORATION IN 3D (decorated-pieces plan 2026-11-03, eng D1/D3/D4/D6): where
+ * a decoration box stands, from its measured heights, and how each shape with
+ * its own drawing is drawn. A structure's body is drawn as tall as the levels
+ * it fills; a decoration is drawn as measured, a 6mm road surface as 6mm,
+ * never as a level-tall block (eng O4).
  *
- * Shapes with their own drawing (a roof, an arch) join this module with the
- * pieces that need them.
+ * One way to draw each shape, for every piece that has it: a tunnel's vault,
+ * a harbour bridge's truss arch, a stone bridge's arch band, a suspension
+ * bridge's towers and cables. mesh.ts hands each a frame and a pen; the
+ * shape lands in the structures' solid mesh and edges like any body.
  */
 
 import type { Segment } from '../geom/fk.js';
+import type { DecorArch, DecorTowers, DecorTruss, DecorVault, DrawnShape, Part } from '../parts/schema.js';
+
+/** A truss arch's chords in 3D: this deep, and twice this across. */
+export const TRUSS_CHORD_MM = 4;
+export const TRUSS_HALF_MM = 2;
+/** A truss arch's verticals and hangers stand this far apart along the road. */
+export const TRUSS_STEP_MM = 12;
+/** A cable's lowest point clears the road by this much. */
+export const CABLE_SAG_CLEAR_MM = 4;
+/** An end cable, from the road up to the first or last tower, sags this share of its rise. */
+export const END_CABLE_SAG = 0.12;
+
+export type P3 = readonly [number, number, number];
+
+/** Where a shape's triangles, edges and extent go: the structures' solid mesh, its edges and the bounds. */
+export interface Pen {
+  quad(a: P3, b: P3, c: P3, d: P3): void;
+  edge(a: P3, b: P3): void;
+  grow(p: P3): void;
+}
+
+/** Where a shape stands: its box laid down in the scene, and the piece's floor and road. */
+export interface ShapeFrame {
+  /** The point `along` from the box's start, `across` to the left of its middle line, at height `z`. */
+  readonly at: (along: number, across: number, z: number) => P3;
+  /** The box's length along the piece. */
+  readonly lengthMm: number;
+  /** The piece's floor, above the table. */
+  readonly floorMm: number;
+  /** The top of the piece's road `a` along the piece from its start, above the table. */
+  readonly roadTop: (a: number) => number;
+  readonly plankMm: number;
+}
+
+/** A height profile's value at `a` along it, by straight lines between its points. */
+export function profileAt(profile: readonly (readonly [number, number])[], a: number): number {
+  if (a <= profile[0]![0]) return profile[0]![1];
+  for (let i = 1; i < profile.length; i++) {
+    const [a1, h1] = profile[i]!;
+    if (a <= a1) {
+      const [a0, h0] = profile[i - 1]!;
+      return h0 + ((h1 - h0) * (a - a0)) / (a1 - a0);
+    }
+  }
+  return profile[profile.length - 1]![1];
+}
+
+/** A piece's road top `a` along it, above its floor: a bridge's measured profile, else its deck's plank. */
+export function roadTopAbove(part: Part, a: number, riseMm: number, plankMm: number): number {
+  if (part.kind === 'straight' && part.hump) return profileAt(part.hump.profileMm, a);
+  return (part.kind === 'straight' ? (part.deck ?? 0) : 0) * riseMm + plankMm;
+}
 
 /**
  * A vault's cross-section (eng D10): its outer and inner outlines, each from
@@ -35,4 +90,193 @@ export function decorSpan(b: Segment, riseMm: number): { readonly zb: number; re
   if (!b.decor) return null;
   const floor = b.decor.floorLevel * riseMm;
   return { zb: floor + b.decor.bottomMm, zt: floor + b.decor.topMm };
+}
+
+/** Draw one shape that has its own drawing, in the frame of the box that carries it. */
+export function drawShape(shape: DrawnShape, f: ShapeFrame, pen: Pen): void {
+  switch (shape.kind) {
+    case 'vault':
+      return drawVault(shape, f, pen);
+    case 'truss':
+      return drawTruss(shape, f, pen);
+    case 'arch':
+      return drawArch(shape, f, pen);
+    case 'towers':
+      return drawTowers(shape, f, pen);
+  }
+}
+
+/**
+ * A VAULT, drawn round (decorated-pieces plan T5, eng D10): its section
+ * swept from one end of its box to the other, outer and inner faces, the
+ * arch rings at each end and the feet closed; edged at its two end rings.
+ */
+function drawVault(v: DecorVault, f: ShapeFrame, pen: Pen): void {
+  const len = f.lengthMm;
+  const at = (t: number, [across, h]: readonly [number, number]) => f.at(t, across, f.floorMm + h);
+  const { outer, inner } = vaultSection(v.widthMm, v.wallMm, v.springMm);
+  const sweep = (ring: readonly (readonly [number, number])[], facing: 1 | -1) => {
+    for (let i = 0; i + 1 < ring.length; i++) {
+      const [a0, a1, b0, b1] = [at(0, ring[i]!), at(len, ring[i]!), at(0, ring[i + 1]!), at(len, ring[i + 1]!)];
+      if (facing === 1) pen.quad(a0, a1, b1, b0);
+      else pen.quad(b0, b1, a1, a0);
+    }
+  };
+  sweep(outer, 1);
+  sweep(inner, -1);
+  for (const t of [0, len]) {
+    for (let i = 0; i + 1 < outer.length; i++) pen.quad(at(t, outer[i]!), at(t, outer[i + 1]!), at(t, inner[i + 1]!), at(t, inner[i]!));
+    for (const ring of [outer, inner]) for (let i = 0; i + 1 < ring.length; i++) pen.edge(at(t, ring[i]!), at(t, ring[i + 1]!));
+  }
+  for (const p of outer) for (const t of [0, len]) pen.grow(at(t, p));
+}
+
+/**
+ * A TRUSS ARCH OVER THE DECK (Sydney bridge plan 2026-11-03): two curved
+ * chords either side of the road, outer and inner, meeting where the arch
+ * springs low on the portals; verticals between them, hangers from the
+ * inner chord down to the road, and braces across between the two outer
+ * chords. Chords in the house matte, the rest as lines.
+ */
+function drawTruss(t: DecorTruss, f: ShapeFrame, pen: Pen): void {
+  const { fromMm, toMm, springMm, crownMm, innerCrownMm, sideMm } = t;
+  const floor = f.floorMm;
+  // Along the piece, from its start: the box starts where the arch springs.
+  const at = (a: number, across: number, z: number) => f.at(a - fromMm, across, z);
+  /** A circular chord through both springings and its crown, as height above the table. */
+  const chord = (crown: number) => {
+    const half = (toMm - fromMm) / 2, rise = crown - springMm;
+    const r = (half * half + rise * rise) / (2 * rise);
+    return (a: number) => floor + crown - (r - Math.sqrt(Math.max(0, r * r - (a - fromMm - half) ** 2)));
+  };
+  const outer = chord(crownMm), inner = chord(innerCrownMm);
+  // An even count, so a step lands on the crown.
+  const steps = 2 * Math.max(1, Math.ceil((toMm - fromMm) / TRUSS_STEP_MM / 2));
+  const along = (i: number) => fromMm + ((toMm - fromMm) * i) / steps;
+  for (const side of [1, -1] as const) {
+    for (const top of [outer, inner]) {
+      for (let i = 0; i < steps; i++) {
+        const a0 = along(i), a1 = along(i + 1);
+        // Corners: [in-top, in-bottom, out-top, out-bottom] at each end of the step.
+        const ring = (a: number) => [-1, 1].flatMap((d) => [[a, top(a)], [a, top(a) - TRUSS_CHORD_MM]].map(([aa, z]) => at(aa!, side * sideMm + d * TRUSS_HALF_MM, z!)));
+        const [p0, p1, p2, p3] = ring(a0) as [P3, P3, P3, P3];
+        const [q0, q1, q2, q3] = ring(a1) as [P3, P3, P3, P3];
+        pen.quad(p0, q0, q2, p2);
+        pen.quad(p1, p3, q3, q1);
+        pen.quad(p0, p1, q1, q0);
+        pen.quad(p2, q2, q3, p3);
+        for (const p of ring(a0)) pen.grow(p);
+        for (const d of [1, -1]) pen.edge(at(a0, side * sideMm + d * TRUSS_HALF_MM, top(a0)), at(a1, side * sideMm + d * TRUSS_HALF_MM, top(a1)));
+      }
+    }
+    for (let i = 1; i < steps; i++) {
+      const a = along(i), c = side * sideMm;
+      const roadTop = f.roadTop(a);
+      pen.edge(at(a, c, outer(a) - TRUSS_CHORD_MM), at(a, c, inner(a)));
+      if (inner(a) - TRUSS_CHORD_MM > roadTop) pen.edge(at(a, c, inner(a) - TRUSS_CHORD_MM), at(a, c, roadTop));
+      if (side === 1 && i % 2 === 0 && outer(a) - TRUSS_CHORD_MM > roadTop + 40) pen.edge(at(a, sideMm, outer(a) - TRUSS_CHORD_MM), at(a, -sideMm, outer(a) - TRUSS_CHORD_MM));
+    }
+  }
+}
+
+/**
+ * A BRIDGE'S ARCH (bridges eng D5, D9; design DD6): a curved band under the
+ * span, its top meeting the road's underside, as wide as the stones.
+ */
+function drawArch(arch: DecorArch, f: ShapeFrame, pen: Pen): void {
+  const { fromMm, toMm, riseMm: archRise, depthMm, baseMm } = arch;
+  const half = arch.widthMm / 2;
+  const base = f.floorMm + baseMm;
+  const chord = toMm - fromMm;
+  const radius = (chord * chord / 4 + archRise * archRise) / (2 * archRise);
+  const under = (a: number) => {
+    const d = a - (fromMm + toMm) / 2;
+    return base + archRise - (radius - Math.sqrt(Math.max(0, radius * radius - d * d)));
+  };
+  const band = Math.max(1, depthMm - f.plankMm);
+  const steps = 24;
+  const at = (a: number, side: 1 | -1, z: number) => f.at(a - fromMm, half * side, z);
+  for (let i = 0; i < steps; i++) {
+    const a0 = fromMm + (chord * i) / steps, a1 = fromMm + (chord * (i + 1)) / steps;
+    const lo0 = under(a0), lo1 = under(a1), hi0 = lo0 + band, hi1 = lo1 + band;
+    pen.quad(at(a0, 1, lo0), at(a1, 1, lo1), at(a1, -1, lo1), at(a0, -1, lo0));
+    pen.quad(at(a0, 1, hi0), at(a0, -1, hi0), at(a1, -1, hi1), at(a1, 1, hi1));
+    for (const side of [1, -1] as const) {
+      pen.quad(at(a0, side, lo0), at(a1, side, lo1), at(a1, side, hi1), at(a0, side, hi0));
+      pen.edge(at(a0, side, lo0), at(a1, side, lo1));
+      pen.edge(at(a0, side, hi0), at(a1, side, hi1));
+    }
+    pen.grow(at(a0, 1, hi0));
+  }
+}
+
+/**
+ * A SUSPENSION BRIDGE'S TOWERS AND CABLES (bridges plan B-T6; design DD6):
+ * each tower two square posts either side of the road, from its base up to
+ * its height, joined at the top and above the train's opening; the cables
+ * hang from tower top to tower top on both sides, sagging to just above the
+ * road, and run down to the road where the side spans begin. Lines for the
+ * cables and hangers, the house matte for the posts.
+ */
+function drawTowers(sh: DecorTowers, f: ShapeFrame, pen: Pen): void {
+  const { towers, cableFromMm, cableToMm } = sh;
+  const postHalf = sh.postMm / 2, spread = sh.spreadMm;
+  const floor = f.floorMm;
+  const at = (a: number, side: number, z: number) => f.at(a - cableFromMm, side, z);
+  const road = f.roadTop;
+  const box = (a: number, side: number, halfMm: number, z0: number, z1: number) => {
+    const c = [[-halfMm, -halfMm], [halfMm, -halfMm], [halfMm, halfMm], [-halfMm, halfMm]].map(([da, ds]) => [a + da!, side + ds!] as const);
+    const lo = c.map(([ca, cs]) => at(ca, cs, z0));
+    const hi = c.map(([ca, cs]) => at(ca, cs, z1));
+    pen.quad(hi[0]!, hi[1]!, hi[2]!, hi[3]!);
+    for (let i = 0; i < 4; i++) pen.quad(lo[i]!, lo[(i + 1) % 4]!, hi[(i + 1) % 4]!, hi[i]!);
+    for (const [ca, cs] of c) pen.edge(at(ca, cs, z0), at(ca, cs, z1));
+  };
+  for (const t of towers) {
+    const top = floor + t.heightMm;
+    const base = road(t.atMm) - f.plankMm;
+    for (const side of [spread, -spread]) box(t.atMm, side, postHalf, base, top);
+    // Crossbeams: at the top, and over the train's opening.
+    for (const z0 of [top - 2 * postHalf, road(t.atMm) + sh.openingMm]) {
+      const z1 = z0 + 2 * postHalf;
+      const c = [[t.atMm - postHalf, -spread], [t.atMm + postHalf, -spread], [t.atMm + postHalf, spread], [t.atMm - postHalf, spread]] as const;
+      const lo = c.map(([a, s]) => at(a, s, z0));
+      const hi = c.map(([a, s]) => at(a, s, z1));
+      pen.quad(hi[0]!, hi[1]!, hi[2]!, hi[3]!);
+      for (let i = 0; i < 4; i++) pen.quad(lo[i]!, lo[(i + 1) % 4]!, hi[(i + 1) % 4]!, hi[i]!);
+    }
+    pen.grow(at(t.atMm, spread, top));
+  }
+  // Cables: from the road where the climb starts, over each tower top, back down at the far end.
+  const anchors: (readonly [number, number])[] = [
+    [cableFromMm, road(cableFromMm) + 2],
+    ...towers.map((t) => [t.atMm, floor + t.heightMm - postHalf] as const),
+    [cableToMm, road(cableToMm) + 2],
+  ];
+  for (const side of [spread, -spread]) {
+    for (let k = 0; k + 1 < anchors.length; k++) {
+      const [a0, z0] = anchors[k]!, [a1, z1] = anchors[k + 1]!;
+      const low = (a: number) => road(a) + CABLE_SAG_CLEAR_MM;
+      const n = 16;
+      let prev: P3 | null = null;
+      for (let i = 0; i <= n; i++) {
+        const t = i / n;
+        const a = a0 + (a1 - a0) * t;
+        /*
+         * A parabola through both anchors. Between two towers its lowest
+         * point comes down to just above the road at mid-span; from the
+         * road up to the first or last tower it only sags a little.
+         */
+        const straight = z0 + (z1 - z0) * t;
+        const between = k > 0 && k + 2 < anchors.length;
+        const dip = between ? Math.max(0, (z0 + z1) / 2 - low((a0 + a1) / 2)) : END_CABLE_SAG * Math.abs(z1 - z0);
+        const z = Math.max(low(a), straight - 4 * dip * t * (1 - t));
+        const p = at(a, side, z);
+        if (prev) pen.edge(prev, p);
+        // Hangers: down to the road every few centimetres.
+        if (i > 0 && i < n && i % 2 === 0) pen.edge(p, at(a, side, road(a)));
+        prev = p;
+      }
+    }
+  }
 }

@@ -31,7 +31,7 @@
 
 import type { Segment } from '../geom/fk.js';
 import { bodyCorners, type RenderedPort } from '../graph/render.js';
-import { decorSpan, vaultSection } from './decor.js';
+import { decorSpan, drawShape, profileAt, roadTopAbove, type Pen } from './decor.js';
 import type { Part } from '../parts/schema.js';
 
 /** Triangles: xyz per vertex, three indices per triangle. */
@@ -143,26 +143,6 @@ export const SEAM_OVERHANG_MM = 4;
 export const FOOTPRINT_LIFT_MM = 0.1;
 /** How deep a roof's rim hangs below its top, mm. Drawn, not measured: a roof is an outline. */
 export const ROOF_RIM_MM = 4;
-/** A suspension tower's posts in 3D: square, this half-width, this far either side of the road's centre. */
-export const TOWER_POST_HALF_MM = 4;
-export const TOWER_POST_SPREAD_MM = 30;
-/** The lower crossbeam stands this far above the road, over the train's opening. */
-export const TOWER_OPENING_MM = 70;
-/** A cable's lowest point clears the road by this much. */
-export const CABLE_SAG_CLEAR_MM = 4;
-/** An end cable, from the road up to the first or last tower, sags this share of its rise. */
-export const END_CABLE_SAG = 0.12;
-/** The cables reach the road this far back from the top of each climb. */
-export const CABLE_ANCHOR_BACK_MM = 100;
-/** A deck plate's top sits this far under the road's, so the track reads on it and the two never share a face. */
-export const PLATE_DROP_MM = 1;
-/** A truss arch's chords in 3D: this deep, and twice this across. */
-export const TRUSS_CHORD_MM = 4;
-export const TRUSS_HALF_MM = 2;
-/** A truss arch's verticals and hangers stand this far apart along the road. */
-export const TRUSS_STEP_MM = 12;
-/** Half the width of a bridge's arch band in 3D: the stones are 46mm across. */
-export const ARCH_HALF_WIDTH_MM = 23;
 /** The largest turn between two cross-sections of a curve: 3.75 degrees. */
 export const ARC_STEP_RAD = Math.PI / 48;
 
@@ -242,19 +222,6 @@ function endLevels(s: Segment): readonly [number, number] {
   const lo = s.level ?? 0;
   const hi = lo + (s.rise ?? 0);
   return s.highAtStart ? [hi, lo] : [lo, hi];
-}
-
-/** A height profile's value at `a` along it, by straight lines between its points. */
-export function profileAt(profile: readonly (readonly [number, number])[], a: number): number {
-  if (a <= profile[0]![0]) return profile[0]![1];
-  for (let i = 1; i < profile.length; i++) {
-    const [a1, h1] = profile[i]!;
-    if (a <= a1) {
-      const [a0, h0] = profile[i - 1]!;
-      return h0 + ((h1 - h0) * (a - a0)) / (a1 - a0);
-    }
-  }
-  return profile[profile.length - 1]![1];
 }
 
 /** How finely a measured road is sampled along its length, mm. */
@@ -464,6 +431,11 @@ export function buildScene(input: SceneInput): SceneArrays {
   const solid = new Builder();
   const rim = new Builder();
   const bodyEdges: number[] = [];
+  const pen: Pen = {
+    quad: (a, b, c, d) => solid.quad(solid.vertex(...a), solid.vertex(...b), solid.vertex(...c), solid.vertex(...d)),
+    edge: (a, b) => bodyEdges.push(...a, ...b),
+    grow: (p) => grow(...p),
+  };
   /**
    * A body whose top follows (along, height) points from its start: a solid
    * from `zb` up to that outline, with its outline and upright ends edged.
@@ -488,36 +460,6 @@ export function buildScene(input: SceneInput): SceneArrays {
     }
     for (const [a, z] of tops) for (const side of [1, -1] as const) grow(...at(a, side, z));
   };
-  /**
-   * A VAULT, drawn round (decorated-pieces plan T5, eng D10): its section
-   * swept from one end of its box to the other, outer and inner faces, the
-   * arch rings at each end and the feet closed; edged at its two end rings.
-   */
-  const drawVault = (b: Segment, floor: number, v: { readonly widthMm: number; readonly wallMm: number; readonly springMm: number }) => {
-    const len = Math.hypot(b.to.x - b.from.x, b.to.y - b.from.y);
-    const ux = (b.to.x - b.from.x) / len, uy = (b.to.y - b.from.y) / len;
-    const at = (t: number, [across, h]: readonly [number, number]) =>
-      [b.from.x + ux * t - uy * across, b.from.y + uy * t + ux * across, floor + h] as const;
-    const { outer, inner } = vaultSection(v.widthMm, v.wallMm, v.springMm);
-    const sweep = (ring: readonly (readonly [number, number])[], facing: 1 | -1) => {
-      for (let i = 0; i + 1 < ring.length; i++) {
-        const [a0, a1, b0, b1] = [at(0, ring[i]!), at(len, ring[i]!), at(0, ring[i + 1]!), at(len, ring[i + 1]!)];
-        const q = [a0, a1, b1, b0].map((p) => solid.vertex(...p));
-        if (facing === 1) solid.quad(q[0]!, q[1]!, q[2]!, q[3]!);
-        else solid.quad(q[3]!, q[2]!, q[1]!, q[0]!);
-      }
-    };
-    sweep(outer, 1);
-    sweep(inner, -1);
-    for (const t of [0, len]) {
-      for (let i = 0; i + 1 < outer.length; i++) {
-        const q = [at(t, outer[i]!), at(t, outer[i + 1]!), at(t, inner[i + 1]!), at(t, inner[i]!)].map((p) => solid.vertex(...p));
-        solid.quad(q[0]!, q[1]!, q[2]!, q[3]!);
-      }
-      for (const ring of [outer, inner]) for (let i = 0; i + 1 < ring.length; i++) bodyEdges.push(...at(t, ring[i]!), ...at(t, ring[i + 1]!));
-    }
-    for (const p of outer) for (const t of [0, len]) grow(...at(t, p));
-  };
   for (const b of input.bodies ?? []) {
     if (b.pieceId !== undefined) {
       boxOf = pieceBox.get(b.pieceId) ?? { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
@@ -525,8 +467,19 @@ export function buildScene(input: SceneInput): SceneArrays {
     } else boxOf = null;
     // A box that only collides is not drawn: its shape draws itself (eng D10, O4).
     if (b.decor && !b.decor.draw) continue;
-    if (b.decor?.vault) {
-      drawVault(b, b.decor.floorLevel * riseMm, b.decor.vault);
+    if (b.decor?.shape) {
+      // A shape with its own drawing (decor.ts): a vault, a truss, an arch band, towers.
+      const len = Math.hypot(b.to.x - b.from.x, b.to.y - b.from.y);
+      const ux = (b.to.x - b.from.x) / len, uy = (b.to.y - b.from.y) / len;
+      const floorMm = b.decor.floorLevel * riseMm;
+      const part = b.pieceId === undefined ? null : partOf(b.pieceId);
+      drawShape(b.decor.shape, {
+        at: (along, across, z) => [b.from.x + ux * along - uy * across, b.from.y + uy * along + ux * across, z],
+        lengthMm: len,
+        floorMm,
+        roadTop: (a) => floorMm + (part ? roadTopAbove(part, a, riseMm, plankMm) : plankMm),
+        plankMm,
+      }, pen);
       continue;
     }
     const lo = b.level ?? 0;
@@ -571,200 +524,6 @@ export function buildScene(input: SceneInput): SceneArrays {
     }
     edgeLoop(ring(zt));
     for (const [x, y] of c) bodyEdges.push(x, y, zb, x, y, zt);
-  }
-
-  /*
-   * A DECK'S PLATE (riser plan 2026-11-03): a riser is posts and a plate,
-   * not four loose boxes. The plate runs the piece's length under its road,
-   * from the posts' tops up to just under the road's top. Decoration only:
-   * collisions use the bodies and the road.
-   */
-  for (const s of segments) {
-    if (s.pieceId === undefined) continue;
-    const part = partOf(s.pieceId);
-    if (part.kind !== 'straight' || !part.plate) continue;
-    boxOf = pieceBox.get(s.pieceId) ?? null;
-    const zb = (s.level ?? 0) * riseMm;
-    const zt = zb + plankMm - PLATE_DROP_MM;
-    const len = Math.hypot(s.to.x - s.from.x, s.to.y - s.from.y);
-    const plate = { ...s, halfWidthMm: part.plate.widthMm / 2 };
-    prism(plate, zb, [[0, zt], [len, zt]]);
-    // Its underside, seen from low down between the posts.
-    const under = bodyCorners(plate);
-    const v = under.map(([x, y]) => solid.vertex(x, y, zb));
-    solid.quad(v[3]!, v[2]!, v[1]!, v[0]!);
-    for (let i = 0; i < 4; i++) bodyEdges.push(...under[i]!, zb, ...under[(i + 1) % 4]!, zb);
-  }
-
-  /*
-   * A TRUSS ARCH OVER THE DECK (Sydney bridge plan 2026-11-03): two curved
-   * chords either side of the road, outer and inner, meeting where the arch
-   * springs low on the portals; verticals between them, hangers from the
-   * inner chord down to the road, and braces across between the two outer
-   * chords. Chords in the house matte, the rest as lines. Decoration only.
-   */
-  for (const s of segments) {
-    if (s.pieceId === undefined) continue;
-    const part = partOf(s.pieceId);
-    if (part.kind !== 'straight' || !part.trussArch) continue;
-    boxOf = pieceBox.get(s.pieceId) ?? null;
-    const { fromMm, toMm, springMm, crownMm, innerCrownMm, sideMm } = part.trussArch;
-    const floor = ((s.level ?? 0) - (part.deck ?? 0)) * riseMm;
-    const roadTop = (s.level ?? 0) * riseMm + plankMm;
-    const len = Math.hypot(s.to.x - s.from.x, s.to.y - s.from.y);
-    const ux = (s.to.x - s.from.x) / len, uy = (s.to.y - s.from.y) / len;
-    const at = (a: number, across: number, z: number) =>
-      [s.from.x + ux * a - uy * across, s.from.y + uy * a + ux * across, z] as const;
-    /** A circular chord through both springings and its crown, as height above the floor. */
-    const chord = (crown: number) => {
-      const half = (toMm - fromMm) / 2, rise = crown - springMm;
-      const r = (half * half + rise * rise) / (2 * rise);
-      return (a: number) => floor + crown - (r - Math.sqrt(Math.max(0, r * r - (a - fromMm - half) ** 2)));
-    };
-    const outer = chord(crownMm), inner = chord(innerCrownMm);
-    // An even count, so a step lands on the crown.
-    const steps = 2 * Math.max(1, Math.ceil((toMm - fromMm) / TRUSS_STEP_MM / 2));
-    const along = (i: number) => fromMm + ((toMm - fromMm) * i) / steps;
-    for (const side of [1, -1] as const) {
-      for (const top of [outer, inner]) {
-        for (let i = 0; i < steps; i++) {
-          const a0 = along(i), a1 = along(i + 1);
-          const ring = (a: number) => [-1, 1].flatMap((d) => [[a, top(a)], [a, top(a) - TRUSS_CHORD_MM]].map(([aa, z]) => at(aa!, side * sideMm + d * TRUSS_HALF_MM, z!)));
-          // Corners: [in-top, in-bottom, out-top, out-bottom] at each end of the step.
-          const [p0, p1, p2, p3] = ring(a0).map((v) => solid.vertex(...v));
-          const [q0, q1, q2, q3] = ring(a1).map((v) => solid.vertex(...v));
-          solid.quad(p0!, q0!, q2!, p2!);
-          solid.quad(p1!, p3!, q3!, q1!);
-          solid.quad(p0!, p1!, q1!, q0!);
-          solid.quad(p2!, q2!, q3!, p3!);
-          for (const [x, y, z] of ring(a0)) grow(x, y, z);
-          for (const d of [1, -1]) bodyEdges.push(...at(a0, side * sideMm + d * TRUSS_HALF_MM, top(a0)), ...at(a1, side * sideMm + d * TRUSS_HALF_MM, top(a1)));
-        }
-      }
-      for (let i = 1; i < steps; i++) {
-        const a = along(i), c = side * sideMm;
-        bodyEdges.push(...at(a, c, outer(a) - TRUSS_CHORD_MM), ...at(a, c, inner(a)));
-        if (inner(a) - TRUSS_CHORD_MM > roadTop) bodyEdges.push(...at(a, c, inner(a) - TRUSS_CHORD_MM), ...at(a, c, roadTop));
-        if (side === 1 && i % 2 === 0 && outer(a) - TRUSS_CHORD_MM > roadTop + 40) bodyEdges.push(...at(a, sideMm, outer(a) - TRUSS_CHORD_MM), ...at(a, -sideMm, outer(a) - TRUSS_CHORD_MM));
-      }
-    }
-  }
-
-  /*
-   * A BRIDGE'S ARCH (eng D5, D9; design DD6): a curved band under the span,
-   * drawn from the piece's measured arch, its top meeting the road's
-   * underside. Decoration only: collisions use the bodies and the road.
-   */
-  for (const s of segments) {
-    if (!s.alongMm || s.alongMm[0] !== 0 || s.pieceId === undefined) continue;
-    const part = partOf(s.pieceId);
-    if (part.kind !== 'straight' || !part.hump?.arch) continue;
-    boxOf = pieceBox.get(s.pieceId) ?? null;
-    const { fromMm, toMm, riseMm: archRise, depthMm, baseMm } = part.hump.arch;
-    const base = (s.level ?? 0) * riseMm + baseMm;
-    const chord = toMm - fromMm;
-    const radius = (chord * chord / 4 + archRise * archRise) / (2 * archRise);
-    const under = (a: number) => {
-      const d = a - (fromMm + toMm) / 2;
-      return base + archRise - (radius - Math.sqrt(Math.max(0, radius * radius - d * d)));
-    };
-    const band = Math.max(1, depthMm - plankMm);
-    const steps = 24;
-    const tops: (readonly [number, number])[] = [];
-    for (let i = 0; i <= steps; i++) tops.push([fromMm + (chord * i) / steps, under(fromMm + (chord * i) / steps) + band]);
-    // The band: from the arch's underside up `band`, as a prism whose floor follows the curve.
-    const len = Math.hypot(s.to.x - s.from.x, s.to.y - s.from.y);
-    const ux = (s.to.x - s.from.x) / len, uy = (s.to.y - s.from.y) / len;
-    const at = (a: number, side: 1 | -1, z: number) =>
-      [s.from.x + ux * a - uy * ARCH_HALF_WIDTH_MM * side, s.from.y + uy * a + ux * ARCH_HALF_WIDTH_MM * side, z] as const;
-    for (let i = 0; i < steps; i++) {
-      const a0 = tops[i]![0], a1 = tops[i + 1]![0];
-      const lo0 = under(a0), lo1 = under(a1), hi0 = lo0 + band, hi1 = lo1 + band;
-      solid.quad(solid.vertex(...at(a0, 1, lo0)), solid.vertex(...at(a1, 1, lo1)), solid.vertex(...at(a1, -1, lo1)), solid.vertex(...at(a0, -1, lo0)));
-      solid.quad(solid.vertex(...at(a0, 1, hi0)), solid.vertex(...at(a0, -1, hi0)), solid.vertex(...at(a1, -1, hi1)), solid.vertex(...at(a1, 1, hi1)));
-      for (const side of [1, -1] as const) {
-        solid.quad(solid.vertex(...at(a0, side, lo0)), solid.vertex(...at(a1, side, lo1)), solid.vertex(...at(a1, side, hi1)), solid.vertex(...at(a0, side, hi0)));
-        bodyEdges.push(...at(a0, side, lo0), ...at(a1, side, lo1), ...at(a0, side, hi0), ...at(a1, side, hi1));
-      }
-      grow(...at(a0, 1, hi0));
-    }
-  }
-
-  /*
-   * A SUSPENSION BRIDGE'S TOWERS AND CABLES (bridges plan B-T6; design DD6):
-   * each tower two square posts either side of the road, from its base up to
-   * its height, joined at the top and above the train's opening; the cables
-   * hang from tower top to tower top on both sides, sagging to just above the
-   * road, and run down to the road where the side spans begin. Lines for the
-   * cables and hangers, the house matte for the posts.
-   */
-  for (const s of segments) {
-    if (!s.alongMm || s.alongMm[0] !== 0 || s.pieceId === undefined) continue;
-    const part = partOf(s.pieceId);
-    if (part.kind !== 'straight' || !part.hump?.towers?.length) continue;
-    boxOf = pieceBox.get(s.pieceId) ?? null;
-    const { towers, profileMm } = part.hump;
-    const floor = (s.level ?? 0) * riseMm;
-    const len = part.lengthMm;
-    const ux = Math.cos(s.from.h), uy = Math.sin(s.from.h);
-    const at = (a: number, side: number, z: number) =>
-      [s.from.x + ux * a - uy * side, s.from.y + uy * a + ux * side, z] as const;
-    const road = (a: number) => floor + profileAt(profileMm, a);
-    const box = (a: number, side: number, half: number, z0: number, z1: number) => {
-      const c = [[-half, -half], [half, -half], [half, half], [-half, half]].map(([da, ds]) => [a + da!, side + ds!] as const);
-      const lo = c.map(([ca, cs]) => solid.vertex(...at(ca, cs, z0)));
-      const hi = c.map(([ca, cs]) => solid.vertex(...at(ca, cs, z1)));
-      solid.quad(hi[0]!, hi[1]!, hi[2]!, hi[3]!);
-      for (let i = 0; i < 4; i++) solid.quad(lo[i]!, lo[(i + 1) % 4]!, hi[(i + 1) % 4]!, hi[i]!);
-      for (const [ca, cs] of c) bodyEdges.push(...at(ca, cs, z0), ...at(ca, cs, z1));
-    };
-    for (const t of towers) {
-      const top = floor + t.heightMm;
-      const base = road(t.atMm) - plankMm;
-      for (const side of [TOWER_POST_SPREAD_MM, -TOWER_POST_SPREAD_MM]) box(t.atMm, side, TOWER_POST_HALF_MM, base, top);
-      // Crossbeams: at the top, and over the train's opening.
-      for (const zb of [top - 2 * TOWER_POST_HALF_MM, road(t.atMm) + TOWER_OPENING_MM]) {
-        const z0 = zb, z1 = zb + 2 * TOWER_POST_HALF_MM;
-        const c = [at(t.atMm - TOWER_POST_HALF_MM, -TOWER_POST_SPREAD_MM, 0), at(t.atMm + TOWER_POST_HALF_MM, -TOWER_POST_SPREAD_MM, 0), at(t.atMm + TOWER_POST_HALF_MM, TOWER_POST_SPREAD_MM, 0), at(t.atMm - TOWER_POST_HALF_MM, TOWER_POST_SPREAD_MM, 0)];
-        const lo = c.map(([x, y]) => solid.vertex(x, y, z0));
-        const hi = c.map(([x, y]) => solid.vertex(x, y, z1));
-        solid.quad(hi[0]!, hi[1]!, hi[2]!, hi[3]!);
-        for (let i = 0; i < 4; i++) solid.quad(lo[i]!, lo[(i + 1) % 4]!, hi[(i + 1) % 4]!, hi[i]!);
-      }
-      grow(...at(t.atMm, TOWER_POST_SPREAD_MM, top));
-    }
-    // Cables: from the road where the climb starts, over each tower top, back down at the far end.
-    const anchors: (readonly [number, number])[] = [
-      [part.hump.upMm - CABLE_ANCHOR_BACK_MM, road(part.hump.upMm - CABLE_ANCHOR_BACK_MM) + 2],
-      ...towers.map((t) => [t.atMm, floor + t.heightMm - TOWER_POST_HALF_MM] as const),
-      [len - part.hump.downMm + CABLE_ANCHOR_BACK_MM, road(len - part.hump.downMm + CABLE_ANCHOR_BACK_MM) + 2],
-    ];
-    for (const side of [TOWER_POST_SPREAD_MM, -TOWER_POST_SPREAD_MM]) {
-      for (let k = 0; k + 1 < anchors.length; k++) {
-        const [a0, z0] = anchors[k]!, [a1, z1] = anchors[k + 1]!;
-        const low = (a: number) => road(a) + CABLE_SAG_CLEAR_MM;
-        const n = 16;
-        let prev: readonly [number, number, number] | null = null;
-        for (let i = 0; i <= n; i++) {
-          const t = i / n;
-          const a = a0 + (a1 - a0) * t;
-          /*
-           * A parabola through both anchors. Between two towers its lowest
-           * point comes down to just above the road at mid-span; from the
-           * road up to the first or last tower it only sags a little.
-           */
-          const straight = z0 + (z1 - z0) * t;
-          const between = k > 0 && k + 2 < anchors.length;
-          const dip = between ? Math.max(0, (z0 + z1) / 2 - low((a0 + a1) / 2)) : END_CABLE_SAG * Math.abs(z1 - z0);
-          const z = Math.max(low(a), straight - 4 * dip * t * (1 - t));
-          const p = at(a, side, z);
-          if (prev) bodyEdges.push(...prev, ...p);
-          // Hangers: down to the road every few centimetres.
-          if (i > 0 && i < n && i % 2 === 0) bodyEdges.push(...p, ...at(a, side, road(a)));
-          prev = p;
-        }
-      }
-    }
   }
 
   // The table and the rest grow the scene's box, never the last piece's.

@@ -34,7 +34,7 @@
  * timestamp, and nothing depends on the submitter being the only author.
  */
 
-import { isStructure, type BodyBox, type DecorBox, type DimensionSource, type Part } from '../src/parts/schema.js';
+import { isStructure, type BodyBox, type DecorBox, type DecorShape, type DimensionSource, type DrawnShape, type Part } from '../src/parts/schema.js';
 import { DIMENSION_TRUST, trustRank, type DimensionStatus } from '../src/parts/schema.js';
 import { portsOf } from '../src/graph/model.js';
 import { GENERIC_PARTS } from './generic.js';
@@ -51,7 +51,9 @@ import { THIRD_PARTY_SEEDS } from './thirdParty.js';
  * reproductions, and unverified third-party seeds.
  */
 const PLAIN_BUILT_IN: readonly Part[] = [
-  ...GENERIC_PARTS, ...RAMP_SEEDS, ...SWITCH_SEEDS, ...CROSSING_SEEDS, ...MULTI_ROAD_SEEDS, ...BUFFER_SEEDS, ...STRUCTURE_SEEDS,
+  ...GENERIC_PARTS, ...RAMP_SEEDS, ...SWITCH_SEEDS, ...CROSSING_SEEDS, ...MULTI_ROAD_SEEDS, ...BUFFER_SEEDS,
+  // A structure's drawn detail is shapes too, its boxes derived like a decorated piece's (eng D3, D6).
+  ...STRUCTURE_SEEDS.map((p): Part => (p.decor ? { ...p, decorBody: decorBoxesOf(`Structure ${p.id}`, p.decor, CLEARANCE.riseMm) } : p)),
   ...THIRD_PARTY_SEEDS,
 ];
 
@@ -63,6 +65,58 @@ const PLAIN_BUILT_IN: readonly Part[] = [
 export function decorLevels(bottomMm: number, topMm: number, riseMm: number): readonly [number, number] {
   const lo = Math.floor(bottomMm / riseMm);
   return [lo, Math.max(lo, Math.ceil(topMm / riseMm) - 1)];
+}
+
+/**
+ * THE BOXES A PART'S SHAPES TAKE UP (eng D4, D9, D10), derived, never written
+ * by hand: each box at the whole levels its heights reach, carrying those
+ * heights for drawing. A slab is its own box; a vault collides with its two
+ * walls and its roof, and one more box, not solid, draws it; a truss, an
+ * arch band or a bridge's towers is drawing only, one box that draws it and
+ * never collides. A shape with no height is a seed error, refused when the
+ * library loads.
+ */
+export function decorBoxesOf(owner: string, decor: readonly DecorShape[], riseMm: number): DecorBox[] {
+  const boxOf = (
+    role: BodyBox['role'], atMm: readonly [number, number], lengthMm: number, widthMm: number,
+    bottomMm: number, topMm: number, more: Partial<DecorBox> & { solid: boolean; draw: boolean },
+  ): DecorBox => {
+    if (!(topMm > bottomMm) || bottomMm < 0 || !Number.isFinite(topMm)) {
+      throw new Error(`${owner}: a shape needs a height: a bottom no lower than the floor, and a top higher than its bottom.`);
+    }
+    return { role, atMm, lengthMm, widthMm, levels: decorLevels(bottomMm, topMm, riseMm), bottomMm, topMm, ...more };
+  };
+  return decor.flatMap((shape): DecorBox[] => {
+    const noun = shape.noun ? { noun: shape.noun } : {};
+    const drawOnly = (drawn: DrawnShape) => ({ solid: false, draw: true, ...noun, shape: drawn });
+    switch (shape.kind) {
+      case 'slab':
+        return [boxOf('footprint', shape.atMm, shape.lengthMm, shape.widthMm, shape.bottomMm, shape.topMm, { solid: shape.solid !== false, draw: true, ...noun })];
+      case 'vault': {
+        /*
+         * A vault's solid parts only (eng D10): its two walls, from the floor
+         * to where the arch springs, and its roof across the top; the passage
+         * between the walls stays open.
+         */
+        const [x, y] = shape.atMm;
+        const { lengthMm: l, widthMm: w, wallMm: t, springMm: spring, topMm: top } = shape;
+        if (!(t > 0 && 2 * t < w && spring < top)) throw new Error(`${owner}: a vault needs walls thinner than half its width and a top higher than its spring.`);
+        const wall = (side: 1 | -1) => boxOf('wall', [x, y + side * (w - t) / 2], l, t, 0, spring, { solid: true, draw: false, ...noun });
+        return [
+          wall(1),
+          wall(-1),
+          boxOf('roof', [x, y], l, w, spring, top, { solid: true, draw: false, ...noun }),
+          boxOf('footprint', [x, y], l, w, 0, top, drawOnly(shape)),
+        ];
+      }
+      case 'truss':
+        return [boxOf('footprint', [(shape.fromMm + shape.toMm) / 2, 0], shape.toMm - shape.fromMm, 2 * shape.sideMm, shape.springMm, shape.crownMm, drawOnly(shape))];
+      case 'arch':
+        return [boxOf('footprint', [(shape.fromMm + shape.toMm) / 2, 0], shape.toMm - shape.fromMm, shape.widthMm, shape.baseMm, shape.baseMm + shape.riseMm + shape.depthMm, drawOnly(shape))];
+      case 'towers':
+        return [boxOf('footprint', [(shape.cableFromMm + shape.cableToMm) / 2, 0], shape.cableToMm - shape.cableFromMm, 2 * shape.spreadMm + shape.postMm, 0, Math.max(...shape.towers.map((t) => t.heightMm)), drawOnly(shape))];
+    }
+  });
 }
 
 /**
@@ -79,36 +133,7 @@ export function deriveDecorated(specs: readonly DecoratedSpec[], builtIn: readon
     const base = byId.get(spec.base);
     if (!base) throw new Error(`Decorated piece ${spec.id}: no built-in part ${spec.base} to take its track from.`);
     if (byId.has(spec.id)) throw new Error(`Decorated piece ${spec.id}: that id is already a built-in part.`);
-    const boxOf = (
-      role: BodyBox['role'], atMm: readonly [number, number], lengthMm: number, widthMm: number,
-      bottomMm: number, topMm: number, more: Partial<DecorBox> & { solid: boolean; draw: boolean },
-    ): DecorBox => {
-      if (!(topMm > bottomMm) || bottomMm < 0 || !Number.isFinite(topMm)) {
-        throw new Error(`Decorated piece ${spec.id}: a shape needs a height: a bottom no lower than the floor, and a top higher than its bottom.`);
-      }
-      return { role, atMm, lengthMm, widthMm, levels: decorLevels(bottomMm, topMm, riseMm), bottomMm, topMm, ...more };
-    };
-    const decorBody: DecorBox[] = spec.decor.flatMap((shape): DecorBox[] => {
-      const noun = shape.noun ? { noun: shape.noun } : {};
-      if (shape.kind === 'slab') {
-        return [boxOf('footprint', shape.atMm, shape.lengthMm, shape.widthMm, shape.bottomMm, shape.topMm, { solid: shape.solid !== false, draw: true, ...noun })];
-      }
-      /*
-       * A vault's solid parts only (eng D10): its two walls, from the floor
-       * to where the arch springs, and its roof across the top; the passage
-       * between the walls stays open. One more box, not solid, draws it.
-       */
-      const [x, y] = shape.atMm;
-      const { lengthMm: l, widthMm: w, wallMm: t, springMm: spring, topMm: top } = shape;
-      if (!(t > 0 && 2 * t < w && spring < top)) throw new Error(`Decorated piece ${spec.id}: a vault needs walls thinner than half its width and a top higher than its spring.`);
-      const wall = (side: 1 | -1) => boxOf('wall', [x, y + side * (w - t) / 2], l, t, 0, spring, { solid: true, draw: false, ...noun });
-      return [
-        wall(1),
-        wall(-1),
-        boxOf('roof', [x, y], l, w, spring, top, { solid: true, draw: false, ...noun }),
-        boxOf('footprint', [x, y], l, w, 0, top, { solid: false, draw: true, ...noun, vault: { widthMm: w, wallMm: t, springMm: spring } }),
-      ];
-    });
+    const decorBody = decorBoxesOf(`Decorated piece ${spec.id}`, spec.decor, riseMm);
     const { partNumber: _theBases, ...track } = base;
     return {
       ...track,
@@ -190,7 +215,7 @@ function withRise(part: Part, rise: 1 | undefined): Part {
   // A stored straight never gains an F of its own: only a multi-road piece's mirror is data (eng D8).
   const bare = (rest.kind === 'multi-road' ? rest : (({ flip: _noFlip, ...r }) => r)(rest)) as Part;
   if (bare.kind !== 'straight') return bare as Part;
-  const { rise: _dropped, deck: _noDeck, plate: _noPlate, trussArch: _noTruss, deckClearanceMm: _noClear, hump: _noHump, ...flat } = bare;
+  const { rise: _dropped, deck: _noDeck, deckClearanceMm: _noClear, hump: _noHump, ...flat } = bare;
   return rise === undefined ? flat : { ...flat, rise };
 }
 
