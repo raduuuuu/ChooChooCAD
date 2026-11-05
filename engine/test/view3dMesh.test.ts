@@ -34,7 +34,7 @@ const run = (ids: readonly string[], turn: 'left' | 'right' = 'left'): Graph => 
   anchors: new Map([['p0', { pos: fromInt(0), heading: 0 }]]),
 });
 
-function scene(g: Graph, extra: { marks?: readonly MarkInput[]; table?: Parameters<typeof buildScene>[0]['table']; highlight?: string } = {}) {
+function scene(g: Graph, extra: { marks?: readonly MarkInput[]; table?: Parameters<typeof buildScene>[0]['table']; highlight?: string; selected?: string } = {}) {
   const r = renderGraph(g, ports, resolve, placeAll(g, ports));
   const partOf = (id: string) => resolve(g.pieces.find((p) => p.pieceId === id)!.partId);
   return { r, s: buildScene({ segments: r.segments, ports: r.ports, welds: g.welds, partOf, riseMm: RISE, plankMm: PLANK, ...extra }) };
@@ -263,5 +263,24 @@ describe("build mode's next piece (build mode plan D23, D42)", () => {
     const g = run(['A', 'N', 'A']);
     const { s } = scene(g, { marks: [{ kind: 'join', at: [360, 0], source: { kind: 'weld', a: { pieceId: 'p1', port: 1 } } }] });
     expect(s.marks[0]).toEqual({ kind: 'join', at: [360, 0, RISE + PLANK] });
+  });
+});
+
+describe("the editor's selection in 3D (P3, owner 2026-11-05: ink outline only)", () => {
+  /*
+   * The selected piece's top gets the same outline as build mode's next
+   * piece, and nothing else in the scene moves: no piece drawn apart, no
+   * grooves lost.
+   * MUTATION PROOF, run: `isSelected` always false: `TypeError: Cannot read
+   * properties of null (reading 'positions')`.
+   */
+  it("outlines the selected piece's top exactly as build mode outlines its next piece, and changes nothing else", () => {
+    const g = run(['A', 'A', 'A']);
+    const plain = scene(g).s;
+    const sel = scene(g, { selected: 'p1' }).s;
+    expect(Array.from(sel.selection!.positions)).toEqual(Array.from(scene(g, { highlight: 'p1' }).s.next!.edge.positions));
+    expect([sel.next, sel.plankTop.indices.length, sel.grooves.indices.length, sel.pieceRanges.has('p1')])
+      .toEqual([null, plain.plankTop.indices.length, plain.grooves.indices.length, true]);
+    expect(plain.selection).toBe(null);
   });
 });

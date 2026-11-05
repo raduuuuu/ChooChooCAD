@@ -30,7 +30,7 @@ import { View3DPanel } from './View3DPanel.js';
 
 const viewer = vi.hoisted(() => ({ mode: 'ok' as 'ok' | 'throw' | 'webgl' }));
 vi.mock('./Viewer3D.js', () => ({
-  default: (props: { label: string; onContextLost: () => void; input: { segments: readonly { pieceId?: string }[] }; onPick?: (id: string) => void }) => {
+  default: (props: { label: string; onContextLost: () => void; input: { segments: readonly { pieceId?: string }[]; selected?: string }; onPick?: (id: string) => void }) => {
     if (viewer.mode === 'throw') throw new TypeError('Failed to fetch dynamically imported module');
     if (viewer.mode === 'webgl') {
       const e = new Error('no WebGL');
@@ -38,7 +38,7 @@ vi.mock('./Viewer3D.js', () => ({
       throw e;
     }
     return (
-      <div data-testid="viewer3d" aria-label={props.label}>
+      <div data-testid="viewer3d" aria-label={props.label} data-selected={props.input.selected ?? ''} data-third={[...new Set(props.input.segments.map((s) => s.pieceId))].filter(Boolean)[2] ?? ''}>
         <button onClick={props.onContextLost}>simulate context loss</button>
         {props.onPick && (
           // A click on the third piece drawn, as the real viewer's ray would report it.
@@ -176,6 +176,29 @@ describe('a piece clicked in 3D (P3, pick in 3D)', () => {
     await user.click(button('2D'));
     const strip = screen.getByRole('group', { name: 'Selected piece' });
     expect(strip.textContent).toContain(name!);
+  });
+
+  /*
+   * THE SELECTION IS MARKED IN 3D (P3, owner 2026-11-05): the scene is given
+   * the selected piece, picked there or carried over from 2D, and nothing
+   * before one is picked.
+   * MUTATION PROOF, run: the editor's scene built without `selected`:
+   * `expected '' to be 'p2' // Object.is equality`.
+   */
+  it('the 3D view is given the selected piece to outline, and nothing without one', async () => {
+    const { user } = app();
+    await user.click(button('Stadium'));
+    await user.click(button('3D'));
+    const v = await screen.findByTestId('viewer3d');
+    expect(v.getAttribute('data-selected')).toBe('');
+    await user.click(button('simulate pick'));
+    const picked = screen.getByTestId('viewer3d');
+    expect(picked.getAttribute('data-selected')).toBe(picked.getAttribute('data-third'));
+    // Carried over: back to 2D and into 3D again, still marked.
+    await user.click(button('2D'));
+    await user.click(button('3D'));
+    const again = await screen.findByTestId('viewer3d');
+    expect([again.getAttribute('data-selected'), again.getAttribute('data-third')!.length > 0]).toEqual([picked.getAttribute('data-third'), true]);
   });
 
   /*

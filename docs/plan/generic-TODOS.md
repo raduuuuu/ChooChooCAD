@@ -25,13 +25,6 @@ over 225mm needs about 234mm of slope), which is why one re-measure comes first.
 `bun run calibration` prints the Q4 result. Part in engine/data/rampSeeds.ts.
 **Depends on:** the re-measure.
 
-## P3 — Show the editor's selection in 3D (left from pick in 3D, 2026-11-05)
-
-**What:** the other half of "pick in 3D": a piece selected in 2D, or picked in 3D, is marked in the 3D view.
-**Why deferred:** design 10A says a selection is kept in 3D but the piece is not highlighted, and nothing has decided how a mark would look next to build mode's muted-and-outlined next piece (D42). Pick in 3D shipped without it, so a pick is said (the selection's announcement), not shown.
-**Context:** `docs/plan/2026-10-31-3d-viewer.md` 10A; `SceneInput.highlight` is build mode's, not a selection's. Side-by-side vs the switch is still the switch.
-**Effort:** human S / CC S. **Depends on:** a design call on 10A.
-
 ## P2 — Community custom-part registry
 
 **What:** Let the part database accept community-defined parametric parts, so

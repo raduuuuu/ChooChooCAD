@@ -33,7 +33,7 @@ const C: SceneColors = {
   seam: '#6e5a38', ink: '#2a2724', inkSoft: '#6b655d', paper: '#f7f3ec', paperSunk: '#efe9df', fail: '#b3261e', slabSide: '#bdb19b',
 };
 
-const arraysOf = (ids: readonly string[], highlight?: string) => {
+const arraysOf = (ids: readonly string[], highlight?: string, selected?: string) => {
   const g: Graph = {
     pieces: ids.map((partId, i) => ({ pieceId: `p${i}`, partId, turn: 'left' })),
     welds: ids.slice(1).map((_, i) => ({ a: { pieceId: `p${i}`, port: 1 }, b: { pieceId: `p${i + 1}`, port: 0 } })),
@@ -46,6 +46,7 @@ const arraysOf = (ids: readonly string[], highlight?: string) => {
     marks: [{ kind: 'gap', at: [0, 0], source: { kind: 'weld', a: { pieceId: 'p0', port: 0 } }, figure: 12 }],
     table: { outline: [[-50, -300], [900, -300], [900, 300], [-50, 300]], overhang: false },
     ...(highlight !== undefined ? { highlight } : {}),
+    ...(selected !== undefined ? { selected } : {}),
   });
 };
 
@@ -194,5 +195,30 @@ describe("build mode's picture (build mode plan D28, D42, D17)", () => {
     // Unknown ids frame the whole scene.
     expect(boxOf(arrays, ['nope'])).toBe(arrays.bounds);
     expect((box.max[0] - box.min[0]) / 144).toBeLessThan(3);
+  });
+});
+
+describe("the editor's selection in 3D (P3, owner 2026-11-05: ink outline only)", () => {
+  const meshes = (group: Group) => group.children.filter((o): o is ThreeMesh => o instanceof ThreeMesh && (o as ThreeMesh).material instanceof MeshBasicMaterial);
+  const hex = (css: string) => new Color(css).getHex();
+  type Lined = { material: { color: Color; linewidth: number; depthTest: boolean }; renderOrder: number };
+  const inkLines = (group: Group) =>
+    group.children.filter((o) => (o as unknown as Lined).material?.linewidth === 3).map((o) => o as unknown as Lined);
+
+  /*
+   * Drawn at the 2D selection's weight, 3px ink, through whatever is in front
+   * so a piece under a roof can still be found; the wood keeps its own look.
+   * MUTATION PROOF, run: the outline depth-tested: `expected [ [ 2762532, true,
+   * 8 ] ] to deeply equal [ [ 2762532, false, 8 ] ]`.
+   */
+  it('draws the selection as one 3px ink outline seen through what is in front, and mutes nothing', () => {
+    const group = new Group();
+    syncScene(group, arraysOf(['A', 'A', 'A'], undefined, 'p1'), C);
+    expect(inkLines(group).map((l) => [l.material.color.getHex(), l.material.depthTest, l.renderOrder])).toEqual([[hex(C.ink), false, 8]]);
+    // The wood is drawn exactly as with nothing selected: same fills, same order, nothing see-through.
+    const look = (gr: Group) => meshes(gr).map((m) => [(m.material as MeshBasicMaterial).color.getHex(), (m.material as MeshBasicMaterial).transparent, m.renderOrder]);
+    const plain = new Group();
+    syncScene(plain, arraysOf(['A', 'A', 'A']), C);
+    expect(look(group)).toEqual(look(plain));
   });
 });
