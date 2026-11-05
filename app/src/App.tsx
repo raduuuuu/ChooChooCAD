@@ -1173,6 +1173,19 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     const part = resolve(piece.partId);
     return `Piece ${pieceNumber.get(id)}: ${part.name} (${shortCode(part)}), ${sizeOf(part)}`;
   };
+  /*
+   * A PIECE CLICKED IN 3D (P3, pick in 3D): selected in the editor, so 2D
+   * shows it selected on the way back. The view stays in 3D, where the
+   * selection is kept and not shown (design 10A); the selection's own
+   * announcement says it, as for a click in 2D. A second click on the same
+   * piece keeps it selected instead of letting it go: in 3D nothing would
+   * show that it was let go.
+   *
+   *   Viewer3D click ──> onPick(pieceId) ──> selectPiece, unless already ──> "Selected Piece n: …"
+   */
+  const pickIn3d = (pieceId: string) => {
+    if (pieceId !== selected) selectPiece(pieceId);
+  };
   const selectedRun = useMemo(() => {
     if (selected === null) return new Set<string>();
     const component = spanningForest(graph).component;
@@ -1904,6 +1917,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             resetSignal={resetSignal}
             corner={<>{shareIt}{buildIt}{viewSwitch}</>}
             reset={resetButton}
+            onPick={pickIn3d}
           />
         ) : (
           <TrackCanvas

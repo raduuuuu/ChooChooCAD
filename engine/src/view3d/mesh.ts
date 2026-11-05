@@ -15,7 +15,8 @@
  *   plank's thickness.
  * - ONE BUFFER PER MATERIAL (eng D20): plank tops, plank sides, groove strips,
  *   buffer beams, raised footprints, slab top, slab sides. A few draw calls at
- *   any size; `pieceRanges` keeps where each piece's top lies, for build mode.
+ *   any size; `pieceRanges` keeps where each piece's top lies, for build mode,
+ *   and with `sideRanges` where its sides lie, so a click in 3D finds its piece.
  * - GROOVES ARE PAINTED (eng D22): two strips at +-gauge/2, the part's own
  *   groove width, 0.2mm proud of the top. A part with no published groove
  *   width gets a bare plank, as in 2D.
@@ -112,6 +113,8 @@ export interface SceneArrays {
   readonly marks: readonly PlacedMark[];
   /** Each piece's run of triangle indices in `plankTop`, for build mode's highlight (eng D20). */
   readonly pieceRanges: ReadonlyMap<string, { readonly start: number; readonly count: number }>;
+  /** The same runs in `plankSide`, walls and end caps, so a pick on a piece's side finds it too (P3 pick in 3D). */
+  readonly sideRanges: ReadonlyMap<string, { readonly start: number; readonly count: number }>;
   readonly bounds: Box;
   /** Each piece's own box, for framing a build step on the next piece (D17, D34). */
   readonly pieceBounds: ReadonlyMap<string, Box>;
@@ -269,6 +272,7 @@ export function buildScene(input: SceneInput): SceneArrays {
   const mainBeams = new Builder();
   const footprints = new Builder();
   const pieceRanges = new Map<string, { start: number; count: number }>();
+  const sideRanges = new Map<string, { start: number; count: number }>();
   const highlight = input.highlight;
   const nTop = new Builder();
   const nSide = new Builder();
@@ -336,6 +340,7 @@ export function buildScene(input: SceneInput): SceneArrays {
     const z1 = l1 * riseMm;
     const st = stationsFor(s);
     const startIdx = top.triangles;
+    const sideStart = side.triangles;
 
     // Cross-sections: left and right edges, underside and top.
     const ring = st.map((p) => {
@@ -420,6 +425,10 @@ export function buildScene(input: SceneInput): SceneArrays {
       // A multi-road piece's roads are consecutive segments, so its range is one run.
       if (was) was.count += count;
       else pieceRanges.set(s.pieceId, { start: startIdx, count });
+      const wasSide = sideRanges.get(s.pieceId);
+      const sideCount = side.triangles - sideStart;
+      if (wasSide) wasSide.count += sideCount;
+      else sideRanges.set(s.pieceId, { start: sideStart, count: sideCount });
     }
   }
 
@@ -623,6 +632,7 @@ export function buildScene(input: SceneInput): SceneArrays {
     slab,
     marks,
     pieceRanges,
+    sideRanges,
     pieceBounds: new Map([...pieceBox].map(([id, b]) => [id, finite(b)])),
     next:
       highlight === undefined

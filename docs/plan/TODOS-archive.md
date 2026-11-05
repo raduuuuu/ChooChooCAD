@@ -110,3 +110,15 @@ this feature can open again).
 
 ---
 
+## DONE 2026-11-05 — Pick a piece in 3D and it is selected in 2D (filed by /plan-ceo-review 2026-10-31, D5)
+
+**DONE 2026-11-05 (branch pick-in-3d).** A click or tap on a piece in the 3D view selects it in the editor, so 2D shows it selected; the selection's own announcement says so ("Selected Piece n: …"), and the view stays in 3D. A press that moves more than 5px is a turn or a pan and picks nothing; a click on the table, a building or empty space does nothing; a second click on the same piece keeps it selected. The ray reads the merged wood through `pieceRanges` and a new `sideRanges` (top and sides), passing through grooves, beams and footprints. Build mode and a shared link's view pick nothing. Not done: the other way round (2D's selection shown in 3D) is held by design 10A and filed as a new P3; the switch stays (no side-by-side). Specs: app/src/viewer3dPick.test.ts, app/src/view3d.dom.test.tsx.
+
+**What:** Clicking a piece in the 3D viewer selects it on the 2D canvas, and the other way round.
+**Why:** Finding which plan-view piece is the one under a bridge is by eye until then.
+**Pros:** 3D becomes a way to navigate. Mesh ids are needed by build mode anyway. **Cons:** Ray-cast picking, which jsdom cannot test.
+**Context:** The 3D viewer ships read-only (`docs/plan/2026-10-31-3d-viewer.md`). Decide side-by-side vs a switch first.
+**Effort:** human M / CC S. **Depends on:** the 3D viewer.
+
+---
+

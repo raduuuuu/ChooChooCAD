@@ -13,6 +13,19 @@
  * THE LOOK (design 13A-19A, 25A): unlit, flat colour read from the CSS tokens
  * at runtime, so no colour is written here; marks are the 2D canvas's own
  * glyphs on camera-facing sprites, always on top, at a fixed screen size.
+ *
+ * PICKING (P3, pick in 3D): a press that lets go where it started is a click,
+ * and a click on wood selects that piece in the editor; one that moved is the
+ * view being turned, and picks nothing.
+ *
+ *   pointerdown ──> pointermove (moved past CLICK_SLOP_PX? then a turn) ──> pointerup
+ *                                                                              │ a click
+ *   ray from the camera ──> meshes hit, nearest first ──> pieceOfHits ──> onPick(pieceId)
+ *
+ * The wood is merged into one buffer per material (eng D20), so a mesh says
+ * which piece a triangle is by `userData.pieceRanges`; grooves, beams and
+ * footprints let the ray through to the wood they belong to, and anything
+ * else hit first (a structure, the table) means nothing is picked.
  */
 
 import { useEffect, useMemo, useRef } from 'react';
@@ -26,11 +39,14 @@ import {
   Mesh,
   MeshBasicMaterial,
   PerspectiveCamera,
+  Raycaster,
   Scene,
   Sprite,
   SpriteMaterial,
+  Vector2,
   Vector3,
   WebGLRenderer,
+  type Camera,
   type Material,
   type Object3D,
 } from 'three';
@@ -232,22 +248,31 @@ export function syncScene(group: Group, arrays: SceneArrays, c: SceneColors, dpr
     o.renderOrder = order;
     group.add(o);
   };
+  // What a pick reads (see PICKING): the wood names its pieces, the rest lets the ray through.
+  const wood = (o: Mesh, ranges: SceneArrays['pieceRanges']) => {
+    o.userData.pieceRanges = ranges;
+    return o;
+  };
+  const through = (o: Mesh) => {
+    o.userData.pickThrough = true;
+    return o;
+  };
   if (arrays.slab) {
     add(new Mesh(geometryOf(arrays.slab.top), flat(c.paperSunk)));
     add(new Mesh(geometryOf(arrays.slab.side), flat(c.slabSide)));
     add(lines(arrays.slab.outline.positions, arrays.slab.overhang ? c.fail : c.inkSoft, OUTLINE_PX), 1);
   }
-  add(new Mesh(geometryOf(arrays.footprints), flat(c.trackShadow)), 1);
+  add(through(new Mesh(geometryOf(arrays.footprints), flat(c.trackShadow))), 1);
   // Structures (design decision 7): matte boxes in the slab's side colour, roofs as an outline and a rim.
   add(new Mesh(geometryOf(arrays.structures.solid), flat(c.slabSide)), 1);
   add(new Mesh(geometryOf(arrays.structures.rim), flat(c.slabSide)), 1);
   if (arrays.structures.edges.positions.length > 0) add(lines(arrays.structures.edges.positions, c.inkSoft, OUTLINE_PX), 2);
   // In build mode what is down is muted, so the next piece carries the weight (D42).
   const next = arrays.next;
-  add(new Mesh(geometryOf(arrays.plankSide), flat(next ? c.trackShadow : c.trackEdge)), 2);
-  add(new Mesh(geometryOf(arrays.plankTop), flat(next ? c.slabSide : c.trackFill)), 2);
-  add(new Mesh(geometryOf(arrays.grooves), flat(c.trackGroove)), 3);
-  add(new Mesh(geometryOf(arrays.beams), flat(c.ink)), 3);
+  add(wood(new Mesh(geometryOf(arrays.plankSide), flat(next ? c.trackShadow : c.trackEdge)), arrays.sideRanges), 2);
+  add(wood(new Mesh(geometryOf(arrays.plankTop), flat(next ? c.slabSide : c.trackFill)), arrays.pieceRanges), 2);
+  add(through(new Mesh(geometryOf(arrays.grooves), flat(c.trackGroove))), 3);
+  add(through(new Mesh(geometryOf(arrays.beams), flat(c.ink))), 3);
   if (next) {
     add(new Mesh(geometryOf(next.side), flat(c.trackEdge)), 2);
     add(new Mesh(geometryOf(next.top), flat(c.trackFill)), 2);
@@ -273,6 +298,57 @@ export function syncScene(group: Group, arrays: SceneArrays, c: SceneColors, dpr
     add(sprite, 10);
   }
   if (levelLines.length > 0) add(lines(new Float32Array(levelLines), c.fail, LEVEL_LINE_PX, false), 9);
+}
+
+/** How far a press may move, CSS px, and still be a click rather than a turn or a pan (P3 pick in 3D). */
+export const CLICK_SLOP_PX = 5;
+
+/** Whether a pointer that went down at `from` and is now at `to` is still a click. */
+export function isClick(from: { readonly x: number; readonly y: number }, to: { readonly x: number; readonly y: number }): boolean {
+  return Math.hypot(to.x - from.x, to.y - from.y) <= CLICK_SLOP_PX;
+}
+
+/** The piece whose run holds triangle `faceIndex`; the runs count index entries, three a triangle. */
+export function pieceAtFace(ranges: SceneArrays['pieceRanges'], faceIndex: number): string | null {
+  const at = faceIndex * 3;
+  for (const [id, r] of ranges) if (at >= r.start && at < r.start + r.count) return id;
+  return null;
+}
+
+/** One ray hit, as three reports it: the object and, for a mesh, which triangle. */
+export interface PickHit {
+  readonly object: { readonly userData: Record<string, unknown> };
+  readonly faceIndex?: number | null;
+}
+
+/**
+ * The piece a ray picks, from its hits nearest first: the first piece of wood
+ * it reaches, passing through grooves, beams and footprints; nothing when
+ * something else is in front, or nothing is hit.
+ */
+export function pieceOfHits(hits: readonly PickHit[]): string | null {
+  for (const h of hits) {
+    const ranges = h.object.userData.pieceRanges as SceneArrays['pieceRanges'] | undefined;
+    if (ranges) return h.faceIndex == null ? null : pieceAtFace(ranges, h.faceIndex);
+    if (h.object.userData.pickThrough) continue;
+    return null;
+  }
+  return null;
+}
+
+/**
+ * The piece under a point of the view, in normalised device coordinates
+ * (-1..1, y up). Meshes only: lines and marks are drawn over the wood and
+ * never hide it from a pick. Needs no WebGL, so the node test runs it.
+ */
+export function pickPiece(group: Group, camera: Camera, ndc: { readonly x: number; readonly y: number }): string | null {
+  const ray = new Raycaster();
+  ray.setFromCamera(new Vector2(ndc.x, ndc.y), camera);
+  const meshes: Object3D[] = [];
+  group.traverse((o) => {
+    if (o instanceof Mesh && !(o instanceof LineSegments2)) meshes.push(o);
+  });
+  return pieceOfHits(ray.intersectObjects(meshes, false));
 }
 
 /** Dispose and remove everything under `group`. */
@@ -351,6 +427,8 @@ export interface Viewer3DProps {
   readonly build?: BuildView | null;
   /** A new scene is on screen (build mode swaps its label in the same frame, D37). */
   readonly onDrawn?: () => void;
+  /** A click on a piece (see PICKING); never in build mode. */
+  readonly onPick?: (pieceId: string) => void;
 }
 
 export interface BuildView {
@@ -377,9 +455,11 @@ export function boxOf(arrays: SceneArrays, ids: readonly string[]): Box {
   return min[0] === Infinity ? arrays.bounds : { min: [min[0]!, min[1]!, min[2]!], max: [max[0]!, max[1]!, max[2]!] };
 }
 
-export default function Viewer3D({ input, label, resetSignal, onContextLost, describedBy, build = null, onDrawn }: Viewer3DProps) {
+export default function Viewer3D({ input, label, resetSignal, onContextLost, describedBy, build = null, onDrawn, onPick }: Viewer3DProps) {
   const drawnRef = useRef(onDrawn);
   drawnRef.current = onDrawn;
+  const pickRef = useRef(onPick);
+  pickRef.current = onPick;
   const buildRef = useRef(build);
   buildRef.current = build;
   const host = useRef<HTMLDivElement | null>(null);
@@ -567,7 +647,43 @@ export default function Viewer3D({ input, label, resetSignal, onContextLost, des
       render();
     };
     canvas.addEventListener('keydown', keys);
+    // A click picks a piece (see PICKING). A second finger, another button, or moving past the slop makes it a turn.
+    const pressed = new Set<number>();
+    let press: { id: number; x: number; y: number; click: boolean } | null = null;
+    const down = (e: PointerEvent) => {
+      pressed.add(e.pointerId);
+      press = pressed.size === 1 && e.isPrimary && e.button === 0 ? { id: e.pointerId, x: e.clientX, y: e.clientY, click: true } : null;
+    };
+    const move = (e: PointerEvent) => {
+      if (press && press.id === e.pointerId && !isClick(press, { x: e.clientX, y: e.clientY })) press.click = false;
+    };
+    const up = (e: PointerEvent) => {
+      pressed.delete(e.pointerId);
+      const p = press;
+      if (!p || p.id !== e.pointerId) return;
+      press = null;
+      const pick = pickRef.current;
+      if (!pick || buildRef.current || !p.click || !isClick(p, { x: e.clientX, y: e.clientY })) return;
+      const r = canvas.getBoundingClientRect();
+      const id = pickPiece(group, camera, {
+        x: ((e.clientX - r.left) / (r.width || 1)) * 2 - 1,
+        y: -((e.clientY - r.top) / (r.height || 1)) * 2 + 1,
+      });
+      if (id !== null) pick(id);
+    };
+    const cancel = (e: PointerEvent) => {
+      pressed.delete(e.pointerId);
+      press = null;
+    };
+    canvas.addEventListener('pointerdown', down);
+    canvas.addEventListener('pointermove', move);
+    canvas.addEventListener('pointerup', up);
+    canvas.addEventListener('pointercancel', cancel);
     return () => {
+      canvas.removeEventListener('pointerdown', down);
+      canvas.removeEventListener('pointermove', move);
+      canvas.removeEventListener('pointerup', up);
+      canvas.removeEventListener('pointercancel', cancel);
       canvas.removeEventListener('keydown', keys);
       canvas.removeEventListener('webglcontextlost', lost);
       controls.removeEventListener('change', render);
