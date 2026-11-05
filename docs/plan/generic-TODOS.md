@@ -832,6 +832,8 @@ should be the last resort, and the dump should name the rows it dropped.
 
 ## P2 — Nothing has ever verified what the verdict announces, and the text inside the live region just changed (filed by /qa, 2026-10-19)
 
+**2026-11-05, MACHINE HALF DONE (branch verdict-announcement):** `app/src/verdictAnnouncement.dom.test.tsx` pins the exact spoken words of both live regions through a real session; results and a VoiceOver checklist are in docs/plan/2026-11-05-verdict-announcement.md. Marks are silent and the region holds the sentence alone (pass). Finding: while a run is open, every placement is said twice, the verdict re-reading its piece count beside "Added piece N". **Still open, owner-owned:** the 30-minute VoiceOver listen (the checklist), then decide whether to drop the piece count from the spoken not-a-loop verdict.
+
 **What:** The verdict is announced through a polite, atomic live region:
 `app/src/VerdictLine.tsx:214-216` carries `role="status"`, `aria-live="polite"` and
 `aria-atomic="true"`. On 2026-10-19 the EXCEEDS sentence inside that region was
