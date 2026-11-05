@@ -266,18 +266,22 @@
  * buttons cannot express. If a second filled button ever appears, this stops
  * being a hierarchy and becomes decoration: fix that, do not add a third.
  */
-.canvas-empty-action button {
-  min-height: 40px;
-  padding: 0 var(--s4);
+/*
+ * THE FILLED BUTTON, ONE LOOK for the editor's empty state and build mode's
+ * one thing to do (design review D1, 2026-10-31). Sizes stay with each place.
+ */
+.canvas-empty-action button,
+.build-primary {
   background: var(--ink);
   border: 1px solid var(--ink);
   border-radius: 3px;
   color: var(--paper);
   font: inherit;
-  font-size: 15px;
   cursor: pointer;
 }
-.canvas-empty-action button:hover { background: var(--ink-soft); border-color: var(--ink-soft); }
+.canvas-empty-action button:hover,
+.build-primary:hover { background: var(--ink-soft); border-color: var(--ink-soft); }
+.canvas-empty-action button { min-height: 40px; padding: 0 var(--s4); font-size: 15px; }
 
 /* The preset's own claim, in the data face because "8 large curves" is a count. */
 .canvas-empty-note {
@@ -1838,26 +1842,37 @@
   z-index: 2;
 }
 .view-switch { display: inline-flex; }
+/*
+ * THE OUTLINE BUTTON, ONE LOOK for the canvas corner and build mode (design
+ * review FINDING-003, then D1 of 2026-10-31): --rule at rest, --ink-soft on
+ * hover. Paper, not transparent like the rail's buttons: these sit over the
+ * scene. Sizes stay with each place.
+ */
+.view-switch button,
+.view-reset,
+.build-it,
+.build-outline {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.view-switch button:hover,
+.view-reset:hover,
+.build-it:hover,
+.build-outline:hover { border-color: var(--ink-soft); }
+.view-reset,
+.build-it,
+.build-outline { border-radius: 3px; }
 .view-switch button,
 .view-reset,
 .build-it {
   min-height: 36px;
   min-width: 44px;
   padding: 0 var(--s3);
-  /* Paper, not transparent like the rail's buttons: these sit over the scene. */
-  background: var(--paper);
-  /* The app's outline button: --rule at rest, --ink-soft on hover (design review FINDING-003). */
-  border: 1px solid var(--rule);
-  color: var(--ink);
-  font: inherit;
   font-size: 14px;
-  cursor: pointer;
 }
-.view-switch button:hover,
-.view-reset:hover,
-.build-it:hover { border-color: var(--ink-soft); }
-.view-reset,
-.build-it { border-radius: 3px; }
 .view-switch button:first-child { border-radius: 3px 0 0 3px; }
 .view-switch button:last-child { border-radius: 0 3px 3px 0; margin-inline-start: -1px; }
 /*
@@ -1904,7 +1919,13 @@
 }
 .share-line { color: var(--ink); }
 .share-url { width: 100%; min-height: 36px; padding: 0 var(--s2); font: inherit; font-family: var(--font-data); font-size: 12px; color: var(--ink); background: var(--paper-sunk); border: 1px solid var(--rule); border-radius: 3px; }
-.share-close { min-height: 36px; background: none; border: none; padding: 0; color: var(--ink); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+/* THE TEXT BUTTON, ONE LOOK for Share's Close, the put-aside notice and build mode (design review D1, 2026-10-31). */
+.share-close,
+.put-aside-button,
+.build-text { background: none; border: none; padding: 0; color: var(--ink); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.put-aside-button:hover,
+.build-text:hover { text-decoration-thickness: 2px; }
+.share-close { min-height: 36px; }
 @media (pointer: coarse) {
   .view-switch button,
   .view-reset,
@@ -2018,14 +2039,14 @@
 .build-quiet { margin: 0; min-height: 1.4em; font-size: var(--build-meta); color: var(--ink-soft); }
 /* The corner's controls, with a ring of space where a near-miss does nothing (D50). */
 .build-dead { margin-top: auto; align-self: flex-end; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s2); padding: var(--s4); margin-inline-end: calc(-1 * var(--s4)); margin-bottom: calc(-1 * var(--s4)); }
-.build-dead button, .build-actions button { min-height: 48px; padding: 0 var(--s4); font: inherit; font-size: var(--build-meta); }
-.build-outline { background: var(--paper); border: 1px solid var(--rule); border-radius: 3px; color: var(--ink); cursor: pointer; }
-.build-outline:hover { border-color: var(--ink-soft); }
-/* One filled button per build screen, the one thing to do there (design D32, D38), as the empty state's is in the editor. */
-.build-primary { background: var(--ink); color: var(--paper); border: 1px solid var(--ink); border-radius: 3px; font-weight: 600; cursor: pointer; }
-.build-primary:hover { background: var(--ink-soft); border-color: var(--ink-soft); }
-.build-text { background: none; border: none; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-.build-text:hover { text-decoration-thickness: 2px; }
+/*
+ * Build mode's buttons share the app's three looks (outline, filled, text);
+ * only the size is its own. One filled button per build screen, the one thing
+ * to do there (design D32, D38). Its old `font-weight: 600` never applied (the
+ * size rule's `font: inherit` outranked it, measured 2026-11-05), so it is
+ * not carried over: the button looks as it always has.
+ */
+.build-dead button, .build-actions button { min-height: var(--target-build); padding: 0 var(--s4); font-size: var(--build-meta); }
 /* Previous and Next for keyboards and screen readers (D51): hidden until focused. */
 .build-sr-nav { display: flex; gap: var(--s2); }
 .build-sr-nav button { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -2103,8 +2124,7 @@
 /* On a phone with no link, where to design instead (design 19A). */
 .friend-own-note { margin: 0; color: var(--ink-soft); }
 .put-aside-buttons { display: flex; gap: var(--s4); flex: none; }
-.put-aside-button { min-height: 44px; background: none; border: none; padding: 0; color: var(--ink); font: inherit; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-.put-aside-button:hover { text-decoration-thickness: 2px; }
+.put-aside-button { min-height: 44px; font-size: 14px; }
 .put-aside-button:disabled { color: var(--ink-soft); text-decoration: none; cursor: default; }
 .friend-message .friend-main { justify-content: center; align-items: flex-start; max-width: 36rem; }
 .friend-message-line { margin: 0; font-size: 17px; line-height: 1.5; outline: none; }
