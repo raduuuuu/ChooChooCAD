@@ -74,6 +74,8 @@ export function LayoutFileControls({ graph, usesCorrections, announce, said, set
         accept={FILE_ACCEPT}
         className="sr-only"
         tabIndex={-1}
+        // Reached through "Open a layout file"; without this, assistive tech found a second, unlabelled-looking "Layout file" button (live site, 2026-11-05).
+        aria-hidden="true"
         aria-label="Layout file"
         onChange={(e) => {
           const file = e.currentTarget.files?.[0];
