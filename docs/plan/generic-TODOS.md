@@ -922,6 +922,7 @@ Measurement and method: `.gstack/qa-reports/20261020T163029Z-split-cursor/`.
 **Why:** the 3D view would look like real track. It changes no answer, so it waits behind the wrong-answer fixes.
 **Context:** full design in docs/plan/2026-11-04-partnership-pitch.md ("Accepted scope", D9, D10); 3,000-triangle budget (engine/test/decorated.test.ts).
 **Effort:** human L / CC M. **Priority:** P3. **Depends on:** nothing.
+**2026-11-05, station pilot (branch station-detail):** the Station straight now draws its measured model (open hall, barrel roof, vents, tower, stepped cap) with 1px detail lines (clock, sign, platform line) shown only when close, and its boxes match the model (B1). Plan and results: docs/plan/2026-11-05-rich-graphics.md. Next, once the pilot is judged: the Elevated station (needs measuring), then the other decorated pieces; the track itself (grooves, pegs, plank ends) is still open.
 
 # Shelved: partnership (owner, 2026-11-04)
 

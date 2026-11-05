@@ -115,6 +115,37 @@ export function decorBoxesOf(owner: string, decor: readonly DecorShape[], riseMm
         return [boxOf('footprint', [(shape.fromMm + shape.toMm) / 2, 0], shape.toMm - shape.fromMm, shape.widthMm, shape.baseMm, shape.baseMm + shape.riseMm + shape.depthMm, drawOnly(shape))];
       case 'towers':
         return [boxOf('footprint', [(shape.cableFromMm + shape.cableToMm) / 2, 0], shape.cableToMm - shape.cableFromMm, 2 * shape.spreadMm + shape.postMm, 0, Math.max(...shape.towers.map((t) => t.heightMm)), drawOnly(shape))];
+      case 'station': {
+        /*
+         * A station collides as its hall, its roof, its tower and the tower's
+         * cap, each a solid box at its measured size, none drawn; one more
+         * box, not solid, draws the building (owner B1, eng E-A1). Every box
+         * keeps the role `footprint`, so 2D draws them as it always has (X2).
+         */
+        const [x, y] = shape.atMm;
+        const { hall, roof, tower, cap, clock } = shape;
+        const at = (dx: number, dy: number): readonly [number, number] => [x + dx, y + dy];
+        const bad = (why: string) => new Error(`${owner}: a station ${why}.`);
+        if (!(hall.wallMm > 0 && 2 * hall.wallMm < hall.widthMm && 2 * hall.wallMm < hall.lengthMm)) throw bad('needs walls thinner than half its hall');
+        for (const o of shape.openings) {
+          if (!(o.fromMm < o.toMm && o.fromMm > -hall.lengthMm / 2 + hall.wallMm && o.toMm < hall.lengthMm / 2 - hall.wallMm)) throw bad('opening must lie between its end walls');
+          if (!(o.topMm > hall.bottomMm && o.topMm < hall.topMm)) throw bad('opening must stop short of the top of its wall');
+        }
+        if (!(roof.baseMm > 0 && roof.radiusMm > 0 && 2 * roof.radiusMm <= roof.widthMm && roof.topMm >= hall.topMm + roof.radiusMm)) throw bad('roof needs a barrel no wider than the roof, under its top');
+        if (!(tower.bottomMm < tower.topMm && clock.sizeMm < tower.sizeMm && clock.recessMm > 0 && clock.recessMm < tower.sizeMm / 2)) throw bad('clock must fit on its tower');
+        if (!(clock.centreMm - clock.sizeMm / 2 > tower.bottomMm && clock.centreMm + clock.sizeMm / 2 < tower.topMm)) throw bad('clock must sit within its tower');
+        const n = { noun: shape.noun ?? 'station building' };
+        const collides = { solid: true, draw: false } as const;
+        const extent = Math.max(hall.widthMm, roof.widthMm, 2 * (Math.abs(tower.atMm[1]) + Math.max(tower.sizeMm, ...cap.map((c) => c.sizeMm)) / 2));
+        const top = Math.max(roof.topMm, tower.topMm, ...cap.map((c) => c.topMm));
+        return [
+          boxOf('footprint', at(0, 0), hall.lengthMm, hall.widthMm, hall.bottomMm, hall.topMm, { ...collides, ...n }),
+          boxOf('footprint', at(0, 0), roof.lengthMm, roof.widthMm, hall.topMm, roof.topMm, { ...collides, noun: 'roof' }),
+          boxOf('footprint', at(...tower.atMm), tower.sizeMm, tower.sizeMm, tower.bottomMm, tower.topMm, { ...collides, noun: 'clock tower' }),
+          ...cap.map((c) => boxOf('footprint', at(...tower.atMm), c.sizeMm, c.sizeMm, c.bottomMm, c.topMm, { ...collides, noun: 'clock tower' })),
+          boxOf('footprint', at(0, 0), Math.max(hall.lengthMm, roof.lengthMm), extent, hall.bottomMm, top, drawOnly(shape)),
+        ];
+      }
     }
   });
 }

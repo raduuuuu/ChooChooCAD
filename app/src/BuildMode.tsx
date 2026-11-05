@@ -487,6 +487,8 @@ export function pictureOf(items: readonly BuildItem[], i: number, scene: SceneIn
     welds: scene.welds.filter((w) => down.has(w.a.pieceId) && down.has(w.b.pieceId)),
     marks,
     ...(next !== undefined ? { highlight: next } : {}),
+    // Every build-mode screen, the band and the end included: placed pieces draw no detail (design DR2, eng Y1).
+    buildMode: true,
   };
   if (item.kind === 'piece' && item.onto.length > 0) {
     return { input, build: { focus: [item.pieceId, ...item.onto.map((o) => o.pieceId)] } };

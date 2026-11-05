@@ -78,6 +78,8 @@ export interface Segment {
     readonly noun?: string;
     /** False for a box that only collides; a shape with its own drawing draws itself instead (eng D10). */
     readonly draw: boolean;
+    /** -1 when the piece is turned 'right': its drawn shape is reflected across the piece (CEO O4). Absent: not reflected. */
+    readonly mirror?: -1;
     readonly shape?: DrawnShape;
   };
   /**
