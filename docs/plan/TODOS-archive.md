@@ -110,3 +110,13 @@ this feature can open again).
 
 ---
 
+## DONE 2026-11-05 — Drop a layout file on the canvas (left from the layout-file P2, 2026-11-04)
+
+**DONE 2026-11-05 (branch drop-layout-file).** A file dropped on the editor's canvas (the stage, 2D or 3D) opens as "Open a layout file" does: both hand the file to one function, `openLayoutFile` in `LayoutFileControls.tsx`, so the size cap, `fragmentOfFile`, the `open-file` count and the address road are shared. A refusal is said on the file row's status line, whose sentence App now owns so the drop can use it. Only a drag carrying files is accepted; the first file is taken; a drop with no file is ignored. The canvas's pointer handling is untouched. Spec: app/src/layoutFileDrop.dom.test.tsx.
+
+**What:** dropping a `.choochoo` file or a downloaded `.json` backup on the canvas opens it, as "Open a layout file" does (`LayoutFileControls.tsx`, `fragmentOfFile`).
+**Why:** the design doc names drop as the second way in; the picker shipped first because it is the one every device has.
+**Effort:** human ~1h / CC ~15m. **Priority:** P3. **Depends on:** nothing.
+
+---
+
