@@ -11,7 +11,6 @@ import { GENERIC_PARTS } from '../../engine/data/generic.js';
 import { BUILT_IN } from '../../engine/data/library.js';
 import {
   loadInventory,
-  QUICK_FILLS,
   sanitizeCount,
   saveInventory,
   shortfalls,
@@ -71,55 +70,6 @@ describe('shortfall arithmetic', () => {
     expect(shortfalls({ E: 2 }, used)).toHaveLength(0);
     // ...but one MORE would exceed, which is what greys the button.
     expect(wouldExceed({ E: 2 }, used, 'E')).toBe(true);
-  });
-});
-
-describe('quick-fills write counts and are then forgotten (D6)', () => {
-  it('every quick-fill names only parts the catalogue has', () => {
-    const known = new Set(BUILT_IN.map((p) => p.id));
-    for (const q of QUICK_FILLS) {
-      for (const id of Object.keys(q.counts)) {
-        expect(known.has(id), `${q.label} names ${id}`).toBe(true);
-      }
-    }
-  });
-
-  it('quick-fills stay Generic-only, so a Generic owner is not given other brands', () => {
-    // Added when the catalogue gained IKEA and Playtive. A "set you own" is
-    // brand-specific, and the third-party sizes are unverified besides.
-    const generic = new Set(GENERIC_PARTS.map((p) => p.id));
-    for (const q of QUICK_FILLS) {
-      for (const id of Object.keys(q.counts)) {
-        expect(generic.has(id), `${q.label} names ${id}`).toBe(true);
-      }
-    }
-  });
-
-  it('every count is a non-negative integer', () => {
-    for (const q of QUICK_FILLS) {
-      for (const [id, n] of Object.entries(q.counts)) {
-        expect(Number.isInteger(n), `${q.label}/${id}`).toBe(true);
-        expect(n, `${q.label}/${id}`).toBeGreaterThanOrEqual(0);
-      }
-    }
-  });
-
-  it('a quick-fill is just counts: nothing records which one was used', () => {
-    // The drift class D6 deletes. If a fill carried an identity that something
-    // re-read later, a wrong manifest could corrupt counts invisibly. It does
-    // not: the applied value is a plain count map and that is all that is kept.
-    const applied: Inventory = { ...QUICK_FILLS[0]!.counts };
-    expect(Object.values(applied).every((v) => typeof v === 'number')).toBe(true);
-    expect(Object.keys(applied)).not.toContain('label');
-    expect(Object.keys(applied)).not.toContain('note');
-  });
-
-  it('the circle fill is short for a double circle, which is the point', () => {
-    const circle = QUICK_FILLS.find((q) => q.label === 'Enough for a circle')!;
-    expect(shortfalls({ ...circle.counts }, usedCounts(Array(8).fill('E')))).toHaveLength(0);
-    expect(shortfalls({ ...circle.counts }, usedCounts(Array(16).fill('E')))).toEqual([
-      { partId: 'E', used: 16, owned: 8, shortBy: 8 },
-    ]);
   });
 });
 

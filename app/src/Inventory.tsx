@@ -1,34 +1,25 @@
 /**
- * The inventory panel.
+ * YOUR BOX: the parts you own, one count per part (owner, 2026-11-05: "simple
+ * first", "always reachable and stripped back";
+ * docs/plan/2026-11-05-inventory-by-part.md B1, B2).
  *
- * Offered AFTER the first layout exists, never in the empty state (decision D10).
- * A blank canvas has one job, which is to get a working layout on screen in one
- * click; asking a new user to do data entry before they have seen the tool do
- * anything spends goodwill for a payoff several steps away. Once there is a
- * layout, the same question has something to be useful about: this is what you
- * would need to build THAT.
+ *   [code] [name] [count]  N in use      one row per part, then the adapters
+ *   [Forget this]                        back to "not said", once anything is entered
  *
- * Counts are editable text fields, not a set picker, because counts are the
- * stored truth (D6). The quick-fills write counts and are then forgotten.
+ * Counts are the stored truth (D6). Nothing else lives here: what a layout is
+ * short of is said by the verdict's shortfall line, and the palette greys what
+ * you have used up (D8).
  */
 
-
 import { useState } from 'react';
-import { codeOf, isUncorroborated, isUnverified, type Part } from '../../engine/src/parts/schema.js';
-import {
-  ADAPTER_INVENTORY_KEY,
-  QUICK_FILLS,
-  sanitizeCount,
-  type Inventory as InventoryCounts,
-  type Shortfall,
-} from './inventoryModel.js';
+import { codeOf, type Part } from '../../engine/src/parts/schema.js';
+import { ADAPTER_INVENTORY_KEY, sanitizeCount, type Inventory as InventoryCounts } from './inventoryModel.js';
 
 export interface InventoryPanelProps {
   /** The resolved library: built-ins, seeds, and this user's submissions. */
   readonly library: readonly Part[];
   readonly inventory: InventoryCounts;
   readonly used: Readonly<Record<string, number>>;
-  readonly shortfalls: readonly Shortfall[];
   /** Male-male adapters the layout needs (its socket-to-socket joints). */
   readonly adaptersUsed: number;
   /** How many more adapters it needs than are owned; 0 when undeclared. */
@@ -41,7 +32,6 @@ export function InventoryPanel({
   library,
   inventory,
   used,
-  shortfalls,
   adaptersUsed,
   adapterShort,
   onChange,
@@ -88,8 +78,7 @@ export function InventoryPanel({
 
       {!declared && (
         <p className="inventory-undeclared">
-          You haven&rsquo;t said what you own, so nothing is being checked against it. Every
-          piece stays available. Fill any number in, or start from a quick-fill.
+          Type how many of each piece you own. Until you do, nothing is checked against your box.
         </p>
       )}
 
@@ -128,15 +117,6 @@ export function InventoryPanel({
               {bad && (
                 <span className="inventory-row-bad">needs a number</span>
               )}
-              <span className="inventory-row-src" title={part.dimensions.source}>
-                {isUnverified(part)
-                  ? 'size unverified'
-                  : part.dimensions.status === 'user-measured'
-                    ? 'you measured this'
-                    : isUncorroborated(part)
-                      ? 'one source'
-                      : ''}
-              </span>
             </label>
           );
         })}
@@ -165,63 +145,16 @@ export function InventoryPanel({
           />
           <span className="inventory-row-used num">{adaptersUsed > 0 ? `${adaptersUsed} in use` : ''}</span>
           {invalid[ADAPTER_INVENTORY_KEY] && <span className="inventory-row-bad">needs a number</span>}
-          {/* No source: an adapter has no size the app uses (design review DR4). */}
-          <span className="inventory-row-src" />
         </label>
       </div>
 
-      {adapterShort > 0 && (
-        <p className="inventory-shortfall">
-          This layout needs <span className="num">{adapterShort}</span> more male-male{' '}
-          {adapterShort === 1 ? 'adapter' : 'adapters'}.
-        </p>
-      )}
-
-      {shortfalls.length > 0 && (
-        <p className="inventory-shortfall">
-          This layout needs{' '}
-          {shortfalls.map((s, i) => (
-            <span key={s.partId}>
-              {i > 0 && ', '}
-              <span className="num">{s.shortBy}</span> more {codeOf(s.partId)}
-            </span>
-          ))}
-          . You can still place them; the drawing does not care what is in your box.
-        </p>
-      )}
-
-      <div className="inventory-fills">
-        <span className="inventory-fills-label">Quick-fill:</span>
-        {QUICK_FILLS.map((q) => (
-          // A quick-fill is part counts; it says nothing about adapters, so it keeps theirs.
-          <button
-            key={q.label}
-            title={q.note}
-            onClick={() =>
-              onChange({
-                ...q.counts,
-                ...(inventory?.[ADAPTER_INVENTORY_KEY] !== undefined
-                  ? { [ADAPTER_INVENTORY_KEY]: inventory[ADAPTER_INVENTORY_KEY] }
-                  : {}),
-              })
-            }
-          >
-            {q.label}
-          </button>
-        ))}
-        {declared && (
+      {declared && (
+        <div className="inventory-fills">
           <button onClick={() => onChange(null)} title="Back to not saying what you own">
             Forget this
           </button>
-        )}
-      </div>
-
-      <p className="inventory-note">
-        These quick-fills are described in terms of this catalogue. They are{' '}
-        <strong>not official Generic set contents</strong>, which are not transcribed here.
-        Whatever you pick becomes a set of counts you can edit; nothing remembers which
-        quick-fill you used.
-      </p>
+        </div>
+      )}
     </section>
   );
 }

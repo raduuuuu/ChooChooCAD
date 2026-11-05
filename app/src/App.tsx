@@ -2187,12 +2187,12 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         <LayoutFileControls graph={graph} usesCorrections={usesCorrections} announce={setSaid} />
 
         {/*
-          * The inventory invitation appears only once a layout EXISTS (D10). On a
-          * blank canvas three things were competing to be first: the hint, the
-          * presets and this. One click to a working layout beats a data-entry
-          * chore whose payoff arrives several steps later.
+          * YOUR BOX IS ALWAYS OFFERED (owner, 2026-11-05: "always reachable";
+          * docs/plan/2026-11-05-inventory-by-part.md B1). D10 hid it until a
+          * layout existed; that still holds for Your table and Add a part, which
+          * only mean something once there is track.
           */}
-        {graph.pieces.length > 0 && !inventoryOpen && (
+        {!inventoryOpen && (
           <div className="palette-row palette-controls">
             <button
               onClick={() => {
@@ -2202,9 +2202,9 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             >
               Your box
             </button>
-            {!tableOpen && <button onClick={() => setTableOpen(true)}>Your table</button>}
-            <button onClick={() => setSubmitOpen(true)}>Add a part</button>
-            {inventory === null && (
+            {graph.pieces.length > 0 && !tableOpen && <button onClick={() => setTableOpen(true)}>Your table</button>}
+            {graph.pieces.length > 0 && <button onClick={() => setSubmitOpen(true)}>Add a part</button>}
+            {graph.pieces.length > 0 && inventory === null && (
               <span className="inventory-hint">
                 Nothing is checked against your box yet.
               </span>
@@ -2242,7 +2242,6 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             library={library}
             inventory={inventory}
             used={counts}
-            shortfalls={shortfalls}
             adaptersUsed={adaptersUsed}
             adapterShort={adapterShort}
             onChange={(next) => {
