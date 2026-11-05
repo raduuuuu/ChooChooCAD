@@ -2128,7 +2128,8 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         * the BOX, not the geometry, and merging them would let a stock problem
         * read as a layout problem. Advice, never a gate (D8).
         */}
-      {(shortfalls.length > 0 || adapterShort > 0) && (
+      {/* Not under the example: it is not the user's layout, so their box says nothing about it (2026-11-05, seen on the live site). */}
+      {screen.mode !== 'example' && (shortfalls.length > 0 || adapterShort > 0) && (
         <p className="shortfall">
           Short by{' '}
           {shortfalls.map((sf, i) => (

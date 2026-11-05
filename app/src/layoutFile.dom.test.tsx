@@ -78,6 +78,12 @@ describe('layout files in the editor', () => {
     const user = userEvent.setup();
     openEditor();
     const picker = screen.getByLabelText('Layout file');
+    /*
+     * Hidden from assistive tech: the "Open a layout file" button is the way in
+     * (live site, 2026-11-05). MUTATION PROOF, run: the attribute removed:
+     * `expected null to be 'true'`.
+     */
+    expect(picker.getAttribute('aria-hidden')).toBe('true');
 
     await user.upload(picker, new File(['not a layout'], 'notes.txt', { type: 'text/plain' }));
     expect(await screen.findByText(FILE_REFUSED.malformed)).not.toBeNull();
