@@ -18,6 +18,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Graph } from '../../engine/src/graph/model.js';
 import { downloadBytes } from './downloadBytes.js';
+import { countAction } from './linkFragment.js';
 import { FILE_ACCEPT, FILE_MAX_BYTES, FILE_NAME, fileOf, fragmentOfFile } from './layoutFile.js';
 import { FILE_REFUSED, FILE_SAVE_REFUSED, FILE_SAVED, FILE_USES_CORRECTIONS } from './linkWords.js';
 
@@ -38,6 +39,7 @@ export function LayoutFileControls({ graph, usesCorrections, announce }: LayoutF
     const file = await fileOf(graph);
     if (!file.ok) return setSaid(FILE_SAVE_REFUSED[file.reason]);
     downloadBytes(file.text, FILE_NAME, 'text/plain');
+    countAction('save-file');
     announce(FILE_SAVED);
     setSaid(usesCorrections ? FILE_USES_CORRECTIONS : null);
   };
@@ -46,6 +48,7 @@ export function LayoutFileControls({ graph, usesCorrections, announce }: LayoutF
     const read = await fragmentOfFile(await file.text());
     if (!read.ok) return setSaid(FILE_REFUSED[read.reason]);
     setSaid(null);
+    countAction('open-file');
     location.hash = read.fragment;
   };
 

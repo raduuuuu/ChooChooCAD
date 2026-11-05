@@ -11,7 +11,7 @@ Mode: HOLD SCOPE (owner's answer to the mode question, 2026-11-01).
 | P1 | Removing a middle piece | Already possible (click piece → "Remove piece", or Delete); the problem is "Didn't know you could" + "Can't see what's selected" | `removePiece` app/src/editorReducer.ts:776; button app/src/App.tsx:1116; Delete key app/src/TrackCanvas.tsx:1041; selection style `.piece-selected { stroke: var(--ink); stroke-width: 2 }` app/src/app.css:200 (seen live: a thin dark edge on one curve of ten) |
 | P2 | Joining close ends | Fails when "Clicking dot, then dot" | Hit circle r=26mm per free end app/src/TrackCanvas.tsx:1229; coincident ends stack, the top circle takes both clicks, and a click on the armed end disarms it (clickPort), so the end underneath is unreachable by pointer |
 | P3 | T-shaped switch | "A T-junction, both ways": a stem splitting into two 90° curves, left and right | The catalogue's `T` (engine/data/switchSeeds.ts:308) is one-sided. Bigjigs T-Junction listing: 21 × 13 cm, matching two r108 quarter curves (216 across, ~128 tall) [estimated from listing; not measured] |
-| P4 | Web analytics | "Visits only"; provider switched to GoatCounter by R4 (originally Cloudflare Web Analytics) | No analytics today (app/index.html); no privacy claim in app/README/DESIGN.md to contradict; DNS at Namecheap (dig NS), site on GitHub Pages |
+| P4 | Web analytics | "Visits only" (REVERSED 2026-11-05 by the owner: ten named actions are counted too, still without the layout; generic-TODOS.md analytics entry); provider switched to GoatCounter by R4 (originally Cloudflare Web Analytics) | No analytics today (app/index.html); no privacy claim in app/README/DESIGN.md to contradict; DNS at Namecheap (dig NS), site on GitHub Pages |
 
 ## Decision ledger
 

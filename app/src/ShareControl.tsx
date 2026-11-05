@@ -20,6 +20,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { Graph } from '../../engine/src/graph/model.js';
+import { countAction } from './linkFragment.js';
 import { canCompress, decodeLink, encodeLink } from './shareLink.js';
 import { COPIED, COPY_BY_HAND, NOTHING_TO_SHARE, SHARE_REFUSED, SHARE_TEXT, SHARING_NEEDS_NEWER, USES_CORRECTIONS } from './linkWords.js';
 
@@ -63,6 +64,8 @@ export function ShareControl({ graph, usesCorrections, announce }: ShareControlP
     const check = await decodeLink(fragment);
     if (!check.ok) return setState({ kind: 'said', sentence: SHARE_REFUSED[check.reason] });
     const url = `${location.origin}${location.pathname}${fragment}`;
+    // Counted once the link exists, whichever way it then leaves: sheet, clipboard or by hand.
+    countAction('share');
     if (sheet()) {
       try {
         await navigator.share({ text: SHARE_TEXT, url });

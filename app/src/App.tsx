@@ -95,7 +95,7 @@ import { SubmitPart } from './SubmitPart.js';
 import { View3DPanel } from './View3DPanel.js';
 import { BuildModeLoader } from './BuildModeLoader.js';
 import { loadView, openingView, saveView, type View } from './viewChoice.js';
-import { LINK_FRAGMENT } from './linkFragment.js';
+import { countAction, LINK_FRAGMENT } from './linkFragment.js';
 import { EXAMPLE_PRESET, exampleTitle, exitLabel, LINK_HELD, ownTitle, STALE_TAB } from './linkWords.js';
 import { screenMode } from './screenMode.js';
 import { NARROW_QUERY, useMatchMedia } from './useMatchMedia.js';
@@ -875,6 +875,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     if (v === view) return;
     focusSwitch.current = true;
     if (v === '3d') {
+      countAction('view-3d');
       if (ghost) dispatch({ kind: 'cancelGhost' });
       if (joining) cancelJoin();
     }
@@ -899,6 +900,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
   );
   // Into build mode (build mode plan scope 1): any layout with a piece, whatever the verdict (D9).
   const startBuild = () => {
+    countAction('build-it');
     if (ghost) cancelGhost();
     if (joining) cancelJoin();
     setBuilding(true);
@@ -990,7 +992,10 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
   });
   const breakJoint = (a: PortRef, b: PortRef) => dispatch({ kind: 'breakWeld', a, b });
   const clear = () => dispatch({ kind: 'clear' });
-  const preset = (ids: readonly string[]) => dispatch({ kind: 'preset', ids });
+  const preset = (ids: readonly string[]) => {
+    countAction('preset');
+    dispatch({ kind: 'preset', ids });
+  };
 
   // The trust register. Computed from the library, so it knows what the solver
   // cannot: how good the numbers under the verdict actually are. It reads only
@@ -1008,6 +1013,19 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
   );
 
   const verdictView = useMemo(() => viewOf(result), [result]);
+  /*
+   * "THIS WORKS", COUNTED ONCE (linkFragment.ts ACTIONS.works): the first time
+   * this page load's own layout turns from not working to working. The
+   * example, and a layout that already worked when the page opened, are not
+   * counted: neither is something the user just did.
+   */
+  const workedBefore = useRef<boolean | null>(null);
+  const works = verdictView.kind === 'EXACT' || verdictView.kind === 'NEEDS_GIVE';
+  useEffect(() => {
+    if (screen.mode === 'example') return;
+    if (workedBefore.current === false && works) countAction('works');
+    if (workedBefore.current !== true) workedBefore.current = works;
+  }, [works, screen.mode]);
 
   // Every joint, where the canvas draws it, so a click can break it (U5).
   const welds = useMemo(() => weldTargets(graph.welds, drawn.ports), [graph, drawn]);
@@ -2176,7 +2194,12 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
           */}
         {graph.pieces.length > 0 && !inventoryOpen && (
           <div className="palette-row palette-controls">
-            <button onClick={() => setInventoryOpen(true)}>
+            <button
+              onClick={() => {
+                countAction('your-box');
+                setInventoryOpen(true);
+              }}
+            >
               Your box
             </button>
             {!tableOpen && <button onClick={() => setTableOpen(true)}>Your table</button>}
@@ -2194,6 +2217,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             existingIds={libraryIds}
             notTwoEndedIds={notTwoEndedIds}
             onSubmit={(sub) => {
+              countAction('add-part');
               setSubmissionsActed(true);
               setSubmissions((prev) => [...prev, sub]);
               setSubmitOpen(false);
