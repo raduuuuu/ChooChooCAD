@@ -1095,8 +1095,10 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             overhang: !tableView.fits,
           }
         : null,
+      // The selection, marked in 3D as in 2D (P3, owner: ink outline only); never in build mode's scene below.
+      ...(selected !== null && graph.pieces.some((p) => p.pieceId === selected) ? { selected } : {}),
     };
-  }, [view, drawn, graph, resolve, marks, tableView]);
+  }, [view, drawn, graph, resolve, marks, tableView, selected]);
   // Build mode draws its steps from the whole layout, whichever view the editor had open.
   const buildScene = useMemo((): SceneInput | null => {
     if (!building) return null;

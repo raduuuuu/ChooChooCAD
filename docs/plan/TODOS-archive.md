@@ -1,4 +1,14 @@
 
+## DONE 2026-11-05 — Show the editor's selection in 3D (left from pick in 3D, 2026-11-05)
+
+**What:** the other half of "pick in 3D": a piece selected in 2D, or picked in 3D, is marked in the 3D view.
+**Why deferred:** design 10A says a selection is kept in 3D but the piece is not highlighted, and nothing has decided how a mark would look next to build mode's muted-and-outlined next piece (D42). Pick in 3D shipped without it, so a pick is said (the selection's announcement), not shown.
+**Context:** `docs/plan/2026-10-31-3d-viewer.md` 10A; `SceneInput.highlight` is build mode's, not a selection's. Side-by-side vs the switch is still the switch.
+**Effort:** human S / CC S. **Depends on:** a design call on 10A.
+
+**DONE 2026-11-05 (branch select-in-3d).** Owner decision: ink outline only. The selected piece's plank top gets build mode's top outline (`SceneArrays.selection`), drawn in 3px `--ink` (the 2D selection's weight) and seen through whatever is in front, so a piece under a tunnel or station can still be found. Nothing else changes: no muting, no piece drawn apart, so it never reads as build mode. The selection reaches 3D whether picked there or carried over from 2D; build mode's scene never gets it.
+
+
 
 ## DONE 2026-11-04 — Documentation: README.md denies most of what this release shipped (filed by /ship's docs audit, 2026-10-14)
 

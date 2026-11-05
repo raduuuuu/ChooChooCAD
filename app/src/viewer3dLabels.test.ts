@@ -26,6 +26,7 @@ const scene = (marks: SceneArrays['marks']): SceneArrays => ({
   plankTop: empty, plankSide: empty, grooves: empty, beams: empty, footprints: empty,
   structures: { solid: empty, rim: empty, edges: { positions: new Float32Array(0) }, solidRanges: new Map(), rimRanges: new Map(), detail: [] },
   nextBuilding: null,
+  selection: null,
   seams: { positions: new Float32Array(0) }, slab: null, marks, pieceRanges: new Map(), sideRanges: new Map(), pieceBounds: new Map(), next: null,
   bounds: { min: [0, 0, 0], max: [1, 1, 1] },
 });

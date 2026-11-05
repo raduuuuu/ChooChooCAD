@@ -132,6 +132,8 @@ export const MARK_PX = 44;
 /** Line widths, CSS px: seams 2.5 (design 26A), level line 2 (16A), slab outline 1.5, the next piece's edge 3 (D42). */
 const SEAM_PX = 2.5;
 const NEXT_EDGE_PX = 3;
+/** The selected piece's outline: the 2D selection's 3px ink (DESIGN.md), in 3D. */
+export const SELECTED_PX = 3;
 const LEVEL_LINE_PX = 2;
 const OUTLINE_PX = 1.5;
 /** A building's detail lines, under its 1.5px outline so track reads first (design DR1). */
@@ -322,6 +324,8 @@ export function syncScene(group: Group, arrays: SceneArrays, c: SceneColors, dpr
     add(new Mesh(geometryOf(next.top), flat(c.trackFill, { hiddenOnly: c.ghostOpacity ?? 0.5 })), 8);
     if (next.edge.positions.length > 0) add(lines(next.edge.positions, c.ink, NEXT_EDGE_PX, false), 8);
   }
+  // The editor's selection (P3, owner: ink outline only): the 2D mark's weight, seen through what is in front so a piece under a roof can still be found.
+  if (arrays.selection) add(lines(arrays.selection.positions, c.ink, SELECTED_PX, false), 8);
   if (arrays.seams.positions.length > 0) add(lines(arrays.seams.positions, c.seam, SEAM_PX), 4);
   // Marks last, over everything (design 15A).
   const levelLines: number[] = [];

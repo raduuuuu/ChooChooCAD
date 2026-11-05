@@ -103,6 +103,12 @@ export interface SceneInput {
    * pieces then draw no detail lines (design DR2).
    */
   readonly buildMode?: boolean;
+  /**
+   * The editor's selected piece (P3 selection in 3D, owner 2026-11-05: ink
+   * outline only): its top's outline goes into `selection`, and nothing
+   * else changes, so it never reads as build mode's next piece.
+   */
+  readonly selected?: string;
   /** Wood that is not track (`GraphRender.bodies`, bent like the segments): footprints, walls, roofs. */
   readonly bodies?: readonly Segment[];
 }
@@ -142,6 +148,8 @@ export interface SceneArrays {
   };
   /** In build mode, the next piece's building outline: its own depth-tested lines, not part of `next.edge`'s see-through pass (eng E-B3). Null when there is none. */
   readonly nextBuilding: Lines | null;
+  /** The selected piece's top outline, the same lines as build mode's next piece. Null without `selected`. */
+  readonly selection: Lines | null;
   /** The highlighted piece, apart from the rest, with its top's outline (D42). Null without `highlight`. */
   readonly next: { readonly top: Mesh; readonly side: Mesh; readonly grooves: Mesh; readonly beams: Mesh; readonly edge: Lines } | null;
 }
@@ -296,6 +304,7 @@ export function buildScene(input: SceneInput): SceneArrays {
   const nGrooves = new Builder();
   const nBeams = new Builder();
   const edge: number[] = [];
+  const selectionEdge: number[] = [];
   const lo = [Infinity, Infinity, Infinity];
   const hi = [-Infinity, -Infinity, -Infinity];
   const pieceBox = new Map<string, { min: [number, number, number]; max: [number, number, number] }>();
@@ -401,13 +410,15 @@ export function buildScene(input: SceneInput): SceneArrays {
         footprints.quad(footprints.vertex(...f(a, wa, 1)), footprints.vertex(...f(a, wa, -1)), footprints.vertex(...f(b, wb, -1)), footprints.vertex(...f(b, wb, 1)));
       }
     }
-    // The next piece's top outline (D42): both long edges and both ends.
-    if (isNext) {
+    // The next piece's top outline (D42), and the selected piece's: both long edges and both ends.
+    const isSelected = input.selected !== undefined && s.pieceId === input.selected;
+    for (const [on, to] of [[isNext, edge], [isSelected, selectionEdge]] as const) {
+      if (!on) continue;
       const at = (r: (typeof ring)[number], sgn: 1 | -1) => [r.p.x + r.nx * half * sgn, r.p.y + r.ny * half * sgn, r.zt + GROOVE_LIFT_MM] as const;
       for (let i = 0; i + 1 < ring.length; i++) {
-        for (const sgn of [1, -1] as const) edge.push(...at(ring[i]!, sgn), ...at(ring[i + 1]!, sgn));
+        for (const sgn of [1, -1] as const) to.push(...at(ring[i]!, sgn), ...at(ring[i + 1]!, sgn));
       }
-      for (const r of [ring[0]!, ring[ring.length - 1]!]) edge.push(...at(r, 1), ...at(r, -1));
+      for (const r of [ring[0]!, ring[ring.length - 1]!]) to.push(...at(r, 1), ...at(r, -1));
     }
     // End caps.
     for (const r of [ring[0]!, ring[ring.length - 1]!]) {
@@ -701,6 +712,7 @@ export function buildScene(input: SceneInput): SceneArrays {
         }),
     },
     nextBuilding: nextBuildingEdges.length > 0 ? { positions: new Float32Array(nextBuildingEdges) } : null,
+    selection: selectionEdge.length > 0 ? { positions: new Float32Array(selectionEdge) } : null,
     seams: { positions: new Float32Array(seamPos) },
     slab,
     marks,
