@@ -443,6 +443,48 @@ export interface SubmissionsLoadResult {
   readonly discarded?: string;
 }
 
+/**
+ * THE PER-ROW FILTER, ONE COPY (generic-TODOS.md P2, "The crash repro can
+ * report a failure the app cannot produce"). The app's load and the crash
+ * repro both run stored rows through this, so a repro never resolves rows the
+ * app dropped, or drops rows the app kept. `droppedAt` is each refused row's
+ * index, so the repro can name them.
+ */
+export function readSubmissionRows(parsed: readonly unknown[]): { readonly value: Submission[]; readonly droppedAt: number[] } {
+  const out: Submission[] = [];
+  const droppedAt: number[] = [];
+  for (const [i, item] of parsed.entries()) {
+    if (typeof item !== 'object' || item === null) {
+      droppedAt.push(i);
+      continue;
+    }
+    const s = item as Record<string, unknown>;
+    if (typeof s.submissionId !== 'string' || typeof s.at !== 'string') {
+      droppedAt.push(i);
+      continue;
+    }
+    if (!looksLikePart(s.part)) {
+      droppedAt.push(i);
+      continue;
+    }
+    /*
+     * THE ONE FIELD A STORED ROW DOES NOT GET TO ASSERT.
+     *
+     * `trust.ts` rule 4 emits the `estimated-give` caveat only while some
+     * part reads other than `'measured'`, and its comment says that must
+     * stay true in every verdict state. Forcing it here makes that true by
+     * construction: no row that came out of storage can claim its give was
+     * measured, whatever the bytes said, and the row's dimensions survive.
+     */
+    out.push({
+      part: { ...s.part, slop: { ...s.part.slop, calibrationStatus: 'estimated' } },
+      submissionId: s.submissionId,
+      at: s.at,
+    });
+  }
+  return { value: out, droppedAt };
+}
+
 export function loadSubmissionsResult(): SubmissionsLoadResult {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -457,38 +499,8 @@ export function loadSubmissionsResult(): SubmissionsLoadResult {
           'were loaded. The original is kept until you dismiss this.',
       };
     }
-    const out: Submission[] = [];
-    let dropped = 0;
-    for (const item of parsed) {
-      if (typeof item !== 'object' || item === null) {
-        dropped++;
-        continue;
-      }
-      const s = item as Record<string, unknown>;
-      if (typeof s.submissionId !== 'string' || typeof s.at !== 'string') {
-        dropped++;
-        continue;
-      }
-      if (!looksLikePart(s.part)) {
-        dropped++;
-        continue;
-      }
-      /*
-       * THE ONE FIELD A STORED ROW DOES NOT GET TO ASSERT.
-       *
-       * `trust.ts` rule 4 emits the `estimated-give` caveat only while some
-       * part reads other than `'measured'`, and its comment says that must
-       * stay true in every verdict state. Forcing it here makes that true by
-       * construction: no row that came out of storage can claim its give was
-       * measured, whatever the bytes said, and the row's dimensions survive.
-       */
-      out.push({
-        part: { ...s.part, slop: { ...s.part.slop, calibrationStatus: 'estimated' } },
-        submissionId: s.submissionId,
-        at: s.at,
-      });
-    }
-    return { value: out, dropped };
+    const rows = readSubmissionRows(parsed);
+    return { value: rows.value, dropped: rows.droppedAt.length };
   } catch {
     return {
       value: [],

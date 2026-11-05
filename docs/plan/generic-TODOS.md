@@ -806,30 +806,6 @@ make `at` server-stamped rather than trusted.
 the sharing feature.
 **Depends on / blocked by:** blocks the backend/publish work above.
 
-## P2 — The crash repro can report a failure the app cannot produce (filed by /ship, 2026-10-14)
-
-**What:** `repro.ts` wraps `resolveLibrary` in a try/catch that falls back
-wholesale to `BUILT_IN`. Reproduced: a stored graph using a user-submitted part
-`MINE`, plus a submissions blob holding the valid `MINE` row and one junk row.
-`resolveLibrary` throws on the junk row, the catch discards the whole set,
-`MINE` disappears, and the generated file dies at `makeResolver` with
-`unknown part id: MINE`.
-
-The real app never sees this: `App.tsx` resolves from
-`loadSubmissionsResult`'s `looksLikePart`-filtered rows, which drop the junk
-row and keep `MINE`. So the maintainer reading the dump chases a fabricated
-error instead of the user's.
-
-Not a regression -- before the guard the same input exited 1 having printed
-nothing, which was worse -- but an incomplete fix.
-
-**Fix:** have the repro mirror the app and run the parsed submissions through
-the same per-row filter, keeping the good rows. Falling back to `BUILT_IN`
-should be the last resort, and the dump should name the rows it dropped.
-
-**Effort:** human ~1h / CC ~15m. **Priority:** P2.
-**Depends on / blocked by:** nothing.
-
 ## P2 — E1's centreline is derived from an unpublished outer radius, and nothing says so (filed by /ship's adversarial pass, 2026-10-20)
 
 **What:** `centrelineRadiusMm` (`engine/src/parts/schema.ts:391-393`) returns
