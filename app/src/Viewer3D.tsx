@@ -23,9 +23,11 @@
  *   ray from the camera ──> meshes hit, nearest first ──> pieceOfHits ──> onPick(pieceId)
  *
  * The wood is merged into one buffer per material (eng D20), so a mesh says
- * which piece a triangle is by `userData.pieceRanges`; grooves, beams and
- * footprints let the ray through to the wood they belong to, and anything
- * else hit first (a structure, the table) means nothing is picked.
+ * which piece a triangle is by `userData.pieceRanges`; so does every
+ * building, which picks its own piece (design DR4, eng E-B2). Grooves, beams
+ * and footprints let the ray through to the wood they belong to, and anything
+ * else hit first (the table) means nothing is picked. Lines, a bridge's
+ * cables among them, are never picked (eng Y3).
  */
 
 import { useEffect, useMemo, useRef } from 'react';
@@ -132,6 +134,32 @@ const SEAM_PX = 2.5;
 const NEXT_EDGE_PX = 3;
 const LEVEL_LINE_PX = 2;
 const OUTLINE_PX = 1.5;
+/** A building's detail lines, under its 1.5px outline so track reads first (design DR1). */
+export const DETAIL_PX = 1;
+/** Detail shows only while a millimetre at its piece is at least this many pixels: lines ~4px apart (design DR3). */
+export const DETAIL_MIN_PX_PER_MM = 1.5;
+
+/** Pixels per millimetre at `centre`, for a perspective camera drawing into a viewport `heightPx` tall. */
+export function pxPerMmAt(camera: PerspectiveCamera, centre: Vector3, heightPx: number): number {
+  const distance = camera.position.distanceTo(centre);
+  return heightPx / (2 * Math.max(distance, 1e-6) * Math.tan((camera.fov * Math.PI) / 360));
+}
+
+/** Whether detail shows at this scale: at the threshold and over it (design DR3). */
+export const detailShown = (pxPerMm: number): boolean => pxPerMm >= DETAIL_MIN_PX_PER_MM;
+
+/**
+ * Show each piece's detail lines only while that piece is big enough in THIS
+ * pass's camera and viewport (eng E-B1, Y2): the main view and build mode's
+ * inset decide separately, just before each renders.
+ */
+export function showDetailFor(group: Group, camera: PerspectiveCamera, heightPx: number): void {
+  const at = new Vector3();
+  for (const o of group.children) {
+    const c = o.userData.detailCentre as readonly [number, number, number] | undefined;
+    if (c) o.visible = detailShown(pxPerMmAt(camera, at.set(c[0], c[1], c[2]), heightPx));
+  }
+}
 
 function geometryOf(m: MeshArrays): BufferGeometry {
   const g = new BufferGeometry();
@@ -264,9 +292,18 @@ export function syncScene(group: Group, arrays: SceneArrays, c: SceneColors, dpr
   }
   add(through(new Mesh(geometryOf(arrays.footprints), flat(c.trackShadow))), 1);
   // Structures (design decision 7): matte boxes in the slab's side colour, roofs as an outline and a rim.
-  add(new Mesh(geometryOf(arrays.structures.solid), flat(c.slabSide)), 1);
-  add(new Mesh(geometryOf(arrays.structures.rim), flat(c.slabSide)), 1);
+  // A building is wood for a pick: a tap on it selects its piece (design DR4, eng E-B2).
+  add(wood(new Mesh(geometryOf(arrays.structures.solid), flat(c.slabSide)), arrays.structures.solidRanges), 1);
+  add(wood(new Mesh(geometryOf(arrays.structures.rim), flat(c.slabSide)), arrays.structures.rimRanges), 1);
   if (arrays.structures.edges.positions.length > 0) add(lines(arrays.structures.edges.positions, c.inkSoft, OUTLINE_PX), 2);
+  // Detail, one object per piece, so each is shown by its own size on screen (DR1, DR3; eng E-B1).
+  for (const d of arrays.structures.detail) {
+    const l = lines(d.positions, c.inkSoft, DETAIL_PX);
+    l.userData.detailCentre = d.centre;
+    add(l, 2);
+  }
+  // Build mode's next building: its own outline, hidden where something is in front (eng E-B3).
+  if (arrays.nextBuilding) add(lines(arrays.nextBuilding.positions, c.ink, NEXT_EDGE_PX), 4);
   // In build mode what is down is muted, so the next piece carries the weight (D42).
   const next = arrays.next;
   add(wood(new Mesh(geometryOf(arrays.plankSide), flat(next ? c.trackShadow : c.trackEdge)), arrays.sideRanges), 2);
@@ -524,6 +561,7 @@ export default function Viewer3D({ input, label, resetSignal, onContextLost, des
           o.scale.set(k * ((o.userData.aspect as number | undefined) ?? 1), k, 1);
         }
       });
+      showDetailFor(group, camera, h);
       renderer.render(scene, camera);
       drawInset(w, h);
     };
@@ -544,6 +582,7 @@ export default function Viewer3D({ input, label, resetSignal, onContextLost, des
       renderer.setScissor(INSET_MARGIN_PX, INSET_MARGIN_PX, side, side);
       renderer.setViewport(INSET_MARGIN_PX, INSET_MARGIN_PX, side, side);
       renderer.setClearColor(new Color(colors.paper));
+      showDetailFor(group, insetCamera, side);
       renderer.render(scene, insetCamera);
       renderer.setClearColor(new Color(colors.floor));
       renderer.setViewport(0, 0, w, h);

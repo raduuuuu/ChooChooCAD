@@ -301,3 +301,118 @@ describe('the tunnel straight: a vault over a long straight (plan T5, eng D10)',
     expect([pair('TT', -100, 1), pair('D', -100, 1)]).toEqual([['n t'], []]);
   });
 });
+
+/*
+ * THE STATION BUILDING, MEASURED AND DETAILED (station detail pilot,
+ * docs/plan/2026-11-05-rich-graphics.md: owner B1; eng E-A1, O4, X1, X2, Y1;
+ * design DR1, DR2, DR6, DR7). Tests 1-4, 6, 8 and 10 of the plan.
+ */
+describe('the station building, measured and detailed (detail pilot)', () => {
+  const sceneOf = (turn: 'left' | 'right', heading = 0, extra: { buildMode?: boolean; highlight?: string } = {}) => {
+    const g: Graph = { pieces: [{ pieceId: 's', partId: 'SS', turn }], welds: [], anchors: new Map([['s', at(0, 0, heading)]]) };
+    const r = renderGraph(g, ports, resolve, placeAll(g, ports));
+    return buildScene({ segments: r.segments, bodies: r.bodies, ports: r.ports, welds: [], partOf: () => resolve('SS'), riseMm: RISE, plankMm: 12, ...extra });
+  };
+  const points = (a: Float32Array) => Array.from({ length: a.length / 3 }, (_, i) => [a[3 * i]!, a[3 * i + 1]!, a[3 * i + 2]!] as const);
+
+  /*
+   * 1. THE BOXES ARE THE MEASURED MODEL (owner B1; replaces O2's "identical"):
+   * every collision box, field by field, role included (X2). The hall now
+   * reaches 76mm, into the raised level (61mm and up), so raised track over
+   * the station's hall clashes, as it would on the floor.
+   * MUTATION PROOF, run: the hall's top changed to 77 in the seed (`topMm:
+   * 77`): `expected [ …(8) ] to deeply equal [ …(8) ]`. (Back to 61 fails
+   * sooner: the library refuses the seed, its openings now above the wall.)
+   */
+  it('collides as the measured station: hall, roof, tower and cap, every field', () => {
+    const boxes = resolve('SS').decorBody!.filter((b) => b.solid).map((b) => [b.role, b.atMm, b.lengthMm, b.widthMm, b.bottomMm, b.topMm, b.levels, b.draw, b.noun]);
+    expect(boxes).toEqual([
+      ['footprint', [72, -72], 144, 104, 0, 16, [0, 0], true, 'platform'],
+      ['footprint', [72, -135], 79, 22, 0, 14, [0, 0], true, 'stairs'],
+      ['footprint', [72, -85], 140, 69, 16, 76, [0, 1], false, 'station building'],
+      ['footprint', [72, -85], 144, 78, 76, 123, [1, 2], false, 'roof'],
+      ['footprint', [72, -66], 40, 40, 81, 136, [1, 2], false, 'clock tower'],
+      ['footprint', [72, -66], 50, 50, 131, 139, [2, 2], false, 'clock tower'],
+      ['footprint', [72, -66], 40, 40, 139, 144, [2, 2], false, 'clock tower'],
+      ['footprint', [72, -66], 30, 30, 144, 151, [2, 2], false, 'clock tower'],
+    ]);
+  });
+
+  /*
+   * 2. IMPOSSIBLE NUMBERS ARE REFUSED WHEN THE LIBRARY LOADS (eng E-A1).
+   * MUTATION PROOF, run: the opening check removed: `expected [Function] to
+   * throw an error`.
+   */
+  it('refuses a station whose opening runs into its end wall, or whose clock is wider than its tower', () => {
+    const ss = resolve('SS').decor!.find((d) => d.kind === 'station')!;
+    if (ss.kind !== 'station') throw new Error('no station');
+    const spec = (station: typeof ss): DecoratedSpec => ({ id: 'DX-ST', name: 'x', base: 'A', dimensions: FIXTURE_SOURCE, decor: [station] });
+    expect(() => deriveDecorated([spec({ ...ss, openings: [{ side: 1, fromMm: -69, toMm: 0, topMm: 64 }] })], BUILT_IN, RISE)).toThrow(/opening must lie between its end walls/);
+    expect(() => deriveDecorated([spec({ ...ss, clock: { ...ss.clock, sizeMm: 45 } })], BUILT_IN, RISE)).toThrow(/clock must fit on its tower/);
+  });
+
+  /*
+   * 3. A TURNED STATION IS REFLECTED, NOT ONLY MOVED (CEO O4; eng X1): every
+   * detail point of the turned piece is the plain one's point reflected across
+   * the piece's axis, at a rotated placement too. The box alone moving would
+   * leave the clock facing the street.
+   * MUTATION PROOF, run: the `* m` removed from ShapeFrame's `at` in mesh.ts:
+   * `expected false to be true // Object.is equality`.
+   */
+  it('turned, its detail is the plain detail reflected across the piece, at any heading', () => {
+    for (const heading of [0, 3]) {
+      const h = (heading * Math.PI) / 8;
+      const u = [Math.cos(h), Math.sin(h)] as const;
+      const plain = points(sceneOf('left', heading).structures.detail[0]!.positions);
+      const turned = points(sceneOf('right', heading).structures.detail[0]!.positions);
+      const reflected = plain.map(([x, y, z]) => {
+        const d = x * u[0] + y * u[1];
+        return [2 * d * u[0] - x, 2 * d * u[1] - y, z] as const;
+      });
+      // Float32 buffers: equal to a thousandth of a millimetre.
+      expect(turned.length).toBe(reflected.length);
+      expect(turned.every((p, i) => p.every((v, k) => Math.abs(v - reflected[i]![k]!) < 1e-3))).toBe(true);
+    }
+  });
+
+  /*
+   * 4. THE DRAWING IS FINITE AND STAYS WITHIN ITS OWN BOX.
+   * MUTATION PROOF, run: the vents' base given `z0 + Math.sqrt(-1)`: `expected
+   * false to be true // Object.is equality`.
+   */
+  it('every vertex of the drawing is finite, on the floor or up to the cap at 151mm', () => {
+    const s = sceneOf('left');
+    const zs = points(s.structures.solid.positions).map((p) => p[2]);
+    expect(zs.every((z) => Number.isFinite(z) && z >= 0 && z <= 151)).toBe(true);
+    expect(s.bounds.max[2]).toBeCloseTo(151, 6);
+  });
+
+  /*
+   * 6 and 10. DETAIL IS ITS OWN GROUP, AND ONLY WHAT THE MODEL HAS (DR1, DR6,
+   * DR7): the square clock (4) and its two hands, the sign (4) and the
+   * platform line (4), as lines apart from the outline's edges. No ring.
+   * MUTATION PROOF, run: `pen.detail` routed into the edges (`detail: (a, b) =>
+   * edgeTo.push(...a, ...b)`): three tests fail, the first with `expected []
+   * to deeply equal [ 's' ]`.
+   */
+  it('draws 14 detail lines in one group for the piece, apart from the edges', () => {
+    const d = sceneOf('left').structures.detail;
+    expect(d.map((g) => g.pieceId)).toEqual(['s']);
+    expect((d[0]?.positions.length ?? 0) / 6).toBe(14);
+  });
+
+  /*
+   * 8. BUILD MODE (DR2, eng Y1, E-B3): a station already down draws no
+   * detail on any build-mode screen; as the next piece, its detail stays and
+   * its building's outline goes in its own buffer.
+   * MUTATION PROOF, run: the build-mode check dropped from `detailTo`:
+   * `expected [ 's' ] to deeply equal []`.
+   */
+  it('in build mode: no detail once down, even with no next piece; as the next piece, detail and its own outline', () => {
+    expect(sceneOf('left', 0, { buildMode: true }).structures.detail.map((g) => g.pieceId)).toEqual([]);
+    expect(sceneOf('left', 0, { buildMode: true, highlight: 'other' }).structures.detail.map((g) => g.pieceId)).toEqual([]);
+    const next = sceneOf('left', 0, { buildMode: true, highlight: 's' });
+    expect([next.structures.detail.map((g) => g.pieceId), next.nextBuilding !== null]).toEqual([['s'], true]);
+    expect(sceneOf('left').nextBuilding).toBeNull();
+  });
+});

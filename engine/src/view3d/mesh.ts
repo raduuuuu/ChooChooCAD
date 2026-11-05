@@ -97,6 +97,12 @@ export interface SceneInput {
   readonly table?: { readonly outline: readonly (readonly [number, number])[]; readonly overhang: boolean } | null;
   /** Build mode's next piece (D23): drawn into `next`, and every other piece without grooves (D42). */
   readonly highlight?: string;
+  /**
+   * Build mode, on every one of its screens (eng Y1): `highlight` alone is
+   * not enough, because the band and completion screens have none. Placed
+   * pieces then draw no detail lines (design DR2).
+   */
+  readonly buildMode?: boolean;
   /** Wood that is not track (`GraphRender.bodies`, bent like the segments): footprints, walls, roofs. */
   readonly bodies?: readonly Segment[];
 }
@@ -124,7 +130,18 @@ export interface SceneArrays {
    * outline and a thin rim, so the deck or road under it stays in view; and
    * every box's edges as lines.
    */
-  readonly structures: { readonly solid: Mesh; readonly rim: Mesh; readonly edges: Lines };
+  readonly structures: {
+    readonly solid: Mesh;
+    readonly rim: Mesh;
+    readonly edges: Lines;
+    /** Each piece's run of triangles in `solid` and in `rim`, so a tap on a building picks its piece (design DR4, eng E-B2). */
+    readonly solidRanges: ReadonlyMap<string, { readonly start: number; readonly count: number }>;
+    readonly rimRanges: ReadonlyMap<string, { readonly start: number; readonly count: number }>;
+    /** Detail lines, one group per piece, with the piece's centre, so each is shown only while big enough on screen (design DR1, DR3; eng E-B1). */
+    readonly detail: readonly { readonly pieceId: string; readonly positions: Float32Array; readonly centre: readonly [number, number, number] }[];
+  };
+  /** In build mode, the next piece's building outline: its own depth-tested lines, not part of `next.edge`'s see-through pass (eng E-B3). Null when there is none. */
+  readonly nextBuilding: Lines | null;
   /** The highlighted piece, apart from the rest, with its top's outline (D42). Null without `highlight`. */
   readonly next: { readonly top: Mesh; readonly side: Mesh; readonly grooves: Mesh; readonly beams: Mesh; readonly edge: Lines } | null;
 }
@@ -440,9 +457,38 @@ export function buildScene(input: SceneInput): SceneArrays {
   const solid = new Builder();
   const rim = new Builder();
   const bodyEdges: number[] = [];
+  /*
+   * WHO A BODY'S LINES AND TRIANGLES BELONG TO, set per body in the loop below.
+   *
+   *   edge   ─▶ bodyEdges, or nextBuilding for build mode's next piece (eng E-B3)
+   *   detail ─▶ that piece's own group, or nowhere when the piece is down in build mode (DR2, eng Y1)
+   *   quads  ─▶ solid/rim, their runs recorded per piece for picking (DR4, eng E-B2)
+   */
+  const nextBuildingEdges: number[] = [];
+  const detailByPiece = new Map<string, number[]>();
+  let edgeTo = bodyEdges;
+  let detailTo: number[] | null = null;
+  const solidRanges = new Map<string, { start: number; count: number }>();
+  const rimRanges = new Map<string, { start: number; count: number }>();
+  const extend = (ranges: Map<string, { start: number; count: number }>, id: string, start: number, count: number) => {
+    if (count === 0) return;
+    const was = ranges.get(id);
+    // A piece's bodies are consecutive (render.ts pushes them together), so its run is one.
+    if (was) was.count += count;
+    else ranges.set(id, { start, count });
+  };
+  let openRun: { readonly id: string; readonly solid: number; readonly rim: number } | null = null;
+  const closeRun = () => {
+    if (openRun) {
+      extend(solidRanges, openRun.id, openRun.solid, solid.triangles - openRun.solid);
+      extend(rimRanges, openRun.id, openRun.rim, rim.triangles - openRun.rim);
+    }
+    openRun = null;
+  };
   const pen: Pen = {
     quad: (a, b, c, d) => solid.quad(solid.vertex(...a), solid.vertex(...b), solid.vertex(...c), solid.vertex(...d)),
-    edge: (a, b) => bodyEdges.push(...a, ...b),
+    edge: (a, b) => edgeTo.push(...a, ...b),
+    detail: (a, b) => detailTo?.push(...a, ...b),
     grow: (p) => grow(...p),
   };
   /**
@@ -470,6 +516,15 @@ export function buildScene(input: SceneInput): SceneArrays {
     for (const [a, z] of tops) for (const side of [1, -1] as const) grow(...at(a, side, z));
   };
   for (const b of input.bodies ?? []) {
+    closeRun();
+    if (b.pieceId !== undefined) openRun = { id: b.pieceId, solid: solid.triangles, rim: rim.triangles };
+    const isNextPiece = input.buildMode === true && b.pieceId !== undefined && b.pieceId === highlight;
+    edgeTo = isNextPiece ? nextBuildingEdges : bodyEdges;
+    if (b.pieceId === undefined || (input.buildMode === true && !isNextPiece)) detailTo = null;
+    else {
+      detailTo = detailByPiece.get(b.pieceId) ?? [];
+      detailByPiece.set(b.pieceId, detailTo);
+    }
     if (b.pieceId !== undefined) {
       boxOf = pieceBox.get(b.pieceId) ?? { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
       pieceBox.set(b.pieceId, boxOf);
@@ -482,8 +537,10 @@ export function buildScene(input: SceneInput): SceneArrays {
       const ux = (b.to.x - b.from.x) / len, uy = (b.to.y - b.from.y) / len;
       const floorMm = b.decor.floorLevel * riseMm;
       const part = b.pieceId === undefined ? null : partOf(b.pieceId);
+      // `across` is reflected for a turned piece, so a lopsided shape faces the same way as its piece (CEO O4).
+      const m = b.decor.mirror ?? 1;
       drawShape(b.decor.shape, {
-        at: (along, across, z) => [b.from.x + ux * along - uy * across, b.from.y + uy * along + ux * across, z],
+        at: (along, across, z) => [b.from.x + ux * along - uy * across * m, b.from.y + uy * along + ux * across * m, z],
         lengthMm: len,
         floorMm,
         roadTop: (a) => floorMm + (part ? roadTopAbove(part, a, riseMm, plankMm) : plankMm),
@@ -619,6 +676,8 @@ export function buildScene(input: SceneInput): SceneArrays {
     }
   }
 
+  // The last body's run, which no next body closed.
+  closeRun();
   const finite = (b: { min: [number, number, number]; max: [number, number, number] }): Box =>
     b.min[0] === Infinity ? { min: [0, 0, 0], max: [0, 0, 0] } : b;
   return {
@@ -627,7 +686,21 @@ export function buildScene(input: SceneInput): SceneArrays {
     grooves: mainGrooves.done(),
     beams: mainBeams.done(),
     footprints: footprints.done(),
-    structures: { solid: solid.done(), rim: rim.done(), edges: { positions: new Float32Array(bodyEdges) } },
+    structures: {
+      solid: solid.done(),
+      rim: rim.done(),
+      edges: { positions: new Float32Array(bodyEdges) },
+      solidRanges,
+      rimRanges,
+      detail: [...detailByPiece]
+        .filter(([, d]) => d.length > 0)
+        .map(([pieceId, d]) => {
+          const b = finite(pieceBox.get(pieceId) ?? { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] });
+          const centre = [0, 1, 2].map((i) => (b.min[i]! + b.max[i]!) / 2) as [number, number, number];
+          return { pieceId, positions: new Float32Array(d), centre };
+        }),
+    },
+    nextBuilding: nextBuildingEdges.length > 0 ? { positions: new Float32Array(nextBuildingEdges) } : null,
     seams: { positions: new Float32Array(seamPos) },
     slab,
     marks,

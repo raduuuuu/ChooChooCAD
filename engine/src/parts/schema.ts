@@ -402,9 +402,48 @@ export interface DecorTowers {
   readonly noun?: string;
 }
 
-export type DecorShape = DecorSlab | DecorVault | DecorTruss | DecorArch | DecorTowers;
+/**
+ * A STATION BUILDING (station detail pilot, docs/plan/2026-11-05-rich-graphics.md;
+ * eng E-A1, owner B1): every measured number once, as the vault holds its own.
+ * The library derives its collision boxes from it (the hall's walls, the roof,
+ * the tower and its cap, solid and not drawn) and one box that draws it.
+ *
+ * Positions are local to the hall's centre `atMm` on the piece: `along` runs
+ * with the piece, `across` points from the hall to the track. Heights are
+ * above the floor.
+ *
+ *         tower + stepped cap
+ *        ┌──┐
+ *   ╭────┤  ├────╮   roof: a `baseMm` slab and a half-round barrel along the hall
+ *   │    └──┘    │
+ *   ┃ ┃▔▔▔▔▔▔▔▔┃ ┃   hall: four walls `wallMm` thick, openings through the long walls
+ *   ┃ ┃ opening┃ ┃
+ */
+export interface DecorStation {
+  readonly kind: 'station';
+  readonly atMm: readonly [number, number];
+  readonly hall: { readonly lengthMm: number; readonly widthMm: number; readonly wallMm: number; readonly bottomMm: number; readonly topMm: number };
+  /** Openings through a long wall, `side` 1 the track side and -1 the street side; `fromMm`..`toMm` along, from the hall's bottom to `topMm`. */
+  readonly openings: readonly { readonly side: 1 | -1; readonly fromMm: number; readonly toMm: number; readonly topMm: number }[];
+  /** The roof: a slab `baseMm` thick over `lengthMm` by `widthMm`, under a half-round barrel of `radiusMm` along the hall. `topMm` is the roof part's top, vents included. */
+  readonly roof: { readonly lengthMm: number; readonly widthMm: number; readonly baseMm: number; readonly radiusMm: number; readonly topMm: number };
+  /** Square vents on the roof, `sizeMm` across, rising to `topMm`. */
+  readonly vents: readonly { readonly atMm: readonly [number, number]; readonly sizeMm: number; readonly topMm: number }[];
+  readonly tower: { readonly atMm: readonly [number, number]; readonly sizeMm: number; readonly bottomMm: number; readonly topMm: number };
+  /** The tower's stepped cap, widest first, each step a square. */
+  readonly cap: readonly { readonly sizeMm: number; readonly bottomMm: number; readonly topMm: number }[];
+  /** A square clock face on the tower's track side (design DR7), `sizeMm` across, centred at `centreMm` high, set `recessMm` in. */
+  readonly clock: { readonly sizeMm: number; readonly centreMm: number; readonly recessMm: number };
+  /** A board on the track-side wall: `fromMm`..`toMm` along, `bottomMm`..`topMm` high. */
+  readonly sign: { readonly fromMm: number; readonly toMm: number; readonly bottomMm: number; readonly topMm: number };
+  /** Painted lines on the platform: centred `acrossMm` from the hall's centre, `lengthMm` long and `widthMm` wide, at `heightMm`. */
+  readonly lines: readonly { readonly acrossMm: number; readonly lengthMm: number; readonly widthMm: number; readonly heightMm: number }[];
+  readonly noun?: string;
+}
+
+export type DecorShape = DecorSlab | DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation;
 /** A shape with its own drawing, which one decoration box carries (eng D10). */
-export type DrawnShape = DecorVault | DecorTruss | DecorArch | DecorTowers;
+export type DrawnShape = DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation;
 
 /** A derived decoration box: a body box at whole levels, carrying the shape's real heights for drawing. */
 export interface DecorBox extends BodyBox {

@@ -12,7 +12,7 @@
  */
 
 import type { Segment } from '../geom/fk.js';
-import type { DecorArch, DecorTowers, DecorTruss, DecorVault, DrawnShape, Part } from '../parts/schema.js';
+import type { DecorArch, DecorStation, DecorTowers, DecorTruss, DecorVault, DrawnShape, Part } from '../parts/schema.js';
 
 /** A truss arch's chords in 3D: this deep, and twice this across. */
 export const TRUSS_CHORD_MM = 4;
@@ -29,7 +29,10 @@ export type P3 = readonly [number, number, number];
 /** Where a shape's triangles, edges and extent go: the structures' solid mesh, its edges and the bounds. */
 export interface Pen {
   quad(a: P3, b: P3, c: P3, d: P3): void;
+  /** A crease of the shape's silhouette, drawn at the outline's weight. */
   edge(a: P3, b: P3): void;
+  /** A detail line: lighter than an edge, and dropped when its piece is small on screen or down in build mode (design DR1-DR3). */
+  detail(a: P3, b: P3): void;
   grow(p: P3): void;
 }
 
@@ -103,6 +106,8 @@ export function drawShape(shape: DrawnShape, f: ShapeFrame, pen: Pen): void {
       return drawArch(shape, f, pen);
     case 'towers':
       return drawTowers(shape, f, pen);
+    case 'station':
+      return drawStation(shape, f, pen);
   }
 }
 
@@ -278,5 +283,120 @@ function drawTowers(sh: DecorTowers, f: ShapeFrame, pen: Pen): void {
         prev = p;
       }
     }
+  }
+}
+
+/** Steps cutting a station roof's half-round barrel: enough to read round, few enough for the budget. */
+export const BARREL_STEPS = 12;
+
+/**
+ * A STATION BUILDING (station detail pilot; design DR1, DR6, DR7): solids in
+ * the house's one fill, its silhouette as edges, its detail as lighter lines.
+ *
+ *   walls ── four boxes' worth, the long walls cut around their openings,
+ *            a lintel over each opening (DR6: an opening is a real hole)
+ *   roof  ── a slab, then a half-round barrel along the hall, its ends closed
+ *   vents ── square, from the barrel's surface up to their tops
+ *   tower ── a box with a square clock recessed in its track face (DR7),
+ *            hands as detail lines, under its stepped cap
+ *   sign, platform lines ── detail lines only: flat paint, no geometry
+ *
+ * Positions are the shape's own (along from the hall's centre, across toward
+ * the track); the frame's `at` takes along from the box's start.
+ */
+function drawStation(st: DecorStation, f: ShapeFrame, pen: Pen): void {
+  const a0 = f.lengthMm / 2;
+  const P = (along: number, across: number, z: number): P3 => f.at(a0 + along, across, f.floorMm + z);
+  const box = (al: number, ah: number, cl: number, ch: number, zl: number, zh: number, edges = true) => {
+    const c = [P(al, cl, zl), P(ah, cl, zl), P(ah, ch, zl), P(al, ch, zl), P(al, cl, zh), P(ah, cl, zh), P(ah, ch, zh), P(al, ch, zh)] as const;
+    const q = (i: number, j: number, k: number, l: number) => pen.quad(c[i]!, c[j]!, c[k]!, c[l]!);
+    q(4, 5, 6, 7); q(0, 1, 5, 4); q(1, 2, 6, 5); q(2, 3, 7, 6); q(3, 0, 4, 7); q(3, 2, 1, 0);
+    if (edges) for (const [i, j] of [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]] as const) pen.edge(c[i]!, c[j]!);
+    for (const p of c) pen.grow(p);
+  };
+  const rect = (corners: readonly P3[]) => corners.forEach((p, i) => pen.detail(p, corners[(i + 1) % corners.length]!));
+
+  // Walls: the long walls cut around their openings, a lintel over each; the end walls whole.
+  const { hall } = st;
+  const L = hall.lengthMm / 2, W = hall.widthMm / 2, t = hall.wallMm;
+  for (const side of [1, -1] as const) {
+    const [cl, ch] = side === 1 ? [W - t, W] : [-W, -W + t];
+    const holes = st.openings.filter((o) => o.side === side).sort((x, y) => x.fromMm - y.fromMm);
+    let from = -L;
+    for (const o of holes) {
+      box(from, o.fromMm, cl, ch, hall.bottomMm, hall.topMm);
+      box(o.fromMm, o.toMm, cl, ch, o.topMm, hall.topMm);
+      from = o.toMm;
+    }
+    box(from, L, cl, ch, hall.bottomMm, hall.topMm);
+  }
+  for (const end of [1, -1] as const) box(end === 1 ? L - t : -L, end === 1 ? L : -L + t, -W + t, W - t, hall.bottomMm, hall.topMm);
+
+  // Roof: the slab, then the barrel on it, its ends closed.
+  const { roof } = st;
+  const RL = roof.lengthMm / 2, RW = roof.widthMm / 2, r = roof.radiusMm;
+  const z0 = hall.topMm + roof.baseMm;
+  box(-RL, RL, -RW, RW, hall.topMm, z0);
+  const arc = Array.from({ length: BARREL_STEPS + 1 }, (_, k) => {
+    const th = (Math.PI * k) / BARREL_STEPS;
+    return [r * Math.cos(th), z0 + r * Math.sin(th)] as const;
+  });
+  for (let k = 0; k < BARREL_STEPS; k++) {
+    const [c1, h1] = arc[k]!, [c2, h2] = arc[k + 1]!;
+    pen.quad(P(-RL, c1, h1), P(RL, c1, h1), P(RL, c2, h2), P(-RL, c2, h2));
+    for (const e of [-RL, RL]) {
+      pen.quad(P(e, c1, h1), P(e, c2, h2), P(e, 0, z0), P(e, 0, z0));
+      pen.edge(P(e, c1, h1), P(e, c2, h2));
+    }
+  }
+  for (const c of [r, -r]) pen.edge(P(-RL, c, z0), P(RL, c, z0));
+  for (const [c, h] of arc) for (const e of [-RL, RL]) pen.grow(P(e, c, h));
+
+  // Vents: from the barrel's surface where they stand, sunk 1 into it.
+  for (const v of st.vents) {
+    const [va, vc] = v.atMm;
+    const h = v.sizeMm / 2;
+    const base = z0 + Math.sqrt(Math.max(0, r * r - Math.max(vc - h, -vc - h, 0) ** 2)) - 1;
+    box(va - h, va + h, vc - h, vc + h, Math.min(base, v.topMm - 1), v.topMm);
+  }
+
+  // Tower: four faces and a top, its track face framing a square clock set in (DR7), the hands as detail.
+  const { tower, clock } = st;
+  const [ta, tc] = tower.atMm;
+  const s2 = tower.sizeMm / 2, k2 = clock.sizeMm / 2, front = tc + s2, back = tc - s2;
+  const zb = tower.bottomMm, zt = tower.topMm, cz = clock.centreMm;
+  const T = (al: number, ac: number, z: number) => P(ta + al, ac, z);
+  pen.quad(T(-s2, back, zt), T(s2, back, zt), T(s2, front, zt), T(-s2, front, zt));
+  pen.quad(T(-s2, back, zb), T(s2, back, zb), T(s2, back, zt), T(-s2, back, zt));
+  for (const e of [-s2, s2]) pen.quad(T(e, back, zb), T(e, front, zb), T(e, front, zt), T(e, back, zt));
+  // The track face around the clock's square: four panels.
+  pen.quad(T(-s2, front, zb), T(s2, front, zb), T(s2, front, cz - k2), T(-s2, front, cz - k2));
+  pen.quad(T(-s2, front, cz + k2), T(s2, front, cz + k2), T(s2, front, zt), T(-s2, front, zt));
+  pen.quad(T(-s2, front, cz - k2), T(-k2, front, cz - k2), T(-k2, front, cz + k2), T(-s2, front, cz + k2));
+  pen.quad(T(k2, front, cz - k2), T(s2, front, cz - k2), T(s2, front, cz + k2), T(k2, front, cz + k2));
+  // The recess: its four sides and its face.
+  const d = front - clock.recessMm;
+  const sq = [[-k2, cz - k2], [k2, cz - k2], [k2, cz + k2], [-k2, cz + k2]] as const;
+  for (let i = 0; i < 4; i++) {
+    const [p1, q1] = sq[i]!, [p2, q2] = sq[(i + 1) % 4]!;
+    pen.quad(T(p1, front, q1), T(p2, front, q2), T(p2, d, q2), T(p1, d, q1));
+  }
+  pen.quad(T(-k2, d, cz - k2), T(k2, d, cz - k2), T(k2, d, cz + k2), T(-k2, d, cz + k2));
+  for (const [i, j] of [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]] as const) {
+    const c = [T(-s2, back, zb), T(s2, back, zb), T(s2, front, zb), T(-s2, front, zb), T(-s2, back, zt), T(s2, back, zt), T(s2, front, zt), T(-s2, front, zt)];
+    pen.edge(c[i]!, c[j]!);
+  }
+  rect(sq.map(([p, q]) => T(p, front, q)));
+  // Hands, from the face's centre: the hour hand up, the minute hand toward two.
+  pen.detail(T(0, d, cz), T(0, d, cz + k2 * 0.55));
+  pen.detail(T(0, d, cz), T(k2 * 0.7 * Math.sin(Math.PI / 3), d, cz + k2 * 0.7 * Math.cos(Math.PI / 3)));
+  for (const c of st.cap) box(ta - c.sizeMm / 2, ta + c.sizeMm / 2, tc - c.sizeMm / 2, tc + c.sizeMm / 2, c.bottomMm, c.topMm);
+
+  // The sign on the track-side wall, and the platform's painted lines: paint, so lines only.
+  const sg = st.sign;
+  rect([P(sg.fromMm, W + 0.2, sg.bottomMm), P(sg.toMm, W + 0.2, sg.bottomMm), P(sg.toMm, W + 0.2, sg.topMm), P(sg.fromMm, W + 0.2, sg.topMm)]);
+  for (const ln of st.lines) {
+    const hl = ln.lengthMm / 2, hw = ln.widthMm / 2, z = ln.heightMm + 0.05;
+    rect([P(-hl, ln.acrossMm - hw, z), P(hl, ln.acrossMm - hw, z), P(hl, ln.acrossMm + hw, z), P(-hl, ln.acrossMm + hw, z)]);
   }
 }

@@ -816,13 +816,13 @@ Approval readiness: PASS: D4, E-B1 (D5), E-B2 (D6), E-B3 (D7); carried: E-A1, O1
 
 ## Implementation tasks (eng re-review, one PR)
 
-- [ ] **T1** download and measure (unchanged)
-- [ ] **T2** mirror through render.ts, fk.ts, ShapeFrame (unchanged)
-- [ ] **T3** station shape and drawStation (unchanged; contract per DR6, DR7)
-- [ ] **T5 (P1, CC ~20min)** — detail lines per piece at 1px; visibility per render pass from that pass's camera (DR1, DR3, E-B1, Y2) — Files: engine/src/view3d/mesh.ts, app/src/Viewer3D.tsx — Verify: tests 6, 7
-- [ ] **T6 (P1, CC ~20min)** — explicit build-mode flag; placed stations silhouette only; next station's building in its own depth-tested 3px outline (DR2, Y1, E-B3) — Files: mesh.ts, Viewer3D.tsx, app/src/BuildMode.tsx (passes the flag) — Verify: test 8
-- [ ] **T7 (P1, CC ~15min)** — piece ranges on the structures solid and rim meshes; pieceOfHits picks their piece (DR4, E-B2, Y3) — Files: mesh.ts, Viewer3D.tsx — Verify: test 9 (real raycast)
-- [ ] **T4** the eight screenshots (DR5)
+- [x] **T1** download and measure (unchanged)
+- [x] **T2** mirror through render.ts, fk.ts, ShapeFrame (unchanged)
+- [x] **T3** station shape and drawStation (unchanged; contract per DR6, DR7)
+- [x] **T5 (P1, CC ~20min)** — detail lines per piece at 1px; visibility per render pass from that pass's camera (DR1, DR3, E-B1, Y2) — Files: engine/src/view3d/mesh.ts, app/src/Viewer3D.tsx — Verify: tests 6, 7
+- [x] **T6 (P1, CC ~20min)** — explicit build-mode flag; placed stations silhouette only; next station's building in its own depth-tested 3px outline (DR2, Y1, E-B3) — Files: mesh.ts, Viewer3D.tsx, app/src/BuildMode.tsx (passes the flag) — Verify: test 8
+- [x] **T7 (P1, CC ~15min)** — piece ranges on the structures solid and rim meshes; pieceOfHits picks their piece (DR4, E-B2, Y3) — Files: mesh.ts, Viewer3D.tsx — Verify: test 9 (real raycast)
+- [x] **T4** the eight screenshots (DR5)
 
 Note: T6 adds app/src/BuildMode.tsx, so the PR is 11 files; same arrangement (one PR).
 
@@ -839,6 +839,38 @@ Note: T6 adds app/src/BuildMode.tsx, so the PR is 11 files; same arrangement (on
 - Outside voice: codex (gpt-6-astra), completed, 4 findings, all resolved
 - Parallelization: sequential, 1 lane
 - Lake Score: 2/2
+
+## Build-time finding (2026-11-05): the station's boxes are shorter than the real station
+
+Measured from the downloaded 3MF (MakerWorld 1995429) and its assembly guide: platform ~14, walls 65 seated in the platform (top ~77), barrel roof (5mm base, half-round ~31 radius, top ~115), clock tower 40x40x55 pushed into the roof (top ~135), stepped tower cap 50x50x20 (top ~155). The 2026-11-03 boxes have the hall at 14-61, roof 61-100, tower to 136. The model has no pitched roof and no doors or windows: an open hall with a street-side entrance and a large track-side opening, a curved roof with two vents, a round clock on a square tower, a route-map sign, platform edge lines.
+
+- **Decision B1 (owner, D11 → A, reopens O2):** correct SS's hall, roof and tower boxes to the measured model in the same PR, and list every corpus layout whose verdict changes. O2's "identical boxes" test becomes "boxes equal the measured figures". The drawing follows the model's real features (curved roof, open hall, vents, square-framed clock per DR7, sign, edge lines); "doors, windows, pitched roof" are dropped as not present.
+
+## Build result (2026-11-05)
+
+All seven tasks done on branch `station-detail`. Typecheck clean, 1508 tests pass. Every new test records a mutation that was run, with its real failure message.
+
+- **Bundle:** main entry 142.76 → 143.61 kB gzip (+0.85); 3D viewer 152.27 → 153.86 kB gzip (+1.59).
+- **Verdicts:** the corpus leaves decorated pieces out, so no corpus layout changes. The change B1 makes is pinned by test 1 instead: the hall now spans levels 0 and 1, so raised track across a station's hall clashes where it did not before.
+- **Kept as it was:** the stairs footprint, not in the model's measured parts.
+- **Estimated:** which way the tower and the vents face along the piece, read from the assembly guide, not measured.
+
+**T4, the eight views** (headless browser on a local build; not committed):
+
+| View | What it shows |
+|---|---|
+| 1 default camera | the station reads as a building behind the track; the track reads first |
+| 2 flipped | the building on the inside of the loop, its vents and tower reflected |
+| 3 three stations | a row of three halls; no line noise, the track still reads first |
+| 4 zoomed out | a small block with its tower; no detail lines (under the 1.5 px/mm threshold) |
+| 5 build mode, placed | muted, outline only, no detail lines |
+| 6 build mode, next | its own dark outline, clock, sign and platform line drawn |
+| 7 phone width | three stations at 390px, a block with towers, no detail |
+| 8 close-up | sign, square clock with hands, platform line, the open hall |
+
+Pass checks: recognisable as a station building without labels at every size; the track is what you read first in 1, 3, 4 and 7. Below the threshold (about four zoom steps in at the default camera) the clock and sign are gone by design. The owner judges the look.
+
+Follow-ups after the pilot: the Elevated station (ST) once measured; the other decorated pieces.
 
 ## GSTACK REVIEW REPORT
 

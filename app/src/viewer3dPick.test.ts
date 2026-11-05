@@ -3,8 +3,9 @@
  *
  * Value: protects=a ray through a piece's top or side names that piece, not
  * its neighbour; grooves, beams and footprints let the ray through to their
- * wood, and a structure or the table in front picks nothing; a press that
- * moves past the slop is a turn, not a click
+ * wood, a building picks its own piece (design DR4), and the table in front
+ * picks nothing; a press that moves past the slop is a turn, not a click;
+ * each piece's detail shows only while big enough in that pass's view (DR3)
  * Value: fails_when=the triangle-to-piece runs are read in the wrong unit,
  * the sides stop naming their pieces, the nearest hit stops winning, or the
  * slop is dropped or widened
@@ -24,7 +25,7 @@ import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Graph, type Piece } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
 import { buildScene, type SceneArrays } from '../../engine/src/view3d/mesh.js';
-import { CLICK_SLOP_PX, isClick, pickPiece, pieceOfHits, syncScene, type SceneColors } from './Viewer3D.js';
+import { CLICK_SLOP_PX, DETAIL_MIN_PX_PER_MM, detailShown, isClick, pickPiece, pieceOfHits, pxPerMmAt, showDetailFor, syncScene, type SceneColors } from './Viewer3D.js';
 
 const resolve = makeResolver(BUILT_IN);
 const ports = (p: Piece) => portsOf(resolve(p.partId), p.turn);
@@ -142,5 +143,80 @@ describe('a click is a press that stays put', () => {
     expect(isClick(at, { x: 103, y: 104 })).toBe(true);
     expect(isClick(at, { x: 106, y: 100 })).toBe(false);
     expect(isClick(at, { x: 100, y: 60 })).toBe(false);
+  });
+});
+
+/** One decorated piece alone, its decoration drawn too, into a group (station detail pilot). */
+function alone(partId: string): { group: Group; arrays: SceneArrays } {
+  const g: Graph = { pieces: [{ pieceId: 's', partId, turn: 'left' }], welds: [], anchors: new Map([['s', { pos: fromInt(0), heading: 0 }]]) };
+  const r = renderGraph(g, ports, resolve, placeAll(g, ports));
+  const arrays = buildScene({ segments: r.segments, bodies: r.bodies, ports: r.ports, welds: [], partOf: () => resolve(partId), riseMm: 61, plankMm: 12 });
+  const group = new Group();
+  syncScene(group, arrays, C);
+  group.updateMatrixWorld(true);
+  return { group, arrays };
+}
+
+describe('a tap on a building picks its piece (design DR4, eng E-B2, Y3)', () => {
+  /*
+   * MUTATION PROOF, run: the structures mesh drawn bare again (`wood(…,
+   * arrays.structures.solidRanges)` removed): `SS: expected null to be 's'`.
+   */
+  it("straight down onto the station's tower, and onto a tunnel's roof, picks the piece", () => {
+    for (const id of ['SS', 'TT']) {
+      const { group, arrays } = alone(id);
+      const b = arrays.pieceBounds.get('s')!;
+      // The station's tower stands at (72, -66); the tunnel's roof over the middle of its plank.
+      const target = id === 'SS' ? new Vector3(72, -66, 0) : new Vector3((b.min[0] + b.max[0]) / 2, 0, 0);
+      const cam = looking(target.clone().setZ(2000), target);
+      expect(pickPiece(group, cam, { x: 0, y: 0 }), id).toBe('s');
+    }
+  });
+});
+
+describe('detail shows only while big enough, per pass (design DR3, eng E-B1, Y2)', () => {
+  /*
+   * MUTATION PROOF, run: `detailShown` comparing with `>` instead of `>=`:
+   * `expected [ false, false ] to deeply equal [ true, false ]` (the exact
+   * boundary; through the camera alone, float rounding hid it and that
+   * mutation survived, so the boundary is pinned on `detailShown` itself).
+   */
+  it('shown at exactly the threshold, hidden just under it', () => {
+    expect([detailShown(DETAIL_MIN_PX_PER_MM), detailShown(DETAIL_MIN_PX_PER_MM - 1e-9)]).toEqual([true, false]);
+    const cam = new PerspectiveCamera(30, 1, 1, 100000);
+    const at = new Vector3(0, 0, 0);
+    // The distance at which a millimetre is exactly DETAIL_MIN_PX_PER_MM pixels in a 600px view.
+    const d = 600 / (2 * DETAIL_MIN_PX_PER_MM * Math.tan((30 * Math.PI) / 360));
+    cam.position.set(0, 0, d);
+    expect(pxPerMmAt(cam, at, 600)).toBeCloseTo(DETAIL_MIN_PX_PER_MM, 9);
+    const group = new Group();
+    const marker = new Group();
+    marker.userData.detailCentre = [0, 0, 0];
+    group.add(marker);
+    cam.position.set(0, 0, d * (1 - 1e-9));
+    showDetailFor(group, cam, 600);
+    expect(marker.visible).toBe(true);
+    cam.position.set(0, 0, d * 1.01);
+    showDetailFor(group, cam, 600);
+    expect(marker.visible).toBe(false);
+  });
+
+  /*
+   * MUTATION PROOF, run: the inset pass skipping its own check (no
+   * `showDetailFor(group, insetCamera, side)`) cannot be run here; what is
+   * pinned is the rule it relies on: the same camera, a smaller viewport,
+   * a different answer. With `heightPx` ignored (`pxPerMmAt` returning a fixed
+   * 600-pixel answer): `expected true to be false`.
+   */
+  it('the same station is detailed in a large view and plain in a small one', () => {
+    const { group, arrays } = alone('SS');
+    const d = arrays.structures.detail[0]!;
+    const c = new Vector3(...d.centre);
+    const cam = looking(c.clone().add(new Vector3(0, -400, 400)), c);
+    const detail = group.children.find((o) => o.userData.detailCentre !== undefined)!;
+    showDetailFor(group, cam, 1200);
+    expect(detail.visible).toBe(true);
+    showDetailFor(group, cam, 200);
+    expect(detail.visible).toBe(false);
   });
 });

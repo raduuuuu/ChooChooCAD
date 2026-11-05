@@ -258,10 +258,11 @@ describe('the station straight, placed and flipped (plan T4, eng D5, design 4A/5
     expect([next.refusal, next.refusalOf]).toEqual([null, null]);
   });
 
-  it('in 3D its clock tower reaches 136mm', () => {
+  // 151 since the re-measure (owner B1, 2026-11-05): the tower to 136 under its stepped cap to 151; it was 136 with no cap.
+  it('in 3D its clock tower and cap reach 151mm', () => {
     const r = drawnAlone('SS');
     const s = buildScene({ segments: r.segments, bodies: r.bodies, ports: r.ports, welds: [], partOf: () => resolve('SS'), riseMm: 61, plankMm: 12 });
-    expect(s.bounds.max[2]).toBeCloseTo(136, 6);
+    expect(s.bounds.max[2]).toBeCloseTo(151, 6);
   });
 });
 
