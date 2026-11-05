@@ -872,6 +872,18 @@ Pass checks: recognisable as a station building without labels at every size; th
 
 Follow-ups after the pilot: the Elevated station (ST) once measured; the other decorated pieces.
 
+## Follow-on: the tunnel and the level crossing (2026-11-05)
+
+After the pilot merged (PR 159), the same treatment for the two other decorated pieces with printable models, read off their 3MFs (already downloaded on 2026-11-03).
+
+- **Tunnel straight (TT):** its boxes already match the model. The only detail is stonework over the whole outside. **Owner: every joint.** 15 rings every 12.94mm from 8.1, 11 courses every 5.76mm up each wall from 1.5, and 13 courses around the arch every 13.2 degrees, about the crown. That makes 245 detail lines, 0.3mm off the shell. Which end the rings start from is estimated (8.1 from one end, 10.75 from the other).
+- **Level crossing (LC):** each barrier stands on a round base 20 across and 12 tall that the old 10-square post box missed. **Owner: correct the boxes.** Each barrier is now a new `barrier` shape:
+  - a 20-square base box, floor to 12, and a 10-square post 3.8 further out, 12 to 31, both solid;
+  - an arm drawn only: a hinge disc at 23.8 and a bar 8 × 4.4 reaching 100 (top 123.8, was 132), its stripes as 10 slanting lines on each wide face.
+
+  Track passing within the base's extra 5mm now clashes. Which way the bar's wide face turns is estimated.
+- Checks: 1512 tests pass, every new test with a mutation run (messages in the test comments). Bundle +0.50 kB gzip main entry, +0.44 kB 3D viewer. Screenshots of both, at the default camera and close up, on a local build; the detail shows only close up.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |

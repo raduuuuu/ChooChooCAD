@@ -146,6 +146,27 @@ export function decorBoxesOf(owner: string, decor: readonly DecorShape[], riseMm
           boxOf('footprint', at(0, 0), Math.max(hall.lengthMm, roof.lengthMm), extent, hall.bottomMm, top, drawOnly(shape)),
         ];
       }
+      case 'barrier': {
+        /*
+         * A barrier collides as its base (a square around the round base, as
+         * every box is) and its post, each a solid box at its measured size,
+         * none drawn; one more box, not solid, draws it, arm and all (owner,
+         * detail plan 2026-11-05). The arm stays out of the way of track.
+         */
+        const [x, y] = shape.atMm;
+        const { base, post, arm } = shape;
+        const bad = (why: string) => new Error(`${owner}: a barrier ${why}.`);
+        if (!(post.sizeMm < base.diameterMm && post.topMm > base.topMm && Math.abs(post.offsetMm) + post.sizeMm / 2 <= base.diameterMm / 2)) throw bad('needs a post narrower than its base, standing on it and taller');
+        if (!(arm.hingeMm > base.topMm && arm.hingeMm < post.topMm)) throw bad('arm must hinge in its post');
+        if (!arm.stripesMm.every((s) => s > arm.discMm / 2 && s + arm.widthMm < arm.lengthMm)) throw bad('stripes must lie on its arm');
+        const collides = { solid: true, draw: false, noun: shape.noun ?? 'barrier post' } as const;
+        const reach = Math.max(base.diameterMm / 2, Math.abs(post.offsetMm) + Math.max(post.sizeMm, arm.discMm) / 2);
+        return [
+          boxOf('footprint', [x, y], base.diameterMm, base.diameterMm, 0, base.topMm, collides),
+          boxOf('footprint', [x + post.offsetMm, y], post.sizeMm, post.sizeMm, base.topMm, post.topMm, collides),
+          boxOf('footprint', [x, y], 2 * reach, base.diameterMm, 0, arm.hingeMm + arm.lengthMm, drawOnly(shape)),
+        ];
+      }
     }
   });
 }

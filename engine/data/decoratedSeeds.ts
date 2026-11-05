@@ -9,7 +9,7 @@
  * The pieces themselves arrive one at a time (plan tasks T3-T5).
  */
 
-import type { DecorShape, DecorSlab, DimensionSource } from '../src/parts/schema.js';
+import type { DecorBarrier, DecorShape, DecorSlab, DimensionSource } from '../src/parts/schema.js';
 
 export interface DecoratedSpec {
   readonly id: string;
@@ -29,14 +29,38 @@ export interface DecoratedSpec {
 }
 
 /*
- * THE LEVEL CROSSING (plan T3), read off 3MF 681643: the printed crossing
- * (HP) with a barrier post at two opposite corners, 38 along and 36.5 across
- * from where the roads cross, each 10 square and 31 tall, and a 107 arm on
- * each. The arms are drawn raised (open) and are not solid: a lowered arm
- * is a toy's moving part, not wood a layout is planned around.
+ * THE LEVEL CROSSING (plan T3; re-measured for detail, 2026-11-05, owner:
+ * correct the boxes), read off 3MF 681643 and its separate parts: the
+ * printed crossing (HP) with a barrier at two opposite corners. Each stands
+ * on a round base 20 across and 12 tall (track height), its centre 38 along
+ * and 36.5 across from where the roads cross; a 10 square post rises from
+ * it to 31, standing 3.8 further out along the piece, forked at the top for
+ * the arm's hinge at 23.8. The arm: a 13.7 hinge disc, then a bar 8 wide and
+ * 4.4 thick reaching 100 from the hinge, painted in diagonal stripes whose
+ * edges are 8 apart. The arms are drawn raised (open) and are not solid: a
+ * lowered arm is a toy's moving part, not wood a layout is planned around.
+ * Which way the bar's wide face turns is estimated.
  */
-const post = (x: number, y: number): DecorSlab => ({ kind: 'slab', atMm: [x, y], lengthMm: 10, widthMm: 10, bottomMm: 0, topMm: 31, noun: 'barrier post' });
-const arm = (x: number, y: number): DecorSlab => ({ kind: 'slab', atMm: [x, y], lengthMm: 6, widthMm: 6, bottomMm: 31, topMm: 132, solid: false, noun: 'barrier' });
+const barrier = (x: number, y: number, out: 1 | -1): DecorBarrier => ({
+  kind: 'barrier', atMm: [x, y],
+  base: { diameterMm: 20, topMm: 12 },
+  post: { sizeMm: 10, topMm: 31, offsetMm: out * 3.8 },
+  arm: { hingeMm: 23.8, lengthMm: 100, widthMm: 8, thickMm: 4.4, discMm: 13.7, stripesMm: Array.from({ length: 10 }, (_, k) => 14.8 + 8 * k) },
+});
+
+/*
+ * THE TUNNEL'S STONEWORK (detail plan 2026-11-05, owner: every joint), read
+ * off 3MF 607215: a grid of joints over its whole outside, rings every 12.94
+ * along from 8.1, courses every 5.76 up each wall from 1.5, and around the
+ * arch every 13.2 degrees either side of the crown. Which end of the shell
+ * the first ring is nearer is estimated (8.1 from one end, 10.75 from the
+ * other).
+ */
+const STONES = {
+  ringsMm: Array.from({ length: 15 }, (_, k) => 8.1 + 12.94 * k),
+  wallMm: Array.from({ length: 11 }, (_, k) => 1.5 + 5.76 * k),
+  archDeg: Array.from({ length: 13 }, (_, k) => 90 + 13.2 * (k - 6)),
+};
 
 /*
  * THE STATION STRAIGHT (plan T4; re-measured for the detail pilot,
@@ -59,11 +83,11 @@ const slab = (x: number, y: number, l: number, w: number, bottomMm: number, topM
 export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
   {
     id: 'LC', name: 'Level crossing', base: 'HP',
-    decor: [post(113, 36.5), post(37, -36.5), arm(113, 36.5), arm(37, -36.5)],
+    decor: [barrier(113, 36.5, 1), barrier(37, -36.5, -1)],
     dimensions: {
       status: 'unverified',
-      source: 'a printed design, measured off the 3MF mesh on 2026-11-03',
-      note: 'Barrier posts 10 square and 31 tall at two opposite corners, 38 along and 36.5 across from the crossing point; arms 107 long, drawn raised.',
+      source: 'a printed design, measured off the 3MF meshes on 2026-11-05 (first on 2026-11-03, when each post was read as one 10 square box); which way the arm faces estimated',
+      note: 'Barriers at two opposite corners, their round bases 20 across and 12 tall, 38 along and 36.5 across from the crossing point; posts 10 square to 31, 3.8 further out; arms 100 from a hinge at 23.8, 8 wide and 4.4 thick, striped, drawn raised.',
     },
   },
   {
@@ -110,11 +134,11 @@ export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
    */
   {
     id: 'TT', name: 'Tunnel straight', base: 'D',
-    decor: [{ kind: 'vault', atMm: [108, 0], lengthMm: 200, widthMm: 51, wallMm: 6, springMm: 60, topMm: 85.5, noun: 'tunnel' }],
+    decor: [{ kind: 'vault', atMm: [108, 0], lengthMm: 200, widthMm: 51, wallMm: 6, springMm: 60, topMm: 85.5, noun: 'tunnel', joints: STONES }],
     dimensions: {
       status: 'unverified',
-      source: 'a printed design, measured off the 3MF mesh on 2026-11-03',
-      note: 'A 200 shell, 51 wide outside with 6 walls (39 inside), straight to 60, arched to 85.5; 79.5 from the floor to the underside of the arch.',
+      source: 'a printed design, measured off the 3MF mesh on 2026-11-03, its stone joints on 2026-11-05; which end the joints start from estimated',
+      note: 'A 200 shell, 51 wide outside with 6 walls (39 inside), straight to 60, arched to 85.5; 79.5 from the floor to the underside of the arch. Stone joints every 12.94 along, every 5.76 up the walls, every 13.2 degrees around the arch.',
     },
   },
 ];

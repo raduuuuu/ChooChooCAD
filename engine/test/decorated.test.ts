@@ -50,6 +50,12 @@ const clashes = (g: Graph): string[] => {
 };
 
 /** Everything a piece's track is made of: what a decorated piece must take from its base unchanged (plan F3). */
+/** One piece alone at the origin, built into a 3D scene. */
+const aloneScene = (partId: string) => {
+  const g: Graph = { pieces: [{ pieceId: 'p', partId }], welds: [], anchors: new Map([['p', at(0, 0, 0)]]) };
+  const r = renderGraph(g, ports, resolve, placeAll(g, ports));
+  return buildScene({ segments: r.segments, bodies: r.bodies, ports: r.ports, welds: [], partOf: () => resolve(partId), riseMm: RISE, plankMm: 12 });
+};
 const track = (p: Part) => ({ ports: portsOf(p), kind: p.kind, slop: p.slop, plank: p.plankWidthMm, ...(p.kind === 'straight' ? { lengthMm: p.lengthMm, ends: p.ends, rise: p.rise } : {}) });
 
 describe('a decorated piece takes its track from its base (eng D2, plan F3)', () => {
@@ -208,14 +214,48 @@ describe('the level crossing, the first decorated piece (plan T3)', () => {
   });
 
   /*
-   * MUTATION PROOF, run: the arms dropped from the seed fails with `expected [
-   * [ 'barrier post', true ], …(1) ] to deeply equal [ …(3) ]`.
+   * THE BOXES ARE THE MEASURED MODEL (owner, detail plan 2026-11-05): each
+   * barrier collides as its round base (a 20 square, floor to track height)
+   * and its post (10 square, 3.8 further out, from the base to 31); one box,
+   * not solid, draws it, its arm up to 123.8.
+   * MUTATION PROOF, run: the seed's base 18 across instead of 20: `expected [
+   * Array(6) ] to deeply equal [ Array(6) ]`.
    */
-  it('its arms are drawn but never collide', () => {
+  it('collides as each base and post at their measured sizes; the arm is drawn only', () => {
+    const r2 = (v: number) => Math.round(v * 100) / 100;
     const decor = resolve('LC').decorBody!;
-    expect(decor.map((b) => [b.noun, b.solid])).toEqual([
-      ['barrier post', true], ['barrier post', true], ['barrier', false], ['barrier', false],
+    expect(decor.map((b) => [b.noun ?? null, b.solid, ...b.atMm.map(r2), r2(b.lengthMm), r2(b.widthMm), b.bottomMm, r2(b.topMm)])).toEqual([
+      ['barrier post', true, 113, 36.5, 20, 20, 0, 12],
+      ['barrier post', true, 116.8, 36.5, 10, 10, 12, 31],
+      [null, false, 113, 36.5, 21.3, 20, 0, 123.8],
+      ['barrier post', true, 37, -36.5, 20, 20, 0, 12],
+      ['barrier post', true, 33.2, -36.5, 10, 10, 12, 31],
+      [null, false, 37, -36.5, 21.3, 20, 0, 123.8],
     ]);
+  });
+
+  /*
+   * The round base is wood the old 10 square post missed: a straight whose
+   * plank edge passes 2.5 inside the base (44 across; the base reaches 46.5,
+   * the old post 41.5) now clashes with the crossing, never with its track.
+   * MUTATION PROOF, run: the base's box sized as the post (`post.sizeMm`):
+   * `expected [] to deeply equal [ 'lc near' ]`.
+   */
+  it('track brushing a barrier\'s base clashes, though it clears the post above it', () => {
+    expect(clashes(scene([lc, ['near', 'A2', at(100, 64, 0)]]))).toEqual(['lc near']);
+    expect(clashes(scene([['hp', 'HP', at(0, 0, 0)], ['near', 'A2', at(100, 64, 0)]]))).toEqual([]);
+  });
+
+  /*
+   * DETAIL IS ONLY WHAT THE MODEL HAS: each arm's stripes, ten slanting
+   * edges on each of its two wide faces, as lines apart from the edges.
+   * MUTATION PROOF, run: stripes on one face only: `expected 20 to be 40 //
+   * Object.is equality`.
+   */
+  it('draws 40 stripe lines in one group for the piece', () => {
+    const d = aloneScene('LC').structures.detail;
+    expect(d.map((g) => g.pieceId)).toEqual(['p']);
+    expect((d[0]?.positions.length ?? 0) / 6).toBe(40);
   });
 });
 
@@ -299,6 +339,37 @@ describe('the tunnel straight: a vault over a long straight (plan T5, eng D10)',
     expect([pair('TT', -44), pair('D', -44)]).toEqual([['n t'], []]);
     // Raised track crossing square over the middle: the roof reaches 85.5mm, into level 1.
     expect([pair('TT', -100, 1), pair('D', -100, 1)]).toEqual([['n t'], []]);
+  });
+
+  /*
+   * ITS STONEWORK, EVERY JOINT (owner, detail plan 2026-11-05): 15 rings of
+   * 14 lines around the shell, 11 courses up each wall and 13 around the
+   * arch, all detail, none of it outline.
+   * MUTATION PROOF, run: `drawStones` never called: `expected [] to deeply
+   * equal [ 'p' ]`.
+   */
+  it('draws 245 joint lines in one group for the piece', () => {
+    const d = aloneScene('TT').structures.detail;
+    expect(d.map((g) => g.pieceId)).toEqual(['p']);
+    expect((d[0]?.positions.length ?? 0) / 6).toBe(15 * 14 + 2 * 11 + 13);
+  });
+
+  /*
+   * Every joint stands just off the shell's outside: on a wall face 25.8
+   * across below the spring at 60, or 25.8 from the arch's centre above it,
+   * and along the shell (8 to 208), never inside the passage.
+   * MUTATION PROOF, run: `JOINT_LIFT_MM` 0, the joints on the faces: `expected [
+   * '16.1,-25.5,0.0', …(489) ] to deeply equal []`.
+   */
+  it('every joint lies 0.3 off the outside of the shell, along its length', () => {
+    const pos = aloneScene('TT').structures.detail[0]!.positions;
+    const off: string[] = [];
+    for (let i = 0; i < pos.length; i += 3) {
+      const [x, y, z] = [pos[i]!, pos[i + 1]!, pos[i + 2]!];
+      const r = z <= 60 ? Math.abs(y) : Math.hypot(y, z - 60);
+      if (Math.abs(r - 25.8) > 1e-3 || x < 8 - 1e-3 || x > 208 + 1e-3) off.push(`${x.toFixed(1)},${y.toFixed(1)},${z.toFixed(1)}`);
+    }
+    expect(off).toEqual([]);
   });
 });
 

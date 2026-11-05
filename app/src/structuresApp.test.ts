@@ -193,20 +193,21 @@ describe('the harbour arch bridge in 3D (Sydney bridge plan 2026-11-03)', () => 
 describe('the level crossing drawn flat and in 3D (decorated-pieces plan T3, design 6A)', () => {
   /*
    * MUTATION PROOF, run: non-solid decoration drawn flat fails with `expected
-   * [ …(4) ] to have a length of 2 but got 4`.
+   * [ …(6) ] to have a length of 4 but got 6`.
    */
-  it('its card draws the two posts as slabs, never the arms', () => {
-    expect(previewOf(resolve('LC')).bodies).toHaveLength(2);
+  it("its card draws each barrier's base and post as slabs, never the arms", () => {
+    expect(previewOf(resolve('LC')).bodies).toHaveLength(4);
     expect(previewOf(resolve('HP')).bodies).toHaveLength(0);
   });
 
   /*
-   * MUTATION PROOF, run: the arms dropped fails with `expected 31 to be close to 132`.
+   * MUTATION PROOF, run: the arm 107 long: `expected 130.8 to be close to
+   * 123.8, received difference is 7.000000000000014`.
    */
-  it('in 3D its posts stand 31mm and its arms rise to 132mm', () => {
+  it('in 3D its posts stand 31mm and its arms rise to 123.8mm, 100 from the hinge', () => {
     const r = drawnAlone('LC');
     const s = buildScene({ segments: r.segments, bodies: r.bodies, ports: r.ports, welds: [], partOf: () => resolve('LC'), riseMm: 61, plankMm: 12 });
-    expect(s.bounds.max[2]).toBeCloseTo(132, 6);
+    expect(s.bounds.max[2]).toBeCloseTo(123.8, 6);
   });
 });
 
