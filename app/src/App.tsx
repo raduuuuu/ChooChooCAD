@@ -70,7 +70,7 @@ import {
 } from './editorReducer.js';
 import { dropRescueCopy, holdsOwnLayout, loadGraph, partialLoadNotice, rescueCopy, saveGraph, savesSuppressed, storedGraphOf } from './layoutStore.js';
 import { downloadBytes } from './downloadBytes.js';
-import { LayoutFileControls } from './LayoutFileControls.js';
+import { LayoutFileControls, openLayoutFile } from './LayoutFileControls.js';
 import { PutAsideNotice } from './PutAsideNotice.js';
 import { ShareControl } from './ShareControl.js';
 import { rescueCopyLine, saveFailureNotice, type SavedStore } from './saveNotice.js';
@@ -483,6 +483,8 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
   // Whether the action that wrote `saidNext` removed a piece or made a joint, so it is also said on screen (design DR4, DR5).
   const saidKind = useRef<'removed' | 'joined' | null>(null);
   const [said, setSaid] = useState('');
+  // What the layout-file row says, shared by its picker and a file dropped on the canvas.
+  const [fileSaid, setFileSaid] = useState<string | null>(null);
   /*
    * WHAT THE LAST REMOVAL OR JOIN DID, ON SCREEN (plan 2026-11-01, design DR4,
    * DR5). The announcement only reached a screen reader; this shows the same
@@ -1903,7 +1905,29 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
           </div>
         )}
       </header>
-      <main className="stage">
+      {/*
+        * A LAYOUT FILE DROPPED ON THE CANVAS opens as "Open a layout file" does:
+        *
+        *   drag over ─▶ carries files? ─▶ no: left alone (the browser's default)
+        *                               └ yes: accepted as a drop
+        *   drop ─▶ first file ─▶ openLayoutFile ─▶ refused: said on the file row
+        *                                          └ ok: the address takes the fragment
+        *
+        * Only HTML drag events are taken, so the canvas's pointer handling (and
+        * the palette's pointer drag) never sees a difference.
+        */}
+      <main
+        className="stage"
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes('Files')) e.preventDefault();
+        }}
+        onDrop={(e) => {
+          const file = e.dataTransfer.files[0];
+          if (!file) return;
+          e.preventDefault();
+          void openLayoutFile(file, setFileSaid);
+        }}
+      >
         {view === '3d' && sceneInput ? (
           <View3DPanel
             input={sceneInput}
@@ -2198,15 +2222,21 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
           ))}
         </div>
 
-        <LayoutFileControls graph={graph} usesCorrections={usesCorrections} announce={setSaid} />
+        <LayoutFileControls
+          graph={graph}
+          usesCorrections={usesCorrections}
+          announce={setSaid}
+          said={fileSaid}
+          setSaid={setFileSaid}
+        />
 
         {/*
-          * The inventory invitation appears only once a layout EXISTS (D10). On a
-          * blank canvas three things were competing to be first: the hint, the
-          * presets and this. One click to a working layout beats a data-entry
-          * chore whose payoff arrives several steps later.
+          * YOUR BOX IS ALWAYS OFFERED (owner, 2026-11-05: "always reachable";
+          * docs/plan/2026-11-05-inventory-by-part.md B1). D10 hid it until a
+          * layout existed; that still holds for Your table and Add a part, which
+          * only mean something once there is track.
           */}
-        {graph.pieces.length > 0 && !inventoryOpen && (
+        {!inventoryOpen && (
           <div className="palette-row palette-controls">
             <button
               onClick={() => {
@@ -2216,9 +2246,9 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             >
               Your box
             </button>
-            {!tableOpen && <button onClick={() => setTableOpen(true)}>Your table</button>}
-            <button onClick={() => setSubmitOpen(true)}>Add a part</button>
-            {inventory === null && (
+            {graph.pieces.length > 0 && !tableOpen && <button onClick={() => setTableOpen(true)}>Your table</button>}
+            {graph.pieces.length > 0 && <button onClick={() => setSubmitOpen(true)}>Add a part</button>}
+            {graph.pieces.length > 0 && inventory === null && (
               <span className="inventory-hint">
                 Nothing is checked against your box yet.
               </span>
@@ -2256,7 +2286,6 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             library={library}
             inventory={inventory}
             used={counts}
-            shortfalls={shortfalls}
             adaptersUsed={adaptersUsed}
             adapterShort={adapterShort}
             onChange={(next) => {

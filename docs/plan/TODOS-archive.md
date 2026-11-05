@@ -110,6 +110,14 @@ this feature can open again).
 
 ---
 
+## DONE 2026-11-05 — Drop a layout file on the canvas (left from the layout-file P2, 2026-11-04)
+
+**DONE 2026-11-05 (branch drop-layout-file).** A file dropped on the editor's canvas (the stage, 2D or 3D) opens as "Open a layout file" does: both hand the file to one function, `openLayoutFile` in `LayoutFileControls.tsx`, so the size cap, `fragmentOfFile`, the `open-file` count and the address road are shared. A refusal is said on the file row's status line, whose sentence App now owns so the drop can use it. Only a drag carrying files is accepted; the first file is taken; a drop with no file is ignored. The canvas's pointer handling is untouched. Spec: app/src/layoutFileDrop.dom.test.tsx.
+
+**What:** dropping a `.choochoo` file or a downloaded `.json` backup on the canvas opens it, as "Open a layout file" does (`LayoutFileControls.tsx`, `fragmentOfFile`).
+**Why:** the design doc names drop as the second way in; the picker shipped first because it is the one every device has.
+**Effort:** human ~1h / CC ~15m. **Priority:** P3. **Depends on:** nothing.
+
 ## DONE 2026-11-05 — Pick a piece in 3D and it is selected in 2D (filed by /plan-ceo-review 2026-10-31, D5)
 
 **DONE 2026-11-05 (branch pick-in-3d).** A click or tap on a piece in the 3D view selects it in the editor, so 2D shows it selected; the selection's own announcement says so ("Selected Piece n: …"), and the view stays in 3D. A press that moves more than 5px is a turn or a pan and picks nothing; a click on the table, a building or empty space does nothing; a second click on the same piece keeps it selected. The ray reads the merged wood through `pieceRanges` and a new `sideRanges` (top and sides), passing through grooves, beams and footprints. Build mode and a shared link's view pick nothing. Not done: the other way round (2D's selection shown in 3D) is held by design 10A and filed as a new P3; the switch stays (no side-by-side). Specs: app/src/viewer3dPick.test.ts, app/src/view3d.dom.test.tsx.

@@ -20,14 +20,12 @@
  * of these", which is a real and different claim. Collapsing them would render
  * the whole palette as unavailable for every new user.
  *
- * NO REAL SET MANIFESTS SHIP HERE YET. Transcribing Generic set contents is the
- * same open provenance question flagged over the part data, and inventing
- * plausible-looking contents would be worse than offering none. The fast-path
- * MECHANISM is built and tested; the quick-fills below are described in terms of
- * this catalogue and are labelled as not being official set contents.
+ * NO SETS AT ALL (owner, 2026-11-05: "not set but rather part dependent";
+ * docs/plan/2026-11-05-inventory-by-part.md). A count is typed per part. The
+ * quick-fills that once stood in for sets went with the "simple first"
+ * panel (B2).
  */
 
-import { GENERIC_PARTS } from '../../engine/data/generic.js';
 import { RESERVED_ID_PREFIX } from '../../engine/data/library.js';
 import { INVENTORY_STORAGE_KEY } from './storageKeys.js';
 import { remove, stored, write } from '../../engine/data/storage.js';
@@ -59,46 +57,6 @@ export interface Shortfall {
   /** used - owned, always positive. */
   readonly shortBy: number;
 }
-
-/**
- * A quick-fill. Deliberately NOT called a set: these are not Generic set contents.
- * Each writes counts and is then forgotten, which is the whole point of D6.
- */
-export interface QuickFill {
-  readonly label: string;
-  readonly note: string;
-  readonly counts: Readonly<Record<string, number>>;
-}
-
-/**
- * Quick-fills are Generic-ONLY, deliberately.
- *
- * A "set you own" is brand-specific: nobody buys a box containing Generic and IKEA
- * and Playtive track. Once the catalogue gained third-party brands, spanning all
- * of them would have handed a Generic owner six pieces they do not have, and the
- * third-party sizes are unverified besides. Declaring third-party stock is a
- * manual count, which is what the editable fields are for.
- */
-const everyGenericPart = (n: number): Record<string, number> =>
-  Object.fromEntries(GENERIC_PARTS.map((p) => [p.id, n]));
-
-export const QUICK_FILLS: readonly QuickFill[] = [
-  {
-    label: 'A few of each',
-    note: '4 of every Generic part. Not a real Generic set, and no third-party track.',
-    counts: everyGenericPart(4),
-  },
-  {
-    label: 'Enough for a circle',
-    note: '8 large curves and nothing else, so the shortfall line has something to say.',
-    counts: { ...everyGenericPart(0), E: 8 },
-  },
-  {
-    label: 'A big box',
-    note: '16 of every Generic part. Not a real Generic set, and no third-party track.',
-    counts: everyGenericPart(16),
-  },
-];
 
 /**
  * Turn whatever the count field contains into a storable count, or refuse it.
