@@ -25,22 +25,6 @@ over 225mm needs about 234mm of slope), which is why one re-measure comes first.
 `bun run calibration` prints the Q4 result. Part in engine/data/rampSeeds.ts.
 **Depends on:** the re-measure.
 
-## P3 — Build mode's buttons are a second button vocabulary (filed by /design-review 2026-10-31, D1)
-
-**What:** `.build-outline`, `.build-primary` and `.build-text` (app/src/app.css, BUILD MODE block) restate the app's outline and filled buttons instead of sharing them, at 48px rather than 36/44.
-**Why:** Two systems drift: the design review already had to re-align radius and hover by hand.
-**Pros:** One button rule set. **Cons:** Build mode's 48px floor target needs its own token either way.
-**Context:** Found by the design outside voice. Start from `.view-reset` and `.canvas-empty-action button`; add a `--target-build` token for the 48px.
-**Effort:** human S / CC S. **Depends on:** nothing.
-
-## P3 — Build mode's loading and failure text uses the editor's size (filed by /design-review 2026-10-31, D4)
-
-**What:** `BuildModeLoader.tsx` reuses `.canvas-empty-lead`, so "Couldn't load build mode." renders at editor size inside a screen read from 60cm.
-**Why:** Build mode's text rule (DESIGN.md rule 12) is `--build-*` sizes.
-**Pros:** Readable from the floor. **Cons:** One more class.
-**Context:** Design outside voice. Use `.build-code-line` for the sentence.
-**Effort:** human S / CC S. **Depends on:** nothing.
-
 ## P3 — Show the editor's selection in 3D (left from pick in 3D, 2026-11-05)
 
 **What:** the other half of "pick in 3D": a piece selected in 2D, or picked in 3D, is marked in the 3D view.

@@ -268,6 +268,13 @@
   --build-name: 40px;
   --build-code: 28px;
   --build-meta: 16px;
+  /*
+   * Build mode's touch target, read and tapped from the floor at about 60cm
+   * (DESIGN.md rule 12). The editor's are 36px (40 for its one filled button),
+   * 44px on touch; build mode's 48 is its own size, not its own look
+   * (design review D1, 2026-10-31).
+   */
+  --target-build: 48px;
 
   /* Spacing scale */
   --s1: 4px;

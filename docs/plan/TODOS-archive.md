@@ -206,3 +206,25 @@ should be the last resort, and the dump should name the rows it dropped.
 **Effort:** human ~1h / CC ~15m. **Priority:** P2.
 **Depends on / blocked by:** nothing.
 
+
+## DONE 2026-11-05 — Build mode's buttons are a second button vocabulary (filed by /design-review 2026-10-31, D1)
+
+**DONE 2026-11-05 (branch build-mode-polish).** The outline, filled and text buttons each have one look rule, shared by the editor and build mode (`.build-outline` with `.view-reset`, `.build-primary` with `.canvas-empty-action button`, `.build-text` with `.share-close` and `.put-aside-button`); only sizes stay per place, and build mode's 48px is the new `--target-build` token. Checked in a headless browser: every button in the editor, Share and build mode has identical computed styles before and after. Found on the way: `.build-primary`'s `font-weight: 600` never applied (the size rule's `font: inherit` outranked it), so it was dropped rather than switched on.
+
+**What:** `.build-outline`, `.build-primary` and `.build-text` (app/src/app.css, BUILD MODE block) restate the app's outline and filled buttons instead of sharing them, at 48px rather than 36/44.
+**Why:** Two systems drift: the design review already had to re-align radius and hover by hand.
+**Pros:** One button rule set. **Cons:** Build mode's 48px floor target needs its own token either way.
+**Context:** Found by the design outside voice. Start from `.view-reset` and `.canvas-empty-action button`; add a `--target-build` token for the 48px.
+**Effort:** human S / CC S. **Depends on:** nothing.
+
+
+## DONE 2026-11-05 — Build mode's loading and failure text uses the editor's size (filed by /design-review 2026-10-31, D4)
+
+**DONE 2026-11-05 (branch build-mode-polish).** BuildModeLoader.tsx's four sentences ("Opening build mode…" and the three failure sentences) use `.build-code-line`, build mode's `--build-code` size.
+
+**What:** `BuildModeLoader.tsx` reuses `.canvas-empty-lead`, so "Couldn't load build mode." renders at editor size inside a screen read from 60cm.
+**Why:** Build mode's text rule (DESIGN.md rule 12) is `--build-*` sizes.
+**Pros:** Readable from the floor. **Cons:** One more class.
+**Context:** Design outside voice. Use `.build-code-line` for the sentence.
+**Effort:** human S / CC S. **Depends on:** nothing.
+

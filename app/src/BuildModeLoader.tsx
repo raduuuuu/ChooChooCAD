@@ -37,7 +37,7 @@ function Loading() {
   }, []);
   return (
     <div className="build-mode build-loading" role="status" aria-live="polite">
-      {shown && <p className="canvas-empty-lead">Opening build mode…</p>}
+      {shown && <p className="build-code-line">Opening build mode…</p>}
     </div>
   );
 }
@@ -54,7 +54,7 @@ export function BuildModeLoader(props: BuildModeProps & { readonly reload?: () =
           {failures >= 2 ? (
             props.allSaved ? (
               <>
-                <p className="canvas-empty-lead">Still couldn&rsquo;t load build mode. Reloading the app usually fixes this. Your layout is saved.</p>
+                <p className="build-code-line">Still couldn&rsquo;t load build mode. Reloading the app usually fixes this. Your layout is saved.</p>
                 <div className="build-actions">
                   <button className="build-primary" onClick={props.reload ?? (() => window.location.reload())}>
                     Reload
@@ -66,7 +66,7 @@ export function BuildModeLoader(props: BuildModeProps & { readonly reload?: () =
               </>
             ) : (
               <>
-                <p className="canvas-empty-lead">
+                <p className="build-code-line">
                   Still couldn&rsquo;t load build mode. Reloading now would lose changes that aren&rsquo;t saved.
                 </p>
                 <div className="build-actions">
@@ -78,7 +78,7 @@ export function BuildModeLoader(props: BuildModeProps & { readonly reload?: () =
             )
           ) : (
             <>
-              <p className="canvas-empty-lead">Couldn&rsquo;t load build mode.</p>
+              <p className="build-code-line">Couldn&rsquo;t load build mode.</p>
               <div className="build-actions">
                 <button
                   className="build-primary"
