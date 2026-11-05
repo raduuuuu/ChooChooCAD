@@ -27,6 +27,7 @@ import {
   UNREADABLE_LAYOUT,
 } from './linkWords.js';
 import { openInEditor, summaryOf } from './putAside.js';
+import { countAction } from './linkFragment.js';
 
 type State =
   | { kind: 'idle' }
@@ -57,6 +58,7 @@ export function OpenInEditor({ linkBytes }: { readonly linkBytes: string }) {
     busy.current = true;
     const r = openInEditor(linkBytes, replace);
     if (r.kind === 'opened') {
+      countAction('open-in-editor');
       leaveLink();
       return; // The guard stays up until the reload.
     }

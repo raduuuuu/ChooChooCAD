@@ -17,7 +17,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { counterPath } from './linkFragment.js';
+import { countAction, counterPath } from './linkFragment.js';
 
 const COUNT_JS = readFileSync(join(process.cwd(), 'app/public/count.js'), 'utf8');
 const LAYOUT = 'ZQX7layoutTEXTnotToLeave';
@@ -52,5 +52,33 @@ describe('the counter on a shared layout', () => {
     expect(url.searchParams.get('p')).toBe('/shared-link');
     const fields = [...url.searchParams.values()].join('\n');
     expect([fields.includes('#'), sent[0]!.includes('%23'), sent[0]!.includes(LAYOUT)]).toEqual([false, false, false]);
+  });
+
+  /*
+   * AN ACTION SENDS ITS NAME AND NOTHING OF THE PAGE (owner, 2026-11-05).
+   * MUTATION PROOF, run: `actionEvent` without `title` (count.js then falls
+   * back to the page title): `expected 'A wooden railway · 7 pieces' to be
+   * 'Shared a link'`.
+   */
+  it('an action on a shared layout sends its fixed name, as an event, and nothing of the layout', () => {
+    history.replaceState(null, '', `/#v1.${LAYOUT}`);
+    document.title = 'A wooden railway · 7 pieces';
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    const sent: string[] = [];
+    Object.defineProperty(navigator, 'sendBeacon', { value: (url: string) => (sent.push(url), true), configurable: true });
+    const tag = document.createElement('script');
+    tag.dataset.goatcounter = 'https://woodentrain.goatcounter.com/count';
+    document.head.appendChild(tag);
+    window.goatcounter = { path: counterPath, allow_local: true, no_onload: true } as typeof window.goatcounter;
+
+    new Function(COUNT_JS)();
+    countAction('share');
+
+    expect(sent).toHaveLength(1);
+    const url = new URL(sent[0]!);
+    expect(url.searchParams.get('p')).toBe('action/share');
+    expect(url.searchParams.get('e')).toBe('true');
+    expect(url.searchParams.get('t')).toBe('Shared a link');
+    expect([sent[0]!.includes('%23'), sent[0]!.includes(LAYOUT), sent[0]!.includes('pieces')]).toEqual([false, false, false]);
   });
 });

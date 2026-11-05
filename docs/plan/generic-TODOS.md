@@ -996,6 +996,8 @@ Measurement and method: `.gstack/qa-reports/20261020T163029Z-split-cursor/`.
 
 **2026-11-04, built (branch analytics), site code set (`raduuuuu`):** `app/public/count.js` (the reviewed copy, sha-pinned), `countedPath`/`counterPath`/`counterTag` in app/src/linkFragment.ts, inserted by main.tsx in production only. `GOATCOUNTER_CODE` is `raduuuuu`. Left: after the deploy, open the GoatCounter dashboard and confirm visits arrive, and that a shared link shows as `/shared-link`.
 
+**2026-11-05, actions added (branch count-actions):** the owner reversed P4's "visits only" ("what people do in the app"). Ten fixed action names are sent as GoatCounter events (`ACTIONS` in app/src/linkFragment.ts): share, build-it, view-3d, preset, your-box, add-part, save-file, open-file, open-in-editor, and works (the user's own layout first saying "This works", once per page load). Each event carries its name and title only; never the layout, a piece count or the page title. They show on the dashboard under paths starting `action/`.
+
 
 **What:** wire the privacy-friendly page counter exactly as approved on 2026-11-01 (docs/plan/2026-11-01-editing-tjunction-analytics.md); no other tracking.
 **Why:** the app is live and nothing says whether anyone opens it, builds a layout or reaches a "this works" verdict; every other priority is a guess until then.

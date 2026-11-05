@@ -34,3 +34,36 @@ export function counterTag(code: string, production: boolean): { readonly src: s
   if (!production || !/^[a-z0-9][a-z0-9-]*$/.test(code)) return null;
   return { src: '/count.js', endpoint: `https://${code}.goatcounter.com/count` };
 }
+
+/*
+ * WHAT PEOPLE DO, BY NAME ONLY (owner, 2026-11-05: "what people do in the
+ * app", reversing 2026-11-01's "visits only"). Each action is a fixed name
+ * from this list, sent as a GoatCounter event: nothing about the layout, no
+ * piece count, no text the user typed, and no page title (which names a
+ * shared layout's piece count). Without a counter (dev, no code) it does nothing.
+ */
+export const ACTIONS = {
+  share: 'Shared a link',
+  'build-it': 'Opened build mode',
+  'view-3d': 'Switched to 3D',
+  preset: 'Placed a preset',
+  'your-box': 'Opened Your box',
+  'add-part': 'Added a part',
+  'save-file': 'Saved to a file',
+  'open-file': 'Opened a layout file',
+  'open-in-editor': 'Opened a link in the editor',
+  works: 'Own layout first said "This works"',
+} as const;
+export type Action = keyof typeof ACTIONS;
+
+/** The event GoatCounter is given for `action`: its fixed path and title, and nothing else of the page. */
+export const actionEvent = (action: Action) => ({ path: `action/${action}`, title: ACTIONS[action], referrer: '', event: true }) as const;
+
+/** Count `action`, if there is a counter on this page. Never throws. */
+export function countAction(action: Action): void {
+  try {
+    window.goatcounter?.count?.(actionEvent(action));
+  } catch {
+    // Counting is never worth an error in the app.
+  }
+}
