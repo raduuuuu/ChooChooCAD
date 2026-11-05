@@ -220,40 +220,6 @@ docs/plan/2026-11-04-partnership-pitch.md.
 **Why:** the design doc names drop as the second way in; the picker shipped first because it is the one every device has.
 **Effort:** human ~1h / CC ~15m. **Priority:** P3. **Depends on:** nothing.
 
-## P3 — Backend: library, publish, moderation, auth
-
-**2026-11-04 (D6, P1 → P3) (/plan-ceo-review 2026-11-04, app-focus review, docs/plan/2026-11-04-app-focus-review.md):** sharing already works without a server (app/src/shareLink.ts, LinkRoute.tsx); no user asks for a library yet; blocked by "dimensions.status is a self-asserted claim" and by the IP entry anyway.
-
-**What:** Hono API with email-only auth, library browse and fork, publish to a
-pending queue, admin moderation, server-side inventory filtering, stable cursor
-pagination, idempotent publish.
-
-**Why:** The library is the one feature that compounds: every published layout
-makes the tool more useful to everyone else.
-
-**Pros:** Compounding value. The design decisions are already made and recorded
-(D4 chose the optimistic publish view; G5 specified the pending-link page rather
-than a bare 404; G6 specified the one-tap rename nudge), so none of that has to
-be re-decided.
-
-**Cons:** Accounts, a database, hosting, a moderation queue and a children's
-privacy posture, all taken on at once. Publishing a tool whose verdicts are
-wrong distributes the error.
-
-**Context:** T34, T35, T36, T42, T43, plus design rows G3 (dense library rows,
-shortfall text never truncated), G4 (author sees their layout as published
-immediately while it stays out of public browse), G5 (pending-link page).
-Local save/load (K5) was KEPT in core, so work surviving the tab closing does
-not depend on this. A shareable layout file covers much of what sharing needs
-without operating a service. Deferred at D3 on 2026-10-07.
-
-**Effort:** human ~3-4 weeks / CC ~1 day, plus ongoing moderation duty
-**Priority:** P1
-**Depends on:** K5 layout document (the wire format is the file format), and the
-IP questions below should be settled before anything is published publicly
-
----
-
 ## P2 — Animated train playback and the completion arc
 
 **2026-11-04 (D5):** absorbs "The success state's payoff beat" (archived). The train height it waited on is measured (55).
@@ -1111,3 +1077,39 @@ numbers when a licence allows; off by default, trait names otherwise.
 **Pros:** small: one name table per system. **Cons:** no maker names may enter
 the code before a signed licence (`app/src/traitNames.test.ts` guards this).
 **Effort:** S. **Depends on:** a signed licence.
+
+## SHELVED — Backend: library, publish, moderation, auth (scrapped 2026-11-05)
+
+**2026-11-05, SCRAPPED (/plan-ceo-review, docs/plan/2026-11-05-see-shared-layouts.md):** the owner's rule was "any legal risk, scrap it". A public page of approved, unattributed builds still carries the sender's IP address (GDPR, COPPA), needs the sender's licence to show the layout, makes the owner the publisher (DSA duties in the EU), and widens the open IP P1. A private inbox and the full library were declined with it. Reopen only with counsel's answer on these four points.
+
+**2026-11-04 (D6, P1 → P3) (/plan-ceo-review 2026-11-04, app-focus review, docs/plan/2026-11-04-app-focus-review.md):** sharing already works without a server (app/src/shareLink.ts, LinkRoute.tsx); no user asks for a library yet; blocked by "dimensions.status is a self-asserted claim" and by the IP entry anyway.
+
+**What:** Hono API with email-only auth, library browse and fork, publish to a
+pending queue, admin moderation, server-side inventory filtering, stable cursor
+pagination, idempotent publish.
+
+**Why:** The library is the one feature that compounds: every published layout
+makes the tool more useful to everyone else.
+
+**Pros:** Compounding value. The design decisions are already made and recorded
+(D4 chose the optimistic publish view; G5 specified the pending-link page rather
+than a bare 404; G6 specified the one-tap rename nudge), so none of that has to
+be re-decided.
+
+**Cons:** Accounts, a database, hosting, a moderation queue and a children's
+privacy posture, all taken on at once. Publishing a tool whose verdicts are
+wrong distributes the error.
+
+**Context:** T34, T35, T36, T42, T43, plus design rows G3 (dense library rows,
+shortfall text never truncated), G4 (author sees their layout as published
+immediately while it stays out of public browse), G5 (pending-link page).
+Local save/load (K5) was KEPT in core, so work surviving the tab closing does
+not depend on this. A shareable layout file covers much of what sharing needs
+without operating a service. Deferred at D3 on 2026-10-07.
+
+**Effort:** human ~3-4 weeks / CC ~1 day, plus ongoing moderation duty
+**Priority:** none (scrapped)
+**Depends on:** K5 layout document (the wire format is the file format), and the
+IP questions below should be settled before anything is published publicly
+
+---
