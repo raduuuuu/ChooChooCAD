@@ -69,3 +69,7 @@ drops one; its pauses; whether the region is reachable by keyboard.
 
 Bring back the notes from steps 2-7. If finding 3 is as bad as it reads, the fix is
 small; if VoiceOver already drops the duplicate, nothing changes.
+
+## Outcome
+
+2026-11-05: the owner chose not to run the listen or make the fix (won't do). The test stays as the record of what is announced.
