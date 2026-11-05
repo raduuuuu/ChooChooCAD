@@ -98,43 +98,43 @@ describe('Your box counts male-male adapters', () => {
    * - the App shortfall line without the adapter part: fails with
    *   `expected 'Grid: 10 cm?Not a loop yet. 2 pieces,…' to match /Short
    *   by\s1\smale-male adapter\s+agai…/`.
-   * - a quick-fill replacing the counts whole (the old `{ ...q.counts }`):
-   *   `expected undefined to be 2`.
    */
-  it('a declared box with none: short by one, in both places', async () => {
+  it('a declared box with none: the verdict line says short by one, the panel shows it in use', async () => {
     const user = mount(START_TO_START, [['a', 0, 'r', 0]], { A: 2 });
     // A non-breaking space binds the number to its noun, as on the part line.
     expect(document.body.textContent).toMatch(/Short by\s1\smale-male adapter\s+against what you own\./);
     await user.click(button('Your box'));
     const panel = screen.getByRole('region', { name: 'What you own' });
-    expect(panel.textContent).toContain('This layout needs 1 more male-male adapter.');
+    // The panel is plain counts (2026-11-05, B2): the shortfall is said by the verdict's line only.
     expect(panel.textContent).toContain('1 in use');
-    // Design review DR4 and DR10: no source label on the adapters row, no "below" in the intro.
-    expect(panel.textContent).not.toMatch(/\bbelow\b/);
-    const row = screen.getByRole('spinbutton', { name: 'How many male-male adapters you own' }).closest('label')!;
-    expect(row.querySelector('.inventory-row-src')!.textContent).toBe('');
+    expect(panel.textContent).not.toContain('This layout needs');
   });
 
   /*
-   * MUTATION PROOF, run: the intro back to "Fill any number in below":
-   * fails with `expected 'What you ownDoneYou haven’t said what…' to contain
-   * 'Fill any number in, or start from a q…'`.
+   * MUTATION PROOF, run: the intro given "Fill the fields below." (2026-11-05):
+   * fails with `expected 'What you ownDoneType how many of each…' not to match
+   * /\bbelow\b/`.
    */
   it('the undeclared intro names no direction (DESIGN.md rule 7)', async () => {
     const user = mount(START_TO_START, [['a', 0, 'r', 0]]);
     await user.click(button('Your box'));
     const panel = screen.getByRole('region', { name: 'What you own' });
-    expect(panel.textContent).toContain('Fill any number in, or start from a quick-fill.');
+    expect(panel.textContent).toContain('Type how many of each piece you own.');
     expect(panel.textContent).not.toMatch(/\bbelow\b/);
   });
 
-  it('a quick-fill keeps the adapter count', async () => {
+  /*
+   * MUTATION PROOF, run: `setOne` writing only the typed count (`onChange({
+   * [partId]: value })`): `expected undefined to be 2`.
+   */
+  it('typing a part count keeps the adapter count', async () => {
     const user = mount(START_TO_START, [['a', 0, 'r', 0]], { A: 2, __adapter_male_male: 2 });
     await user.click(button('Your box'));
-    await user.click(button('A few of each'));
+    const first = screen.getAllByRole('spinbutton')[0]!;
+    await user.clear(first);
+    await user.type(first, '4');
     const stored = JSON.parse(localStorage.getItem(INVENTORY_STORAGE_KEY)!) as Record<string, number>;
     expect(stored.__adapter_male_male).toBe(2);
-    expect(stored.A).toBe(4);
   });
 });
 

@@ -180,7 +180,9 @@ Reason the core comes first: the engine's slop budgets were a guess roughly 3x
 too tight, so every verdict the product gave was probably wrong. Distribution
 features built on top of that would have distributed the error.
 
-## P2 — Inventory: sets you own, a copyable buy list, build with what I have
+## P2 — Inventory: a copyable buy list, and what can I build with what I have
+
+**2026-11-05 (/plan-ceo-review, docs/plan/2026-11-05-inventory-by-part.md):** SETS ARE DROPPED (owner: "not set but rather part dependent"): no set manifests, no "which sets do you own" screen. The owner chose "simple first": Your box was made always reachable and stripped back to a plain list of counts (branch simple-box). Left here for later, when the owner wants "more complex things": a copyable buy list for the layout; "What can I build" checking ready layouts against the box; "These are mine" (raise each count to what the layout on screen uses); about five more ready layouts so that list is worth opening; an owned-only palette filter. The paragraphs below describe the older set-based plan.
 
 **2026-11-04 (D6, P1 → P2, narrowed) (/plan-ceo-review 2026-11-04, app-focus review, docs/plan/2026-11-04-app-focus-review.md):** per-piece counts, quick-fills, the shortfall list and greyed unowned cards exist (inventoryModel.ts, Inventory.tsx, App.tsx). What remains is only: declaring sets you own (set manifests), a copyable buy list, and rebuild-with-what-I-have.
 
