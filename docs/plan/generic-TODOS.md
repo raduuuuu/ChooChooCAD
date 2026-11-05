@@ -216,12 +216,6 @@ docs/plan/2026-11-04-partnership-pitch.md.
 
 ---
 
-## P3 — Drop a layout file on the canvas (left from the layout-file P2, 2026-11-04)
-
-**What:** dropping a `.choochoo` file or a downloaded `.json` backup on the canvas opens it, as "Open a layout file" does (`LayoutFileControls.tsx`, `fragmentOfFile`).
-**Why:** the design doc names drop as the second way in; the picker shipped first because it is the one every device has.
-**Effort:** human ~1h / CC ~15m. **Priority:** P3. **Depends on:** nothing.
-
 ## P2 — Animated train playback and the completion arc
 
 **2026-11-04 (D5):** absorbs "The success state's payoff beat" (archived). The train height it waited on is measured (55).
