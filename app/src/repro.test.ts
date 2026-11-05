@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { SUBMISSIONS_STORAGE_KEY } from '../../engine/data/library.js';
+import { BUILT_IN, SUBMISSIONS_STORAGE_KEY } from '../../engine/data/library.js';
 import { reproText, type ReproInput } from './repro.js';
 import {
   CHAIN_STORAGE_KEY,
@@ -338,6 +338,40 @@ describe('the generated repro runs', () => {
     expect(out).toMatch(/lead: \{\s*pieces: \[ "p0", "p1", "p2", "p3", "p4", "p5", "p6", "p7" \]/);
     expect(out).toContain('closesExactly: true');
     expect(out).not.toContain('no layout was stored');
+  });
+
+  /*
+   * THE REPRO KEEPS THE ROWS THE APP KEPT (generic-TODOS.md P2, "The crash
+   * repro can report a failure the app cannot produce", 2026-11-05).
+   * Reproduced first: a layout using the user's own part MINE, beside one junk
+   * row. The app drops the junk row and keeps MINE; the repro used to let
+   * resolveLibrary throw on the junk row, fall back to the built-in catalogue,
+   * lose MINE and die with `unknown part id: MINE`, an error the app cannot
+   * produce.
+   *
+   * MUTATION PROOF, run: the repro resolving the raw parsed list again
+   * (`resolveLibrary(submissions as never)`): the generated file exits 1 and the
+   * test fails with `Command failed: bun run …/.repro-check.ts` and `error:
+   * unknown part id: MINE`.
+   */
+  it('keeps the good submission rows, names the dropped one, and solves the layout that used them', () => {
+    const straight = BUILT_IN.find((p) => p.kind === 'straight' && p.brand === 'GENERIC')!;
+    const mine = {
+      submissionId: 'sub-mine',
+      at: '2026-11-05T09:00:00Z',
+      part: { ...straight, id: 'MINE', name: 'My straight', dimensions: { status: 'user-measured', source: 'my ruler', submittedAt: '2026-11-05T09:00:00Z', corroborations: 1 } },
+    };
+    const out = run({
+      ...base,
+      graph: '{"pieces":[{"pieceId":"p0","partId":"MINE"}],"welds":[],"anchors":[]}',
+      chain: null,
+      submissions: JSON.stringify([mine, { junk: true }]),
+    });
+    expect(out).toContain('submissions: row 1 dropped, as the app drops it');
+    expect(out).not.toContain('falling back to the built-in catalogue');
+    // MINE resolved: the layout solved, and the trust line names the user's own part.
+    expect(out).toContain('1 piece, open at both ends');
+    expect(out).toContain('MINE rests on one measurement');
   });
 
   it('says so plainly when nothing was stored, rather than solving an empty chain', () => {

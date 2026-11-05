@@ -116,7 +116,7 @@ export function reproText(input: ReproInput): string {
 // any more -- a loop is a weld between two free ends, not a flag -- so the
 // legacy branch is only reached when no graph was stored.
 
-import { BUILT_IN, resolveLibrary, makeResolver } from './engine/data/library.js';
+import { BUILT_IN, readSubmissionRows, resolveLibrary, makeResolver } from './engine/data/library.js';
 import { solveGraph } from './engine/src/graph/solve.js';
 import { placeAll } from './engine/src/graph/frames.js';
 import { portsOf } from './engine/src/graph/model.js';
@@ -154,14 +154,17 @@ console.log('refused bytes from an earlier load', rescuedRaw);
 // above tells them to put it.
 if (rescued !== null) console.log('refused layout, parsed', rescued);
 
-// The submissions may parse and still be the wrong shape, and resolveLibrary
-// dereferences each row. A bad row must not stop this file solving the graph:
-// fall back to the built-in catalogue and say so.
+// THE SUBMISSIONS AS THE APP READ THEM. Each stored row goes through the
+// app's own per-row filter, so this file keeps exactly the rows the app kept:
+// a junk row is dropped and NAMED, and the good rows still resolve. Falling
+// back to the built-in catalogue is the last resort, for a value that is not a
+// list at all or rows that still fail to resolve.
+const read = Array.isArray(submissions) ? readSubmissionRows(submissions) : { value: [], droppedAt: [] as number[] };
+if (submissions !== null && !Array.isArray(submissions)) console.log('submissions: not a list, so none were read, as the app does');
+for (const i of read.droppedAt) console.log(\`submissions: row \${i} dropped, as the app drops it --\`, (submissions as unknown[])[i]);
 let library = BUILT_IN as never;
 try {
-  library = resolveLibrary(
-    (Array.isArray(submissions) ? submissions : []) as never,
-  ) as never;
+  library = resolveLibrary(read.value as never) as never;
 } catch (e) {
   console.log('submissions: could not be resolved --', (e as Error).message);
   console.log('submissions: falling back to the built-in catalogue');

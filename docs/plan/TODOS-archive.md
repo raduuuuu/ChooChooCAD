@@ -179,3 +179,30 @@ nothing else becomes announced") still holds now that the sentence has grown.
 what it finds. **Priority:** P2.
 **Depends on / blocked by:** nothing. Owner-owned because it needs a human ear.
 
+
+## DONE 2026-11-05 — The crash repro can report a failure the app cannot produce (filed by /ship, 2026-10-14)
+
+**DONE 2026-11-05 (branch crash-repro).** The per-row submissions filter is one function, `readSubmissionRows` (engine/data/library.ts), used by the app's load and by the generated repro. The repro keeps the rows the app kept, prints each dropped row with its index ("submissions: row 1 dropped, as the app drops it"), and falls back to the built-in catalogue only when the kept rows still fail to resolve. Spec: app/src/repro.test.ts, "keeps the good submission rows, names the dropped one, and solves the layout that used them" (the MINE plus junk-row case).
+
+**What:** `repro.ts` wraps `resolveLibrary` in a try/catch that falls back
+wholesale to `BUILT_IN`. Reproduced: a stored graph using a user-submitted part
+`MINE`, plus a submissions blob holding the valid `MINE` row and one junk row.
+`resolveLibrary` throws on the junk row, the catch discards the whole set,
+`MINE` disappears, and the generated file dies at `makeResolver` with
+`unknown part id: MINE`.
+
+The real app never sees this: `App.tsx` resolves from
+`loadSubmissionsResult`'s `looksLikePart`-filtered rows, which drop the junk
+row and keep `MINE`. So the maintainer reading the dump chases a fabricated
+error instead of the user's.
+
+Not a regression -- before the guard the same input exited 1 having printed
+nothing, which was worse -- but an incomplete fix.
+
+**Fix:** have the repro mirror the app and run the parsed submissions through
+the same per-row filter, keeping the good rows. Falling back to `BUILT_IN`
+should be the last resort, and the dump should name the rows it dropped.
+
+**Effort:** human ~1h / CC ~15m. **Priority:** P2.
+**Depends on / blocked by:** nothing.
+
