@@ -87,6 +87,12 @@ export interface View3DPanelProps {
   readonly build?: BuildView | null;
   /** Passed to the viewer: a new scene is on screen (D37). */
   readonly onDrawn?: () => void;
+  /**
+   * A piece clicked in the view (P3, pick in 3D): the editor selects it, so
+   * 2D shows it selected. Passed on only while a layout is drawn outside
+   * build mode.
+   */
+  readonly onPick?: (pieceId: string) => void;
 }
 
 export function View3DPanel(props: View3DPanelProps) {
@@ -179,6 +185,7 @@ export function View3DPanel(props: View3DPanelProps) {
       ...(live ? { describedBy: howToId } : {}),
       build: props.build ?? null,
       ...(props.onDrawn ? { onDrawn: props.onDrawn } : {}),
+      ...(live && props.onPick ? { onPick: props.onPick } : {}),
     };
     body = (
       <Boundary key={attempt} onError={onError}>

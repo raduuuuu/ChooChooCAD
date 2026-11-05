@@ -7,7 +7,9 @@
  * says so; pressing 3D cancels a piece being placed; a failed download, a
  * browser without WebGL and a lost context each say what happened, and a
  * second failed download offers Reload only when everything is saved; an
- * empty layout offers the preset; too big a layout says so with its figures
+ * empty layout offers the preset; too big a layout says so with its figures;
+ * a piece clicked in 3D is selected for 2D and said, and build mode picks
+ * nothing (P3, pick in 3D)
  * Value: fails_when=any of those words, buttons or transitions goes missing
  * or wrong
  * Value: why_new=no 3D view existed
@@ -28,7 +30,7 @@ import { View3DPanel } from './View3DPanel.js';
 
 const viewer = vi.hoisted(() => ({ mode: 'ok' as 'ok' | 'throw' | 'webgl' }));
 vi.mock('./Viewer3D.js', () => ({
-  default: (props: { label: string; onContextLost: () => void }) => {
+  default: (props: { label: string; onContextLost: () => void; input: { segments: readonly { pieceId?: string }[] }; onPick?: (id: string) => void }) => {
     if (viewer.mode === 'throw') throw new TypeError('Failed to fetch dynamically imported module');
     if (viewer.mode === 'webgl') {
       const e = new Error('no WebGL');
@@ -38,6 +40,12 @@ vi.mock('./Viewer3D.js', () => ({
     return (
       <div data-testid="viewer3d" aria-label={props.label}>
         <button onClick={props.onContextLost}>simulate context loss</button>
+        {props.onPick && (
+          // A click on the third piece drawn, as the real viewer's ray would report it.
+          <button onClick={() => props.onPick!([...new Set(props.input.segments.map((s) => s.pieceId))].filter(Boolean)[2]!)}>
+            simulate pick
+          </button>
+        )}
       </div>
     );
   },
@@ -145,6 +153,74 @@ describe('the switch', () => {
     expect(screen.getByText('Nothing to show in 3D yet.')).toBeTruthy();
     await user.click(button(/^Build a /));
     expect(await screen.findByTestId('viewer3d')).not.toBe(null);
+  });
+});
+
+describe('a piece clicked in 3D (P3, pick in 3D)', () => {
+  /*
+   * MUTATION PROOF, run: `pickIn3d` does nothing (its body replaced by
+   * `void pieceId;`): `expected undefined to be truthy` (nothing said, so no
+   * name), and the next test's `expected null not to be null`.
+   */
+  it('is selected in the editor, so 2D shows it selected, and the pick is said', async () => {
+    const { user } = app();
+    await user.click(button('Stadium'));
+    await user.click(button('3D'));
+    await screen.findByTestId('viewer3d');
+    expect(screen.queryByRole('group', { name: 'Selected piece' })).toBe(null);
+    await user.click(button('simulate pick'));
+    const name = /^Selected (Piece \d+: [^,]+),/.exec(said())?.[1];
+    expect(name).toBeTruthy();
+    // Still in 3D: a pick does not move the view.
+    expect(viewer3d()).not.toBe(null);
+    await user.click(button('2D'));
+    const strip = screen.getByRole('group', { name: 'Selected piece' });
+    expect(strip.textContent).toContain(name!);
+  });
+
+  /*
+   * MUTATION PROOF, run: `pickIn3d` dispatches `selectPiece` even when the
+   * piece is already selected, so the reducer's toggle lets it go: `expected
+   * null not to be null`.
+   */
+  it('a second click on the same piece keeps it selected', async () => {
+    const { user } = app();
+    await user.click(button('Stadium'));
+    await user.click(button('3D'));
+    await screen.findByTestId('viewer3d');
+    await user.click(button('simulate pick'));
+    await user.click(button('simulate pick'));
+    await user.click(button('2D'));
+    expect(screen.queryByRole('group', { name: 'Selected piece' })).not.toBe(null);
+  });
+
+  /*
+   * MUTATION PROOF, run: the panel passes `onPick` whether or not a view is
+   * live (`live &&` dropped): `expected <button></button> to be null`.
+   */
+  it('build mode passes no pick to the viewer', async () => {
+    const input = { segments: [], ports: [], welds: [], partOf: () => { throw new Error('unused'); }, riseMm: 64, plankMm: 12 };
+    const panel = (build: { focus: string[] } | null) => (
+      <View3DPanel
+        input={input}
+        pieceCount={3}
+        segmentCount={3}
+        ceiling={10000}
+        allSaved
+        emptyAction={null}
+        tableNote={null}
+        label="3D"
+        resetSignal={0}
+        corner={null}
+        build={build}
+        onPick={() => {}}
+      />
+    );
+    const r = render(panel(null));
+    expect(await screen.findByRole('button', { name: 'simulate pick' })).toBeTruthy();
+    r.rerender(panel({ focus: [] }));
+    expect(await screen.findByTestId('viewer3d')).not.toBe(null);
+    expect(screen.queryByRole('button', { name: 'simulate pick' })).toBe(null);
   });
 });
 
