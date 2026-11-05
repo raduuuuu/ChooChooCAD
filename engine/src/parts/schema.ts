@@ -348,6 +348,17 @@ export interface DecorVault {
   readonly springMm: number;
   readonly topMm: number;
   readonly noun?: string;
+  /**
+   * The stone joints on its outside, drawn as detail lines only (detail
+   * plan 2026-11-05, owner: every joint): rings around the shell at
+   * `ringsMm` from its start, courses along it at `wallMm` up each wall,
+   * and at `archDeg` around the arch (0 is the wall's side, 90 the crown).
+   */
+  readonly joints?: {
+    readonly ringsMm: readonly number[];
+    readonly wallMm: readonly number[];
+    readonly archDeg: readonly number[];
+  };
 }
 
 /**
@@ -441,9 +452,35 @@ export interface DecorStation {
   readonly noun?: string;
 }
 
-export type DecorShape = DecorSlab | DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation;
+/**
+ * A LEVEL CROSSING'S BARRIER (detail plan 2026-11-05, owner: correct the
+ * boxes): a round base standing beside the road, a square post on it with a
+ * fork at its top, and the arm hinged in the fork, drawn raised. Base and
+ * post collide; the arm never does (a toy's moving part, not wood a layout
+ * is planned around). `atMm` is the base's centre; the post stands
+ * `post.offsetMm` from it along the piece. The arm's stripes are paint, so
+ * detail lines: their edges at `stripesMm` up the bar from the hinge, each
+ * slanting across the bar's width.
+ */
+export interface DecorBarrier {
+  readonly kind: 'barrier';
+  readonly atMm: readonly [number, number];
+  readonly base: { readonly diameterMm: number; readonly topMm: number };
+  readonly post: { readonly sizeMm: number; readonly topMm: number; readonly offsetMm: number };
+  readonly arm: {
+    readonly hingeMm: number;
+    readonly lengthMm: number;
+    readonly widthMm: number;
+    readonly thickMm: number;
+    readonly discMm: number;
+    readonly stripesMm: readonly number[];
+  };
+  readonly noun?: string;
+}
+
+export type DecorShape = DecorSlab | DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation | DecorBarrier;
 /** A shape with its own drawing, which one decoration box carries (eng D10). */
-export type DrawnShape = DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation;
+export type DrawnShape = DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation | DecorBarrier;
 
 /** A derived decoration box: a body box at whole levels, carrying the shape's real heights for drawing. */
 export interface DecorBox extends BodyBox {

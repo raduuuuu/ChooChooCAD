@@ -12,7 +12,7 @@
  */
 
 import type { Segment } from '../geom/fk.js';
-import type { DecorArch, DecorStation, DecorTowers, DecorTruss, DecorVault, DrawnShape, Part } from '../parts/schema.js';
+import type { DecorArch, DecorBarrier, DecorStation, DecorTowers, DecorTruss, DecorVault, DrawnShape, Part } from '../parts/schema.js';
 
 /** A truss arch's chords in 3D: this deep, and twice this across. */
 export const TRUSS_CHORD_MM = 4;
@@ -108,6 +108,8 @@ export function drawShape(shape: DrawnShape, f: ShapeFrame, pen: Pen): void {
       return drawTowers(shape, f, pen);
     case 'station':
       return drawStation(shape, f, pen);
+    case 'barrier':
+      return drawBarrier(shape, f, pen);
   }
 }
 
@@ -134,6 +136,29 @@ function drawVault(v: DecorVault, f: ShapeFrame, pen: Pen): void {
     for (const ring of [outer, inner]) for (let i = 0; i + 1 < ring.length; i++) pen.edge(at(t, ring[i]!), at(t, ring[i + 1]!));
   }
   for (const p of outer) for (const t of [0, len]) pen.grow(at(t, p));
+  if (v.joints) drawStones(v, f, pen);
+}
+
+/** Stone joints stand this far off a vault's outside, clear of its faceted arch. */
+export const JOINT_LIFT_MM = 0.3;
+
+/**
+ * A VAULT'S STONEWORK (detail plan 2026-11-05): detail lines only, a ring
+ * around the outside at each joint along it, and a course along its whole
+ * length at each joint up the walls and around the arch.
+ */
+function drawStones(v: DecorVault, f: ShapeFrame, pen: Pen): void {
+  const { ringsMm, wallMm, archDeg } = v.joints!;
+  const len = f.lengthMm;
+  const r = v.widthMm / 2 + JOINT_LIFT_MM;
+  const at = (t: number, across: number, h: number) => f.at(t, across, f.floorMm + h);
+  const { outer } = vaultSection(2 * r, v.wallMm, v.springMm);
+  for (const t of ringsMm) for (let i = 0; i + 1 < outer.length; i++) pen.detail(at(t, ...outer[i]!), at(t, ...outer[i + 1]!));
+  for (const h of wallMm) for (const side of [r, -r]) pen.detail(at(0, side, h), at(len, side, h));
+  for (const deg of archDeg) {
+    const th = (deg * Math.PI) / 180;
+    pen.detail(at(0, r * Math.cos(th), v.springMm + r * Math.sin(th)), at(len, r * Math.cos(th), v.springMm + r * Math.sin(th)));
+  }
 }
 
 /**
@@ -286,6 +311,20 @@ function drawTowers(sh: DecorTowers, f: ShapeFrame, pen: Pen): void {
   }
 }
 
+/** A shape's own point: along, across and up, in whatever frame the shape keeps. */
+type Place = (along: number, across: number, z: number) => P3;
+
+/** A solid box between two corners of a shape's own frame, its twelve creases edged unless told not to. */
+function boxDrawer(P: Place, pen: Pen) {
+  return (al: number, ah: number, cl: number, ch: number, zl: number, zh: number, edges = true): void => {
+    const c = [P(al, cl, zl), P(ah, cl, zl), P(ah, ch, zl), P(al, ch, zl), P(al, cl, zh), P(ah, cl, zh), P(ah, ch, zh), P(al, ch, zh)] as const;
+    const q = (i: number, j: number, k: number, l: number) => pen.quad(c[i]!, c[j]!, c[k]!, c[l]!);
+    q(4, 5, 6, 7); q(0, 1, 5, 4); q(1, 2, 6, 5); q(2, 3, 7, 6); q(3, 0, 4, 7); q(3, 2, 1, 0);
+    if (edges) for (const [i, j] of [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]] as const) pen.edge(c[i]!, c[j]!);
+    for (const p of c) pen.grow(p);
+  };
+}
+
 /** Steps cutting a station roof's half-round barrel: enough to read round, few enough for the budget. */
 export const BARREL_STEPS = 12;
 
@@ -307,13 +346,7 @@ export const BARREL_STEPS = 12;
 function drawStation(st: DecorStation, f: ShapeFrame, pen: Pen): void {
   const a0 = f.lengthMm / 2;
   const P = (along: number, across: number, z: number): P3 => f.at(a0 + along, across, f.floorMm + z);
-  const box = (al: number, ah: number, cl: number, ch: number, zl: number, zh: number, edges = true) => {
-    const c = [P(al, cl, zl), P(ah, cl, zl), P(ah, ch, zl), P(al, ch, zl), P(al, cl, zh), P(ah, cl, zh), P(ah, ch, zh), P(al, ch, zh)] as const;
-    const q = (i: number, j: number, k: number, l: number) => pen.quad(c[i]!, c[j]!, c[k]!, c[l]!);
-    q(4, 5, 6, 7); q(0, 1, 5, 4); q(1, 2, 6, 5); q(2, 3, 7, 6); q(3, 0, 4, 7); q(3, 2, 1, 0);
-    if (edges) for (const [i, j] of [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]] as const) pen.edge(c[i]!, c[j]!);
-    for (const p of c) pen.grow(p);
-  };
+  const box = boxDrawer(P, pen);
   const rect = (corners: readonly P3[]) => corners.forEach((p, i) => pen.detail(p, corners[(i + 1) % corners.length]!));
 
   // Walls: the long walls cut around their openings, a lintel over each; the end walls whole.
@@ -399,4 +432,59 @@ function drawStation(st: DecorStation, f: ShapeFrame, pen: Pen): void {
     const hl = ln.lengthMm / 2, hw = ln.widthMm / 2, z = ln.heightMm + 0.05;
     rect([P(-hl, ln.acrossMm - hw, z), P(hl, ln.acrossMm - hw, z), P(hl, ln.acrossMm + hw, z), P(-hl, ln.acrossMm + hw, z)]);
   }
+}
+
+/** Sides cutting a barrier's round base and its arm's hinge disc. */
+export const ROUND_STEPS = 16;
+
+/**
+ * A LEVEL CROSSING'S BARRIER (detail plan 2026-11-05): a round base, a
+ * square post on it, and the arm raised from its hinge in the post's fork,
+ * all in the house's one fill; the arm's painted stripes as detail lines on
+ * both its wide faces.
+ *
+ *   arm   ── a bar `widthMm` along the piece, `thickMm` across, from the
+ *            hinge up `lengthMm`, over a round hinge disc
+ *   post  ── a box, `offsetMm` along from the base's centre, base top to its top
+ *   base  ── a round prism from the floor to track height
+ *
+ * Positions are the shape's own (along from the base's centre, across from
+ * it); the frame's `at` takes along from the box's start.
+ */
+function drawBarrier(br: DecorBarrier, f: ShapeFrame, pen: Pen): void {
+  const a0 = f.lengthMm / 2;
+  const P: Place = (along, across, z) => f.at(a0 + along, across, f.floorMm + z);
+  const box = boxDrawer(P, pen);
+  const turn = (k: number) => (2 * Math.PI * k) / ROUND_STEPS;
+
+  // Base: a round prism, its rims edged, its top closed.
+  const { base, post, arm } = br;
+  const rb = base.diameterMm / 2;
+  for (let k = 0; k < ROUND_STEPS; k++) {
+    const [c1, s1, c2, s2] = [rb * Math.cos(turn(k)), rb * Math.sin(turn(k)), rb * Math.cos(turn(k + 1)), rb * Math.sin(turn(k + 1))];
+    pen.quad(P(c1, s1, 0), P(c2, s2, 0), P(c2, s2, base.topMm), P(c1, s1, base.topMm));
+    pen.quad(P(c1, s1, base.topMm), P(c2, s2, base.topMm), P(0, 0, base.topMm), P(0, 0, base.topMm));
+    for (const z of [0, base.topMm]) pen.edge(P(c1, s1, z), P(c2, s2, z));
+    pen.grow(P(c1, s1, 0));
+  }
+
+  // Post: a box on the base.
+  const pa = post.offsetMm, ps = post.sizeMm / 2;
+  box(pa - ps, pa + ps, -ps, ps, base.topMm, post.topMm);
+
+  // Arm: the hinge disc (a round prism across the piece), then the bar up from it.
+  const rd = arm.discMm / 2, t2 = arm.thickMm / 2, w2 = arm.widthMm / 2, h = arm.hingeMm;
+  for (let k = 0; k < ROUND_STEPS; k++) {
+    const [a1, z1, a2, z2] = [pa + rd * Math.cos(turn(k)), h + rd * Math.sin(turn(k)), pa + rd * Math.cos(turn(k + 1)), h + rd * Math.sin(turn(k + 1))];
+    pen.quad(P(a1, -t2, z1), P(a2, -t2, z2), P(a2, t2, z2), P(a1, t2, z1));
+    for (const c of [-t2, t2]) {
+      pen.quad(P(a1, c, z1), P(a2, c, z2), P(pa, c, h), P(pa, c, h));
+      pen.edge(P(a1, c, z1), P(a2, c, z2));
+    }
+  }
+  const top = h + arm.lengthMm;
+  box(pa - w2, pa + w2, -t2, t2, h, top);
+
+  // Stripes: paint on both wide faces, each edge slanting up across the bar.
+  for (const c of [t2 + 0.05, -t2 - 0.05]) for (const sm of arm.stripesMm) pen.detail(P(pa - w2, c, h + sm), P(pa + w2, c, h + sm + arm.widthMm));
 }
