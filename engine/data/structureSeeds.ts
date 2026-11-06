@@ -2,22 +2,23 @@
  * STRUCTURES: an elevated station, a riser and a tunnel with overpass, all
  * UNVERIFIED (plan docs/plan/2026-11-02-photo-parts-and-stations.md; CEO S1,
  * X1, X3; eng D1, E4). The riser and the tunnel are measured printable
- * designs (2026-11-03, below); the station, the retired pier and the retired
- * tunnel are round-number estimates.
+ * designs (2026-11-03, below); the station is read off the owner's photos of
+ * a real one (2026-11-06, below); the retired pier and the retired tunnel are
+ * round-number estimates.
  *
  * Each is wood that is partly not track, held as body boxes (schema.ts
  * `BodyBox`), each at its own levels above the piece's frame:
  *
  *   piece           floor (level 0 above its frame)          raised (level 1)
- *   station  ST     footprint: no floor track through it     deck road (a medium straight), and the
- *                                                            roof: no other raised track through it
+ *   station  ST     base slab: no floor track through it     deck road (a medium straight), and the
+ *                                                            building beside it: no other raised track
  *   pier     PR     footprint: no floor track through it     nothing: raised track passes over
  *   tunnel   TU     own road through; walls either side      roof: no raised track over it
  *
- * EVERY FIGURE HERE IS AN ESTIMATE until the owner photographs a real piece
- * (photo guide, docs/photo-guide.html): the deck is the 144mm medium straight
- * and the rest are round numbers that look right beside it. Verdicts that use
- * one say so, like any unverified piece.
+ * THE PIER AND THE OLD TUNNEL ARE ESTIMATES until a real piece is
+ * photographed (photo guide, docs/photo-guide.html): round numbers that look
+ * right beside the 144mm medium straight. Verdicts that use one say so, like
+ * any unverified piece.
  */
 
 import type { BlockPart, DimensionSource, SlopBudget, StraightPart } from '../src/parts/schema.js';
@@ -36,14 +37,71 @@ const ESTIMATE = (what: string): DimensionSource => ({
 /** The deck's length: a medium straight. */
 const DECK = 144;
 
+/*
+ * THE ELEVATED STATION (owner's photos 2026-11-06: one from straight above
+ * on millimetre paper, three side-on in front of it). The deck carries a
+ * medium straight one level up; the building stands on its right as the
+ * deck runs from its socket, on a base slab whose edge is under the track's
+ * centre line, so the deck's far half reaches past it.
+ *
+ *   seen along the track            the deck's centre line at 0, across in mm
+ *
+ *     0   16      60    106 129     roof: a curved shell, 183 over the deck's
+ *     |    ___roof___   ___          edge falling to 97 at 129, an 18 lip
+ *     |  /|    clock |cap|  \       over the track; 204 along, seamed at
+ *  ===|== |pillar  posts+lift \      55 and 76 from its middle
+ *   deck  |  platform  |  |    |    platform 56 to 80, beside the deck
+ *  -------+------base slab----+     base 201 along, 126 across, 12 tall
+ *    ^ table
+ *
+ * READ, NOT MEASURED. The plan is the top view's, its perspective solved
+ * from the deck's straight (73 up) against the straight lying on the paper
+ * (12 up): the camera was 665 above the table. Heights are the side views',
+ * scaled from the deck straight's end (12 thick, its top at the raised
+ * level) with the camera's height solved from the base slab's two edges;
+ * the two readings of that height agree within 10. Lengths along the track
+ * not seen in any view (the platform's, the lift car's) are estimated.
+ */
+/** How far the station's base reaches past each end of its deck: (201 - 144) / 2. */
+const BASE_PAST = 28.5;
+
 export const STATION: StraightPart = {
   id: 'ST', brand: 'GENERIC', kind: 'straight', name: 'Elevated station',
   lengthMm: DECK, ends: { start: 'socket', end: 'peg' }, deck: 1,
-  body: [
-    { role: 'footprint', atMm: [DECK / 2, 0], lengthMm: DECK, widthMm: 60, levels: [0, 0] },
-    { role: 'roof', atMm: [DECK / 2, 0], lengthMm: DECK, widthMm: 80, levels: [1, 1] },
+  decor: [
+    /*
+     * The base, 201 along: solid under the deck, and its two ends, 28.5 past
+     * each end of the deck, drawn but not solid. A ramp or raised track
+     * joined to the deck sits over them (owner, 2026-11-06: a ramp joins the
+     * deck directly).
+     */
+    { kind: 'slab', atMm: [DECK / 2, -62], lengthMm: DECK, widthMm: 126, bottomMm: 0, topMm: 12, noun: 'base' },
+    { kind: 'slab', atMm: [-BASE_PAST / 2, -62], lengthMm: BASE_PAST, widthMm: 126, bottomMm: 0, topMm: 12, solid: false, noun: 'base' },
+    { kind: 'slab', atMm: [DECK + BASE_PAST / 2, -62], lengthMm: BASE_PAST, widthMm: 126, bottomMm: 0, topMm: 12, solid: false, noun: 'base' },
+    // The grey frame the deck's straight sits in; its lips under the next piece's ends are left out.
+    { kind: 'slab', atMm: [DECK / 2, 0], lengthMm: DECK, widthMm: 40, bottomMm: 55, topMm: CLEARANCE.riseMm, noun: 'deck' },
+    { kind: 'slab', atMm: [-2, -27], lengthMm: 10, widthMm: 10, bottomMm: 12, topMm: 177, noun: 'pillar' },
+    { kind: 'slab', atMm: [DECK + 2, -27], lengthMm: 10, widthMm: 10, bottomMm: 12, topMm: 177, noun: 'pillar' },
+    { kind: 'slab', atMm: [DECK / 2, -41.5], lengthMm: DECK, widthMm: 43, bottomMm: 56, topMm: 80, noun: 'platform' },
+    // The lift: two posts through the roof to the clock's cap, the car between them.
+    { kind: 'slab', atMm: [DECK / 2 - 27, -83], lengthMm: 9, widthMm: 46, bottomMm: 12, topMm: 187, noun: 'lift tower' },
+    { kind: 'slab', atMm: [DECK / 2 + 27, -83], lengthMm: 9, widthMm: 46, bottomMm: 12, topMm: 187, noun: 'lift tower' },
+    { kind: 'slab', atMm: [DECK / 2, -83.5], lengthMm: 44, widthMm: 40, bottomMm: 44, topMm: 104, noun: 'lift' },
+    { kind: 'slab', atMm: [DECK / 2, -83], lengthMm: 45, widthMm: 46, bottomMm: 150, topMm: 187, noun: 'clock' },
+    { kind: 'slab', atMm: [DECK / 2, -85], lengthMm: 73, widthMm: 50, bottomMm: 187, topMm: 201, noun: 'clock tower' },
+    // The lift's winding wheel, on the far face: a toy's moving part, never in the way of track.
+    { kind: 'slab', atMm: [DECK / 2, -111], lengthMm: 32, widthMm: 10, bottomMm: 155, topMm: 183, solid: false, noun: 'crank' },
+    {
+      kind: 'canopy', alongMm: DECK / 2, lengthMm: 204,
+      sectionMm: [[-16, 183], [-27, 184.5], [-45, 183], [-63, 180], [-81, 173], [-95, 165], [-104, 156], [-113, 144.5], [-120, 131], [-125, 116], [-129, 97]],
+      thickMm: 7, lipMm: 18, seamsMm: [-76, -55, 55, 76], noun: 'roof',
+    },
   ],
-  dimensions: ESTIMATE('A 144 deck one level up on a 144 by 60 footprint, under a 144 by 80 roof.'),
+  dimensions: {
+    status: 'unverified',
+    source: "the owner's four photos of a real one, 2026-11-06: the plan read off the top view with its perspective solved; heights scaled off the side views from the deck's straight; the platform's and lift car's lengths estimated",
+    note: 'A 144 deck one level up beside a base 201 by 126 and 12 tall, its edge under the track. Pillars, a platform 56 to 80, a lift tower to 187 under a clock to 201, and a curved roof from 183 over the deck to 97 at 129 across. Heights within about 5mm; a ruler would settle them.',
+  },
   slop: ESTIMATED_SLOP, ...PROFILE,
 };
 

@@ -19,7 +19,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, isStructure, makeResolver, resolveLibrary } from '../data/library.js';
-import { PIER, STATION, STRUCTURE_WORDS, TUNNEL } from '../data/structureSeeds.js';
+import { PIER, STRUCTURE_WORDS, TUNNEL } from '../data/structureSeeds.js';
 import { add, fromInt, scale, zetaPow, type Cyc } from '../src/geom/cyclotomic.js';
 import { bendRender } from '../src/graph/bendPose.js';
 import { connectorSites } from '../src/graph/feasible.js';
@@ -30,7 +30,8 @@ import { renderGraph } from '../src/graph/render.js';
 import { assemblyOrder } from '../src/graph/assembly.js';
 import { solveGraph } from '../src/graph/solve.js';
 
-const resolve = makeResolver([...BUILT_IN, STATION, PIER, TUNNEL]);
+// The station from the library: its boxes are derived from its shapes there.
+const resolve = makeResolver([...BUILT_IN, PIER, TUNNEL]);
 const ports = (piece: Piece): readonly Port[] => portsOf(resolve(piece.partId), piece.turn);
 const half = (id: string) => resolve(id).plankWidthMm / 2;
 
@@ -61,7 +62,7 @@ function bridges(g: Graph): number {
   return findBridges(g, [...r.segments, ...r.bodies], half, connectorSites(g, ports, placement)).length;
 }
 
-// The station at the origin facing +x: deck from (0,0) to (144,0) one level up.
+// The station at the origin facing +x: deck from (0,0) to (144,0) one level up, its building on the right (y < 0).
 const ST = ['st', 'ST', at(0, 0, 0)] as const;
 
 describe('the blocking table', () => {
@@ -74,8 +75,10 @@ describe('the blocking table', () => {
     expect(clashes(scene([ST, ['floor', 'D', at(72, -100, 4)]]))).toEqual(['floor st']);
   });
 
-  it('raised track cannot run through a station roof, beside its deck', () => {
-    expect(clashes(scene([ST, ['up', 'A', at(0, 50, 0, 1)]]))).toEqual(['st up']);
+  it('raised track cannot run through the station building, beside its deck', () => {
+    expect(clashes(scene([ST, ['up', 'A', at(0, -50, 0, 1)]]))).toEqual(['st up']);
+    // The deck's other side is open.
+    expect(clashes(scene([ST, ['up', 'A', at(0, 50, 0, 1)]]))).toEqual([]);
   });
 
   it('raised track passes over a pier; floor track does not pass through one', () => {
@@ -101,7 +104,7 @@ describe('the blocking table', () => {
    */
   it('a body is never let off as a welded neighbour (OV4)', () => {
     // Drawn apart, then checked as if welded: the exemption reads only the welds.
-    const g = scene([ST, ['up', 'A', at(0, 50, 0, 1)]]);
+    const g = scene([ST, ['up', 'A', at(0, -50, 0, 1)]]);
     const placement = placeAll(g, ports);
     const r = renderGraph(g, ports, resolve, placement);
     const welded: Graph = { ...g, welds: [{ a: { pieceId: 'st', port: 1 }, b: { pieceId: 'up', port: 0 } }] };
@@ -133,7 +136,8 @@ describe("a station's height (C4 B)", () => {
     expect(levelOf(p.frames.get('st')!)).toBe(0);
     const r = renderGraph(g, ports, resolve, p);
     expect(r.segments.filter((s) => s.pieceId === 'st').map((s) => s.level)).toEqual([1]);
-    expect(r.bodies.filter((s) => s.body === 'footprint').map((s) => s.level ?? 0)).toEqual([0]);
+    // The base: its solid middle and its two ends past the deck.
+    expect(r.bodies.filter((s) => s.decor?.noun === 'base').map((s) => s.level ?? 0)).toEqual([0, 0, 0]);
   });
 
   it('joined straight onto floor track: that run rises, as a descending ramp raises a floor loop (OV1)', () => {

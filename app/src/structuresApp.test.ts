@@ -60,17 +60,21 @@ describe('a structure is built-in only (OV2)', () => {
     ]);
     const st = lib.find((p) => p.id === 'ST')!;
     expect(st.kind === 'straight' ? st.deck : null).toBe(1);
-    expect(st.body).toHaveLength(2);
+    expect(st.decorBody?.length).toBeGreaterThan(0);
+    expect(st.decorBody).toEqual(resolve('ST').decorBody);
   });
 });
 
 describe('every reader of "all wood" reads the bodies', () => {
   /*
    * MUTATION PROOF, run: the bodies left out of the card's drawing fails with
-   * `expected [] to deeply equal [ false, true ]`.
+   * `expected [] to have a length of 10 but got +0`.
    */
   it("a structure's card draws its footprint, and its roof hatched", () => {
-    expect(previewOf(resolve('ST')).bodies.map((b) => b.roof)).toEqual([false, true]);
+    // The station: its ten solid shapes flat, its curved roof's ten stretches hatched; the crank is not drawn.
+    const st = previewOf(resolve('ST')).bodies.map((b) => b.roof);
+    expect(st.filter((r) => !r)).toHaveLength(10);
+    expect(st.filter((r) => r)).toHaveLength(10);
     expect(previewOf(resolve('TU')).bodies.map((b) => b.roof)).toEqual([false, false, true]);
     expect(previewOf(resolve('RS')).bodies.map((b) => b.roof)).toEqual([false, false, false, false]);
     expect(previewOf(resolve('TO')).bodies.map((b) => b.roof)).toEqual([false, false]);

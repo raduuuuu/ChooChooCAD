@@ -12,7 +12,7 @@
  */
 
 import type { Segment } from '../geom/fk.js';
-import type { DecorArch, DecorBarrier, DecorStation, DecorTowers, DecorTruss, DecorVault, DrawnShape, Part } from '../parts/schema.js';
+import type { DecorArch, DecorBarrier, DecorCanopy, DecorStation, DecorTowers, DecorTruss, DecorVault, DrawnShape, Part } from '../parts/schema.js';
 
 /** A truss arch's chords in 3D: this deep, and twice this across. */
 export const TRUSS_CHORD_MM = 4;
@@ -110,6 +110,8 @@ export function drawShape(shape: DrawnShape, f: ShapeFrame, pen: Pen): void {
       return drawStation(shape, f, pen);
     case 'barrier':
       return drawBarrier(shape, f, pen);
+    case 'canopy':
+      return drawCanopy(shape, f, pen);
   }
 }
 
@@ -487,4 +489,46 @@ function drawBarrier(br: DecorBarrier, f: ShapeFrame, pen: Pen): void {
 
   // Stripes: paint on both wide faces, each edge slanting up across the bar.
   for (const c of [t2 + 0.05, -t2 - 0.05]) for (const sm of arm.stripesMm) pen.detail(P(pa - w2, c, h + sm), P(pa + w2, c, h + sm + arm.widthMm));
+}
+
+/**
+ * A CURVED ROOF (elevated station, measured 2026-11-06): its section swept
+ * the length of its box, top and underside, closed at both ends and both
+ * eaves (faces draw from both sides), with the lip under its first eave. Its outline is edged;
+ * the seams between its panels are detail lines over the top.
+ */
+function drawCanopy(c: DecorCanopy, f: ShapeFrame, pen: Pen): void {
+  const len = f.lengthMm;
+  const ys = c.sectionMm.map(([y]) => y);
+  const mid = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const P = (along: number, y: number, z: number): P3 => f.at(along, y - mid, f.floorMm + z);
+  const top = c.sectionMm;
+  const under = top.map(([y, h]) => [y, h - c.thickMm] as const);
+  const n = top.length;
+  for (let i = 0; i + 1 < n; i++) {
+    const [t0, t1, u0, u1] = [top[i]!, top[i + 1]!, under[i]!, under[i + 1]!];
+    pen.quad(P(0, ...t0), P(0, ...t1), P(len, ...t1), P(len, ...t0));
+    pen.quad(P(0, ...u0), P(len, ...u0), P(len, ...u1), P(0, ...u1));
+    for (const a of [0, len]) {
+      pen.quad(P(a, ...t0), P(a, ...u0), P(a, ...u1), P(a, ...t1));
+      pen.edge(P(a, ...t0), P(a, ...t1));
+      pen.edge(P(a, ...u0), P(a, ...u1));
+    }
+  }
+  // The two eaves, the first carrying its lip down.
+  const [y0, h0] = top[0]!;
+  const [y1, h1] = top[n - 1]!;
+  const lipBottom = h0 - c.thickMm - c.lipMm;
+  for (const [y, hi, lo] of [[y0, h0, lipBottom], [y1, h1, h1 - c.thickMm]] as const) {
+    pen.quad(P(0, y, hi), P(len, y, hi), P(len, y, lo), P(0, y, lo));
+    pen.edge(P(0, y, hi), P(len, y, hi));
+    pen.edge(P(0, y, lo), P(len, y, lo));
+    for (const a of [0, len]) pen.edge(P(a, y, hi), P(a, y, lo));
+  }
+  for (const s of c.seamsMm ?? []) {
+    const a = len / 2 + s;
+    for (let i = 0; i + 1 < n; i++) pen.detail(P(a, ...top[i]!), P(a, ...top[i + 1]!));
+  }
+  for (const p of [...top, ...under]) for (const a of [0, len]) pen.grow(P(a, ...p));
+  for (const a of [0, len]) pen.grow(P(a, y0, lipBottom));
 }
