@@ -74,7 +74,7 @@ import { LayoutFileControls, openLayoutFile } from './LayoutFileControls.js';
 import { PutAsideNotice } from './PutAsideNotice.js';
 import { ShareControl } from './ShareControl.js';
 import { rescueCopyLine, saveFailureNotice, type SavedStore } from './saveNotice.js';
-import { bridgeNotesOf, buildingClashSentence, buildingWord, tunnelNotesOf, viewOf } from './verdictView.js';
+import { bridgeNotesOf, buildingClashSentence, buildingWord, supportNoteOf, tunnelNotesOf, viewOf } from './verdictView.js';
 import { SYSTEM_NAME, centrelineRadiusMm, codeOf, isUnverified, shortCode } from '../../engine/src/parts/schema.js';
 import type { Brand, Part, Turn } from '../../engine/src/parts/schema.js';
 import { CANVAS_SEGMENT_CEILING, TrackCanvas } from './TrackCanvas.js';
@@ -1162,6 +1162,10 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
       ...tunnelNotesOf(graph.pieces, resolve, numberOf),
     ];
   }, [result, graph, pieceNumber, resolve]);
+  const supportNote = useMemo(
+    () => (result ? supportNoteOf(result.supports, (id) => pieceNumber.get(id)!) : null),
+    [result, pieceNumber],
+  );
   // Track that runs into a building, said with the building's name (design decision 5).
   const buildingClashes = useMemo(() => {
     if (!result) return [];
@@ -1795,6 +1799,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             polarityUnmarked={refusedMarks.hidden}
             buildings={buildingClashes}
             bridgeNotes={bridgeNotes}
+            supportNote={supportNote}
           />
         }
         verdictPass={verdictView.kind === 'EXACT' || verdictView.kind === 'NEEDS_GIVE'}
@@ -1823,6 +1828,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         polarityUnmarked={refusedMarks.hidden}
         buildings={buildingClashes}
         bridgeNotes={bridgeNotes}
+        supportNote={supportNote}
       />
     );
     const n = graph.pieces.length;

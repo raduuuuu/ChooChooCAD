@@ -96,8 +96,11 @@ however it was built.
 
 ## What is not checked, or not measured yet
 
-- **Supports.** Raised track is not checked for a support under it; the
-  verdict says so on every raised layout.
+- **Supports.** Raised track is checked for a support (a track support, a
+  ramp's high end, or a structure's raised road) at least every F4 along
+  it, once F4 is measured; until then the verdict says supports are not
+  checked. Track ending in mid-air past its last support is reported, not
+  judged.
 - **The joints.** Joint stretch is measured (2mm, pulled apart). The bend
   limit is inferred from one loop of one set that closed and carried a train;
   a direct reading would replace it.

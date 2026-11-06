@@ -20,7 +20,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { checkMeasurements, clearance, ESTIMATES, findings, jointSlop, type Measurements } from '../data/calibration.js';
+import { checkMeasurements, clearance, ESTIMATES, findings, jointSlop, supportSpan, type Measurements } from '../data/calibration.js';
 import { MEASUREMENTS } from '../data/measurements.js';
 import { engineOnQ1, q1Finding } from '../tools/calibration.js';
 
@@ -33,6 +33,7 @@ const BLANK: Measurements = {
   q4: { runMm: null, slopeMm: null },
   q5: { vehicleHeightMm: null, riseMm: null, plankThicknessMm: null },
   q6: { throughMm: null, chordMm: null, offsetMm: null },
+  f4: { supportGapMm: null },
 };
 
 type Patch = { [Q in keyof Measurements]?: Measurements[Q] extends object ? Partial<Measurements[Q]> : Measurements[Q] };
@@ -122,6 +123,24 @@ describe('each answer meets the row decided for it', () => {
     const y = r * (1 - Math.cos(t));
     const [line] = findings(read({ q6: { chordMm: Math.hypot(x, y), offsetMm: y } }));
     expect(line).toMatch(/an arc of 45 degrees at 202mm centreline radius; snapped to 2 lattice steps its end moves 0mm/);
+  });
+});
+
+describe('F4 turns the supports check on', () => {
+  /*
+   * MUTATION PROOFS, run:
+   * - 'f4' left out of the fields `checkMeasurements` reads: `expected
+   *   [Function] to throw an error`.
+   * - `supportSpan` returning null: `expected null to be 260 // Object.is
+   *   equality`.
+   */
+  it('is off while blank, reads the gap once filled, and refuses a negative one', () => {
+    expect(supportSpan(BLANK)).toBeNull();
+    expect(supportSpan(read({ f4: { supportGapMm: 260 } }))).toBe(260);
+    expect(findings(read({ f4: { supportGapMm: 260 } }))).toEqual([
+      'F4: raised track crosses 260mm between two supports. The supports check is on: a longer stretch of raised track with nothing under it is named in the verdict.',
+    ]);
+    expect(() => checkMeasurements(read({ f4: { supportGapMm: -5 } }))).toThrow('f4.supportGapMm');
   });
 });
 

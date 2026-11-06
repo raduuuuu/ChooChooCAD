@@ -105,6 +105,7 @@ const exceedsResult = (): Extract<GraphResult, { ok: true }> => {
     bridges: [],
     underBridges: [],
     raised: false,
+    supports: null,
     runs: { count: 1, open: 0, loops: [{ firstPiece: 1, pieces: [], headingBroken: false }] },
     residuals: [],
     repair: null,
@@ -133,6 +134,7 @@ const impossibleResult = (): Extract<GraphResult, { ok: true }> => {
     bridges: [],
     underBridges: [],
     raised: false,
+    supports: null,
     runs: { count: 1, open: 0, loops: [{ firstPiece: 1, pieces: [], headingBroken: false }] },
     residuals: [],
     repair: null,
@@ -409,6 +411,7 @@ describe('a bend the checker could not settle', () => {
       bridges: [],
       underBridges: [],
       raised: false,
+      supports: null,
       runs: { count: 1, open: 0, loops: [{ firstPiece: 1, pieces: [], headingBroken: false }] },
       residuals: [],
     });
