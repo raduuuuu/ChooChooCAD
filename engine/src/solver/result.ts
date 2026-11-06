@@ -12,22 +12,20 @@
  * Stage 1 answers exactly: does the loop close, in integer arithmetic, with no
  * epsilon. That answer is trustworthy and always has been.
  *
- * When it does not close, the honest remaining question is whether the leftover
- * gap is small enough for the joints to absorb. This reports a NECESSARY
- * condition: the gap cannot exceed the sum of the joints' give. If it does, the
- * layout definitely will not fit. If it does not, the layout MIGHT fit, and that
- * is as much as the available data supports.
+ * When it does not close, the remaining question is whether the joints can
+ * take up the gap by stretching and bending. Stage 2 asks the bend solver
+ * (graph/bend.ts, through `solveRun`, the same solver and rule as the graph
+ * path): the smallest share of every joint's limit, the same share at each,
+ * that closes the loop. `withinBound` is true when that share fits; false is
+ * "beyond the tested bend", never "will not fit", because the bend limit is
+ * inferred, not measured (data/bendLimit.ts). A bend that cannot be checked
+ * within its budget is BEND_UNCHECKED, never a pass.
  *
- * It is not sufficient, and it does not pretend to be. A minimax LP used to
- * allocate the gap joint by joint and report a per-joint ratio, which looked
- * like more. It was deleted at R21, because every measured defect in this
- * project lived in it and because its precision was manufactured from
- * tolerances the part data labels `estimated`. A hedged band over a guessed
- * budget is the truth; a ratio sliced at 0.8 was not.
- *
- * So there is no per-joint verdict here. When the budgets are measured, the
- * allocation becomes worth reinstating and this contract grows a per-joint
- * field again. Until then it says what it knows.
+ * History (decision R21): a minimax LP once allocated the gap joint by joint
+ * and owned every measured defect in the project, so it was deleted, and for
+ * a while this reported only the necessary bound, gap against the summed
+ * give. The bend solver replaced that bound; it is ordered canonically, so the
+ * answer does not depend on which piece was listed first.
  */
 
 import { getPart } from '../../data/generic.js';
