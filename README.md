@@ -78,17 +78,21 @@ exist and the tests find them.
 
 **Stage 2, what the joints can give.** Wooden track has deliberate play in
 every joint. When a loop does not close exactly, the check asks whether the
-joints can take up the gap, by stretching and by bending:
+joints can take up the gap, by stretching and by bending. A small linear
+program finds the smallest share of each joint's limit, the same share at
+every joint, that closes every loop; the bent loop is then re-walked exactly
+and anything left over is reported. A joint shared by two loops has its give
+once, never once per loop.
 
 ```
-  gap  within what the joints are known to give   ->  it MIGHT fit
-  gap  beyond it                                  ->  not promised: past what has been tested
+  closes with every joint within its limit   ->  closes, and says how far the worst joint bends
+  needs more than that                       ->  beyond the tested bend, never "will not fit"
 ```
 
-It never claims the gap *will* be absorbed, only that it is not ruled out. An
-earlier per-joint optimiser was deleted on purpose: it flipped a user-visible
-verdict depending on which piece was listed first, and its precision rested on
-guessed tolerances. A bound over all the joints cannot depend on their order.
+An earlier per-joint optimiser was deleted on purpose: it flipped a
+user-visible verdict depending on which piece was listed first. The bend
+solver orders its model canonically, so the same layout gets the same answer
+however it was built.
 
 ## What is not checked, or not measured yet
 
@@ -101,8 +105,10 @@ guessed tolerances. A bound over all the joints cannot depend on their order.
 - **The train.** Clearances use one 55mm train, the owner's tallest. Under
   raised track it leaves about -6mm, and the verdict says the train may not
   pass.
-- **Large layouts.** The bound grows with the number of joints, so on a very
-  large layout "might fit" says little.
+- **Large layouts.** The bend solve has one fixed work budget per layout
+  (about half a second on a laptop), and a layout can have at most 31
+  independent loops. Past either, the verdict says it could not check the layout;
+  it never guesses.
 
 The open readings are on the printable calibration sheet
 (`docs/calibration-sheet.html`, every question with a drawing), and

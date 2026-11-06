@@ -28,9 +28,12 @@ export type LayoutVerdict =
   | 'IMPOSSIBLE'
   /** Residual is exactly zero. Needs no give at any joint. */
   | 'EXACT'
-  /** Does not close exactly, but the gap is within the total give. MIGHT fit. */
+  /** Does not close exactly, but closes with the joints bent within their limit. */
   | 'NEEDS_GIVE'
-  /** The gap exceeds the total give. Definitely does not fit. */
+  /**
+   * Needs more bend than the joints are credited with: beyond the tested
+   * bend, never "will not fit", since the limit is inferred (data/bendLimit.ts).
+   */
   | 'EXCEEDS'
   /** Could not be checked. Never to be confused with any of the above. */
   | 'UNKNOWN';
