@@ -478,9 +478,30 @@ export interface DecorBarrier {
   readonly noun?: string;
 }
 
-export type DecorShape = DecorSlab | DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation | DecorBarrier;
+/**
+ * A CURVED ROOF (elevated station, measured 2026-11-06): a shell `lengthMm`
+ * along, centred `alongMm` along the piece, whose top surface seen along the
+ * piece is `sectionMm`, (across, height) points in the piece's own across
+ * (left of the road positive), in order from one eave to the other. The
+ * shell is `thickMm` thick under that surface, and its first eave hangs a
+ * lip `lipMm` deep. It collides only where it is, stretch by stretch of its
+ * section, so a roof high over a neighbour's road does not stop it.
+ */
+export interface DecorCanopy {
+  readonly kind: 'canopy';
+  readonly alongMm: number;
+  readonly lengthMm: number;
+  readonly sectionMm: readonly (readonly [number, number])[];
+  readonly thickMm: number;
+  readonly lipMm: number;
+  /** Seams between its panels, along from its centre: detail lines over its top. */
+  readonly seamsMm?: readonly number[];
+  readonly noun?: string;
+}
+
+export type DecorShape = DecorSlab | DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation | DecorBarrier | DecorCanopy;
 /** A shape with its own drawing, which one decoration box carries (eng D10). */
-export type DrawnShape = DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation | DecorBarrier;
+export type DrawnShape = DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation | DecorBarrier | DecorCanopy;
 
 /** A derived decoration box: a body box at whole levels, carrying the shape's real heights for drawing. */
 export interface DecorBox extends BodyBox {

@@ -146,6 +146,35 @@ export function decorBoxesOf(owner: string, decor: readonly DecorShape[], riseMm
           boxOf('footprint', at(0, 0), Math.max(hall.lengthMm, roof.lengthMm), extent, hall.bottomMm, top, drawOnly(shape)),
         ];
       }
+      case 'canopy': {
+        /*
+         * A roof collides stretch by stretch of its section (owner, elevated
+         * station 2026-11-06): each stretch between two points a solid box
+         * from the shell's underside to its top, the lip under the first
+         * eave, none drawn; one more box, not solid, draws it. A roof high
+         * over the road beside it reaches only the levels it is at.
+         */
+        const { alongMm: x, lengthMm: l, sectionMm: pts, thickMm: t, lipMm: lip } = shape;
+        const bad = (why: string) => new Error(`${owner}: a canopy ${why}.`);
+        if (pts.length < 2) throw bad('needs at least two points in its section');
+        const dir = Math.sign(pts[1]![0] - pts[0]![0]);
+        if (dir === 0 || !pts.every((p, i) => i === 0 || Math.sign(p[0] - pts[i - 1]![0]) === dir)) throw bad('section must run one way across, eave to eave');
+        if (!(t > 0 && lip >= 0 && pts.every(([, h]) => h - t > 0))) throw bad('needs a thickness, and to stand clear of its floor');
+        const n = { noun: shape.noun ?? 'roof' };
+        const pieces = pts.slice(1).map((b, i) => {
+          const a = pts[i]!;
+          const low = Math.min(a[1], b[1]) - t - (i === 0 ? lip : 0);
+          return boxOf('roof', [x, (a[0] + b[0]) / 2], l, Math.abs(b[0] - a[0]), low, Math.max(a[1], b[1]), { solid: true, draw: false, ...n });
+        });
+        if (!(shape.seamsMm ?? []).every((s) => Math.abs(s) < l / 2)) throw bad('seams must lie on it');
+        const ys = pts.map(([y]) => y);
+        const zs = pts.map(([, h]) => h);
+        const low = Math.min(Math.min(...zs) - t, pts[0]![1] - t - lip);
+        return [
+          ...pieces,
+          boxOf('roof', [x, (Math.min(...ys) + Math.max(...ys)) / 2], l, Math.max(...ys) - Math.min(...ys), low, Math.max(...zs), drawOnly(shape)),
+        ];
+      }
       case 'barrier': {
         /*
          * A barrier collides as its base (a square around the round base, as
