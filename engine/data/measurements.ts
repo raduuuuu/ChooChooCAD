@@ -78,6 +78,11 @@ export const MEASUREMENTS: Measurements = {
     chordMm: null, //           heel to the diverging road's end, straight line
     offsetMm: null, //          that end's distance off the through road's line
   },
+
+  /** F4: two medium straights joined in the middle, on two supports slid apart. */
+  f4: {
+    supportGapMm: null, //      the largest gap that held, inner face to inner face
+  },
 };
 
 /**

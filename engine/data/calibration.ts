@@ -41,6 +41,8 @@ export interface Measurements {
   readonly q4: { readonly runMm: Num; readonly slopeMm: Num };
   readonly q5: { readonly vehicleHeightMm: Num; readonly riseMm: Num; readonly plankThicknessMm: Num };
   readonly q6: { readonly throughMm: Num; readonly chordMm: Num; readonly offsetMm: Num };
+  /** F4: the largest clear gap two joined straights cross between two supports. */
+  readonly f4: { readonly supportGapMm: Num };
 }
 
 /** The guesses every reading replaces. Not measured; see generic.ts CALIBRATION WARNING. */
@@ -55,7 +57,7 @@ export const ESTIMATES = {
 } as const;
 
 const numbers = (m: Measurements): [string, number][] =>
-  (['q1', 'q2', 'q3', 'q4', 'q5', 'q6'] as const).flatMap((q) =>
+  (['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'f4'] as const).flatMap((q) =>
     Object.entries(m[q])
       .filter((e): e is [string, number] => typeof e[1] === 'number')
       .map(([k, v]): [string, number] => [`${q}.${k}`, v]),
@@ -121,6 +123,15 @@ export function clearance(m: Measurements) {
     trainMm: m.q5.vehicleHeightMm ?? ESTIMATES.trainMm,
     trainMeasured: m.q5.vehicleHeightMm !== null,
   } as const;
+}
+
+/**
+ * How far raised track may run between two supports (calibration F4), or
+ * null while unmeasured: the supports check stays off until then, and the
+ * verdict keeps saying supports are not checked (engine/src/graph/supports.ts).
+ */
+export function supportSpan(m: Measurements): number | null {
+  return m.f4.supportGapMm;
 }
 
 /** Within this, a reading "is" 216mm: two careful reads with a steel rule. */
@@ -223,6 +234,14 @@ export function findings(m: Measurements): string[] {
           'That residual is what decides whether a switch fits the lattice (eng review E1).',
       );
     }
+  }
+
+  const span = supportSpan(m);
+  if (span !== null) {
+    out.push(
+      `F4: raised track crosses ${mm(span)} between two supports. The supports check is on: ` +
+        'a longer stretch of raised track with nothing under it is named in the verdict.',
+    );
   }
 
   return out;

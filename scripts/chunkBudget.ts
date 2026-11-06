@@ -12,8 +12,11 @@
  * owner's call). The new parts of 2026-11-03 (bridges, crossings, the
  * track support, the decorated-piece model and the level crossing) spent
  * that allowance on part data, so it was re-measured again: 139.67 kB
- * (2026-11-03, the level-crossing PR, the owner's call). It may grow by at
- * most 5 kB from there. And
+ * (2026-11-03, the level-crossing PR, the owner's call). The decorated
+ * pieces' detail, the station, tunnel and crossing, and the selection in 3D
+ * spent it in turn, so it was re-measured again: 144.10 kB (2026-11-06, main
+ * at 11c79e9, before the raised-track supports check; the owner's call). It
+ * may grow by at most 5 kB from there. And
  * Three.js must not be in it: its renderer's name in the main chunk means a
  * stray import pulled it in, which `app/src/view3dImports.test.ts` also
  * guards from the source side.
@@ -24,7 +27,7 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
 const ASSETS = join(import.meta.dir, '..', 'app', 'dist', 'assets');
-const BASELINE_KB = 139.67;
+const BASELINE_KB = 144.1;
 const ALLOWANCE_KB = 5;
 
 const files = readdirSync(ASSETS).filter((f) => f.endsWith('.js'));

@@ -866,6 +866,8 @@ Measurement and method: `.gstack/qa-reports/20261020T163029Z-split-cursor/`.
 
 ## P2 — Check that raised track is held up (filed by /plan-ceo-review, 2026-11-03)
 
+**2026-11-06: built, waiting on F4.** `engine/src/graph/supports.ts` checks every raised stretch between held places (a track support whose 25×52 footprint the centre line crosses, turned within 22.5°; a ramp's high end; a structure's raised road) against F4, read from `measurements.ts` `f4.supportGapMm`. Owner decisions: a warning with the X naming the piece, the verdict unchanged; track ending in mid-air reported as not checked; placement by centre line, roughly along. While `f4.supportGapMm` is null the verdict still says "supports are not checked". Filling it in turns the check on with no code change. Tests: engine/test/supports.test.ts, app/src/supportsNote.test.ts.
+
 **2026-11-04 (D5):** absorbs "Support and pier modelling" (archived). Measurement: calibration sheet F4, the span between two supports.
 
 **What:** Replace the blanket "Raised track: supports are not checked." note with a real check: every raised piece has a track support (TS), a riser or a structure under it within a measured reach, and the verdict names the piece that isn't held up.

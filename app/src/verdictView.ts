@@ -30,7 +30,8 @@ import { bendLimit } from '../../engine/data/bendLimit.js';
 import type { PlankOverlap } from '../../engine/src/graph/overlap.js';
 import type { Part } from '../../engine/src/parts/schema.js';
 import { STRUCTURE_WORDS } from '../../engine/data/structureSeeds.js';
-import type { BridgeNote } from './VerdictLine.js';
+import type { BridgeNote, SupportNote } from './VerdictLine.js';
+import type { SupportReport } from '../../engine/src/graph/supports.js';
 
 export type VerdictKind =
   | 'NOTHING'
@@ -275,6 +276,23 @@ export function tunnelNotesOf(
       ? [{ name: part.name.toLowerCase(), piece: numberOf(p.pieceId), clearanceMm: vault.topMm - vault.wallMm }]
       : [];
   });
+}
+
+/**
+ * WHAT THE SUPPORTS NOTE SAYS (supports.ts; owner decisions 2026-11-06), in
+ * piece numbers. Null while F4 is unmeasured: the note then says supports are
+ * not checked, as it always has. Each dead end once, in piece order.
+ */
+export function supportNoteOf(
+  report: SupportReport | null,
+  numberOf: (pieceId: string) => number,
+): SupportNote | null {
+  if (!report) return null;
+  return {
+    spanMm: report.spanMm,
+    unheld: report.unheld.map((u) => ({ piece: numberOf(u.pieceId), lengthMm: u.lengthMm })),
+    openEnds: [...new Set(report.openEnds.map((o) => numberOf(o.pieceId)))].sort((a, b) => a - b),
+  };
 }
 
 /** What a structure is called in a sentence: the floor/raised words only (design decision 5, rule 7). */

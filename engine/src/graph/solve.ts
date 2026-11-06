@@ -24,6 +24,8 @@ import { classifyWelds, connectorSites, findVertexClashes, type AdapterJoint, ty
 import { bendSegments, bentShifts } from './bendPose.js';
 import { findBridges, findPlankOverlaps, type PlankOverlap } from './overlap.js';
 import { renderGraph } from './render.js';
+import { checkSupports, type SupportReport } from './supports.js';
+import { SUPPORT_SPAN_MM } from '../../data/supportSpan.js';
 import type { Segment } from '../geom/fk.js';
 import { findLevelFaults, residuals, type LevelMismatch, type Placement, type PortsOf, type ThirdLevel, type WeldResidual } from './frames.js';
 import type { Forest } from './forest.js';
@@ -126,6 +128,12 @@ export type GraphResult =
       readonly bridges: readonly PlankOverlap[];
       /** Whether any track is off the floor, for the supports note (design 3A). */
       readonly raised: boolean;
+      /**
+       * Whether raised track is held up (supports.ts): null while F4 is
+       * unmeasured or nothing is raised, and the note says supports are not
+       * checked. Never a fault, like the clearance: a sag is a warning.
+       */
+      readonly supports: SupportReport | null;
       /** Track passing under an up-and-over bridge: the bridge, and the piece under it (design DD5). */
       readonly underBridges: readonly { readonly bridge: string; readonly under: string }[];
       /** The separate runs of track, so the verdict can speak about each one. Every branch. */
@@ -176,6 +184,12 @@ export type GraphResult =
       readonly bridges: readonly PlankOverlap[];
       /** Whether any track is off the floor, for the supports note (design 3A). */
       readonly raised: boolean;
+      /**
+       * Whether raised track is held up (supports.ts): null while F4 is
+       * unmeasured or nothing is raised, and the note says supports are not
+       * checked. Never a fault, like the clearance: a sag is a warning.
+       */
+      readonly supports: SupportReport | null;
       /** Track passing under an up-and-over bridge: the bridge, and the piece under it (design DD5). */
       readonly underBridges: readonly { readonly bridge: string; readonly under: string }[];
       /** The separate runs of track, so the verdict can speak about each one. Every branch. */
@@ -213,6 +227,8 @@ export function solveGraph(
    * the same single render as the track, when the caller has not drawn it.
    */
   drawnBodies?: readonly Segment[],
+  /** Calibration F4, for the supports check; null while unmeasured turns it off. Tests pass their own. */
+  supportSpanMm: number | null = SUPPORT_SPAN_MM,
 ): GraphResult {
   const drawn = drawnSegments && drawnBodies ? null : renderGraph(graph, ports, resolve, placement);
   const segments = drawnSegments ?? drawn!.segments;
@@ -251,7 +267,8 @@ export function solveGraph(
     humped(b.a) ? [{ bridge: b.a, under: b.b }] : humped(b.b) ? [{ bridge: b.b, under: b.a }] : [],
   );
   const raised = segments.some((sg) => (sg.level ?? 0) + (sg.rise ?? 0) > 0 && !(sg.pieceId !== undefined && structural(sg.pieceId)));
-  const levels = { levelMismatches, thirdLevels, bridges, underBridges, raised, runs: summariseRuns(graph, placement.forest, rs, ports) };
+  const supports = raised ? checkSupports(segments, bodies, (id) => resolve(partOfPiece.get(id)!), supportSpanMm) : null;
+  const levels = { levelMismatches, thirdLevels, bridges, underBridges, raised, supports, runs: summariseRuns(graph, placement.forest, rs, ports) };
 
   if (rank === 0) {
     /*

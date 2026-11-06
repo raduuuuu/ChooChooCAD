@@ -224,7 +224,7 @@ function notesFor(
   basis = false,
   adapters = 0,
   unmarked = 0,
-  raised: { readonly bridges: number } | null = null,
+  raised: { readonly bridges: number; readonly supports: SupportNote | null } | null = null,
   bend: BendWords | null = null,
   bridges: readonly BridgeNote[] = [],
 ) {
@@ -236,7 +236,7 @@ function notesFor(
   return (
     <>
       {adapters > 0 && <AdapterNote n={adapters} unmarked={unmarked} />}
-      {raised && <RaisedNote bridges={raised.bridges} />}
+      {raised && <RaisedNote bridges={raised.bridges} supports={raised.supports} />}
       {bridges.map((b, i) => <BridgeClearance key={i} note={b} />)}
       {unmeasured > 0 && <Unmeasured n={unmeasured} />}
       <Trust trust={trust.filter(kept)} />
@@ -374,6 +374,55 @@ function BridgeClearance({ note }: { note: BridgeNote }) {
   );
 }
 
+/** Whether raised track is held up, in piece numbers (`supportNoteOf`). */
+export interface SupportNote {
+  /** Calibration F4: the gap two joined straights held between two supports. */
+  readonly spanMm: number;
+  /** Raised track longer than that with no support, longest first. */
+  readonly unheld: readonly { readonly piece: number; readonly lengthMm: number }[];
+  /** Pieces whose raised track ends in mid-air: reported, never judged. */
+  readonly openEnds: readonly number[];
+}
+
+const pieceList = (ns: readonly number[]) => (
+  <>
+    {ns.length === 1 ? 'piece' : 'pieces'}{' '}
+    {ns.map((n, i) => (
+      <span key={n}>
+        {i > 0 && (i === ns.length - 1 ? ' and ' : ', ')}
+        <span className="num">{n}</span>
+      </span>
+    ))}
+  </>
+);
+
+/**
+ * THE SUPPORTS LINES (owner decisions 2026-11-06). A stretch past F4 is a
+ * warning with the X (rule 2) naming its piece, never a fault: the layout
+ * builds and closes, the track may sag. Its length rounds UP and F4 shows as
+ * read (rule 4). A dead end says it was not checked (rule 3), since F4 does
+ * not measure track reaching past a support.
+ */
+function SupportLines({ note }: { note: SupportNote }) {
+  const span = <span className="num">{Math.round(note.spanMm)}mm</span>;
+  return (
+    <>
+      {note.unheld.map((u, i) => (
+        <p key={i} className="verdict-raised verdict-fail">
+          <span aria-hidden="true">X </span>Raised track may sag at piece <span className="num">{u.piece}</span>:{' '}
+          <span className="num">{Math.ceil(u.lengthMm)}mm</span> with no support, past the {span} tested.
+        </p>
+      ))}
+      {note.unheld.length === 0 && <p className="verdict-raised">Raised track: supports checked, every gap within the {span} tested.</p>}
+      {note.openEnds.length > 0 && (
+        <p className="verdict-raised">
+          Raised track ends in mid-air at {pieceList(note.openEnds)}: how far it can reach past a support is not checked.
+        </p>
+      )}
+    </>
+  );
+}
+
 /**
  * THE RAISED-TRACK NOTE (two-layer plan, L3 and design decision 3A). Never
  * truncated, like the adapter note: it is a green verdict's only word on what
@@ -383,10 +432,10 @@ function BridgeClearance({ note }: { note: BridgeNote }) {
  * passes under it, through the bridges' sentence: the opening is the rise,
  * floor to the raised plank's underside (rampSeeds.ts `CLEARANCE`).
  */
-function RaisedNote({ bridges }: { bridges: number }) {
+function RaisedNote({ bridges, supports }: { bridges: number; supports: SupportNote | null }) {
   return (
     <>
-      <p className="verdict-raised">Raised track: supports are not checked.</p>
+      {supports ? <SupportLines note={supports} /> : <p className="verdict-raised">Raised track: supports are not checked.</p>}
       {bridges > 0 && (
         <TrainFit
           under={<>raised track (<span className="num">{bridges}</span> {bridges === 1 ? 'place' : 'places'})</>}
@@ -424,7 +473,7 @@ function Unmarked({ n }: { n: number }) {
 }
 
 /** The facts the raised-track note needs, or null when nothing is off the floor. */
-const raisedOf = (e: VerdictView) => (e.raised ? { bridges: e.bridgeCount } : null);
+const raisedOf = (e: VerdictView, supports: SupportNote | null) => (e.raised ? { bridges: e.bridgeCount, supports } : null);
 
 export function adapterNote(n: number): string {
   return n === 1
@@ -561,6 +610,7 @@ export function VerdictLine({
   polarityUnmarked = 0,
   buildings = [],
   bridgeNotes = [],
+  supportNote = null,
 }: {
   view: VerdictView;
   /** Why this verdict is worth less than it looks. See engine/joints/trust.ts. */
@@ -575,6 +625,8 @@ export function VerdictLine({
   buildings?: readonly string[];
   /** Bridges track passes under, one clearance sentence each (design DD5). */
   bridgeNotes?: readonly BridgeNote[];
+  /** Whether raised track is held up; null while F4 is unmeasured (`supportNoteOf`). */
+  supportNote?: SupportNote | null;
 }) {
   const e = view;
 
@@ -613,7 +665,7 @@ export function VerdictLine({
     return (
       <Verdict
         tone="unknown"
-        notes={notesFor(trust, unchecked ? null : (ACTION_FOR_FAILURE[e.kind] ?? null), false, e.adapterCount, adaptersUnmarked, raisedOf(e), undefined, bridgeNotes)}
+        notes={notesFor(trust, unchecked ? null : (ACTION_FOR_FAILURE[e.kind] ?? null), false, e.adapterCount, adaptersUnmarked, raisedOf(e, supportNote), undefined, bridgeNotes)}
       >
         <Mark glyph="?" />
         <span className="verdict-text">
@@ -644,7 +696,7 @@ export function VerdictLine({
             false,
             e.adapterCount,
             adaptersUnmarked,
-            raisedOf(e),
+            raisedOf(e, supportNote),
             // A run that needs bend carries the overlap note (design 11A).
             e.bend && e.bend.tier !== 'exact' ? e.bend : null,
             bridgeNotes,
@@ -781,7 +833,7 @@ export function VerdictLine({
             true,
             e.adapterCount,
             adaptersUnmarked,
-            raisedOf(e),
+            raisedOf(e, supportNote),
             undefined,
             bridgeNotes,
           )}
@@ -808,7 +860,7 @@ export function VerdictLine({
       return (
         <Verdict
           tone="tight"
-          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], false, e.adapterCount, adaptersUnmarked, raisedOf(e), e.bend, bridgeNotes)}
+          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], false, e.adapterCount, adaptersUnmarked, raisedOf(e, supportNote), e.bend, bridgeNotes)}
         >
           <Mark glyph={'/\\'} />
           <span className="verdict-text">
@@ -858,7 +910,7 @@ export function VerdictLine({
          */
         <Verdict
           tone="fail"
-          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], false, e.adapterCount, adaptersUnmarked, raisedOf(e), e.bend, bridgeNotes)}
+          notes={notesFor(trust, ACTION_FOR_VERDICT[e.kind], false, e.adapterCount, adaptersUnmarked, raisedOf(e, supportNote), e.bend, bridgeNotes)}
         >
           <Mark glyph="X" />
           <span className="verdict-text">
