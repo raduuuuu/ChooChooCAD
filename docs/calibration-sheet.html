@@ -32,6 +32,11 @@
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8mm; }
   @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } body { padding: 16px; } }
   .followup { break-before: page; margin-top: 8mm; }
+  .how th { text-align: left; font-weight: 600; color: var(--mute); font-size: 9pt; padding: 0 2mm 0.5mm 0; }
+  .how td { padding: 0.8mm 2mm 0.8mm 0; vertical-align: top; border-bottom: 1px solid #ddd; }
+  .how td:first-child { width: 5mm; }
+  .how td:last-child { width: 50%; color: var(--mute); }
+  .how b { color: var(--ink); letter-spacing: 0.3mm; }
   .dwg { display: block; width: 100%; height: auto; margin: 1mm 0 2mm; color: var(--ink); font: 3.4px system-ui, sans-serif; }
   .dwg text { fill: var(--ink); }
   .dwg .note, .dwg .ref { fill: var(--mute); font-size: 3px; }
@@ -57,16 +62,19 @@
 <p class="do">Leave a box empty if you did not measure it. A caliper is ideal; a steel rule and a phone photo answer Q1, Q3 and Q4. Only Q2's bend wants care.</p>
 
 <h2>Still open, 2026-11-06</h2>
-<p class="do">Everything else on this sheet is answered. One afternoon with these clears every reading the app is waiting on.</p>
-<table>
-  <tr><td>Q2 · the joint's bend (pull and push are done)</td><td class="pick">&#9744;</td><td class="unit"></td></tr>
-  <tr><td>Q6 · a switch's three figures, or one photo on mm paper</td><td class="pick">&#9744;</td><td class="unit"></td></tr>
-  <tr><td>F1 · the ramp's run, once more</td><td class="pick">&#9744;</td><td class="unit"></td></tr>
-  <tr><td>F2 · the air under a bridge, and the train pushed through</td><td class="pick">&#9744;</td><td class="unit"></td></tr>
-  <tr><td>F3 · the tighter loop</td><td class="pick">&#9744;</td><td class="unit"></td></tr>
-  <tr><td>F4 · the gap between two supports (unlocks the raised-track check)</td><td class="pick">&#9744;</td><td class="unit"></td></tr>
-  <tr><td>S1 · the elevated station: two photos and five heights</td><td class="pick">&#9744;</td><td class="unit"></td></tr>
+<p class="do">Everything else on this sheet is answered. A photo from straight above measures only what lies flat on the paper: anything standing up is nearer the camera and looks bigger, so heights, raised decks and slopes need the ruler.</p>
+<table class="how">
+  <tr><th></th><th>Reading</th><th>How</th></tr>
+  <tr><td>&#9744;</td><td>Q2 · the joint's bend (pull and push are done)</td><td><b>PHOTO</b> two straights flat, bent until the joint binds; hold them there with tape or a weight</td></tr>
+  <tr><td>&#9744;</td><td>Q6 · a switch's three figures</td><td><b>PHOTO</b> the switch flat</td></tr>
+  <tr><td>&#9744;</td><td>S1 · the elevated station: P1 and P2</td><td><b>PHOTO</b> P1 from straight above, P2 side-on for shape only</td></tr>
+  <tr><td>&#9744;</td><td>S1 · the elevated station: H0 to H3 and W1</td><td><b>RULER</b> heights, and a width under the deck</td></tr>
+  <tr><td>&#9744;</td><td>F1 · the ramp's run, once more</td><td><b>RULER</b> its high end is 61 nearer the camera</td></tr>
+  <tr><td>&#9744;</td><td>F2 · the air under a bridge, and the train pushed through</td><td><b>RULER</b> and by hand</td></tr>
+  <tr><td>&#9744;</td><td>F3 · the tighter loop</td><td><b>BY HAND</b> build it and run a train; photo the gap only if it won't close</td></tr>
+  <tr><td>&#9744;</td><td>F4 · the gap between two supports (unlocks the raised-track check)</td><td><b>RULER</b> the 2mm dip is read with a ruler on the track</td></tr>
 </table>
+<p class="do"><b>Every photo:</b> phone held flat, straight above, from 40 to 50cm, zoomed in a little rather than leaning closer; the medium straight (A, 144) flat on the paper in the same photo; the whole piece and some grid all round it in frame; even light, no hard shadows. Put them in <code>photos/</code>.</p>
 
 <h2>Q1 · Does the 72mm-gap loop seat?</h2>
 <p class="do">Build a closed loop in this order: 4 large curves (E), the long straight (D, 216), 4 large curves (E), the medium straight (A, 144).</p>
@@ -86,7 +94,7 @@
   <tr><td>Or: sideways travel at the far end, square to the rule<code class="field">q2.bendSidewaysMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
   <tr><td>&hellip; and the distance along the rule from the joint to that point<code class="field">q2.bendOverMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
 </table>
-<p class="do">For the bend, if you have no protractor: lay a steel rule flat on the floor against one side of piece 1, running on past the joint. Swing piece 2 away from the rule until the joint binds, and hold it there without forcing.</p>
+<p class="do">Easiest: a photo. Lay both straights flat on the millimetre paper, swing piece 2 until the joint binds, hold it there with tape or a weight, and photograph from straight above; Claude reads the angle. Or, with a ruler and no protractor, lay a steel rule flat on the floor against one side of piece 1, running on past the joint. Swing piece 2 away from the rule until the joint binds, and hold it there without forcing.</p>
 <svg class="dwg" viewBox="0 24 200 52" role="img" aria-label="Plan view from above. Piece 1 lies along a steel rule. Piece 2 is swung away from the rule until the joint binds. Measure the sideways travel at piece 2's far corner, square to the rule, and the distance along the rule from the joint to that point.">
   <rect class="floor" x="8" y="48" width="166" height="5" style="fill:none"/>
   <g class="tick"><line x1="30" y1="48" x2="30" y2="50"/><line x1="50" y1="48" x2="50" y2="50"/><line x1="70" y1="48" x2="70" y2="50"/><line x1="90" y1="48" x2="90" y2="51"/><line x1="110" y1="48" x2="110" y2="50"/><line x1="130" y1="48" x2="130" y2="50"/><line x1="150" y1="48" x2="150" y2="50"/><line x1="170" y1="48" x2="170" y2="50"/></g>
