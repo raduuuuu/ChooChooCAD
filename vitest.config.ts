@@ -43,6 +43,11 @@ export default defineConfig({
           environment: 'jsdom',
           globals: true,
           setupFiles: ['app/test/domSetup.ts'],
+          // Whole-app flows run in about 1s alone but crossed the 5s default
+          // under load: once on CI (PR #162) and five at a time locally on an
+          // unchanged main, a different few each run. 20s for every DOM test,
+          // not one test at a time.
+          testTimeout: 20_000,
         },
       },
     ],

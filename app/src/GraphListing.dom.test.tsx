@@ -58,10 +58,9 @@ describe('the list, operated from the keyboard', () => {
    * Eight large curves now CLOSE the loop as the eighth goes down (decision
    * D13, the first change listed in eng decision D4), so the list's join is
    * exercised by breaking a joint and joining it back. Every step still goes
-   * through the list by key. About 1s here but 5033ms once on CI (PR #162),
-   * just over the 5s default, so it gets 20s.
+   * through the list by key.
    */
-  it('builds, closes, breaks and rejoins a loop, announcing each step and keeping focus', { timeout: 20_000 }, async () => {
+  it('builds, closes, breaks and rejoins a loop, announcing each step and keeping focus', async () => {
     const user = userEvent.setup();
     render(
       <StrictMode>
