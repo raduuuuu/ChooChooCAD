@@ -133,6 +133,43 @@ describe('a curved roof collides where it is', () => {
   });
 });
 
+describe('the arched panel over the lift shaft (owner, 2026-11-07)', () => {
+  /*
+   * MUTATION PROOF, run: `acrossMm` ignored (the box back under the road):
+   * `expected [ 72, +0, 132, 183, false ] to deeply equal [ 72, -107, 132,
+   * 183, false ]`; the 3D spec fails too.
+   */
+  it('stands at the back of the shaft, from its springing to its flat top, drawn only', () => {
+    const panel = resolve('ST').decorBody!.find((b) => b.shape?.kind === 'arch')!;
+    expect([panel.atMm[0], panel.atMm[1], panel.bottomMm, panel.topMm, panel.solid]).toEqual([72, -107, 132, 183, false]);
+  });
+
+  /*
+   * MUTATION PROOF, run: the top-over-crown check dropped: `expected
+   * [Function] to throw an error`.
+   */
+  it('refuses a panel whose top is not over its crown', () => {
+    const arch = { kind: 'arch', fromMm: 0, toMm: 60, baseMm: 100, riseMm: 20, depthMm: 0, widthMm: 6 } as const;
+    expect(() => decorBoxesOf('t', [{ ...arch, fillToMm: 130 }], RISE)).not.toThrow();
+    expect(() => decorBoxesOf('t', [{ ...arch, fillToMm: 115 }], RISE)).toThrow('over its crown');
+  });
+
+  /*
+   * MUTATION PROOF, run: the panel drawn as a band again (`fill` always
+   * null): `expected false to be true // Object.is equality`.
+   */
+  it('in 3D: open under its arch, crown at 154, filled to a flat top at 183', () => {
+    const g: Graph = { pieces: [{ pieceId: 'p', partId: 'ST', turn: 'left' }], welds: [], anchors: new Map([['p', at(0, 0, 0)]]) };
+    const r = renderGraph(g, ports, resolve, placeAll(g, ports));
+    const p = buildScene({ segments: r.segments, bodies: r.bodies, ports: r.ports, welds: [], partOf: () => resolve('ST'), riseMm: RISE, plankMm: 12 }).structures.solid.positions;
+    // Points on the panel's back face, 3 behind its middle line, over the middle of the shaft.
+    const onPanel: number[] = [];
+    for (let i = 0; i < p.length; i += 3) if (Math.abs(p[i + 1]! + 110) < 1e-6 && Math.abs(p[i]! - 72) < 2) onPanel.push(p[i + 2]!);
+    expect(Math.min(...onPanel)).toBeCloseTo(154, 0);
+    expect(onPanel.some((z) => Math.abs(z - 183) < 1e-6)).toBe(true);
+  });
+});
+
 describe('the roof in 3D', () => {
   const alone = () => {
     const g: Graph = { pieces: [{ pieceId: 'p', partId: 'ST', turn: 'left' }], welds: [], anchors: new Map([['p', at(0, 0, 0)]]) };

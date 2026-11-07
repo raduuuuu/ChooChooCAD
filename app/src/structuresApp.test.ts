@@ -68,12 +68,12 @@ describe('a structure is built-in only (OV2)', () => {
 describe('every reader of "all wood" reads the bodies', () => {
   /*
    * MUTATION PROOF, run: the bodies left out of the card's drawing fails with
-   * `expected [] to have a length of 11 but got +0`.
+   * `expected [] to have a length of 10 but got +0`.
    */
   it("a structure's card draws its footprint, and its roof hatched", () => {
-    // The station: its eleven solid shapes flat, its roof's two curved sections hatched, ten stretches each; the crank is not drawn.
+    // The station: its ten solid shapes flat, its roof's two curved sections hatched, ten stretches each; the crank and the arched panel are not drawn.
     const st = previewOf(resolve('ST')).bodies.map((b) => b.roof);
-    expect(st.filter((r) => !r)).toHaveLength(11);
+    expect(st.filter((r) => !r)).toHaveLength(10);
     expect(st.filter((r) => r)).toHaveLength(20);
     expect(previewOf(resolve('TU')).bodies.map((b) => b.roof)).toEqual([false, false, true]);
     expect(previewOf(resolve('RS')).bodies.map((b) => b.roof)).toEqual([false, false, false, false]);
