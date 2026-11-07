@@ -99,7 +99,8 @@ export const STATION: StraightPart = {
     { kind: 'slab', atMm: [DECK / 2 - SHAFT / 2 + POST / 2, -83], lengthMm: POST, widthMm: 46, bottomMm: 12, topMm: 187, noun: 'lift tower' },
     { kind: 'slab', atMm: [DECK / 2 + SHAFT / 2 - POST / 2, -83], lengthMm: POST, widthMm: 46, bottomMm: 12, topMm: 187, noun: 'lift tower' },
     { kind: 'slab', atMm: [DECK / 2, -83.5], lengthMm: SHAFT - 2 * POST, widthMm: 40, bottomMm: 63, topMm: 147, noun: 'lift' },
-    { kind: 'slab', atMm: [DECK / 2, -107], lengthMm: SHAFT, widthMm: 6, bottomMm: 155, topMm: 183, noun: 'roof' },
+    // The back panel over the shaft, under the clock: an arch springing at 132 from the posts' outer faces, its crown at 154.
+    { kind: 'arch', fromMm: DECK / 2 - SHAFT / 2, toMm: DECK / 2 + SHAFT / 2, baseMm: 132, riseMm: 22, depthMm: 0, widthMm: 6, acrossMm: -107, fillToMm: 183, noun: 'roof' },
     { kind: 'slab', atMm: [DECK / 2, -83], lengthMm: 45, widthMm: 46, bottomMm: 150, topMm: 187, noun: 'clock' },
     { kind: 'slab', atMm: [DECK / 2, -85], lengthMm: 73, widthMm: 50, bottomMm: 187, topMm: 201, noun: 'clock tower' },
     // The lift's winding wheel, on the far face: a toy's moving part, never in the way of track.

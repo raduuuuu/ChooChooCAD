@@ -383,6 +383,10 @@ export interface DecorTruss {
  * `widthMm` across, springing at `fromMm` and `toMm` along the piece from
  * `baseMm` above the floor, rising `riseMm` to the crown, `depthMm` deep
  * with the road on top. Drawn only.
+ *
+ * A PANEL OVER AN OPENING (elevated station, 2026-11-07) is the same arch
+ * standing `acrossMm` from the road's centre line, filled solid from the
+ * arch up to a flat top at `fillToMm` instead of a band `depthMm` deep.
  */
 export interface DecorArch {
   readonly kind: 'arch';
@@ -392,6 +396,8 @@ export interface DecorArch {
   readonly riseMm: number;
   readonly depthMm: number;
   readonly widthMm: number;
+  readonly acrossMm?: number;
+  readonly fillToMm?: number;
   readonly noun?: string;
 }
 

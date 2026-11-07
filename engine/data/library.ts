@@ -111,8 +111,11 @@ export function decorBoxesOf(owner: string, decor: readonly DecorShape[], riseMm
       }
       case 'truss':
         return [boxOf('footprint', [(shape.fromMm + shape.toMm) / 2, 0], shape.toMm - shape.fromMm, 2 * shape.sideMm, shape.springMm, shape.crownMm, drawOnly(shape))];
-      case 'arch':
-        return [boxOf('footprint', [(shape.fromMm + shape.toMm) / 2, 0], shape.toMm - shape.fromMm, shape.widthMm, shape.baseMm, shape.baseMm + shape.riseMm + shape.depthMm, drawOnly(shape))];
+      case 'arch': {
+        const crown = shape.baseMm + shape.riseMm;
+        if (shape.fillToMm !== undefined && !(shape.fillToMm > crown)) throw new Error(`${owner}: an arch panel's top must stand over its crown.`);
+        return [boxOf('footprint', [(shape.fromMm + shape.toMm) / 2, shape.acrossMm ?? 0], shape.toMm - shape.fromMm, shape.widthMm, shape.baseMm, shape.fillToMm ?? crown + shape.depthMm, drawOnly(shape))];
+      }
       case 'towers':
         return [boxOf('footprint', [(shape.cableFromMm + shape.cableToMm) / 2, 0], shape.cableToMm - shape.cableFromMm, 2 * shape.spreadMm + shape.postMm, 0, Math.max(...shape.towers.map((t) => t.heightMm)), drawOnly(shape))];
       case 'station': {

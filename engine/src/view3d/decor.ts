@@ -226,11 +226,20 @@ function drawArch(arch: DecorArch, f: ShapeFrame, pen: Pen): void {
     return base + archRise - (radius - Math.sqrt(Math.max(0, radius * radius - d * d)));
   };
   const band = Math.max(1, depthMm - f.plankMm);
+  // A panel is filled to a flat top; a bridge's arch is a band under its road.
+  const fill = arch.fillToMm === undefined ? null : f.floorMm + arch.fillToMm;
   const steps = 24;
   const at = (a: number, side: 1 | -1, z: number) => f.at(a - fromMm, half * side, z);
+  if (fill !== null) {
+    for (const a of [fromMm, toMm]) {
+      pen.quad(at(a, 1, base), at(a, -1, base), at(a, -1, fill), at(a, 1, fill));
+      for (const side of [1, -1] as const) pen.edge(at(a, side, base), at(a, side, fill));
+    }
+  }
   for (let i = 0; i < steps; i++) {
     const a0 = fromMm + (chord * i) / steps, a1 = fromMm + (chord * (i + 1)) / steps;
-    const lo0 = under(a0), lo1 = under(a1), hi0 = lo0 + band, hi1 = lo1 + band;
+    const lo0 = under(a0), lo1 = under(a1);
+    const hi0 = fill ?? lo0 + band, hi1 = fill ?? lo1 + band;
     pen.quad(at(a0, 1, lo0), at(a1, 1, lo1), at(a1, -1, lo1), at(a0, -1, lo0));
     pen.quad(at(a0, 1, hi0), at(a0, -1, hi0), at(a1, -1, hi1), at(a1, 1, hi1));
     for (const side of [1, -1] as const) {
