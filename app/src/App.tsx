@@ -86,7 +86,8 @@ import { previews } from './previewGeometry.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
 import { JoinStart, VerdictLine, VerdictScope, type BridgeNote } from './VerdictLine.js';
 import { markLists } from './markLists.js';
-import { EMPTY_GRAPH, ghostFit, joinRefusal, otherLevelEndNear, shiftMm, snapRunMove, swapsOf, woodOf, type JoinRefusal } from './layoutModel.js';
+import { EMPTY_GRAPH, familyOf, ghostFit, joinRefusal, otherLevelEndNear, shiftMm, snapRunMove, swapPiece, swapsOf, woodOf, type JoinRefusal } from './layoutModel.js';
+import { LIST_FROM, VersionList, type VersionRow } from './VersionList.js';
 import { ghostKeys } from './ghostKeys.js';
 import { InventoryPanel } from './Inventory.js';
 import { TablePanel } from './TablePanel.js';
@@ -1249,12 +1250,29 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         <button onClick={() => moveRunBy(selected, 0, 0, 1)}>Rotate run (R)</button>
         {/* A one-sided decorated piece: its decoration to the other side, ends unchanged (design 5A). */}
         {selectedFlip && <button onClick={() => dispatch({ kind: 'flipPiece', pieceId: selected })}>{selectedFlip.label} (F)</button>}
-        {/* Dressed or plain, the joints kept (design 3A): one button per version. */}
-        {selectedSwaps.map((p) => (
-          <button key={p.id} onClick={() => dispatch({ kind: 'swapPiece', pieceId: selected, partId: p.id })}>
-            {p.decoratedFrom === undefined ? 'Make it plain' : `Make it a ${p.name}`}
-          </button>
-        ))}
+        {/* Dressed or plain, the joints kept (design 3A): one button per version, or from three the list (D4). */}
+        {selectedSwaps.length >= LIST_FROM && selectedPart ? (
+          <VersionList
+            key={selected}
+            closeOn={graph}
+            rowsOf={(): VersionRow[] =>
+              familyOf(selectedPart, library, resolve).map((p) => ({
+                partId: p.id,
+                name: p.name,
+                now: p.id === selectedPart.id,
+                // The same check the swap runs (D5), once per row as the list opens.
+                blocked: p.id === selectedPart.id ? null : swapPiece(graph, ports, selected, p.id, { resolve, placed: { graph, placement, render } }).refused,
+              }))
+            }
+            onPick={(partId) => dispatch({ kind: 'swapPiece', pieceId: selected, partId })}
+          />
+        ) : (
+          selectedSwaps.map((p) => (
+            <button key={p.id} onClick={() => dispatch({ kind: 'swapPiece', pieceId: selected, partId: p.id })}>
+              {p.decoratedFrom === undefined ? 'Make it plain' : `Make it a ${p.name}`}
+            </button>
+          ))
+        )}
         <button onClick={() => removePiece(selected)}>Remove piece</button>
       </div>
     ) : null;

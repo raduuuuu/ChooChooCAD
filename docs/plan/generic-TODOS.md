@@ -882,7 +882,9 @@ Measurement and method: `.gstack/qa-reports/20261020T163029Z-split-cursor/`.
 **Priority:** P2
 **Depends on:** the reach measurement
 
-## P3 — A short list when a piece has three or more versions (filed in decorated-pieces T6, 2026-11-04)
+## DONE — A short list when a piece has three or more versions (P3, filed in decorated-pieces T6, 2026-11-04; built 2026-11-07)
+
+**Built 2026-11-07** with the metro tunnel and station, which gave the long straight (D) its third version: `app/src/VersionList.tsx`, tested by `app/src/versionList.dom.test.tsx`; the tripwire is retired.
 
 **What:** Design 3A says a piece with three or more versions to swap to shows a short list instead of one "Make it a <name>" button each. Today the strip shows one button per version.
 
