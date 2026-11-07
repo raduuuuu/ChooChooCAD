@@ -136,18 +136,23 @@ const sign = (x: number, y: number, out: 1 | -1, centreMm: number, diameterMm: n
 ];
 
 /*
- * The station's shell, seen along the track: a circle of 49 round (-87, 57)
- * from its front edge, 95 up, over the top and down to the back (-136), on
- * a back wall to the floor.
+ * The station's shell, seen along the track: the round ends' circle, just
+ * inside them (52 round (-82, 53)), from its front edge where the ends are
+ * cut flat, 41 from the track's centre and 85 up, over the top and down to
+ * the back (-134), on a back wall to the floor. From above it covers the
+ * platform (the top view: owner, 2026-11-07, "the top doesn't look quite
+ * right" when it stopped at 56 from the track).
  */
-const SHELL = { across: -87, z: 57, r: 49 } as const;
+const SHELL = { across: -82, z: 53, r: 52, front: -41 } as const;
 const arc = (r: number, fromDeg: number, toDeg: number, steps: number): [number, number][] =>
   Array.from({ length: steps + 1 }, (_, i) => {
     const a = ((fromDeg + ((toDeg - fromDeg) * i) / steps) * Math.PI) / 180;
     return [SHELL.across + r * Math.cos(a), SHELL.z + r * Math.sin(a)];
   });
-/** Where the roof's front edge is: 95 up on the circle. */
-const FRONT_DEG = (Math.asin((95 - SHELL.z) / SHELL.r) * 180) / Math.PI;
+/** Where the roof's front edge is: on the circle over the round ends' flat cut. */
+const FRONT_DEG = (Math.acos((SHELL.front - SHELL.across) / SHELL.r) * 180) / Math.PI;
+/** The front edge's height: 85. */
+const FRONT_Z = SHELL.z + SHELL.r * Math.sin((FRONT_DEG * Math.PI) / 180);
 /** Along the station inside its round ends (each 15 thick, flush with the portals' outer faces). */
 const END = 15;
 const HALL_FROM = PORTAL_FROM + END;
@@ -173,10 +178,10 @@ const roofSign = (x: number, y: number, z: number, diameterMm: number): DecorWhe
 ];
 /*
  * The opening in the roof's top over the doors (the top view): a raised
- * dark frame 70 along and 28 deep at the roof's front edge, round two slots
- * split by a bar along it.
+ * dark frame 70 along and 28 deep on the roof's front edge, a little over
+ * it, round two slots split by a bar along it.
  */
-const ROOF_SLOTS = { along: 70, from: -80, to: -52, top: 107 } as const;
+const ROOF_SLOTS = { along: 70, from: -66, to: -38, top: 104 } as const;
 const shell = (r: number, fromDeg: number, x: number, l: number, thickMm: number, paint: Paint, noun: string): DecorCanopy =>
   ({ kind: 'canopy', alongMm: x, lengthMm: l, sectionMm: arc(r, fromDeg, 180, 12), thickMm, lipMm: 0, noun, paint });
 
@@ -244,8 +249,8 @@ export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
   /*
    * THE METRO TUNNEL: the long straight under a red tube 66 wide and 72
    * tall (walls 3 thick, straight to 39, then round), its ribs every 23.9,
-   * between the two portals; in its middle a raised collar 38 round a hole
-   * 30 across in its roof, and an M sign 22 across standing 6 proud on each
+   * between the two portals; in its middle a raised collar 38 round a dark
+   * hole 30 across in its roof, and an M sign 22 across standing 6 proud on each
    * side (from above they read as two stubs).
    */
   {
@@ -255,6 +260,8 @@ export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
       { kind: 'vault', atMm: [108, 0], lengthMm: INNER_LEN, widthMm: 66, wallMm: 3, springMm: 39, topMm: 72, noun: 'tunnel', paint: RED,
         joints: { ringsMm: Array.from({ length: 6 }, (_, k) => ((k + 1) * INNER_LEN) / 7), wallMm: [], archDeg: [] } },
       { kind: 'wheel', axis: 'up', atMm: [108, 0], centreMm: 71, diameterMm: 38, thickMm: 8, ringsMm: [30], noun: 'tunnel', paint: RED },
+      // The hole itself, dark, just over the collar's top.
+      { kind: 'wheel', axis: 'up', atMm: [108, 0], centreMm: 75.2, diameterMm: 30, thickMm: 0.4, noun: 'tunnel', paint: SHADOW },
       ...sign(108, 33, 1, 32, 22, 'sign', 6),
       ...sign(108, -33, -1, 32, 22, 'sign', 6),
     ],
@@ -267,11 +274,12 @@ export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
   /*
    * THE METRO STATION: the long straight between the portals, and on its
    * right the station: round beech ends 15 thick (a hole 27 bored through,
-   * chamfered to 51), the dark shell from its front edge at 95 over to the
+   * chamfered to 51), the dark shell from its front edge at 85 over to the
    * back wall, the red band under that edge and the M sign over it, the
    * white platform 22 high with its red edge, and on the back wall inside
    * two posters, the double doors and two benches; outside, the doors again
-   * and the red knob that slides them, low on the back, two M signs near
+   * curving up over the roof to its frame, and the red knob that slides
+   * them, low on the back, two M signs near
    * the top of the back, and the opening in the roof's top over the doors.
    * The doors' windows are not drawn. F puts it on the left.
    */
@@ -281,34 +289,35 @@ export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
       ...portals,
       ...roundEnd(PORTAL_FROM + END / 2),
       ...roundEnd(216 - PORTAL_FROM - END / 2),
-      flat(108, -133, HALL_LEN, 6, 0, SHELL.z, 'station', METRO),
+      flat(108, -131, HALL_LEN, 6, 0, SHELL.z, 'station', METRO),
       shell(SHELL.r, FRONT_DEG, 108, HALL_LEN, 6, METRO, 'roof'),
-      flat(108, SHELL.across + SHELL.r * Math.cos((FRONT_DEG * Math.PI) / 180) - 1.5, HALL_LEN, 3, 86, 95, 'roof', RED, false),
-      ...sign(108, SHELL.across + SHELL.r * Math.cos((FRONT_DEG * Math.PI) / 180), 1, 102, 16, 'sign'),
-      flat(108, -77, INNER_LEN, 106, 0, 22, 'platform', WHITE),
+      flat(108, SHELL.front - 1.5, HALL_LEN, 3, FRONT_Z - 8, FRONT_Z, 'roof', RED, false),
+      ...sign(108, SHELL.front, 1, FRONT_Z + 8, 16, 'sign'),
+      flat(108, -76, INNER_LEN, 104, 0, 22, 'platform', WHITE),
       flat(108, -27.5, INNER_LEN, 2, 22, 22.4, 'platform', RED, false),
       // Inside, on the back wall: posters, the doors, benches with their backs.
-      flat(48.5, -129.5, 32, 1, 54, 78, 'poster', WHITE, false),
-      flat(148.5, -129.5, 32, 1, 54, 78, 'poster', WHITE, false),
-      flat((DOORS.from + 104) / 2, -129.25, 104 - DOORS.from - 0.5, 1.5, 24, 72, 'doors', RED, false),
-      flat((104 + DOORS.to) / 2, -129.25, DOORS.to - 104 - 0.5, 1.5, 24, 72, 'doors', RED, false),
-      ...[47, 160].flatMap((x) => [flat(x, -123, 45, 10, 33, 39, 'bench', RED, false), flat(x, -128.5, 45, 2, 39, 50, 'bench', RED, false)]),
+      flat(48.5, -127.5, 32, 1, 54, 78, 'poster', WHITE, false),
+      flat(148.5, -127.5, 32, 1, 54, 78, 'poster', WHITE, false),
+      flat((DOORS.from + 104) / 2, -127.25, 104 - DOORS.from - 0.5, 1.5, 24, 72, 'doors', RED, false),
+      flat((104 + DOORS.to) / 2, -127.25, DOORS.to - 104 - 0.5, 1.5, 24, 72, 'doors', RED, false),
+      ...[47, 160].flatMap((x) => [flat(x, -121, 45, 10, 33, 39, 'bench', RED, false), flat(x, -126.5, 45, 2, 39, 50, 'bench', RED, false)]),
       // Outside: the doors on the wall and up the curve, and the knob.
-      flat((DOORS.from + DOORS.to) / 2, -136.75, DOORS.to - DOORS.from, 1.5, 20, SHELL.z, 'doors', RED, false),
-      shell(SHELL.r + 0.8, 100, (DOORS.from + DOORS.to) / 2, DOORS.to - DOORS.from, 1, RED, 'doors'),
-      { kind: 'wheel', atMm: [108, -138], centreMm: 12, diameterMm: 10, thickMm: 4, noun: 'knob', paint: RED },
+      flat((DOORS.from + DOORS.to) / 2, -134.75, DOORS.to - DOORS.from, 1.5, 20, SHELL.z, 'doors', RED, false),
+      // A curved sliding panel: from the roof frame's back edge, over the top, down to the wall.
+      shell(SHELL.r + 0.8, (Math.acos((ROOF_SLOTS.from - SHELL.across) / SHELL.r) * 180) / Math.PI, (DOORS.from + DOORS.to) / 2, DOORS.to - DOORS.from, 1, RED, 'doors'),
+      { kind: 'wheel', atMm: [108, -137], centreMm: 12, diameterMm: 10, thickMm: 4, noun: 'knob', paint: RED },
       // Outside, near the top of the barrel's back: two M signs, 22 across.
-      ...roofSign(44, -96, 103, 22),
-      ...roofSign(168, -96, 103, 22),
+      ...roofSign(44, -96, 101, 22),
+      ...roofSign(168, -96, 101, 22),
       // The opening in the roof's top, its frame and its two dark slots.
-      flat(108, (ROOF_SLOTS.from + ROOF_SLOTS.to) / 2, ROOF_SLOTS.along, ROOF_SLOTS.to - ROOF_SLOTS.from, 95, ROOF_SLOTS.top, 'roof', METRO, false),
-      flat(108, -72, ROOF_SLOTS.along - 8, 10, ROOF_SLOTS.top - 3, ROOF_SLOTS.top + 0.2, 'roof', SHADOW, false),
-      flat(108, -60, ROOF_SLOTS.along - 8, 10, ROOF_SLOTS.top - 3, ROOF_SLOTS.top + 0.2, 'roof', SHADOW, false),
+      flat(108, (ROOF_SLOTS.from + ROOF_SLOTS.to) / 2, ROOF_SLOTS.along, ROOF_SLOTS.to - ROOF_SLOTS.from, FRONT_Z - 1, ROOF_SLOTS.top, 'roof', METRO, false),
+      flat(108, -58, ROOF_SLOTS.along - 8, 10, ROOF_SLOTS.top - 3, ROOF_SLOTS.top + 0.2, 'roof', SHADOW, false),
+      flat(108, -46, ROOF_SLOTS.along - 8, 10, ROOF_SLOTS.top - 3, ROOF_SLOTS.top + 0.2, 'roof', SHADOW, false),
     ],
     dimensions: {
       status: 'unverified',
       source: "the owner's photos of a real one, 2026-11-07: lengths and widths read off the top view with each edge's height allowed for, the cross-section off the end-on photo scaled by the portal, the inside off the front photo",
-      note: 'A long straight between two portals 80 wide and 80 tall, 203 apart outside; on its right a station 203 long: round beech ends (a circle of 49 round 57 up over straight sides), a dark roof from its front edge at 95 to a back wall 136 across, a platform 22 high, posters, doors and benches inside. Heights within about 5mm, the inside within about 10; a ruler would settle them.',
+      note: 'A long straight between two portals 80 wide and 80 tall, 203 apart outside; on its right a station 203 long: round beech ends (a circle of 49 round 57 up over straight sides), a dark roof following the round ends from their flat cut (85 up) to a back wall 134 across, a platform 22 high, posters, doors and benches inside. Heights within about 5mm, the inside within about 10; a ruler would settle them.',
     },
   },
 ];
