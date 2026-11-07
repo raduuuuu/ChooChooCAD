@@ -110,14 +110,17 @@ describe('the metro station from above (owner, 2026-11-07)', () => {
   /*
    * MUTATION PROOFS, run:
    * - the two slots left out: `expected [] to deeply equal [ [ 108, -72, true ], …(1) ]`.
-   * - the outer signs left out: `expected [] to deeply equal [ [ 44, -96, 22 ], [ 168, -96, 22 ] ]`.
+   * - the outer signs left out: `expected [] to deeply equal [ [ 44, 'across', 58, 22 ], …(1) ]`.
+   * - a sign laid on the roof's top again: `expected [ { kind: 'wheel', axis: 'up', …(6) } ] to deeply equal []`.
    */
-  it('has the opening in its roof over the doors, two dark slots in a frame, and an M sign lying near the top of the back on each side of it', () => {
+  it('has the opening in its roof over the doors, two dark slots in a frame, and an M sign upright on the back on each side of the doors', () => {
     const decor = decorOf('MS');
     const slots = decor.filter((d) => d.kind === 'slab' && d.paint?.fill === '--ink');
     expect(slots.map((d) => (d.kind === 'slab' ? [d.atMm[0], d.atMm[1], d.topMm > 103] : null))).toEqual([[108, -58, true], [108, -46, true]]);
-    const outside = wheels('MS').filter((w) => w.axis === 'up' && w.paint?.fill === '--paint-red');
-    expect(outside.map((w) => [w.atMm[0], w.atMm[1], w.diameterMm])).toEqual([[44, -96, 22], [168, -96, 22]]);
+    const outside = wheels('MS').filter((w) => w.noun === 'sign' && w.paint?.fill === '--paint-red' && w.atMm[1] < -130);
+    expect(outside.map((w) => [w.atMm[0], w.axis ?? 'across', w.centreMm, w.diameterMm])).toEqual([[44, 'across', 58, 22], [168, 'across', 58, 22]]);
+    // Nothing lies on the roof's top (owner, 2026-11-07).
+    expect(wheels('MS').filter((w) => w.axis === 'up')).toEqual([]);
   });
 });
 

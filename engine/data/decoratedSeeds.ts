@@ -171,11 +171,6 @@ const roundEnd = (x: number): DecorShape[] => [
   { kind: 'wheel', axis: 'along', atMm: [x, DISC.across], centreMm: DISC.r, diameterMm: 2 * DISC.r, thickMm: END, chordMm: DISC.cut - DISC.across, ringsMm: [27, 51], noun: 'station', paint: BEECH },
   { kind: 'slab', atMm: [x, (DISC.outer + DISC.cut) / 2], lengthMm: END, widthMm: DISC.cut - DISC.outer, bottomMm: 0, topMm: 2 * DISC.r, drawn: false, noun: 'station', paint: BEECH },
 ];
-/** An M sign lying near the top of the barrel, where the roof is all but flat: a red disc with a white face, its bottom at `z`. */
-const roofSign = (x: number, y: number, z: number, diameterMm: number): DecorWheel[] => [
-  { kind: 'wheel', axis: 'up', atMm: [x, y], centreMm: z + 2, diameterMm, thickMm: 4, noun: 'sign', paint: RED },
-  { kind: 'wheel', axis: 'up', atMm: [x, y], centreMm: z + 4.5, diameterMm: diameterMm * 0.7, thickMm: 1, noun: 'sign', paint: WHITE },
-];
 /*
  * The opening in the roof's top over the doors (the top view): a raised
  * dark frame 70 along and 28 deep on the roof's front edge, a little over
@@ -287,8 +282,8 @@ export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
    * white platform 22 high with its red edge, and on the back wall inside
    * two posters, the double doors and two benches; outside, the doors again
    * curving up over the roof to its frame, and the red knob that slides
-   * them, low on the back, two M signs near
-   * the top of the back, and the opening in the roof's top over the doors.
+   * them, low on the back, two M signs on
+   * the back, and the opening in the roof's top over the doors.
    * The doors have a window in each leaf, inside and out. F puts it on the left.
    */
   {
@@ -319,9 +314,9 @@ export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
         flat(x, -126.3, WINDOW.width, 0.4, WINDOW.bottom, WINDOW.top, 'window', WHITE, false),
         shell(SHELL.r + 1.4, WINDOW.fromDeg, x, WINDOW.width, 0.6, WHITE, 'window', WINDOW.toDeg),
       ]),
-      // Outside, near the top of the barrel's back: two M signs, 22 across.
-      ...roofSign(44, -96, 101, 22),
-      ...roofSign(168, -96, 101, 22),
+      // Outside on the back, either side of the doors: two M signs, 22 across, upright on the back wall (owner: not on the roof's top).
+      ...sign(44, -134, -1, 58, 22, 'sign', 1.5),
+      ...sign(168, -134, -1, 58, 22, 'sign', 1.5),
       // The opening in the roof's top, its frame and its two dark slots.
       flat(108, (ROOF_SLOTS.from + ROOF_SLOTS.to) / 2, ROOF_SLOTS.along, ROOF_SLOTS.to - ROOF_SLOTS.from, FRONT_Z - 1, ROOF_SLOTS.top, 'roof', METRO, false),
       flat(108, -58, ROOF_SLOTS.along - 8, 10, ROOF_SLOTS.top - 3, ROOF_SLOTS.top + 0.2, 'roof', SHADOW, false),
