@@ -141,12 +141,14 @@ function isHeading(v: unknown): v is number {
 }
 
 /**
- * A level this engine could have written: absent (the floor) or 1, the raised
- * level (two-layer plan, decision I1). The saver never writes 0 (SC1). Any
- * other value is dropped with its anchor, like an out-of-range heading.
+ * A level this engine could have written: absent (the floor), 1, the raised
+ * level (two-layer plan, decision I1), or 2: a piece split off a third level,
+ * two ramps up, which the engine flags but still writes (owner, 2026-11-07:
+ * accept 2 only). The saver never writes 0 (SC1). Any other value is dropped
+ * with its anchor, like an out-of-range heading.
  */
 function isAnchorLevel(v: unknown): v is number | undefined {
-  return v === undefined || v === 1;
+  return v === undefined || v === 1 || v === 2;
 }
 
 /** Copy the refused bytes aside, untouched. Never throws; losing the rescue is not worth losing the session. */

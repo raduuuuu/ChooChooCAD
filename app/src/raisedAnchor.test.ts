@@ -93,6 +93,21 @@ describe('a raised run stays raised', () => {
   });
 
   /*
+   * MUTATION PROOF, run: `isAnchorLevel` accepting 1 only again: fails with
+   * `expected 1 to be +0` (the level-2 anchor was dropped).
+   */
+  it('a piece split off a third level keeps level 2 through a save and a reload (owner, 2026-11-07)', () => {
+    const blob = {
+      pieces: [{ pieceId: 'u', partId: 'A', turn: 'left' }],
+      welds: [],
+      anchors: [['u', { pos: [0, 0, 0, 0, 0, 0, 0, 0], heading: 0, level: 2 }]],
+    };
+    const r = withStore({ [GRAPH_STORAGE_KEY]: JSON.stringify(blob) }, () => loadGraph(KNOWN, ports));
+    expect(r.droppedAnchors).toBe(0);
+    expect(levelOf(placeAll(r.value, ports).frames.get('u')!)).toBe(2);
+  });
+
+  /*
    * MUTATION PROOF, run: `isAnchorLevel` returning true for any number: fails
    * with `expected +0 to be 1` (the level-7 anchor was kept).
    */
