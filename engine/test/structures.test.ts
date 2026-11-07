@@ -136,8 +136,8 @@ describe("a station's height (C4 B)", () => {
     expect(levelOf(p.frames.get('st')!)).toBe(0);
     const r = renderGraph(g, ports, resolve, p);
     expect(r.segments.filter((s) => s.pieceId === 'st').map((s) => s.level)).toEqual([1]);
-    // The base: its solid middle and its two ends past the deck.
-    expect(r.bodies.filter((s) => s.decor?.noun === 'base').map((s) => s.level ?? 0)).toEqual([0, 0, 0]);
+    // The base: its solid middle, its two ends past the deck, and its printed top.
+    expect(r.bodies.filter((s) => s.decor?.noun === 'base').map((s) => s.level ?? 0)).toEqual([0, 0, 0, 0]);
   });
 
   it('joined straight onto floor track: that run rises, as a descending ramp raises a floor loop (OV1)', () => {

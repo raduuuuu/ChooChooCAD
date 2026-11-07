@@ -24,7 +24,7 @@ import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Graph, type Piece } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
 import { buildScene } from '../../engine/src/view3d/mesh.js';
-import { boxOf, disposeChildren, FOV_DEG, framePose, startPose, syncScene, type SceneColors } from './Viewer3D.js';
+import { boxOf, disposeChildren, FOV_DEG, framePose, HALO_OFFSET, startPose, syncScene, type SceneColors } from './Viewer3D.js';
 
 const resolve = makeResolver(BUILT_IN);
 const ports = (p: Piece) => portsOf(resolve(p.partId), p.turn);
@@ -304,6 +304,31 @@ describe('the Elevated station painted in 3D (paint plan 2026-11-07: CEO R2/R5/O
     syncScene(build, stationArrays({ buildMode: true, highlight: 'st' }), PAINTED);
     // The next building's outline (order 4); the next track's own outline sits on beech and keeps plain ink.
     expect(linesOf(build).filter((h) => h.material.color.getHex() === paperHex && h.material.linewidth === 7 && h.renderOrder === 3)).toHaveLength(1);
+  });
+
+  type Offset = { polygonOffset: boolean; polygonOffsetFactor: number; polygonOffsetUnits: number };
+  const offsetOf = (l: Lined) => {
+    const m = l.material as unknown as Offset;
+    return [m.polygonOffset, m.polygonOffsetFactor, m.polygonOffsetUnits];
+  };
+  /*
+   * MUTATION PROOF, run: the offset dropped from `haloed`: `expected [ [
+   * false, +0, +0 ] ] to deeply equal [ [ true, -4, -4 ] ]`.
+   */
+  it('a depth-tested halo and its line are pulled toward the eye, so a curved roof cannot cut them into dashes; one drawn over everything is not', () => {
+    const build = new Group();
+    syncScene(build, stationArrays({ buildMode: true, highlight: 'st' }), PAINTED);
+    const halo = linesOf(build).filter((l) => l.renderOrder === 3 && l.material.linewidth === 7);
+    expect(halo.map(offsetOf)).toEqual([[true, HALO_OFFSET, HALO_OFFSET]]);
+    // Its ink line goes with it; the next track's own outline, with no halo, stays where it is.
+    const ink = linesOf(build).filter((l) => l.renderOrder === 4 && l.material.linewidth === 3 && l.material.color.getHex() === new Color(C.ink).getHex());
+    expect(ink.map(offsetOf).sort()).toEqual([[false, 0, 0], [true, HALO_OFFSET, HALO_OFFSET]]);
+    const selected = new Group();
+    syncScene(selected, stationArrays({ selected: 'st' }), PAINTED);
+    // The selection is drawn over everything already: nothing to pull forward.
+    const over = linesOf(selected).filter((l) => l.renderOrder === 7 || l.renderOrder === 8);
+    expect(over.length).toBeGreaterThan(1);
+    expect(over.map(offsetOf)).toEqual(over.map(() => [false, 0, 0]));
   });
 
   /*

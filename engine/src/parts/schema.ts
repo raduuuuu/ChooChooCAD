@@ -416,6 +416,25 @@ export interface DecorArch {
 }
 
 /**
+ * A WHEEL ON A FACE (elevated station's crank, owner's back photo
+ * 2026-11-07): a disc standing upright with its face along the piece,
+ * `diameterMm` across, its centre `atMm` (along, across) and `centreMm`
+ * above the floor, `thickMm` deep across the piece. Its hub, and the knob
+ * `knobMm` below the hub, are detail. Drawn only: a toy's moving part never
+ * blocks track.
+ */
+export interface DecorWheel {
+  readonly kind: 'wheel';
+  readonly atMm: readonly [number, number];
+  readonly centreMm: number;
+  readonly diameterMm: number;
+  readonly thickMm: number;
+  readonly knobMm?: number;
+  readonly noun?: string;
+  readonly paint?: Paint;
+}
+
+/**
  * A SUSPENSION BRIDGE'S TOWERS AND CABLES (bridges plan B-T6; eng D6): each
  * tower two square posts `postMm` across, `spreadMm` either side of the
  * road's middle, standing at `atMm` along the piece to `heightMm` above the
@@ -520,9 +539,9 @@ export interface DecorCanopy {
   readonly paint?: Paint;
 }
 
-export type DecorShape = DecorSlab | DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation | DecorBarrier | DecorCanopy;
+export type DecorShape = DecorSlab | DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation | DecorBarrier | DecorCanopy | DecorWheel;
 /** A shape with its own drawing, which one decoration box carries (eng D10). */
-export type DrawnShape = DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation | DecorBarrier | DecorCanopy;
+export type DrawnShape = DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation | DecorBarrier | DecorCanopy | DecorWheel;
 
 /** A derived decoration box: a body box at whole levels, carrying the shape's real heights for drawing. */
 export interface DecorBox extends BodyBox {

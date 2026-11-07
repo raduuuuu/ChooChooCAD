@@ -12,7 +12,7 @@
  */
 
 import type { Segment } from '../geom/fk.js';
-import type { DecorArch, DecorBarrier, DecorCanopy, DecorStation, DecorTowers, DecorTruss, DecorVault, DrawnShape, Part } from '../parts/schema.js';
+import type { DecorArch, DecorBarrier, DecorCanopy, DecorStation, DecorTowers, DecorTruss, DecorVault, DecorWheel, DrawnShape, Part } from '../parts/schema.js';
 
 /** A truss arch's chords in 3D: this deep, and twice this across. */
 export const TRUSS_CHORD_MM = 4;
@@ -112,6 +112,8 @@ export function drawShape(shape: DrawnShape, f: ShapeFrame, pen: Pen): void {
       return drawBarrier(shape, f, pen);
     case 'canopy':
       return drawCanopy(shape, f, pen);
+    case 'wheel':
+      return drawWheel(shape, f, pen);
   }
 }
 
@@ -540,4 +542,54 @@ function drawCanopy(c: DecorCanopy, f: ShapeFrame, pen: Pen): void {
   }
   for (const p of [...top, ...under]) for (const a of [0, len]) pen.grow(P(a, ...p));
   for (const a of [0, len]) pen.grow(P(a, y0, lipBottom));
+}
+
+/** A wheel's rim, in straight sides; its hub's and knob's rings. */
+export const WHEEL_SIDES = 32;
+const RING_SIDES = 12;
+
+/**
+ * A WHEEL ON A FACE (the elevated station's crank): a disc in its box's
+ * middle, its two faces and its rim, each quad turned to face away from the
+ * disc's centre; the rim's two rings are its silhouette, the hub and the
+ * knob a ring of detail each on both faces.
+ *
+ *        _---_        along ->, height ^; the disc stands across the piece
+ *      /   o   \      o  the hub, at the centre
+ *     |    .    |     .  the knob, `knobMm` under the hub
+ *      \       /
+ *        ---
+ */
+function drawWheel(w: DecorWheel, f: ShapeFrame, pen: Pen): void {
+  const r = w.diameterMm / 2, half = w.thickMm / 2, zc = f.floorMm + w.centreMm, ac = f.lengthMm / 2;
+  const ring = (radius: number, below: number, sides: number) =>
+    Array.from({ length: sides }, (_, i) => {
+      const th = (2 * Math.PI * i) / sides;
+      return [ac + radius * Math.cos(th), zc - below + radius * Math.sin(th)] as const;
+    });
+  const centre = f.at(ac, 0, zc);
+  const out = (a: P3, b: P3, c: P3, d: P3) => {
+    // The quad's normal against the way from the centre to its middle: turned round when they disagree.
+    const n = [(b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]), (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]), (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])];
+    const m = [0, 1, 2].map((k) => (a[k]! + c[k]!) / 2 - centre[k]!);
+    if (n[0]! * m[0]! + n[1]! * m[1]! + n[2]! * m[2]! >= 0) pen.quad(a, b, c, d);
+    else pen.quad(d, c, b, a);
+  };
+  const rim = ring(r, 0, WHEEL_SIDES);
+  for (let i = 0; i < rim.length; i++) {
+    const [a0, z0] = rim[i]!, [a1, z1] = rim[(i + 1) % rim.length]!;
+    out(f.at(a0, half, z0), f.at(a1, half, z1), f.at(a1, -half, z1), f.at(a0, -half, z0));
+    for (const side of [half, -half]) {
+      const hub = f.at(ac, side, zc);
+      out(hub, f.at(a0, side, z0), f.at(a1, side, z1), f.at(a1, side, z1));
+      pen.edge(f.at(a0, side, z0), f.at(a1, side, z1));
+      pen.grow(f.at(a0, side, z0));
+    }
+  }
+  const details = [ring(r / 8, 0, RING_SIDES), ...(w.knobMm === undefined ? [] : [ring(r / 8, w.knobMm, RING_SIDES)])];
+  for (const d of details) {
+    for (const side of [half, -half]) {
+      for (let i = 0; i < d.length; i++) pen.detail(f.at(d[i]![0], side, d[i]![1]), f.at(d[(i + 1) % d.length]![0], side, d[(i + 1) % d.length]![1]));
+    }
+  }
 }
