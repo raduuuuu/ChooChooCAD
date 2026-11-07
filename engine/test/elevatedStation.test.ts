@@ -91,26 +91,30 @@ describe('a curved roof collides where it is', () => {
    * `expected 176 to be 158 // Object.is equality`.
    */
   it('stretch by stretch: high over the deck at levels 2 and 3, down into level 1 only near its far eave', () => {
-    // Two sections, one either side of the lift shaft, each ten stretches.
-    const solid = roof.filter((b) => b.solid);
-    expect(solid).toHaveLength(20);
+    // Two sections, one either side of the lift shaft, each ten stretches; over the shaft, the front three.
+    const solid = roof.filter((b) => b.solid && b.shape === undefined && b.noun === 'roof' && b.role === 'roof');
+    expect(solid).toHaveLength(23);
     expect(solid[0]!.bottomMm).toBe(183 - 7 - 18);
     const levels = [[2, 3], [2, 3], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [1, 2], [1, 1]];
-    expect(solid.map((b) => b.levels)).toEqual([...levels, ...levels]);
+    expect(solid.map((b) => b.levels)).toEqual([...levels, ...levels, ...levels.slice(0, 3)]);
     // One more box each draws it, and never collides.
-    expect(roof.filter((b) => !b.solid).map((b) => [b.draw, b.bottomMm, b.topMm])).toEqual([[true, 90, 184.5], [true, 90, 184.5]]);
+    expect(roof.filter((b) => !b.solid).map((b) => [b.draw, b.bottomMm, b.topMm])).toEqual([[true, 90, 184.5], [true, 90, 184.5], [true, 158, 184.5]]);
   });
 
   /*
    * MUTATION PROOFS, run:
-   * - the roof whole again (one canopy 204 long over the shaft): `expected [
-   *   [ -30, 174 ] ] to deeply equal [ [ -30, 39.5 ], [ 104.5, 174 ] ]`.
+   * - the front strip over the shaft running the whole section (open at
+   *   the back no more): `expected [ -16, -129 ] to deeply equal [ -16, -63 ]`.
    * - the car back down at 44 to 104: `expected [ 44, 104 ] to deeply equal
    *   [ 63, 147 ]`.
    */
-  it('leaves the lift shaft open between its two sections, the car up at the platform (owner, 2026-11-07)', () => {
-    const spans = roof.filter((b) => !b.solid).map((b) => [b.atMm[0] - b.lengthMm / 2, b.atMm[0] + b.lengthMm / 2]);
-    expect(spans).toEqual([[-30, 39.5], [104.5, 174]]);
+  it('leaves the lift shaft open at the back only, the car up at the platform (owner, 2026-11-07)', () => {
+    const drawn = roof.filter((b) => !b.solid);
+    const spans = drawn.map((b) => [b.atMm[0] - b.lengthMm / 2, b.atMm[0] + b.lengthMm / 2]);
+    expect(spans).toEqual([[-30, 39.5], [104.5, 174], [39.5, 104.5]]);
+    // Over the shaft, the roof runs from its front edge back to the clock, no further.
+    const front = drawn[2]!;
+    expect([front.atMm[1] + front.widthMm / 2, front.atMm[1] - front.widthMm / 2]).toEqual([-16, -63]);
     const car = resolve('ST').decorBody!.find((b) => b.noun === 'lift')!;
     expect([car.bottomMm, car.topMm]).toEqual([63, 147]);
     expect([car.atMm[0] - car.lengthMm / 2, car.atMm[0] + car.lengthMm / 2]).toEqual([51.5, 92.5]);
@@ -182,15 +186,21 @@ describe('the roof in 3D', () => {
    * - the seams not drawn: `expected +0 to be 40 // Object.is equality`.
    * - the lip not drawn: `expected 176 to be close to 158, received
    *   difference is 18, but expected 5e-7`.
+   * - the panel over the shaft left out: `expected Infinity to be close to
+   *   142, received difference is Infinity, but expected 5e-7`.
    */
-  it('stands as measured: its top at 184.5, its lip down to 158 over the deck, its four seams as detail', () => {
+  it('stands as measured: its top at 184.5, its lip down to 158 over the deck, its four seams as detail; the panel over the shaft to 142', () => {
     const s = alone();
     expect(s.bounds.max[2]).toBeCloseTo(201, 6);
     const d = s.structures.detail;
     expect((d[0]?.positions.length ?? 0) / 6).toBe(40);
     const p = s.structures.solid.positions;
     let lip = Infinity;
-    for (let i = 0; i < p.length; i += 3) if (Math.abs(p[i + 1]! + 16) < 1e-6) lip = Math.min(lip, p[i + 2]!);
+    // Along the deck clear of the shaft, where the panel between the posts hangs lower.
+    for (let i = 0; i < p.length; i += 3) if (Math.abs(p[i + 1]! + 16) < 1e-6 && p[i]! < 30) lip = Math.min(lip, p[i + 2]!);
     expect(lip).toBeCloseTo(158, 6);
+    let panel = Infinity;
+    for (let i = 0; i < p.length; i += 3) if (Math.abs(p[i + 1]! + 16) < 1e-6 && p[i]! > 50 && p[i]! < 94) panel = Math.min(panel, p[i + 2]!);
+    expect(panel).toBeCloseTo(142, 6);
   });
 });
