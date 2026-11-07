@@ -9,7 +9,7 @@
  * The pieces themselves arrive one at a time (plan tasks T3-T5).
  */
 
-import type { DecorBarrier, DecorShape, DecorSlab, DimensionSource } from '../src/parts/schema.js';
+import type { DecorBarrier, DecorCanopy, DecorShape, DecorSlab, DecorVault, DecorWheel, DimensionSource, Paint } from '../src/parts/schema.js';
 
 export interface DecoratedSpec {
   readonly id: string;
@@ -80,6 +80,93 @@ const STONES = {
 const slab = (x: number, y: number, l: number, w: number, bottomMm: number, topMm: number, noun: string): DecorSlab =>
   ({ kind: 'slab', atMm: [x, y], lengthMm: l, widthMm: w, bottomMm, topMm, noun });
 
+
+/*
+ * THE METRO PIECES (owner's photos 2026-11-07: three of the tunnel and two
+ * of the station from above on millimetre paper, lying on their sides and
+ * end-on, and two of the station standing, end-on and from the front). Both
+ * are a long straight (D, 216) with a dark grey portal over each end, the
+ * same on both (owner): a round ring on square feet, 80 wide and 80 tall,
+ * its opening 62 across, 18 along the track, the two 203 apart outside.
+ *
+ *   seen along the track          tunnel: a red tube between the portals,
+ *     ___      ______             66 wide and 72 tall, ribbed, an M sign on
+ *    /   \    /  roof \           its side
+ *   | ( ) |  |  o      )         station: a building on the right, round
+ *   |_|=|_|  |__|______|         beech ends (a circle of 49 over straight
+ *   portal   platform  wall      sides, a hole bored through), a dark
+ *                                 barrel roof down to a back wall, a white
+ *   platform 22 high, posters, doors and benches on the back wall inside,
+ *   a red band and the M sign along the roof's front edge.
+ *
+ * READ, NOT MEASURED. Lengths and widths are the top views', each edge
+ * scaled for its height from a camera 756 above the paper (solved from the
+ * reference straight's top); the cross-sections are the end-on photos'
+ * proportions, scaled by the portal's width. Heights within about 5mm, the
+ * station's inside within about 10 (read across its depth).
+ */
+const RED: Paint = { fill: '--paint-red', line: '--ink' };
+const METRO: Paint = { fill: '--paint-metro', line: '--paper' };
+const WHITE: Paint = { fill: '--paper', line: '--ink' };
+const BEECH: Paint = { fill: '--track-fill', line: '--ink-soft' };
+/** The portals: their outer faces 203 apart, centred on the 216 track; each 18 along. */
+const PORTAL_FROM = 6.5;
+const PORTAL_LEN = 18;
+const portal = (x: number): DecorVault => ({ kind: 'vault', atMm: [x, 0], lengthMm: PORTAL_LEN, widthMm: 80, wallMm: 9, springMm: 40, topMm: 80, noun: 'portal', paint: METRO });
+/*
+ * Each portal's walls flare out at the floor to the track's end (the side
+ * photo): drawn as a foot under each wall, 25 tall, from the portal's outer
+ * face out to the end.
+ */
+const FOOT_TOP = 25;
+const feet = (outer: number, out: 1 | -1): DecorSlab[] =>
+  [1, -1].map((side) => ({ kind: 'slab', atMm: [outer + (out * PORTAL_FROM) / 2, side * 35.5], lengthMm: PORTAL_FROM, widthMm: 9, bottomMm: 0, topMm: FOOT_TOP, noun: 'portal', paint: METRO }));
+const portals = [portal(PORTAL_FROM + PORTAL_LEN / 2), portal(216 - PORTAL_FROM - PORTAL_LEN / 2), ...feet(PORTAL_FROM, -1), ...feet(216 - PORTAL_FROM, 1)];
+/** Between the portals. */
+const INNER_FROM = PORTAL_FROM + PORTAL_LEN;
+const INNER_LEN = 216 - 2 * INNER_FROM;
+const flat = (x: number, y: number, l: number, w: number, bottomMm: number, topMm: number, noun: string, paint: Paint, solid = true): DecorSlab =>
+  ({ kind: 'slab', atMm: [x, y], lengthMm: l, widthMm: w, bottomMm, topMm, noun, paint, ...(solid ? {} : { solid: false as const }) });
+/** An M sign: a red disc `proud` thick with a white face, facing across the piece from `y` (outward: `out` = +1 to the left, -1 to the right). */
+const sign = (x: number, y: number, out: 1 | -1, centreMm: number, diameterMm: number, noun: string, proud = 2): DecorWheel[] => [
+  { kind: 'wheel', atMm: [x, y + (out * proud) / 2], centreMm, diameterMm, thickMm: proud, noun, paint: RED },
+  { kind: 'wheel', atMm: [x, y + out * (proud + 0.5)], centreMm, diameterMm: diameterMm * 0.7, thickMm: 1, noun, paint: WHITE },
+];
+
+/*
+ * The station's shell, seen along the track: a circle of 49 round (-87, 57)
+ * from its front edge, 95 up, over the top and down to the back (-136), on
+ * a back wall to the floor.
+ */
+const SHELL = { across: -87, z: 57, r: 49 } as const;
+const arc = (r: number, fromDeg: number, toDeg: number, steps: number): [number, number][] =>
+  Array.from({ length: steps + 1 }, (_, i) => {
+    const a = ((fromDeg + ((toDeg - fromDeg) * i) / steps) * Math.PI) / 180;
+    return [SHELL.across + r * Math.cos(a), SHELL.z + r * Math.sin(a)];
+  });
+/** Where the roof's front edge is: 95 up on the circle. */
+const FRONT_DEG = (Math.asin((95 - SHELL.z) / SHELL.r) * 180) / Math.PI;
+/** Along the station inside its round ends (each 15 thick, flush with the portals' outer faces). */
+const END = 15;
+const HALL_FROM = PORTAL_FROM + END;
+const HALL_LEN = 216 - 2 * HALL_FROM;
+/** The doors, across the middle of the back wall. */
+const DOORS = { from: 77, to: 131 };
+/*
+ * Each round end (the end-on photo): a beech disc 106 across standing on the
+ * floor, its centre 82 to the right of the track's, cut flat 41 from the
+ * track's centre where the portal stands against it; a hole 27 bored through
+ * it, chamfered to 51. Drawn only, like every wheel; a box the disc's size,
+ * solid and not drawn, keeps the end in the clash check and in 2D.
+ */
+const DISC = { across: -82, r: 53, outer: -135, cut: -41 } as const;
+const roundEnd = (x: number): DecorShape[] => [
+  { kind: 'wheel', axis: 'along', atMm: [x, DISC.across], centreMm: DISC.r, diameterMm: 2 * DISC.r, thickMm: END, chordMm: DISC.cut - DISC.across, ringsMm: [27, 51], noun: 'station', paint: BEECH },
+  { kind: 'slab', atMm: [x, (DISC.outer + DISC.cut) / 2], lengthMm: END, widthMm: DISC.cut - DISC.outer, bottomMm: 0, topMm: 2 * DISC.r, drawn: false, noun: 'station', paint: BEECH },
+];
+const shell = (r: number, fromDeg: number, x: number, l: number, thickMm: number, paint: Paint, noun: string): DecorCanopy =>
+  ({ kind: 'canopy', alongMm: x, lengthMm: l, sectionMm: arc(r, fromDeg, 180, 12), thickMm, lipMm: 0, noun, paint });
+
 export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
   {
     id: 'LC', name: 'Level crossing', base: 'HP',
@@ -139,6 +226,68 @@ export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
       status: 'unverified',
       source: 'a printed design, measured off the 3MF mesh on 2026-11-03, its stone joints on 2026-11-05; which end the joints start from estimated',
       note: 'A 200 shell, 51 wide outside with 6 walls (39 inside), straight to 60, arched to 85.5; 79.5 from the floor to the underside of the arch. Stone joints every 12.94 along, every 5.76 up the walls, every 13.2 degrees around the arch.',
+    },
+  },
+  /*
+   * THE METRO TUNNEL: the long straight under a red tube 66 wide and 72
+   * tall (walls 3 thick, straight to 39, then round), its ribs every 23.9,
+   * between the two portals; in its middle a raised collar 38 round a hole
+   * 30 across in its roof, and an M sign 22 across standing 6 proud on each
+   * side (from above they read as two stubs).
+   */
+  {
+    id: 'MT', name: 'Metro tunnel', base: 'D',
+    decor: [
+      ...portals,
+      { kind: 'vault', atMm: [108, 0], lengthMm: INNER_LEN, widthMm: 66, wallMm: 3, springMm: 39, topMm: 72, noun: 'tunnel', paint: RED,
+        joints: { ringsMm: Array.from({ length: 6 }, (_, k) => ((k + 1) * INNER_LEN) / 7), wallMm: [], archDeg: [] } },
+      { kind: 'wheel', axis: 'up', atMm: [108, 0], centreMm: 71, diameterMm: 38, thickMm: 8, ringsMm: [30], noun: 'tunnel', paint: RED },
+      ...sign(108, 33, 1, 32, 22, 'sign', 6),
+      ...sign(108, -33, -1, 32, 22, 'sign', 6),
+    ],
+    dimensions: {
+      status: 'unverified',
+      source: "the owner's photos of a real one, 2026-11-07: lengths and widths read off the top view with each edge's height allowed for, the cross-section off the end-on photos scaled by the portal",
+      note: 'A long straight under a red tube 167 long, 66 wide and 72 tall, ribbed, between two portals 18 along, 80 wide and 80 tall with a 62 opening; the portals 203 apart outside. Heights within about 5mm; a ruler would settle them.',
+    },
+  },
+  /*
+   * THE METRO STATION: the long straight between the portals, and on its
+   * right the station: round beech ends 15 thick (a hole 27 bored through,
+   * chamfered to 51), the dark shell from its front edge at 95 over to the
+   * back wall, the red band under that edge and the M sign over it, the
+   * white platform 22 high with its red edge, and on the back wall inside
+   * two posters, the double doors and two benches; outside, the doors again
+   * and the red knob that slides them, low on the back. The two M signs
+   * outside and the doors' windows are not drawn. F puts it on the left.
+   */
+  {
+    id: 'MS', name: 'Metro station', base: 'D', oneSided: 'station',
+    decor: [
+      ...portals,
+      ...roundEnd(PORTAL_FROM + END / 2),
+      ...roundEnd(216 - PORTAL_FROM - END / 2),
+      flat(108, -133, HALL_LEN, 6, 0, SHELL.z, 'station', METRO),
+      shell(SHELL.r, FRONT_DEG, 108, HALL_LEN, 6, METRO, 'roof'),
+      flat(108, SHELL.across + SHELL.r * Math.cos((FRONT_DEG * Math.PI) / 180) - 1.5, HALL_LEN, 3, 86, 95, 'roof', RED, false),
+      ...sign(108, SHELL.across + SHELL.r * Math.cos((FRONT_DEG * Math.PI) / 180), 1, 102, 16, 'sign'),
+      flat(108, -77, INNER_LEN, 106, 0, 22, 'platform', WHITE),
+      flat(108, -27.5, INNER_LEN, 2, 22, 22.4, 'platform', RED, false),
+      // Inside, on the back wall: posters, the doors, benches with their backs.
+      flat(48.5, -129.5, 32, 1, 54, 78, 'poster', WHITE, false),
+      flat(148.5, -129.5, 32, 1, 54, 78, 'poster', WHITE, false),
+      flat((DOORS.from + 104) / 2, -129.25, 104 - DOORS.from - 0.5, 1.5, 24, 72, 'doors', RED, false),
+      flat((104 + DOORS.to) / 2, -129.25, DOORS.to - 104 - 0.5, 1.5, 24, 72, 'doors', RED, false),
+      ...[47, 160].flatMap((x) => [flat(x, -123, 45, 10, 33, 39, 'bench', RED, false), flat(x, -128.5, 45, 2, 39, 50, 'bench', RED, false)]),
+      // Outside: the doors on the wall and up the curve, and the knob.
+      flat((DOORS.from + DOORS.to) / 2, -136.75, DOORS.to - DOORS.from, 1.5, 20, SHELL.z, 'doors', RED, false),
+      shell(SHELL.r + 0.8, 100, (DOORS.from + DOORS.to) / 2, DOORS.to - DOORS.from, 1, RED, 'doors'),
+      { kind: 'wheel', atMm: [108, -138], centreMm: 12, diameterMm: 10, thickMm: 4, noun: 'knob', paint: RED },
+    ],
+    dimensions: {
+      status: 'unverified',
+      source: "the owner's photos of a real one, 2026-11-07: lengths and widths read off the top view with each edge's height allowed for, the cross-section off the end-on photo scaled by the portal, the inside off the front photo",
+      note: 'A long straight between two portals 80 wide and 80 tall, 203 apart outside; on its right a station 203 long: round beech ends (a circle of 49 round 57 up over straight sides), a dark roof from its front edge at 95 to a back wall 136 across, a platform 22 high, posters, doors and benches inside. Heights within about 5mm, the inside within about 10; a ruler would settle them.',
     },
   },
 ];

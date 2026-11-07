@@ -1782,6 +1782,25 @@
 }
 .piece[aria-pressed="true"] .piece-hit { touch-action: none; }
 .move-refusal { color: var(--ink); }
+/*
+ * THE VERSION LIST (design D4-D6): "Make it…" opens the family on a row of
+ * its own inside the strip. The current version and a blocked one are text,
+ * never buttons; a blocked one is greyed in --ink-soft (5.4:1 on --paper) and
+ * says why in words (rules 2, 3).
+ */
+.mode-strip:has(.version-list) { flex-wrap: wrap; }
+.version-list {
+  /* Below the strip's buttons, Remove piece included, as the design's mockup draws it. */
+  order: 1;
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s3);
+}
+.version-row { padding: 0 var(--s1); }
+.version-row.is-blocked { color: var(--ink-soft); }
+.version-note { color: var(--ink-soft); }
 
 /*
  * DRAGGING FROM THE PALETTE (decisions E6, 16A). Only the picked piece's

@@ -886,6 +886,16 @@ export function swapsOf(part: Part, library: readonly Part[], resolve: (id: stri
 }
 
 /**
+ * A PIECE'S WHOLE FAMILY, as the version list shows it (design D3): the plain
+ * piece first, then its versions in library order, the piece itself among
+ * them; only those that join alike.
+ */
+export function familyOf(part: Part, library: readonly Part[], resolve: (id: string) => Part): readonly Part[] {
+  const baseId = part.decoratedFrom ?? part.id;
+  return [resolve(baseId), ...library.filter((p) => p.decoratedFrom === baseId)].filter((p) => p.id === part.id || joinsAlike(part, p));
+}
+
+/**
  * SWAP A PLACED PIECE FOR A VERSION OF IT (CEO E8, design 3A/4A): the piece
  * keeps its id, its place and its joints, and takes the other part id.
  * Refused, like a flip, when the new decoration would lie over other track;

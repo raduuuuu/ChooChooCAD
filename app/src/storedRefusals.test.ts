@@ -90,7 +90,8 @@ const TABLE: { row: string; stored: Stored; loader: Outcome; link: Outcome }[] =
   { row: 'a heading out of range (16)', stored: anchored({ pos: ORIGIN, heading: 16 }), loader: 'repair', link: 'refuse' },
   { row: 'a position off the lattice (1.5)', stored: anchored({ pos: [1.5, 0, 0, 0, 0, 0, 0, 0], heading: 0 }), loader: 'repair', link: 'refuse' },
   { row: 'a position past the exactness ceiling', stored: anchored({ pos: [2 ** 32, 0, 0, 0, 0, 0, 0, 0], heading: 0 }), loader: 'repair', link: 'refuse' },
-  { row: 'a level this engine never writes (2)', stored: anchored({ pos: ORIGIN, heading: 0, level: 2 }), loader: 'repair', link: 'refuse' },
+  { row: 'a level this engine never writes (3)', stored: anchored({ pos: ORIGIN, heading: 0, level: 3 }), loader: 'repair', link: 'refuse' },
+  { row: 'a piece split off a third level (2)', stored: anchored({ pos: ORIGIN, heading: 0, level: 2 }), loader: 'ok', link: 'ok' },
 ];
 
 afterEach(() => vi.unstubAllGlobals());
