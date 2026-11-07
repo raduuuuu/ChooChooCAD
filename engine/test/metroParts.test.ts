@@ -115,7 +115,7 @@ describe('the metro station from above (owner, 2026-11-07)', () => {
   it('has the opening in its roof over the doors, two dark slots in a frame, and an M sign lying near the top of the back on each side of it', () => {
     const decor = decorOf('MS');
     const slots = decor.filter((d) => d.kind === 'slab' && d.paint?.fill === '--ink');
-    expect(slots.map((d) => (d.kind === 'slab' ? [d.atMm[0], d.atMm[1], d.topMm > 106] : null))).toEqual([[108, -72, true], [108, -60, true]]);
+    expect(slots.map((d) => (d.kind === 'slab' ? [d.atMm[0], d.atMm[1], d.topMm > 103] : null))).toEqual([[108, -58, true], [108, -46, true]]);
     const outside = wheels('MS').filter((w) => w.axis === 'up' && w.paint?.fill === '--paint-red');
     expect(outside.map((w) => [w.atMm[0], w.atMm[1], w.diameterMm])).toEqual([[44, -96, 22], [168, -96, 22]]);
   });
@@ -130,6 +130,16 @@ describe('the metro tunnel', () => {
     const { vertices } = solidOf('MT');
     const rim = vertices.filter(([x, y]) => Math.abs(Math.hypot(x - 108, y) - 19) < 1e-3);
     expect(rim.length > 0 && rim.every(([, , z]) => Math.abs(z - 67) < 1e-3 || Math.abs(z - 75) < 1e-3)).toBe(true);
+  });
+
+  /*
+   * MUTATION PROOF, run: the dark disc left out: `expected -Infinity to be close to 15, received difference is Infinity, but expected 0.0005`.
+   */
+  it('the hole in its collar is dark, 30 across, on the collar’s top', () => {
+    const { vertices, paintOf } = solidOf('MT');
+    const dark = vertices.filter((_, v) => paintOf(v) === '--ink');
+    expect(Math.max(...dark.map(([x, y]) => Math.hypot(x - 108, y)))).toBeCloseTo(15, 3);
+    expect(Math.min(...dark.map(([, , z]) => z))).toBeGreaterThanOrEqual(75 - 1e-3);
   });
 
   it('an M sign stands on each side, 6 proud of the tube', () => {
