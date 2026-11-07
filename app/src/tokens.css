@@ -195,6 +195,8 @@
    * --paint-metro: the metro pieces' dark grey portals, roof and wall
    * (photos 2026-11-07), 7.39:1 on --floor; deltaE 31.0. Lines: --paper,
    * 8.30:1. Their white parts use --paper (deltaE 51.8), lines --ink, 13.43:1.
+   * The inside of an opening (the station's roof slots) uses --ink, lines
+   * --paper, 13.43:1.
    */
   --paint-roof: #638e70;
   --paint-red: #e46560;
