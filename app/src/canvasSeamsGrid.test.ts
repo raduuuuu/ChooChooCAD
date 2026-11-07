@@ -244,3 +244,97 @@ describe('the seam and grid use their measured tokens at a fixed device weight',
     expect(lastDecl('.grid', 'vector-effect')).toBe('non-scaling-stroke');
   });
 });
+
+/*
+ * PAINT IN 3D (paint plan docs/plan/2026-11-07-3d-colour.md: CEO R4, design
+ * D6). Colour math by hand, as the stylesheet is text: WCAG 2 relative
+ * luminance for ratios, CIEDE2000 for colour distance.
+ */
+const rgb = (hex: string) => [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16) / 255);
+const linear = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+const luminance = (hex: string) => {
+  const [r, g, b] = rgb(hex).map(linear) as [number, number, number];
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const ratio = (a: string, b: string) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
+  return (hi + 0.05) / (lo + 0.05);
+};
+const lab = (hex: string): [number, number, number] => {
+  const [r, g, b] = rgb(hex).map(linear) as [number, number, number];
+  const xyz = [
+    (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047,
+    0.2126 * r + 0.7152 * g + 0.0722 * b,
+    (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883,
+  ].map((t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116)) as [number, number, number];
+  return [116 * xyz[1] - 16, 500 * (xyz[0] - xyz[1]), 200 * (xyz[1] - xyz[2])];
+};
+const rad = (d: number) => (d * Math.PI) / 180;
+/** CIEDE2000 (Sharma, Wu and Dalal's formulation). */
+const deltaE2000 = (h1: string, h2: string): number => {
+  const [L1, a1, b1] = lab(h1);
+  const [L2, a2, b2] = lab(h2);
+  const Cb = (Math.hypot(a1, b1) + Math.hypot(a2, b2)) / 2;
+  const G = 0.5 * (1 - Math.sqrt(Cb ** 7 / (Cb ** 7 + 25 ** 7)));
+  const [a1p, a2p] = [(1 + G) * a1, (1 + G) * a2];
+  const [C1p, C2p] = [Math.hypot(a1p, b1), Math.hypot(a2p, b2)];
+  const hue = (b: number, a: number) => ((Math.atan2(b, a) * 180) / Math.PI + 360) % 360;
+  const [hp1, hp2] = [hue(b1, a1p), hue(b2, a2p)];
+  let dh = hp2 - hp1;
+  if (dh > 180) dh -= 360;
+  else if (dh < -180) dh += 360;
+  const dH = 2 * Math.sqrt(C1p * C2p) * Math.sin(rad(dh / 2));
+  const Lb = (L1 + L2) / 2;
+  const Cbp = (C1p + C2p) / 2;
+  const hb = Math.abs(hp1 - hp2) > 180 ? (hp1 + hp2 + 360) / 2 : (hp1 + hp2) / 2;
+  const T = 1 - 0.17 * Math.cos(rad(hb - 30)) + 0.24 * Math.cos(rad(2 * hb)) + 0.32 * Math.cos(rad(3 * hb + 6)) - 0.2 * Math.cos(rad(4 * hb - 63));
+  const SL = 1 + (0.015 * (Lb - 50) ** 2) / Math.sqrt(20 + (Lb - 50) ** 2);
+  const SC = 1 + 0.045 * Cbp;
+  const SH = 1 + 0.015 * Cbp * T;
+  const RT = -2 * Math.sqrt(Cbp ** 7 / (Cbp ** 7 + 25 ** 7)) * Math.sin(rad(60 * Math.exp(-(((hb - 275) / 25) ** 2))));
+  const [x, y, z] = [(L2 - L1) / SL, (C2p - C1p) / SC, dH / SH];
+  return Math.sqrt(x * x + y * y + z * z + RT * y * z);
+};
+/** Every paint a built-in piece wears, fill and line, as token names without `--`. */
+const PAINTS = [
+  ...new Map(
+    BUILT_IN.flatMap((p) => (p.decorBody ?? []).flatMap((b) => (b.paint ? [b.paint] : []))).map((pt) => [`${pt.fill} ${pt.line}`, pt]),
+  ).values(),
+].map((pt) => ({ fill: pt.fill.slice(2), line: pt.line.slice(2) }));
+
+describe('paint in 3D keeps clear of the verdict red and keeps its lines readable', () => {
+  it('the Elevated station wears five paints', () => {
+    expect(PAINTS.map((pt) => pt.fill).sort()).toEqual(['paint-base', 'paint-grey', 'paint-red', 'paint-roof', 'track-fill']);
+  });
+
+  /*
+   * MUTATION PROOF, run: --paint-red back to the photos' #a0272c: `expected
+   * 4.6 to be greater than or equal to 20` (and its ink line fails the next
+   * spec: `expected 1.9 to be greater than or equal to 3`).
+   */
+  it('every paint, beech included, exists and is at least deltaE2000 20 from --fail', () => {
+    const fail = token('fail')!;
+    for (const { fill } of PAINTS) {
+      const value = token(fill);
+      expect(value, `--${fill}`).toMatch(/^#[0-9a-f]{6}$/);
+      expect(Math.round(deltaE2000(value!, fail) * 10) / 10, `--${fill}`).toBeGreaterThanOrEqual(20);
+    }
+  });
+
+  /*
+   * MUTATION PROOF, run: the base's line back to --ink: `ink on paint-base:
+   * expected 1 to be greater than or equal to 3`.
+   */
+  it('every paint names a line that reads at 3:1 or more on it (design D6)', () => {
+    for (const { fill, line } of PAINTS) {
+      expect(token(line), `--${line}`).toMatch(/^#[0-9a-f]{6}$/);
+      expect(Math.floor(ratio(token(fill)!, token(line)!) * 10) / 10, `${line} on ${fill}`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('the measured values are the plan’s', () => {
+    expect([token('paint-roof'), token('paint-red'), token('paint-base'), token('paint-grey')]).toEqual(['#638e70', '#e46560', '#33251d', '#9fa693']);
+    expect(Math.round(deltaE2000('#e46560', token('fail')!) * 10) / 10).toBe(20.1);
+    expect(Math.round(ratio('#638e70', token('floor')!) * 100) / 100).toBe(3);
+  });
+});

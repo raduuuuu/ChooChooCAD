@@ -313,6 +313,18 @@ interface PartBase {
 }
 
 /**
+ * A PIECE'S PAINT IN 3D (paint plan 2026-11-07, CEO C1/R1, design D6): the
+ * colour token its faces are filled with and the token its edge and detail
+ * lines are drawn in, each a tokens.css name with its leading `--`. Only a
+ * piece measured from a real one carries paint (DESIGN.md rule 1); a shape
+ * without it draws in the house fill and lines.
+ */
+export interface Paint {
+  readonly fill: string;
+  readonly line: string;
+}
+
+/**
  * ONE DECORATION SHAPE: a slab, a box of wood beside, across or over the
  * track, centred at `atMm` in the piece's frame, `lengthMm` along it and
  * `widthMm` across, from `bottomMm` to `topMm` above the piece's floor.
@@ -330,6 +342,7 @@ export interface DecorSlab {
   readonly topMm: number;
   readonly solid?: false;
   readonly noun?: string;
+  readonly paint?: Paint;
 }
 
 /**
@@ -399,6 +412,7 @@ export interface DecorArch {
   readonly acrossMm?: number;
   readonly fillToMm?: number;
   readonly noun?: string;
+  readonly paint?: Paint;
 }
 
 /**
@@ -503,6 +517,7 @@ export interface DecorCanopy {
   /** Seams between its panels, along from its centre: detail lines over its top. */
   readonly seamsMm?: readonly number[];
   readonly noun?: string;
+  readonly paint?: Paint;
 }
 
 export type DecorShape = DecorSlab | DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation | DecorBarrier | DecorCanopy;
@@ -515,6 +530,8 @@ export interface DecorBox extends BodyBox {
   readonly topMm: number;
   readonly solid: boolean;
   readonly noun?: string;
+  /** The shape's paint in 3D, when it has one. */
+  readonly paint?: Paint;
   /** False for a box that only collides (a vault's walls and roof); the shape is drawn by its own box. */
   readonly draw: boolean;
   /** The shape this box draws, when it is more than a box (eng D10). */

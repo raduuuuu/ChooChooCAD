@@ -173,6 +173,31 @@
    */
   --slab-side: #bdb19b;
   /*
+   * PAINT, the 3D view only (DESIGN.md rule 1's 3D sentence; plan
+   * docs/plan/2026-11-07-3d-colour.md). A measured piece wears its real
+   * paint, read off the owner's photos and white-balanced so the loose
+   * straight reads --track-fill. Every paint is at least deltaE2000 20 from
+   * --fail (a test enforces it), and each names the line drawn on it, at
+   * 3:1 or more (design D6). Ratios: WCAG relative luminance, 2026-11-07.
+   *
+   * --paint-roof: the photos read #285136 (7.3:1 on --floor), lifted along
+   * its hue to 3.0:1 on --floor so track and verdicts lead (design D3);
+   * deltaE 48.9. Lines: --ink, 3.98:1.
+   * --paint-red: the lift and crank. The photos read #a0272c, deltaE 4.6
+   * from --fail, so it is moved along its hue (lightness +22.5) to deltaE
+   * 20.1: a coral, lighter than the toy (CEO D8, kept at design D4).
+   * 2.67:1 on --floor. Lines: --ink, 4.48:1.
+   * --paint-base: the printed floor of the base, 11.87:1 on --floor;
+   * deltaE 26.1. Lines: --paper, 13.34:1.
+   * --paint-grey: the deck's frame, 2.02:1 on --floor; deltaE 42.5.
+   * Lines: --ink, 5.90:1.
+   * Beech parts use --track-fill (deltaE 42.8), lines --ink-soft, 3.22:1.
+   */
+  --paint-roof: #638e70;
+  --paint-red: #e46560;
+  --paint-base: #33251d;
+  --paint-grey: #9fa693;
+  /*
    * THE SEAM: the line across the plank where one piece ends and the next
    * begins (decision 11A of the 2026-10-22 editing plan).
    *

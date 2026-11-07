@@ -13,6 +13,7 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { PAINT_TOKENS } from '../../engine/data/library.js';
 import { tokenColors } from './Viewer3D.js';
 
 afterEach(() => {
@@ -34,6 +35,25 @@ describe('3D colour tokens (design review D2)', () => {
     expect(c.floor).toBe('#ece6da');
     expect(c.slabSide).toBe('#2a2724');
     expect(err).toHaveBeenCalledWith('3D view: the colour token --slab-side is missing; drawing it in --ink.');
+    root.remove();
+  });
+
+  /*
+   * MUTATION PROOF, run: no paint read at mount (`paints: {}`): `expected []
+   * to deeply equal [ '--ink', '--ink-soft', …(6) ]`. The panel handing the
+   * list in is view3d.dom.test.tsx's.
+   */
+  it('reads every built-in paint once, so a station added later is coloured; a missing one is ink and named (paint plan O2)', () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const root = document.createElement('div');
+    root.style.setProperty('--ink', '#2a2724');
+    root.style.setProperty('--paint-roof', '#638e70');
+    document.body.appendChild(root);
+    const c = tokenColors(root, PAINT_TOKENS);
+    expect(Object.keys(c.paints ?? {}).sort()).toEqual([...PAINT_TOKENS].sort());
+    expect(c.paints?.['--paint-roof']).toBe('#638e70');
+    expect(c.paints?.['--paint-red']).toBe('#2a2724');
+    expect(err).toHaveBeenCalledWith('3D view: the colour token --paint-red is missing; drawing it in --ink.');
     root.remove();
   });
 });

@@ -1024,3 +1024,16 @@ without operating a service. Deferred at D3 on 2026-10-07.
 IP questions below should be settled before anything is published publicly
 
 ---
+
+## P3 — Paint the printed pieces in 3D from their model files (deferred by /plan-ceo-review, 2026-11-07, D3)
+
+**What:** Once the Elevated station is painted (docs/plan/2026-11-07-3d-colour.md), paint the printed pieces whose 3MF assigns a filament per part, and leave any without clear per-part colours in the house grey.
+
+**Colours found (3MF `Metadata/model_settings.config`, one extruder per part; `project_settings.config` `filament_colour`):** Station straight: roof #164B35, walls and tower #6F5034, ground, stairs and ramps #5B6579, sign and bench #C12E1F, platform lines #FFFFFF, clock and plan #000000, rail #8E9089. Tunnel straight: one body #7C4B00. Level crossing: body #E8DBB7, barrier arms #C12E1F and #FFFFFF. Riser, track support and bridges: not checked yet.
+
+**Why deferred:** the owner chose to judge paint on the Elevated station (their own photos) first. Note (outside review, O4): the printed station is drawn as one composite shape (engine/data/library.ts:140), so painting it needs a paint per part inside that shape, not only the per-shape `paint` field. Two of these are reds (#C12E1F) that must be measured clear of `--fail` like the station's.
+
+**Effort:** human M / CC S
+**Priority:** P3
+**Depends on:** the Elevated station's paint shipping
+

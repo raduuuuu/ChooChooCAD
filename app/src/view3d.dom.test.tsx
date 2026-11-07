@@ -24,13 +24,14 @@ import { StrictMode } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { PAINT_TOKENS } from '../../engine/data/library.js';
 import { App } from './App.js';
 import { VIEW_STORAGE_KEY } from './storageKeys.js';
 import { View3DPanel } from './View3DPanel.js';
 
 const viewer = vi.hoisted(() => ({ mode: 'ok' as 'ok' | 'throw' | 'webgl' }));
 vi.mock('./Viewer3D.js', () => ({
-  default: (props: { label: string; onContextLost: () => void; input: { segments: readonly { pieceId?: string }[]; selected?: string }; onPick?: (id: string) => void }) => {
+  default: (props: { label: string; paintTokens?: readonly string[]; onContextLost: () => void; input: { segments: readonly { pieceId?: string }[]; selected?: string }; onPick?: (id: string) => void }) => {
     if (viewer.mode === 'throw') throw new TypeError('Failed to fetch dynamically imported module');
     if (viewer.mode === 'webgl') {
       const e = new Error('no WebGL');
@@ -38,7 +39,7 @@ vi.mock('./Viewer3D.js', () => ({
       throw e;
     }
     return (
-      <div data-testid="viewer3d" aria-label={props.label} data-selected={props.input.selected ?? ''} data-third={[...new Set(props.input.segments.map((s) => s.pieceId))].filter(Boolean)[2] ?? ''}>
+      <div data-testid="viewer3d" aria-label={props.label} data-paints={(props.paintTokens ?? []).join(' ')} data-selected={props.input.selected ?? ''} data-third={[...new Set(props.input.segments.map((s) => s.pieceId))].filter(Boolean)[2] ?? ''}>
         <button onClick={props.onContextLost}>simulate context loss</button>
         {props.onPick && (
           // A click on the third piece drawn, as the real viewer's ray would report it.
@@ -73,8 +74,11 @@ function app() {
 
 describe('the switch', () => {
   /*
-   * MUTATION PROOF, run: `showView` returns before switching (`return;` first):
-   * `Unable to find an element by: [data-testid="viewer3d"]`.
+   * MUTATION PROOFS, run:
+   * - `showView` returns before switching (`return;` first): `Unable to
+   *   find an element by: [data-testid="viewer3d"]`.
+   * - the panel's `paintTokens` left out: `expected '' to be '--paint-base
+   *   --paper --paint-grey --i…' // Object.is equality`.
    */
   it('3D replaces the canvas, Reset appears, and 2D brings the canvas back', async () => {
     const { user } = app();
@@ -88,6 +92,8 @@ describe('the switch', () => {
     expect(button('3D').getAttribute('aria-pressed')).toBe('true');
     expect(button('Reset view')).toBeTruthy();
     expect(viewer3d()!.getAttribute('aria-label')).toBe('3D view of the layout: 10 pieces, 1 level, 0 marks');
+    // Every built-in paint, handed in so the viewer need not import the library (chunk budget).
+    expect(viewer3d()!.getAttribute('data-paints')).toBe(PAINT_TOKENS.join(' '));
 
     await user.click(button('2D'));
     expect(canvas2d()).not.toBe(null);

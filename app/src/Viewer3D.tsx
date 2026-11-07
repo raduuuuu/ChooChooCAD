@@ -79,9 +79,16 @@ export interface SceneColors {
   readonly slabSide: string;
   /** `--ghost-opacity`: the preview's translucency, for the next piece seen through track (D28, D42). */
   readonly ghostOpacity?: number;
+  /**
+   * Every paint a built-in piece names, by token (`paintTokens`, the
+   * library's `PAINT_TOKENS`), read once at mount so a piece painted after
+   * mount is already resolved (paint plan O2). Absent in tests that pass
+   * their own colours: a paint then draws in `ink`.
+   */
+  readonly paints?: Readonly<Record<string, string>>;
 }
 
-export function tokenColors(root: Element = document.documentElement): SceneColors {
+export function tokenColors(root: Element = document.documentElement, paintTokens: readonly string[] = []): SceneColors {
   const css = getComputedStyle(root);
   const read = (name: string) => css.getPropertyValue(name).trim();
   // A missing token says so and draws in ink, inside the palette, rather than
@@ -106,6 +113,7 @@ export function tokenColors(root: Element = document.documentElement): SceneColo
     fail: v('--fail'),
     slabSide: v('--slab-side'),
     ghostOpacity: Number.parseFloat(read('--ghost-opacity')) || 0.5,
+    paints: Object.fromEntries(paintTokens.map((t) => [t, v(t)])),
   };
 }
 
@@ -170,11 +178,13 @@ function geometryOf(m: MeshArrays): BufferGeometry {
   return g;
 }
 
-function flat(color: string, opts: { side?: boolean; depthTest?: boolean; hiddenOnly?: number } = {}): MeshBasicMaterial {
+function flat(color: string, opts: { side?: boolean; depthTest?: boolean; hiddenOnly?: number; vertexColors?: boolean } = {}): MeshBasicMaterial {
   // Both sides: the builder's winding is not consistent, and unlit faces have no back to hide.
   const see = opts.hiddenOnly !== undefined;
   return new MeshBasicMaterial({
-    color: new Color(color),
+    // With vertex colours the base is white, so each vertex shows its own paint (paint plan R2).
+    color: new Color(opts.vertexColors ? '#ffffff' : color),
+    vertexColors: opts.vertexColors === true,
     side: 2,
     depthTest: opts.depthTest ?? true,
     // Drawn only behind what is already there, at this opacity: a piece shows through what hides it, and nowhere else.
@@ -182,11 +192,33 @@ function flat(color: string, opts: { side?: boolean; depthTest?: boolean; hidden
   });
 }
 
-function lines(positions: Float32Array, color: string, px: number, depthTest = true): LineSegments2 {
+function lines(positions: Float32Array, color: string, px: number, depthTest = true, colors?: Float32Array): LineSegments2 {
   const g = new LineSegmentsGeometry();
   g.setPositions(positions);
-  const m = new LineMaterial({ color: new Color(color).getHex(), linewidth: px, depthTest });
+  // Per-vertex colours (painted outlines, design D6) multiply a white base, in linear values as `Color` holds them.
+  if (colors) g.setColors(colors);
+  const m = new LineMaterial({ color: colors ? 0xffffff : new Color(color).getHex(), linewidth: px, depthTest, vertexColors: colors !== undefined });
   return new LineSegments2(g, m);
+}
+
+/** A paper line this much wider than the line it backs: 2px each side (paint plan R5, O1, O3). */
+export const HALO_PX = 4;
+
+/**
+ * One linear RGB triple a vertex, from paint indices into `paints`: 0 is
+ * `base`, any other a token resolved through `c.paints`, or ink when a test
+ * passed no paints (paint plan R2, design D6).
+ */
+export function paintColors(index: Uint8Array, paints: readonly string[], base: string, c: SceneColors): Float32Array {
+  const resolved = paints.map((t, i) => new Color(i === 0 ? base : (c.paints?.[t] ?? c.ink)));
+  const out = new Float32Array(index.length * 3);
+  index.forEach((k, v) => {
+    const col = resolved[k] ?? resolved[0]!;
+    out[v * 3] = col.r;
+    out[v * 3 + 1] = col.g;
+    out[v * 3 + 2] = col.b;
+  });
+  return out;
 }
 
 /** The 2D canvas's mark shapes (TrackCanvas `RedMark` and the adapter diamond), as SVG path data. */
@@ -287,25 +319,37 @@ export function syncScene(group: Group, arrays: SceneArrays, c: SceneColors, dpr
     o.userData.pickThrough = true;
     return o;
   };
+  // A line that must read on any paint: a wider paper line under it, one order below (paint plan R5, O1, O3).
+  const haloed = (positions: Float32Array, color: string, px: number, depthTest: boolean, order: number) => {
+    add(lines(positions, c.paper, px + HALO_PX, depthTest), order - 1);
+    add(lines(positions, color, px, depthTest), order);
+  };
   if (arrays.slab) {
     add(new Mesh(geometryOf(arrays.slab.top), flat(c.paperSunk)));
     add(new Mesh(geometryOf(arrays.slab.side), flat(c.slabSide)));
-    add(lines(arrays.slab.outline.positions, arrays.slab.overhang ? c.fail : c.inkSoft, OUTLINE_PX), 1);
+    if (arrays.slab.overhang) haloed(arrays.slab.outline.positions, c.fail, OUTLINE_PX, true, 1);
+    else add(lines(arrays.slab.outline.positions, c.inkSoft, OUTLINE_PX), 1);
   }
   add(through(new Mesh(geometryOf(arrays.footprints), flat(c.trackShadow))), 1);
   // Structures (design decision 7): matte boxes in the slab's side colour, roofs as an outline and a rim.
+  // A painted piece's vertices carry their paint; every other vertex the slab's side colour (paint plan R2).
   // A building is wood for a pick: a tap on it selects its piece (design DR4, eng E-B2).
-  add(wood(new Mesh(geometryOf(arrays.structures.solid), flat(c.slabSide)), arrays.structures.solidRanges), 1);
-  add(wood(new Mesh(geometryOf(arrays.structures.rim), flat(c.slabSide)), arrays.structures.rimRanges), 1);
-  if (arrays.structures.edges.positions.length > 0) add(lines(arrays.structures.edges.positions, c.inkSoft, OUTLINE_PX), 2);
+  const st = arrays.structures;
+  const solidGeometry = geometryOf(st.solid);
+  solidGeometry.setAttribute('color', new BufferAttribute(paintColors(st.solidPaint, st.paints, c.slabSide, c), 3));
+  add(wood(new Mesh(solidGeometry, flat(c.slabSide, { vertexColors: true })), st.solidRanges), 1);
+  add(wood(new Mesh(geometryOf(st.rim), flat(c.slabSide)), st.rimRanges), 1);
+  // Outlines and detail in each paint's own line colour, --ink-soft elsewhere (design D6).
+  const lineColors = (index: Uint8Array) => paintColors(index, st.paints, c.inkSoft, c);
+  if (st.edges.positions.length > 0) add(lines(st.edges.positions, c.inkSoft, OUTLINE_PX, true, lineColors(st.edgePaint)), 2);
   // Detail, one object per piece, so each is shown by its own size on screen (DR1, DR3; eng E-B1).
-  for (const d of arrays.structures.detail) {
-    const l = lines(d.positions, c.inkSoft, DETAIL_PX);
+  for (const d of st.detail) {
+    const l = lines(d.positions, c.inkSoft, DETAIL_PX, true, lineColors(d.paint));
     l.userData.detailCentre = d.centre;
     add(l, 2);
   }
   // Build mode's next building: its own outline, hidden where something is in front (eng E-B3).
-  if (arrays.nextBuilding) add(lines(arrays.nextBuilding.positions, c.ink, NEXT_EDGE_PX), 4);
+  if (arrays.nextBuilding) haloed(arrays.nextBuilding.positions, c.ink, NEXT_EDGE_PX, true, 4);
   // In build mode what is down is muted, so the next piece carries the weight (D42).
   const next = arrays.next;
   add(wood(new Mesh(geometryOf(arrays.plankSide), flat(next ? c.trackShadow : c.trackEdge)), arrays.sideRanges), 2);
@@ -325,7 +369,7 @@ export function syncScene(group: Group, arrays: SceneArrays, c: SceneColors, dpr
     if (next.edge.positions.length > 0) add(lines(next.edge.positions, c.ink, NEXT_EDGE_PX, false), 8);
   }
   // The editor's selection (P3, owner: ink outline only): the 2D mark's weight, seen through what is in front so a piece under a roof can still be found.
-  if (arrays.selection) add(lines(arrays.selection.positions, c.ink, SELECTED_PX, false), 8);
+  if (arrays.selection) haloed(arrays.selection.positions, c.ink, SELECTED_PX, false, 8);
   if (arrays.seams.positions.length > 0) add(lines(arrays.seams.positions, c.seam, SEAM_PX), 4);
   // Marks last, over everything (design 15A).
   const levelLines: number[] = [];
@@ -338,7 +382,7 @@ export function syncScene(group: Group, arrays: SceneArrays, c: SceneColors, dpr
     sprite.userData.aspect = tex?.aspect ?? (m.figure !== undefined ? labelAspect(estimateTextPx(figureText(m.figure))) : 1);
     add(sprite, 10);
   }
-  if (levelLines.length > 0) add(lines(new Float32Array(levelLines), c.fail, LEVEL_LINE_PX, false), 9);
+  if (levelLines.length > 0) haloed(new Float32Array(levelLines), c.fail, LEVEL_LINE_PX, false, 9);
 }
 
 /** How far a press may move, CSS px, and still be a click rather than a turn or a pan (P3 pick in 3D). */
@@ -470,6 +514,12 @@ export interface Viewer3DProps {
   readonly onDrawn?: () => void;
   /** A click on a piece (see PICKING); never in build mode. */
   readonly onPick?: (pieceId: string) => void;
+  /**
+   * Every paint token a built-in piece names (the library's `PAINT_TOKENS`),
+   * handed in by the panel: importing the library here would pull its
+   * modules into the editor's chunk (5.5 kB, `scripts/chunkBudget.ts`).
+   */
+  readonly paintTokens?: readonly string[];
 }
 
 export interface BuildView {
@@ -496,7 +546,7 @@ export function boxOf(arrays: SceneArrays, ids: readonly string[]): Box {
   return min[0] === Infinity ? arrays.bounds : { min: [min[0]!, min[1]!, min[2]!], max: [max[0]!, max[1]!, max[2]!] };
 }
 
-export default function Viewer3D({ input, label, resetSignal, onContextLost, describedBy, build = null, onDrawn, onPick }: Viewer3DProps) {
+export default function Viewer3D({ input, label, resetSignal, onContextLost, describedBy, build = null, onDrawn, onPick, paintTokens = [] }: Viewer3DProps) {
   const drawnRef = useRef(onDrawn);
   drawnRef.current = onDrawn;
   const pickRef = useRef(onPick);
@@ -528,7 +578,7 @@ export default function Viewer3D({ input, label, resetSignal, onContextLost, des
     } catch {
       throw new WebGLUnavailable('This browser cannot make a WebGL context.');
     }
-    const colors = tokenColors();
+    const colors = tokenColors(document.documentElement, paintTokens);
     renderer.setPixelRatio(window.devicePixelRatio || 1);
     renderer.setClearColor(new Color(colors.floor));
     const canvas = renderer.domElement;

@@ -14,7 +14,7 @@
  *   right  disp = r * ( sin(h) - sin(h-th),  cos(h-th) - cos(h) )   h -= th
  */
 
-import { centrelineRadiusMm, type DrawnShape, type Layout, type Part } from '../parts/schema.js';
+import { centrelineRadiusMm, type DrawnShape, type Layout, type Paint, type Part } from '../parts/schema.js';
 import { refuseMultiRoad } from './pose.js';
 
 export interface Slop {
@@ -76,6 +76,8 @@ export interface Segment {
     readonly topMm: number;
     readonly solid: boolean;
     readonly noun?: string;
+    /** Its paint in 3D, when the shape has one (paint plan 2026-11-07). */
+    readonly paint?: Paint;
     /** False for a box that only collides; a shape with its own drawing draws itself instead (eng D10). */
     readonly draw: boolean;
     /** -1 when the piece is turned 'right': its drawn shape is reflected across the piece (CEO O4). Absent: not reflected. */

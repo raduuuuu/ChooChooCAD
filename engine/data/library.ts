@@ -87,7 +87,8 @@ export function decorBoxesOf(owner: string, decor: readonly DecorShape[], riseMm
     return { role, atMm, lengthMm, widthMm, levels: decorLevels(bottomMm, topMm, riseMm), bottomMm, topMm, ...more };
   };
   return decor.flatMap((shape): DecorBox[] => {
-    const noun = shape.noun ? { noun: shape.noun } : {};
+    // A shape's paint travels with every box it makes, as its noun does (paint plan R1).
+    const noun = { ...(shape.noun ? { noun: shape.noun } : {}), ...('paint' in shape && shape.paint ? { paint: shape.paint } : {}) };
     const drawOnly = (drawn: DrawnShape) => ({ solid: false, draw: true, ...noun, shape: drawn });
     switch (shape.kind) {
       case 'slab':
@@ -242,6 +243,16 @@ export function deriveDecorated(specs: readonly DecoratedSpec[], builtIn: readon
 }
 
 export const BUILT_IN: readonly Part[] = [...PLAIN_BUILT_IN, ...deriveDecorated(DECORATED_SEEDS, PLAIN_BUILT_IN, CLEARANCE.riseMm)];
+
+/**
+ * EVERY COLOUR TOKEN A BUILT-IN PIECE IS PAINTED WITH (paint plan O2, eng A1),
+ * fills and lines: the 3D view reads them all once, so a painted piece added
+ * while it is open already has its colours. Derived from the parts, never
+ * typed, so a new paint cannot be left out.
+ */
+export const PAINT_TOKENS: readonly string[] = [
+  ...new Set(BUILT_IN.flatMap((p) => (p.decorBody ?? []).flatMap((b) => (b.paint ? [b.paint.fill, b.paint.line] : [])))),
+];
 
 /**
  * One submitted part. A `Part` plus the bookkeeping a shared library needs.

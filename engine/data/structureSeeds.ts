@@ -21,7 +21,7 @@
  * any unverified piece.
  */
 
-import type { BlockPart, DimensionSource, SlopBudget, StraightPart } from '../src/parts/schema.js';
+import type { BlockPart, DimensionSource, Paint, SlopBudget, StraightPart } from '../src/parts/schema.js';
 import { CLEARANCE } from './rampSeeds.js';
 
 const ESTIMATED_SLOP: SlopBudget = { axialMm: 0.8, angularDeg: 1.5, calibrationStatus: 'estimated' };
@@ -63,6 +63,19 @@ const DECK = 144;
  * the two readings of that height agree within 10. Lengths along the track
  * not seen in any view (the platform's, the lift car's) are estimated.
  */
+/*
+ * THE STATION'S PAINT IN 3D (paint plan docs/plan/2026-11-07-3d-colour.md):
+ * read off the owner's photos, white-balanced to the beech of the loose
+ * straight, each a token in tokens.css with its measured ratio and its
+ * distance from --fail. Lines are chosen per paint so every edge on it reads
+ * at 3:1 or more (design D6).
+ */
+const ROOF: Paint = { fill: '--paint-roof', line: '--ink' };
+const RED: Paint = { fill: '--paint-red', line: '--ink' };
+const BEECH: Paint = { fill: '--track-fill', line: '--ink-soft' };
+const BASE: Paint = { fill: '--paint-base', line: '--paper' };
+const GREY: Paint = { fill: '--paint-grey', line: '--ink' };
+
 /** How far the station's base reaches past each end of its deck: (201 - 144) / 2. */
 const BASE_PAST = 28.5;
 /** The lift shaft along the deck, its posts' outer faces, and each post. */
@@ -83,35 +96,35 @@ export const STATION: StraightPart = {
      * joined to the deck sits over them (owner, 2026-11-06: a ramp joins the
      * deck directly).
      */
-    { kind: 'slab', atMm: [DECK / 2, -62], lengthMm: DECK, widthMm: 126, bottomMm: 0, topMm: 12, noun: 'base' },
-    { kind: 'slab', atMm: [-BASE_PAST / 2, -62], lengthMm: BASE_PAST, widthMm: 126, bottomMm: 0, topMm: 12, solid: false, noun: 'base' },
-    { kind: 'slab', atMm: [DECK + BASE_PAST / 2, -62], lengthMm: BASE_PAST, widthMm: 126, bottomMm: 0, topMm: 12, solid: false, noun: 'base' },
+    { kind: 'slab', atMm: [DECK / 2, -62], lengthMm: DECK, widthMm: 126, bottomMm: 0, topMm: 12, noun: 'base', paint: BASE },
+    { kind: 'slab', atMm: [-BASE_PAST / 2, -62], lengthMm: BASE_PAST, widthMm: 126, bottomMm: 0, topMm: 12, solid: false, noun: 'base', paint: BASE },
+    { kind: 'slab', atMm: [DECK + BASE_PAST / 2, -62], lengthMm: BASE_PAST, widthMm: 126, bottomMm: 0, topMm: 12, solid: false, noun: 'base', paint: BASE },
     // The grey frame the deck's straight sits in; its lips under the next piece's ends are left out.
-    { kind: 'slab', atMm: [DECK / 2, 0], lengthMm: DECK, widthMm: 40, bottomMm: 55, topMm: CLEARANCE.riseMm, noun: 'deck' },
-    { kind: 'slab', atMm: [-2, -27], lengthMm: 10, widthMm: 10, bottomMm: 12, topMm: 177, noun: 'pillar' },
-    { kind: 'slab', atMm: [DECK + 2, -27], lengthMm: 10, widthMm: 10, bottomMm: 12, topMm: 177, noun: 'pillar' },
-    { kind: 'slab', atMm: [DECK / 2, -41.5], lengthMm: DECK, widthMm: 43, bottomMm: 56, topMm: 80, noun: 'platform' },
+    { kind: 'slab', atMm: [DECK / 2, 0], lengthMm: DECK, widthMm: 40, bottomMm: 55, topMm: CLEARANCE.riseMm, noun: 'deck', paint: GREY },
+    { kind: 'slab', atMm: [-2, -27], lengthMm: 10, widthMm: 10, bottomMm: 12, topMm: 177, noun: 'pillar', paint: BEECH },
+    { kind: 'slab', atMm: [DECK + 2, -27], lengthMm: 10, widthMm: 10, bottomMm: 12, topMm: 177, noun: 'pillar', paint: BEECH },
+    { kind: 'slab', atMm: [DECK / 2, -41.5], lengthMm: DECK, widthMm: 43, bottomMm: 56, topMm: 80, noun: 'platform', paint: BEECH },
     /*
      * The lift: a shaft 65 along, open at the back, between two posts that
      * rise through the gap in the roof to the clock's cap; its car up at the
      * platform, seen through the arch in the back panel over the shaft.
      */
-    { kind: 'slab', atMm: [DECK / 2 - SHAFT / 2 + POST / 2, -83], lengthMm: POST, widthMm: 46, bottomMm: 12, topMm: 187, noun: 'lift tower' },
-    { kind: 'slab', atMm: [DECK / 2 + SHAFT / 2 - POST / 2, -83], lengthMm: POST, widthMm: 46, bottomMm: 12, topMm: 187, noun: 'lift tower' },
-    { kind: 'slab', atMm: [DECK / 2, -83.5], lengthMm: SHAFT - 2 * POST, widthMm: 40, bottomMm: 63, topMm: 147, noun: 'lift' },
+    { kind: 'slab', atMm: [DECK / 2 - SHAFT / 2 + POST / 2, -83], lengthMm: POST, widthMm: 46, bottomMm: 12, topMm: 187, noun: 'lift tower', paint: BEECH },
+    { kind: 'slab', atMm: [DECK / 2 + SHAFT / 2 - POST / 2, -83], lengthMm: POST, widthMm: 46, bottomMm: 12, topMm: 187, noun: 'lift tower', paint: BEECH },
+    { kind: 'slab', atMm: [DECK / 2, -83.5], lengthMm: SHAFT - 2 * POST, widthMm: 40, bottomMm: 63, topMm: 147, noun: 'lift', paint: RED },
     // The back panel over the shaft, under the clock: an arch springing at 132 from the posts' outer faces, its crown at 154.
-    { kind: 'arch', fromMm: DECK / 2 - SHAFT / 2, toMm: DECK / 2 + SHAFT / 2, baseMm: 132, riseMm: 22, depthMm: 0, widthMm: 6, acrossMm: -107, fillToMm: 183, noun: 'roof' },
-    { kind: 'slab', atMm: [DECK / 2, -83], lengthMm: 45, widthMm: 46, bottomMm: 150, topMm: 187, noun: 'clock' },
-    { kind: 'slab', atMm: [DECK / 2, -85], lengthMm: 73, widthMm: 50, bottomMm: 187, topMm: 201, noun: 'clock tower' },
+    { kind: 'arch', fromMm: DECK / 2 - SHAFT / 2, toMm: DECK / 2 + SHAFT / 2, baseMm: 132, riseMm: 22, depthMm: 0, widthMm: 6, acrossMm: -107, fillToMm: 183, noun: 'roof', paint: ROOF },
+    { kind: 'slab', atMm: [DECK / 2, -83], lengthMm: 45, widthMm: 46, bottomMm: 150, topMm: 187, noun: 'clock', paint: ROOF },
+    { kind: 'slab', atMm: [DECK / 2, -85], lengthMm: 73, widthMm: 50, bottomMm: 187, topMm: 201, noun: 'clock tower', paint: ROOF },
     // The lift's winding wheel, on the far face: a toy's moving part, never in the way of track.
-    { kind: 'slab', atMm: [DECK / 2, -111], lengthMm: 32, widthMm: 10, bottomMm: 155, topMm: 183, solid: false, noun: 'crank' },
+    { kind: 'slab', atMm: [DECK / 2, -111], lengthMm: 32, widthMm: 10, bottomMm: 155, topMm: 183, solid: false, noun: 'crank', paint: RED },
     // The roof: two curved sections, one either side of the lift shaft.
     ...[-1, 1].map((side) => ({
       kind: 'canopy' as const, alongMm: DECK / 2 + side * (SHAFT / 2 + ROOF_SIDE / 2), lengthMm: ROOF_SIDE,
       sectionMm: ROOF_SECTION, thickMm: 7, lipMm: 18,
       // Two seams in each, 55 and 76 from the station's middle.
       seamsMm: [55, 76].map((m) => side * (m - SHAFT / 2 - ROOF_SIDE / 2)),
-      noun: 'roof',
+      noun: 'roof', paint: ROOF,
     })),
     /*
      * Over the shaft the roof is open only at the back (owner, 2026-11-07,
@@ -119,8 +132,8 @@ export const STATION: StraightPart = {
      * section as far back as the clock (63), and a panel hangs from it
      * between the posts, down to 142.
      */
-    { kind: 'canopy', alongMm: DECK / 2, lengthMm: SHAFT, sectionMm: ROOF_SECTION.slice(0, 4), thickMm: 7, lipMm: 18, noun: 'roof' },
-    { kind: 'slab', atMm: [DECK / 2, -18], lengthMm: SHAFT - 2 * POST, widthMm: 4, bottomMm: 142, topMm: 158, noun: 'roof' },
+    { kind: 'canopy', alongMm: DECK / 2, lengthMm: SHAFT, sectionMm: ROOF_SECTION.slice(0, 4), thickMm: 7, lipMm: 18, noun: 'roof', paint: ROOF },
+    { kind: 'slab', atMm: [DECK / 2, -18], lengthMm: SHAFT - 2 * POST, widthMm: 4, bottomMm: 142, topMm: 158, noun: 'roof', paint: ROOF },
   ],
   dimensions: {
     status: 'unverified',
