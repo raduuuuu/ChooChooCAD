@@ -176,6 +176,7 @@ export function renderGraph(
               decor: {
                 floorLevel: levelOf(frame), bottomMm: box.bottomMm, topMm: box.topMm, solid: box.solid, draw: box.draw,
                 ...(box.noun ? { noun: box.noun } : {}),
+                ...(box.paint ? { paint: box.paint } : {}),
                 ...(box.shape ? { shape: box.shape } : {}),
                 // A drawn shape reflects with its piece, not only its box's place (CEO O4, eng X1).
                 ...(mirror === -1 ? { mirror: -1 as const } : {}),

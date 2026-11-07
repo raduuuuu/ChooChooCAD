@@ -222,3 +222,104 @@ describe("the editor's selection in 3D (P3, owner 2026-11-05: ink outline only)"
     expect(look(group)).toEqual(look(plain));
   });
 });
+
+describe('the Elevated station painted in 3D (paint plan 2026-11-07: CEO R2/R5/O1/O3, design D6)', () => {
+  const PAINTED: SceneColors = {
+    ...C,
+    paints: { '--paint-roof': '#638e70', '--paint-red': '#e46560', '--paint-base': '#33251d', '--paint-grey': '#9fa693', '--track-fill': '#d9be93', '--ink': '#2a2724', '--ink-soft': '#6b655d', '--paper': '#f7f3ec' },
+  };
+  const stationArrays = (extra: { buildMode?: boolean; highlight?: string; selected?: string; overhang?: boolean } = {}) => {
+    const g: Graph = { pieces: [{ pieceId: 'st', partId: 'ST', turn: 'left' }, { pieceId: 'rs', partId: 'RS', turn: 'left' }], welds: [], anchors: new Map([['st', { pos: fromInt(0), heading: 0 }], ['rs', { pos: fromInt(400), heading: 0 }]]) };
+    const r = renderGraph(g, ports, resolve, placeAll(g, ports));
+    const partOf = (id: string) => resolve(g.pieces.find((p) => p.pieceId === id)!.partId);
+    const arrays = buildScene({
+      segments: r.segments, bodies: r.bodies, ports: r.ports, welds: [], partOf, riseMm: 61, plankMm: 12,
+      table: { outline: [[-50, -300], [900, -300], [900, 300], [-50, 300]], overhang: extra.overhang ?? false },
+      ...(extra.buildMode ? { buildMode: true } : {}),
+      ...(extra.highlight ? { highlight: extra.highlight } : {}),
+      ...(extra.selected ? { selected: extra.selected } : {}),
+    });
+    // A level fault across the station: its red line rises through the roof (as `marks` places it).
+    return { ...arrays, marks: [{ kind: 'level' as const, at: [10, -50, 12] as const, lineTo: 120 }] };
+  };
+  const structuresMesh = (group: Group) =>
+    group.children.find((o): o is ThreeMesh => o instanceof ThreeMesh && (o as ThreeMesh).geometry.getAttribute('color') !== undefined)!;
+
+  /*
+   * MUTATION PROOF, run: the colour attribute written from the hex's sRGB
+   * channels (`convertLinearToSRGB`), not Color's linear ones: `expected [ 3882,
+   * 5569, 4392 ] to deeply equal [ 1248, 2705, 1620 ]`, every paint washed out.
+   */
+  it('each vertex carries its paint in linear values, unpainted ones the slab side, on a white base', () => {
+    const group = new Group();
+    const arrays = stationArrays();
+    syncScene(group, arrays, PAINTED);
+    const mesh = structuresMesh(group);
+    const color = mesh.geometry.getAttribute('color');
+    const { solidPaint, paints } = arrays.structures;
+    const roofAt = solidPaint.findIndex((k) => paints[k] === '--paint-roof');
+    const plainAt = solidPaint.findIndex((k) => k === 0);
+    const roof = new Color('#638e70');
+    const plain = new Color(C.slabSide);
+    expect([color.getX(roofAt), color.getY(roofAt), color.getZ(roofAt)].map((n) => Math.round(n * 1e4))).toEqual([roof.r, roof.g, roof.b].map((n) => Math.round(n * 1e4)));
+    expect([color.getX(plainAt), color.getY(plainAt), color.getZ(plainAt)].map((n) => Math.round(n * 1e4))).toEqual([plain.r, plain.g, plain.b].map((n) => Math.round(n * 1e4)));
+    const material = mesh.material as MeshBasicMaterial;
+    expect([material.vertexColors, material.color.getHex()]).toEqual([true, 0xffffff]);
+  });
+
+  /*
+   * MUTATION PROOF, run: `flat()` turning vertex colours on for every mesh:
+   * `expected [ true, true, true, true, true, …(4) ] to deeply equal [ true ]`.
+   */
+  it('only the buildings mesh reads vertex colours', () => {
+    const group = new Group();
+    syncScene(group, stationArrays(), PAINTED);
+    const flags = group.children.filter((o): o is ThreeMesh => o instanceof ThreeMesh && (o as ThreeMesh).material instanceof MeshBasicMaterial).map((m) => (m.material as MeshBasicMaterial).vertexColors).filter(Boolean);
+    expect(flags).toEqual([true]);
+  });
+
+  type Lined = { material: { color: Color; linewidth: number; depthTest: boolean }; renderOrder: number };
+  const linesOf = (group: Group) => group.children.filter((o) => typeof (o as unknown as Lined).material?.linewidth === 'number').map((o) => o as unknown as Lined);
+  const paperHex = new Color(C.paper).getHex();
+  /** Each line of this colour and width, and whether a paper line 4px wider sits one order below it, with the same depth test. */
+  const haloOf = (group: Group, color: string, px: number) =>
+    linesOf(group)
+      .filter((l) => l.material.color.getHex() === new Color(color).getHex() && l.material.linewidth === px)
+      .map((l) => linesOf(group).some((h) => h.material.color.getHex() === paperHex && h.material.linewidth === px + 4 && h.renderOrder === l.renderOrder - 1 && h.material.depthTest === l.material.depthTest));
+
+  /*
+   * MUTATION PROOFS, run:
+   * - the selection drawn plain again: `expected [ false ] to deeply equal [ true ]`.
+   * - the level line drawn plain again: the same, for the --fail 2px line.
+   */
+  it('a paper halo backs the selection, the clash-red lines and the next piece’s outline', () => {
+    const selected = new Group();
+    syncScene(selected, stationArrays({ selected: 'st' }), PAINTED);
+    expect(haloOf(selected, C.ink, 3)).toEqual([true]);
+    expect(haloOf(selected, C.fail, 2)).toEqual([true]);
+    const overhang = new Group();
+    syncScene(overhang, stationArrays({ overhang: true }), PAINTED);
+    expect(haloOf(overhang, C.fail, 1.5)).toEqual([true]);
+    const build = new Group();
+    syncScene(build, stationArrays({ buildMode: true, highlight: 'st' }), PAINTED);
+    // The next building's outline (order 4); the next track's own outline sits on beech and keeps plain ink.
+    expect(linesOf(build).filter((h) => h.material.color.getHex() === paperHex && h.material.linewidth === 7 && h.renderOrder === 3)).toHaveLength(1);
+  });
+
+  /*
+   * MUTATION PROOF, run: outlines drawn in --ink-soft whatever the paint
+   * (no `colors` passed): `expected false to be true`.
+   */
+  it('outlines carry each paint’s line colour per vertex', () => {
+    const group = new Group();
+    syncScene(group, stationArrays(), PAINTED);
+    const outline = group.children.find((o) => (o as unknown as Lined).material?.linewidth === 1.5 && (o as unknown as { material: { vertexColors: boolean } }).material.vertexColors) as unknown as { geometry: { attributes: Record<string, { array: ArrayLike<number> }> } } | undefined;
+    expect(outline !== undefined).toBe(true);
+    // The base's paper lines are among them: some vertex is the paper's linear colour.
+    const paper = new Color(C.paper);
+    const cols = outline!.geometry.attributes.instanceColorStart!.array;
+    let found = false;
+    for (let i = 0; i < cols.length; i += 3) if (Math.abs(cols[i]! - paper.r) < 1e-4 && Math.abs(cols[i + 2]! - paper.b) < 1e-4) found = true;
+    expect(found).toBe(true);
+  });
+});

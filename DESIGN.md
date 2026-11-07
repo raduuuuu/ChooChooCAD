@@ -25,6 +25,11 @@ Adding an accent colour to a control is the most likely way to break this
 product's one piece of visual grammar. If something needs emphasis, it gets
 weight, size or space.
 
+In the 3D view only, a piece measured from a real one may wear that piece's
+paint, each paint at least ΔE2000 20 from `--fail` and each with a line colour
+that reads at 3:1 on it; the 2D plan, part cards and chrome stay as above
+(paint plan 2026-11-07). The paints live in `tokens.css` as `--paint-*`.
+
 ## 2. No verdict may be colour-only
 
 All four verdict colours flatten into one narrow greyscale band, which is
@@ -250,6 +255,8 @@ about 60cm away and often a child tapping. Its rules follow from that:
   `--build-meta` are sized for 60cm. The picture takes the space that is left.
 - **Notes that are verdicts look like verdicts:** glyph, colour and sentence
   (rule 2). A run that closes by bending is plain ink.
+- **A painted piece greys like any placed wood**; the next piece to place keeps
+  its paint (paint plan 2026-11-07).
 - **Nothing animates** (rule 8). Steps cut.
 
 ## 13. A shared railway is an invitation

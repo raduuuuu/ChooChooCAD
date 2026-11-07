@@ -10,6 +10,7 @@
 
 import { Component, lazy, Suspense, useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import type { SceneInput } from '../../engine/src/view3d/mesh.js';
+import { PAINT_TOKENS } from '../../engine/data/library.js';
 import type { BuildView, Viewer3DProps } from './Viewer3D.js';
 
 /** Load the viewer; a fresh `lazy` per attempt, since React keeps a failed one failed. */
@@ -182,6 +183,7 @@ export function View3DPanel(props: View3DPanelProps) {
       label,
       resetSignal,
       onContextLost,
+      paintTokens: PAINT_TOKENS,
       ...(live ? { describedBy: howToId } : {}),
       build: props.build ?? null,
       ...(props.onDrawn ? { onDrawn: props.onDrawn } : {}),

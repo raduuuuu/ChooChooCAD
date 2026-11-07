@@ -16,7 +16,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { BUILT_IN, decorBoxesOf, makeResolver } from '../data/library.js';
+import { BUILT_IN, decorBoxesOf, makeResolver, PAINT_TOKENS } from '../data/library.js';
 import { add, fromInt, scale, zetaPow, type Cyc } from '../src/geom/cyclotomic.js';
 import { connectorSites } from '../src/graph/feasible.js';
 import { placeAll } from '../src/graph/frames.js';
@@ -202,5 +202,112 @@ describe('the roof in 3D', () => {
     let panel = Infinity;
     for (let i = 0; i < p.length; i += 3) if (Math.abs(p[i + 1]! + 16) < 1e-6 && p[i]! > 50 && p[i]! < 94) panel = Math.min(panel, p[i + 2]!);
     expect(panel).toBeCloseTo(142, 6);
+  });
+});
+
+describe('the station’s paint in 3D (paint plan 2026-11-07: CEO R1-R3, design D6, eng X1/Q1)', () => {
+  const sceneOf = (pieces: readonly (readonly [string, string, Frame, ('left' | 'right')?])[], opts: { buildMode?: boolean; highlight?: string } = {}) => {
+    const g: Graph = {
+      pieces: pieces.map(([pieceId, partId, , turn]) => ({ pieceId, partId, turn: turn ?? 'left' })),
+      welds: [],
+      anchors: new Map(pieces.map(([pieceId, , frame]) => [pieceId, frame])),
+    };
+    const r = renderGraph(g, ports, resolve, placeAll(g, ports));
+    const partOf = (id: string) => resolve(g.pieces.find((p) => p.pieceId === id)!.partId);
+    return buildScene({ segments: r.segments, bodies: r.bodies, ports: r.ports, welds: [], partOf, riseMm: RISE, plankMm: 12, ...opts });
+  };
+  /** The paint token of every solid vertex inside a box (x, y, z ranges), counted. */
+  const paintIn = (s: ReturnType<typeof sceneOf>, box: readonly [number, number, number, number, number, number]) => {
+    const { solid, solidPaint, paints } = s.structures;
+    const out = new Map<string, number>();
+    for (let v = 0; v < solid.positions.length / 3; v++) {
+      const [x, y, z] = [solid.positions[v * 3]!, solid.positions[v * 3 + 1]!, solid.positions[v * 3 + 2]!];
+      if (x < box[0] || x > box[1] || y < box[2] || y > box[3] || z < box[4] || z > box[5]) continue;
+      const t = paints[solidPaint[v]!]!;
+      out.set(t, (out.get(t) ?? 0) + 1);
+    }
+    return [...out.keys()].sort();
+  };
+  const STATION = ['st', 'ST', at(0, 0, 0)] as const;
+
+  /*
+   * MUTATION PROOF, run: the paint dropped from the boxes (library.ts's
+   * `noun` spread without `paint`): `expected [ '' ] to deeply equal [
+   * '--paint-roof' ]`.
+   */
+  it('each part wears its paint: roof by the Pen, lift and base by the box path', () => {
+    const s = sceneOf([STATION]);
+    // The roof's end over the deck's edge side (a section has vertices only at its two ends).
+    expect(paintIn(s, [-31, -29, -60, -20, 170, 190])).toEqual(['--paint-roof']);
+    // The lift car between the posts (the posts' own vertices are at 12 and 187 only).
+    expect(paintIn(s, [51, 93, -103.6, -63.4, 60, 150])).toEqual(['--paint-red']);
+    // The base's underside.
+    expect(paintIn(s, [-30, 175, -126, 2, -0.5, 0.5])).toEqual(['--paint-base']);
+  });
+
+  it('every built-in paint is in the palette, fills and lines', () => {
+    expect([...PAINT_TOKENS].sort()).toEqual(['--ink', '--ink-soft', '--paint-base', '--paint-grey', '--paint-red', '--paint-roof', '--paper', '--track-fill']);
+  });
+
+  /*
+   * MUTATION PROOF, run: the paint set only when a body has one (`if
+   * (paint) fill = ...`): `expected [ '--paint-roof' ] to deeply equal [ ''
+   * ]`: the riser drawn after the station took its last paint.
+   */
+  it('an unpainted structure drawn after the station keeps the house fill', () => {
+    const s = sceneOf([STATION, ['rs', 'RS', at(400, 0, 0)]]);
+    expect(paintIn(s, [395, 470, -40, 40, -1, 200])).toEqual(['']);
+  });
+
+  it('a flipped station keeps each part’s paint, on the other side', () => {
+    const s = sceneOf([['st', 'ST', at(0, 0, 0), 'right']]);
+    expect(paintIn(s, [51, 93, 63.4, 103.6, 60, 150])).toEqual(['--paint-red']);
+    expect(paintIn(s, [-30, 175, -2, 126, -0.5, 0.5])).toEqual(['--paint-base']);
+  });
+
+  /*
+   * MUTATION PROOF, run: build mode's placed piece keeping its paint
+   * (`placedInBuild` ignored): `expected [ '--paint-red' ] to deeply equal [
+   * '' ]`.
+   */
+  it('in build mode a placed station is the house fill, the next one keeps its paint', () => {
+    const placed = sceneOf([STATION, ['other', 'A', at(500, 0, 0)]], { buildMode: true, highlight: 'other' });
+    expect(paintIn(placed, [51, 93, -103.6, -63.4, 60, 150])).toEqual(['']);
+    const next = sceneOf([STATION], { buildMode: true, highlight: 'st' });
+    expect(paintIn(next, [51, 93, -103.6, -63.4, 60, 150])).toEqual(['--paint-red']);
+  });
+
+  /*
+   * MUTATION PROOF, run: a box's outline straight into the body edges again
+   * (`edgeLoop` pushing to `bodyEdges`): `expected 600 to be +0 // Object.is
+   * equality`: the next station's boxes were outlined as placed wood.
+   */
+  it('as the next piece, its boxes are outlined with its shapes, base included (eng X1)', () => {
+    const s = sceneOf([STATION], { buildMode: true, highlight: 'st' });
+    const p = s.nextBuilding!.positions;
+    let baseEdges = 0;
+    for (let i = 0; i < p.length; i += 3) if (Math.abs(p[i + 2]! - 12) < 1e-6 && p[i + 1]! < -100) baseEdges++;
+    expect(baseEdges).toBeGreaterThan(0);
+    expect(s.structures.edges.positions.length).toBe(0);
+  });
+
+  /*
+   * MUTATION PROOF, run: every line drawn in the house line (`line` left 0):
+   * `expected [ '' ] to deeply equal [ '--paper' ]`.
+   */
+  it('each paint’s outline is in its own line colour (design D6): paper on the base, ink on the roof', () => {
+    const s = sceneOf([STATION]);
+    const { edges, edgePaint, paints } = s.structures;
+    const tokensWhere = (test: (x: number, y: number, z: number) => boolean) => {
+      const out = new Set<string>();
+      for (let v = 0; v < edges.positions.length / 3; v++) {
+        if (test(edges.positions[v * 3]!, edges.positions[v * 3 + 1]!, edges.positions[v * 3 + 2]!)) out.add(paints[edgePaint[v]!]!);
+      }
+      return [...out].sort();
+    };
+    // The base's top edge, 12 up, beyond the posts.
+    expect(tokensWhere((_x, y, z) => Math.abs(z - 12) < 1e-6 && y < -120)).toEqual(['--paper']);
+    // The roof's end section lines, over the deck's edge side.
+    expect(tokensWhere((x, y, z) => x < -29 && z > 175 && y < -20 && y > -60)).toEqual(['--ink']);
   });
 });

@@ -32,7 +32,7 @@
 
 import type { Segment } from '../geom/fk.js';
 import { bodyCorners, type RenderedPort } from '../graph/render.js';
-import { decorSpan, drawShape, profileAt, roadTopAbove, type Pen } from './decor.js';
+import { decorSpan, drawShape, profileAt, roadTopAbove, type P3, type Pen } from './decor.js';
 import type { Part } from '../parts/schema.js';
 
 /** Triangles: xyz per vertex, three indices per triangle. */
@@ -140,11 +140,20 @@ export interface SceneArrays {
     readonly solid: Mesh;
     readonly rim: Mesh;
     readonly edges: Lines;
+    /**
+     * Paint (paint plan R2, design D6): one index a vertex into `paints`, for
+     * `solid`'s vertices (their fill) and for `edges`' ends (their line). 0
+     * is the house fill (`--slab-side`) or line (`--ink-soft`); every other
+     * entry is a tokens.css name the app resolves.
+     */
+    readonly solidPaint: Uint8Array;
+    readonly edgePaint: Uint8Array;
+    readonly paints: readonly string[];
     /** Each piece's run of triangles in `solid` and in `rim`, so a tap on a building picks its piece (design DR4, eng E-B2). */
     readonly solidRanges: ReadonlyMap<string, { readonly start: number; readonly count: number }>;
     readonly rimRanges: ReadonlyMap<string, { readonly start: number; readonly count: number }>;
     /** Detail lines, one group per piece, with the piece's centre, so each is shown only while big enough on screen (design DR1, DR3; eng E-B1). */
-    readonly detail: readonly { readonly pieceId: string; readonly positions: Float32Array; readonly centre: readonly [number, number, number] }[];
+    readonly detail: readonly { readonly pieceId: string; readonly positions: Float32Array; readonly paint: Uint8Array; readonly centre: readonly [number, number, number] }[];
   };
   /** In build mode, the next piece's building outline: its own depth-tested lines, not part of `next.edge`'s see-through pass (eng E-B3). Null when there is none. */
   readonly nextBuilding: Lines | null;
@@ -471,14 +480,39 @@ export function buildScene(input: SceneInput): SceneArrays {
   /*
    * WHO A BODY'S LINES AND TRIANGLES BELONG TO, set per body in the loop below.
    *
-   *   edge   ─▶ bodyEdges, or nextBuilding for build mode's next piece (eng E-B3)
+   *   edge   ─▶ bodyEdges, or nextBuilding for build mode's next piece (eng E-B3),
+   *             a box's outline as well as a shape's (eng X1)
    *   detail ─▶ that piece's own group, or nowhere when the piece is down in build mode (DR2, eng Y1)
    *   quads  ─▶ solid/rim, their runs recorded per piece for picking (DR4, eng E-B2)
+   *   paint  ─▶ every solid vertex its fill, every outline and detail end its
+   *             line, as an index into `paints`, set afresh for each body:
+   *             0 is the house fill and line, and a placed piece in build
+   *             mode is 0 (paint plan R2, R3, design D6, eng Q1)
    */
   const nextBuildingEdges: number[] = [];
   const detailByPiece = new Map<string, number[]>();
   let edgeTo = bodyEdges;
   let detailTo: number[] | null = null;
+  const paints: string[] = [''];
+  const paintIndex = (token: string | undefined): number => {
+    if (token === undefined) return 0;
+    const at = paints.indexOf(token);
+    return at >= 0 ? at : paints.push(token) - 1;
+  };
+  const solidPaint: number[] = [];
+  const edgePaint: number[] = [];
+  const detailPaintByPiece = new Map<string, number[]>();
+  let detailPaintTo: number[] | null = null;
+  let fill = 0;
+  let line = 0;
+  const sv = (x: number, y: number, z: number): number => {
+    solidPaint.push(fill);
+    return solid.vertex(x, y, z);
+  };
+  const bodyEdge = (a: P3, b: P3) => {
+    edgeTo.push(...a, ...b);
+    if (edgeTo === bodyEdges) edgePaint.push(line, line);
+  };
   const solidRanges = new Map<string, { start: number; count: number }>();
   const rimRanges = new Map<string, { start: number; count: number }>();
   const extend = (ranges: Map<string, { start: number; count: number }>, id: string, start: number, count: number) => {
@@ -497,9 +531,12 @@ export function buildScene(input: SceneInput): SceneArrays {
     openRun = null;
   };
   const pen: Pen = {
-    quad: (a, b, c, d) => solid.quad(solid.vertex(...a), solid.vertex(...b), solid.vertex(...c), solid.vertex(...d)),
-    edge: (a, b) => edgeTo.push(...a, ...b),
-    detail: (a, b) => detailTo?.push(...a, ...b),
+    quad: (a, b, c, d) => solid.quad(sv(...a), sv(...b), sv(...c), sv(...d)),
+    edge: bodyEdge,
+    detail: (a, b) => {
+      detailTo?.push(...a, ...b);
+      detailPaintTo?.push(line, line);
+    },
     grow: (p) => grow(...p),
   };
   /**
@@ -514,15 +551,15 @@ export function buildScene(input: SceneInput): SceneArrays {
       [b.from.x + ux * a - uy * w * side, b.from.y + uy * a + ux * w * side, z] as const;
     for (let i = 0; i + 1 < tops.length; i++) {
       const [a0, z0] = tops[i]!, [a1, z1] = tops[i + 1]!;
-      solid.quad(solid.vertex(...at(a0, 1, z0)), solid.vertex(...at(a0, -1, z0)), solid.vertex(...at(a1, -1, z1)), solid.vertex(...at(a1, 1, z1)));
+      solid.quad(sv(...at(a0, 1, z0)), sv(...at(a0, -1, z0)), sv(...at(a1, -1, z1)), sv(...at(a1, 1, z1)));
       for (const side of [1, -1] as const) {
-        solid.quad(solid.vertex(...at(a0, side, zb)), solid.vertex(...at(a1, side, zb)), solid.vertex(...at(a1, side, z1)), solid.vertex(...at(a0, side, z0)));
-        bodyEdges.push(...at(a0, side, z0), ...at(a1, side, z1));
+        solid.quad(sv(...at(a0, side, zb)), sv(...at(a1, side, zb)), sv(...at(a1, side, z1)), sv(...at(a0, side, z0)));
+        bodyEdge(at(a0, side, z0), at(a1, side, z1));
       }
     }
     for (const [a, z] of [tops[0]!, tops[tops.length - 1]!]) {
-      solid.quad(solid.vertex(...at(a, 1, zb)), solid.vertex(...at(a, -1, zb)), solid.vertex(...at(a, -1, z)), solid.vertex(...at(a, 1, z)));
-      for (const side of [1, -1] as const) bodyEdges.push(...at(a, side, zb), ...at(a, side, z));
+      solid.quad(sv(...at(a, 1, zb)), sv(...at(a, -1, zb)), sv(...at(a, -1, z)), sv(...at(a, 1, z)));
+      for (const side of [1, -1] as const) bodyEdge(at(a, side, zb), at(a, side, z));
     }
     for (const [a, z] of tops) for (const side of [1, -1] as const) grow(...at(a, side, z));
   };
@@ -531,10 +568,18 @@ export function buildScene(input: SceneInput): SceneArrays {
     if (b.pieceId !== undefined) openRun = { id: b.pieceId, solid: solid.triangles, rim: rim.triangles };
     const isNextPiece = input.buildMode === true && b.pieceId !== undefined && b.pieceId === highlight;
     edgeTo = isNextPiece ? nextBuildingEdges : bodyEdges;
-    if (b.pieceId === undefined || (input.buildMode === true && !isNextPiece)) detailTo = null;
-    else {
+    const placedInBuild = input.buildMode === true && !isNextPiece;
+    const paint = placedInBuild ? undefined : b.decor?.paint;
+    fill = paintIndex(paint?.fill);
+    line = paintIndex(paint?.line);
+    if (b.pieceId === undefined || placedInBuild) {
+      detailTo = null;
+      detailPaintTo = null;
+    } else {
       detailTo = detailByPiece.get(b.pieceId) ?? [];
       detailByPiece.set(b.pieceId, detailTo);
+      detailPaintTo = detailPaintByPiece.get(b.pieceId) ?? [];
+      detailPaintByPiece.set(b.pieceId, detailPaintTo);
     }
     if (b.pieceId !== undefined) {
       boxOf = pieceBox.get(b.pieceId) ?? { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
@@ -566,7 +611,7 @@ export function buildScene(input: SceneInput): SceneArrays {
     const c = bodyCorners(b);
     const ring = (z: number) => c.map(([x, y]) => [x, y, z] as const);
     const edgeLoop = (pts: readonly (readonly [number, number, number])[]) => {
-      for (let i = 0; i < pts.length; i++) bodyEdges.push(...pts[i]!, ...pts[(i + 1) % pts.length]!);
+      for (let i = 0; i < pts.length; i++) bodyEdge(pts[i]!, pts[(i + 1) % pts.length]!);
     };
     for (const [x, y] of c) grow(x, y, zt);
     if (b.body === 'roof') {
@@ -587,8 +632,8 @@ export function buildScene(input: SceneInput): SceneArrays {
       prism(b, zb, b.profileMm.map(([a, h]) => [a, zb + h] as const));
       continue;
     }
-    const bottom = ring(zb).map((v) => solid.vertex(...v));
-    const top = ring(zt).map((v) => solid.vertex(...v));
+    const bottom = ring(zb).map((v) => sv(...v));
+    const top = ring(zt).map((v) => sv(...v));
     solid.quad(top[0]!, top[1]!, top[2]!, top[3]!);
     for (let i = 0; i < 4; i++) {
       const j = (i + 1) % 4;
@@ -600,7 +645,7 @@ export function buildScene(input: SceneInput): SceneArrays {
       edgeLoop(ring(zb));
     }
     edgeLoop(ring(zt));
-    for (const [x, y] of c) bodyEdges.push(x, y, zb, x, y, zt);
+    for (const [x, y] of c) bodyEdge([x, y, zb], [x, y, zt]);
   }
 
   // The table and the rest grow the scene's box, never the last piece's.
@@ -701,6 +746,9 @@ export function buildScene(input: SceneInput): SceneArrays {
       solid: solid.done(),
       rim: rim.done(),
       edges: { positions: new Float32Array(bodyEdges) },
+      solidPaint: Uint8Array.from(solidPaint),
+      edgePaint: Uint8Array.from(edgePaint),
+      paints,
       solidRanges,
       rimRanges,
       detail: [...detailByPiece]
@@ -708,7 +756,7 @@ export function buildScene(input: SceneInput): SceneArrays {
         .map(([pieceId, d]) => {
           const b = finite(pieceBox.get(pieceId) ?? { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] });
           const centre = [0, 1, 2].map((i) => (b.min[i]! + b.max[i]!) / 2) as [number, number, number];
-          return { pieceId, positions: new Float32Array(d), centre };
+          return { pieceId, positions: new Float32Array(d), paint: Uint8Array.from(detailPaintByPiece.get(pieceId) ?? []), centre };
         }),
     },
     nextBuilding: nextBuildingEdges.length > 0 ? { positions: new Float32Array(nextBuildingEdges) } : null,
