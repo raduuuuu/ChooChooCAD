@@ -106,6 +106,21 @@ describe('the metro station', () => {
   });
 });
 
+describe('the metro station from above (owner, 2026-11-07)', () => {
+  /*
+   * MUTATION PROOFS, run:
+   * - the two slots left out: `expected [] to deeply equal [ [ 108, -72, true ], …(1) ]`.
+   * - the outer signs left out: `expected [] to deeply equal [ [ 44, -96, 22 ], [ 168, -96, 22 ] ]`.
+   */
+  it('has the opening in its roof over the doors, two dark slots in a frame, and an M sign lying near the top of the back on each side of it', () => {
+    const decor = decorOf('MS');
+    const slots = decor.filter((d) => d.kind === 'slab' && d.paint?.fill === '--ink');
+    expect(slots.map((d) => (d.kind === 'slab' ? [d.atMm[0], d.atMm[1], d.topMm > 106] : null))).toEqual([[108, -72, true], [108, -60, true]]);
+    const outside = wheels('MS').filter((w) => w.axis === 'up' && w.paint?.fill === '--paint-red');
+    expect(outside.map((w) => [w.atMm[0], w.atMm[1], w.diameterMm])).toEqual([[44, -96, 22], [168, -96, 22]]);
+  });
+});
+
 describe('the metro tunnel', () => {
   /*
    * MUTATION PROOF, run: `axis: 'up'` drawn standing (its `at` for `up`

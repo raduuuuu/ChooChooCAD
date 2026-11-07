@@ -108,6 +108,8 @@ const slab = (x: number, y: number, l: number, w: number, bottomMm: number, topM
 const RED: Paint = { fill: '--paint-red', line: '--ink' };
 const METRO: Paint = { fill: '--paint-metro', line: '--paper' };
 const WHITE: Paint = { fill: '--paper', line: '--ink' };
+/** The dark inside of an opening (the station's roof slots). */
+const SHADOW: Paint = { fill: '--ink', line: '--paper' };
 const BEECH: Paint = { fill: '--track-fill', line: '--ink-soft' };
 /** The portals: their outer faces 203 apart, centred on the 216 track; each 18 along. */
 const PORTAL_FROM = 6.5;
@@ -164,6 +166,17 @@ const roundEnd = (x: number): DecorShape[] => [
   { kind: 'wheel', axis: 'along', atMm: [x, DISC.across], centreMm: DISC.r, diameterMm: 2 * DISC.r, thickMm: END, chordMm: DISC.cut - DISC.across, ringsMm: [27, 51], noun: 'station', paint: BEECH },
   { kind: 'slab', atMm: [x, (DISC.outer + DISC.cut) / 2], lengthMm: END, widthMm: DISC.cut - DISC.outer, bottomMm: 0, topMm: 2 * DISC.r, drawn: false, noun: 'station', paint: BEECH },
 ];
+/** An M sign lying near the top of the barrel, where the roof is all but flat: a red disc with a white face, its bottom at `z`. */
+const roofSign = (x: number, y: number, z: number, diameterMm: number): DecorWheel[] => [
+  { kind: 'wheel', axis: 'up', atMm: [x, y], centreMm: z + 2, diameterMm, thickMm: 4, noun: 'sign', paint: RED },
+  { kind: 'wheel', axis: 'up', atMm: [x, y], centreMm: z + 4.5, diameterMm: diameterMm * 0.7, thickMm: 1, noun: 'sign', paint: WHITE },
+];
+/*
+ * The opening in the roof's top over the doors (the top view): a raised
+ * dark frame 70 along and 28 deep at the roof's front edge, round two slots
+ * split by a bar along it.
+ */
+const ROOF_SLOTS = { along: 70, from: -80, to: -52, top: 107 } as const;
 const shell = (r: number, fromDeg: number, x: number, l: number, thickMm: number, paint: Paint, noun: string): DecorCanopy =>
   ({ kind: 'canopy', alongMm: x, lengthMm: l, sectionMm: arc(r, fromDeg, 180, 12), thickMm, lipMm: 0, noun, paint });
 
@@ -258,8 +271,9 @@ export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
    * back wall, the red band under that edge and the M sign over it, the
    * white platform 22 high with its red edge, and on the back wall inside
    * two posters, the double doors and two benches; outside, the doors again
-   * and the red knob that slides them, low on the back. The two M signs
-   * outside and the doors' windows are not drawn. F puts it on the left.
+   * and the red knob that slides them, low on the back, two M signs near
+   * the top of the back, and the opening in the roof's top over the doors.
+   * The doors' windows are not drawn. F puts it on the left.
    */
   {
     id: 'MS', name: 'Metro station', base: 'D', oneSided: 'station',
@@ -283,6 +297,13 @@ export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
       flat((DOORS.from + DOORS.to) / 2, -136.75, DOORS.to - DOORS.from, 1.5, 20, SHELL.z, 'doors', RED, false),
       shell(SHELL.r + 0.8, 100, (DOORS.from + DOORS.to) / 2, DOORS.to - DOORS.from, 1, RED, 'doors'),
       { kind: 'wheel', atMm: [108, -138], centreMm: 12, diameterMm: 10, thickMm: 4, noun: 'knob', paint: RED },
+      // Outside, near the top of the barrel's back: two M signs, 22 across.
+      ...roofSign(44, -96, 103, 22),
+      ...roofSign(168, -96, 103, 22),
+      // The opening in the roof's top, its frame and its two dark slots.
+      flat(108, (ROOF_SLOTS.from + ROOF_SLOTS.to) / 2, ROOF_SLOTS.along, ROOF_SLOTS.to - ROOF_SLOTS.from, 95, ROOF_SLOTS.top, 'roof', METRO, false),
+      flat(108, -72, ROOF_SLOTS.along - 8, 10, ROOF_SLOTS.top - 3, ROOF_SLOTS.top + 0.2, 'roof', SHADOW, false),
+      flat(108, -60, ROOF_SLOTS.along - 8, 10, ROOF_SLOTS.top - 3, ROOF_SLOTS.top + 0.2, 'roof', SHADOW, false),
     ],
     dimensions: {
       status: 'unverified',
