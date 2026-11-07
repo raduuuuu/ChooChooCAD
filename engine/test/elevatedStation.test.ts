@@ -91,14 +91,29 @@ describe('a curved roof collides where it is', () => {
    * `expected 176 to be 158 // Object.is equality`.
    */
   it('stretch by stretch: high over the deck at levels 2 and 3, down into level 1 only near its far eave', () => {
+    // Two sections, one either side of the lift shaft, each ten stretches.
     const solid = roof.filter((b) => b.solid);
-    expect(solid).toHaveLength(10);
+    expect(solid).toHaveLength(20);
     expect(solid[0]!.bottomMm).toBe(183 - 7 - 18);
-    expect(solid.map((b) => b.levels)).toEqual([
-      [2, 3], [2, 3], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [1, 2], [1, 1],
-    ]);
-    // One more box draws it, and never collides.
-    expect(roof.filter((b) => !b.solid).map((b) => [b.draw, b.bottomMm, b.topMm])).toEqual([[true, 90, 184.5]]);
+    const levels = [[2, 3], [2, 3], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [1, 2], [1, 1]];
+    expect(solid.map((b) => b.levels)).toEqual([...levels, ...levels]);
+    // One more box each draws it, and never collides.
+    expect(roof.filter((b) => !b.solid).map((b) => [b.draw, b.bottomMm, b.topMm])).toEqual([[true, 90, 184.5], [true, 90, 184.5]]);
+  });
+
+  /*
+   * MUTATION PROOFS, run:
+   * - the roof whole again (one canopy 204 long over the shaft): `expected [
+   *   [ -30, 174 ] ] to deeply equal [ [ -30, 39.5 ], [ 104.5, 174 ] ]`.
+   * - the car back down at 44 to 104: `expected [ 44, 104 ] to deeply equal
+   *   [ 63, 147 ]`.
+   */
+  it('leaves the lift shaft open between its two sections, the car up at the platform (owner, 2026-11-07)', () => {
+    const spans = roof.filter((b) => !b.solid).map((b) => [b.atMm[0] - b.lengthMm / 2, b.atMm[0] + b.lengthMm / 2]);
+    expect(spans).toEqual([[-30, 39.5], [104.5, 174]]);
+    const car = resolve('ST').decorBody!.find((b) => b.noun === 'lift')!;
+    expect([car.bottomMm, car.topMm]).toEqual([63, 147]);
+    expect([car.atMm[0] - car.lengthMm / 2, car.atMm[0] + car.lengthMm / 2]).toEqual([51.5, 92.5]);
   });
 
   const canopy = (over: Partial<DecorCanopy>): DecorCanopy => ({

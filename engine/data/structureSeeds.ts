@@ -48,8 +48,9 @@ const DECK = 144;
  *
  *     0   16      60    106 129     roof: a curved shell, 183 over the deck's
  *     |    ___roof___   ___          edge falling to 97 at 129, an 18 lip
- *     |  /|    clock |cap|  \       over the track; 204 along, seamed at
- *  ===|== |pillar  posts+lift \      55 and 76 from its middle
+ *     |  /|    clock |cap|  \       over the track; 204 along in two halves
+ *  ===|== |pillar  posts+lift \      either side of the lift shaft (65),
+ *                                     seamed at 55 and 76 from its middle
  *   deck  |  platform  |  |    |    platform 56 to 80, beside the deck
  *  -------+------base slab----+     base 201 along, 126 across, 12 tall
  *    ^ table
@@ -64,6 +65,13 @@ const DECK = 144;
  */
 /** How far the station's base reaches past each end of its deck: (201 - 144) / 2. */
 const BASE_PAST = 28.5;
+/** The lift shaft along the deck, its posts' outer faces, and each post. */
+const SHAFT = 65;
+const POST = 12;
+/** Each of the roof's two curved sections: 204 overall, less the shaft between them. */
+const ROOF_SIDE = (204 - SHAFT) / 2;
+/** The roof seen along the deck: its top from over the deck's edge to the far eave (across, height). */
+const ROOF_SECTION = [[-16, 183], [-27, 184.5], [-45, 183], [-63, 180], [-81, 173], [-95, 165], [-104, 156], [-113, 144.5], [-120, 131], [-125, 116], [-129, 97]] as const;
 
 export const STATION: StraightPart = {
   id: 'ST', brand: 'GENERIC', kind: 'straight', name: 'Elevated station',
@@ -83,19 +91,27 @@ export const STATION: StraightPart = {
     { kind: 'slab', atMm: [-2, -27], lengthMm: 10, widthMm: 10, bottomMm: 12, topMm: 177, noun: 'pillar' },
     { kind: 'slab', atMm: [DECK + 2, -27], lengthMm: 10, widthMm: 10, bottomMm: 12, topMm: 177, noun: 'pillar' },
     { kind: 'slab', atMm: [DECK / 2, -41.5], lengthMm: DECK, widthMm: 43, bottomMm: 56, topMm: 80, noun: 'platform' },
-    // The lift: two posts through the roof to the clock's cap, the car between them.
-    { kind: 'slab', atMm: [DECK / 2 - 27, -83], lengthMm: 9, widthMm: 46, bottomMm: 12, topMm: 187, noun: 'lift tower' },
-    { kind: 'slab', atMm: [DECK / 2 + 27, -83], lengthMm: 9, widthMm: 46, bottomMm: 12, topMm: 187, noun: 'lift tower' },
-    { kind: 'slab', atMm: [DECK / 2, -83.5], lengthMm: 44, widthMm: 40, bottomMm: 44, topMm: 104, noun: 'lift' },
+    /*
+     * The lift: a shaft 65 along, open at the back, between two posts that
+     * rise through the gap in the roof to the clock's cap; its car up at the
+     * platform, seen through the arch in the back panel over the shaft.
+     */
+    { kind: 'slab', atMm: [DECK / 2 - SHAFT / 2 + POST / 2, -83], lengthMm: POST, widthMm: 46, bottomMm: 12, topMm: 187, noun: 'lift tower' },
+    { kind: 'slab', atMm: [DECK / 2 + SHAFT / 2 - POST / 2, -83], lengthMm: POST, widthMm: 46, bottomMm: 12, topMm: 187, noun: 'lift tower' },
+    { kind: 'slab', atMm: [DECK / 2, -83.5], lengthMm: SHAFT - 2 * POST, widthMm: 40, bottomMm: 63, topMm: 147, noun: 'lift' },
+    { kind: 'slab', atMm: [DECK / 2, -107], lengthMm: SHAFT, widthMm: 6, bottomMm: 155, topMm: 183, noun: 'roof' },
     { kind: 'slab', atMm: [DECK / 2, -83], lengthMm: 45, widthMm: 46, bottomMm: 150, topMm: 187, noun: 'clock' },
     { kind: 'slab', atMm: [DECK / 2, -85], lengthMm: 73, widthMm: 50, bottomMm: 187, topMm: 201, noun: 'clock tower' },
     // The lift's winding wheel, on the far face: a toy's moving part, never in the way of track.
     { kind: 'slab', atMm: [DECK / 2, -111], lengthMm: 32, widthMm: 10, bottomMm: 155, topMm: 183, solid: false, noun: 'crank' },
-    {
-      kind: 'canopy', alongMm: DECK / 2, lengthMm: 204,
-      sectionMm: [[-16, 183], [-27, 184.5], [-45, 183], [-63, 180], [-81, 173], [-95, 165], [-104, 156], [-113, 144.5], [-120, 131], [-125, 116], [-129, 97]],
-      thickMm: 7, lipMm: 18, seamsMm: [-76, -55, 55, 76], noun: 'roof',
-    },
+    // The roof: two curved sections, one either side of the lift shaft.
+    ...[-1, 1].map((side) => ({
+      kind: 'canopy' as const, alongMm: DECK / 2 + side * (SHAFT / 2 + ROOF_SIDE / 2), lengthMm: ROOF_SIDE,
+      sectionMm: ROOF_SECTION, thickMm: 7, lipMm: 18,
+      // Two seams in each, 55 and 76 from the station's middle.
+      seamsMm: [55, 76].map((m) => side * (m - SHAFT / 2 - ROOF_SIDE / 2)),
+      noun: 'roof',
+    })),
   ],
   dimensions: {
     status: 'unverified',
