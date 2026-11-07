@@ -113,6 +113,14 @@ export const STATION: StraightPart = {
       seamsMm: [55, 76].map((m) => side * (m - SHAFT / 2 - ROOF_SIDE / 2)),
       noun: 'roof',
     })),
+    /*
+     * Over the shaft the roof is open only at the back (owner, 2026-11-07,
+     * the track-side photo): at the front its edge runs on across, the
+     * section as far back as the clock (63), and a panel hangs from it
+     * between the posts, down to 142.
+     */
+    { kind: 'canopy', alongMm: DECK / 2, lengthMm: SHAFT, sectionMm: ROOF_SECTION.slice(0, 4), thickMm: 7, lipMm: 18, noun: 'roof' },
+    { kind: 'slab', atMm: [DECK / 2, -18], lengthMm: SHAFT - 2 * POST, widthMm: 4, bottomMm: 142, topMm: 158, noun: 'roof' },
   ],
   dimensions: {
     status: 'unverified',
