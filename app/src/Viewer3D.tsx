@@ -203,6 +203,8 @@ function lines(positions: Float32Array, color: string, px: number, depthTest = t
 
 /** A paper line this much wider than the line it backs: 2px each side (paint plan R5, O1, O3). */
 export const HALO_PX = 4;
+/** How far a depth-tested halo and its line are pulled toward the eye, in polygon-offset steps. */
+export const HALO_OFFSET = -4;
 
 /**
  * One linear RGB triple a vertex, from paint indices into `paints`: 0 is
@@ -321,8 +323,17 @@ export function syncScene(group: Group, arrays: SceneArrays, c: SceneColors, dpr
   };
   // A line that must read on any paint: a wider paper line under it, one order below (paint plan R5, O1, O3).
   const haloed = (positions: Float32Array, color: string, px: number, depthTest: boolean, order: number) => {
-    add(lines(positions, c.paper, px + HALO_PX, depthTest), order - 1);
-    add(lines(positions, color, px, depthTest), order);
+    for (const [l, at] of [[lines(positions, c.paper, px + HALO_PX, depthTest), order - 1], [lines(positions, color, px, depthTest), order]] as const) {
+      /*
+       * A depth-tested halo is wider than its line, so where the faces beside
+       * an edge run nearly along the view (a curved roof's rim) they stand in
+       * front of its outer pixels and cut it into dashes. Both lines are
+       * pulled toward the eye by HALO_OFFSET, as the selection's are by not
+       * testing depth at all.
+       */
+      if (depthTest) Object.assign(l.material, { polygonOffset: true, polygonOffsetFactor: HALO_OFFSET, polygonOffsetUnits: HALO_OFFSET });
+      add(l, at);
+    }
   };
   if (arrays.slab) {
     add(new Mesh(geometryOf(arrays.slab.top), flat(c.paperSunk)));

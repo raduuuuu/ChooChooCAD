@@ -115,9 +115,10 @@ describe('a curved roof collides where it is', () => {
     // Over the shaft, the roof runs from its front edge back to the clock, no further.
     const front = drawn[2]!;
     expect([front.atMm[1] + front.widthMm / 2, front.atMm[1] - front.widthMm / 2]).toEqual([-16, -63]);
-    const car = resolve('ST').decorBody!.find((b) => b.noun === 'lift')!;
-    expect([car.bottomMm, car.topMm]).toEqual([63, 147]);
-    expect([car.atMm[0] - car.lengthMm / 2, car.atMm[0] + car.lengthMm / 2]).toEqual([51.5, 92.5]);
+    // The car: an open frame over its floor, together filling what the solid car did.
+    const car = resolve('ST').decorBody!.filter((b) => b.noun === 'lift');
+    expect([Math.min(...car.map((b) => b.bottomMm)), Math.max(...car.map((b) => b.topMm))]).toEqual([63, 147]);
+    expect([Math.min(...car.map((b) => b.atMm[0] - b.lengthMm / 2)), Math.max(...car.map((b) => b.atMm[0] + b.lengthMm / 2))]).toEqual([51.5, 92.5]);
   });
 
   const canopy = (over: Partial<DecorCanopy>): DecorCanopy => ({
@@ -193,7 +194,8 @@ describe('the roof in 3D', () => {
     const s = alone();
     expect(s.bounds.max[2]).toBeCloseTo(201, 6);
     const d = s.structures.detail;
-    expect((d[0]?.positions.length ?? 0) / 6).toBe(40);
+    // The roof's 40 seam lines, and the crank's hub and knob: two rings of 12 on each face.
+    expect((d[0]?.positions.length ?? 0) / 6).toBe(40 + 2 * 12 * 2);
     const p = s.structures.solid.positions;
     let lip = Infinity;
     // Along the deck clear of the shaft, where the panel between the posts hangs lower.
@@ -241,8 +243,10 @@ describe('the station’s paint in 3D (paint plan 2026-11-07: CEO R1-R3, design 
     expect(paintIn(s, [-31, -29, -60, -20, 170, 190])).toEqual(['--paint-roof']);
     // The lift car between the posts (the posts' own vertices are at 12 and 187 only).
     expect(paintIn(s, [51, 93, -103.6, -63.4, 60, 150])).toEqual(['--paint-red']);
-    // The base's underside.
-    expect(paintIn(s, [-30, 175, -126, 2, -0.5, 0.5])).toEqual(['--paint-base']);
+    // The base: beech underneath, dark only on its printed top (the skin's top face, 12.5 up). With the
+    // skin left beech: `expected [ '--track-fill' ] to deeply equal [ '--paint-base' ]`.
+    expect(paintIn(s, [-30, 175, -126, 2, -0.5, 0.5])).toEqual(['--track-fill']);
+    expect(paintIn(s, [-30, 175, -126, 2, 12.4, 12.6])).toEqual(['--paint-base']);
   });
 
   it('every built-in paint is in the palette, fills and lines', () => {
@@ -262,7 +266,8 @@ describe('the station’s paint in 3D (paint plan 2026-11-07: CEO R1-R3, design 
   it('a flipped station keeps each part’s paint, on the other side', () => {
     const s = sceneOf([['st', 'ST', at(0, 0, 0), 'right']]);
     expect(paintIn(s, [51, 93, 63.4, 103.6, 60, 150])).toEqual(['--paint-red']);
-    expect(paintIn(s, [-30, 175, -2, 126, -0.5, 0.5])).toEqual(['--paint-base']);
+    expect(paintIn(s, [-30, 175, -2, 126, -0.5, 0.5])).toEqual(['--track-fill']);
+    expect(paintIn(s, [-30, 175, -2, 126, 12.4, 12.6])).toEqual(['--paint-base']);
   });
 
   /*
@@ -305,9 +310,65 @@ describe('the station’s paint in 3D (paint plan 2026-11-07: CEO R1-R3, design 
       }
       return [...out].sort();
     };
-    // The base's top edge, 12 up, beyond the posts.
-    expect(tokensWhere((_x, y, z) => Math.abs(z - 12) < 1e-6 && y < -120)).toEqual(['--paper']);
+    // The base's printed top's edge, 12.5 up, beyond the posts; the beech under it in its own soft ink.
+    expect(tokensWhere((_x, y, z) => Math.abs(z - 12.5) < 1e-6 && y < -120)).toEqual(['--paper']);
+    expect(tokensWhere((_x, y, z) => Math.abs(z) < 1e-6 && y < -120)).toEqual(['--ink-soft']);
     // The roof's end section lines, over the deck's edge side.
     expect(tokensWhere((x, y, z) => x < -29 && z > 175 && y < -20 && y > -60)).toEqual(['--ink']);
+  });
+
+  describe('the crank, the lift car and the base as the photos show them (owner, 2026-11-07)', () => {
+    /*
+     * MUTATION PROOF, run: the wheel's box solid: `expected [ [ true, true,
+     * 'wheel', 31, …(3) ] ] to deeply equal [ [ false, true, 'wheel', 31,
+     * …(3) ] ]`.
+     */
+    it('the crank is a wheel drawn only: 31 across round its hub at 171, 10 deep, never colliding', () => {
+      const crank = resolve('ST').decorBody!.filter((b) => b.noun === 'crank');
+      expect(crank.map((b) => [b.solid, b.draw, b.shape?.kind, b.lengthMm, b.widthMm, b.bottomMm, b.topMm])).toEqual([[false, true, 'wheel', 31, 10, 155.5, 186.5]]);
+    });
+
+    /*
+     * MUTATION PROOF, run: every quad drawn as handed over (`out` never
+     * turning one round): `expected 32 to be +0 // Object.is equality`: one
+     * face showed its back and would be culled.
+     */
+    it('the wheel is round, every face turned outward so none is culled', () => {
+      const { positions: p, indices } = sceneOf([STATION]).structures.solid;
+      const v = (k: number) => [p[k * 3]!, p[k * 3 + 1]!, p[k * 3 + 2]!] as const;
+      // The wheel's own vertices: on one of its faces, 111 +- 5 across, each on the rim or at the hub.
+      const onWheel = (k: number) => {
+        const [x, y, z] = v(k);
+        const r = Math.hypot(x - 72, z - 171);
+        // Float32 positions: a thousandth of a millimetre.
+        return Math.abs(Math.abs(y + 111) - 5) < 1e-3 && (Math.abs(r - 15.5) < 1e-3 || r < 1e-3);
+      };
+      let triangles = 0, inward = 0;
+      for (let t = 0; t < indices.length; t += 3) {
+        const [a, b, c] = [v(indices[t]!), v(indices[t + 1]!), v(indices[t + 2]!)];
+        if (![indices[t]!, indices[t + 1]!, indices[t + 2]!].every(onWheel)) continue;
+        const n = [(b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]), (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]), (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])];
+        if (Math.hypot(...n) < 1e-9) continue; // the fan's spare half of each face quad
+        triangles++;
+        const m = [(a[0] + b[0] + c[0]) / 3 - 72, (a[1] + b[1] + c[1]) / 3 + 111, (a[2] + b[2] + c[2]) / 3 - 171];
+        if (n[0]! * m[0]! + n[1]! * m[1]! + n[2]! * m[2]! <= 0) inward++;
+      }
+      // The rim's 32 quads, and 32 slices on each face.
+      expect(triangles).toBe(32 * 2 + 32 * 2);
+      expect(inward).toBe(0);
+    });
+
+    /*
+     * MUTATION PROOF, run: the car one solid block again: `expected [] to
+     * deeply equal [ '--paint-red' ]`: a block has corners only at its
+     * outside, none round an opening.
+     */
+    it('the lift car is an open frame: its opening has corners, where the posts meet its floor and its top bars', () => {
+      const s = sceneOf([STATION]);
+      // The opening in its back face runs from 54.5 to 89.5 along and from 71 to 144 up (the posts and bars 3 square).
+      for (const x of [54.5, 89.5]) {
+        for (const z of [71, 144]) expect(paintIn(s, [x - 0.01, x + 0.01, -105.1, -101.9, z - 0.01, z + 0.01])).toEqual(['--paint-red']);
+      }
+    });
   });
 });

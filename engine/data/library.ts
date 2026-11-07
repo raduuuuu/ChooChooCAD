@@ -117,6 +117,10 @@ export function decorBoxesOf(owner: string, decor: readonly DecorShape[], riseMm
         if (shape.fillToMm !== undefined && !(shape.fillToMm > crown)) throw new Error(`${owner}: an arch panel's top must stand over its crown.`);
         return [boxOf('footprint', [(shape.fromMm + shape.toMm) / 2, shape.acrossMm ?? 0], shape.toMm - shape.fromMm, shape.widthMm, shape.baseMm, shape.fillToMm ?? crown + shape.depthMm, drawOnly(shape))];
       }
+      case 'wheel': {
+        const r = shape.diameterMm / 2;
+        return [boxOf('footprint', shape.atMm, shape.diameterMm, shape.thickMm, shape.centreMm - r, shape.centreMm + r, drawOnly(shape))];
+      }
       case 'towers':
         return [boxOf('footprint', [(shape.cableFromMm + shape.cableToMm) / 2, 0], shape.cableToMm - shape.cableFromMm, 2 * shape.spreadMm + shape.postMm, 0, Math.max(...shape.towers.map((t) => t.heightMm)), drawOnly(shape))];
       case 'station': {
