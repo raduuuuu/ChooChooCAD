@@ -192,11 +192,15 @@
    * --paint-grey: the deck's frame, 2.02:1 on --floor; deltaE 42.5.
    * Lines: --ink, 5.90:1.
    * Beech parts use --track-fill (deltaE 42.8), lines --ink-soft, 3.22:1.
+   * --paint-metro: the metro pieces' dark grey portals, roof and wall
+   * (photos 2026-11-07), 7.39:1 on --floor; deltaE 31.0. Lines: --paper,
+   * 8.30:1. Their white parts use --paper (deltaE 51.8), lines --ink, 13.43:1.
    */
   --paint-roof: #638e70;
   --paint-red: #e46560;
   --paint-base: #33251d;
   --paint-grey: #9fa693;
+  --paint-metro: #41494e;
   /*
    * THE SEAM: the line across the plank where one piece ends and the next
    * begins (decision 11A of the 2026-10-22 editing plan).

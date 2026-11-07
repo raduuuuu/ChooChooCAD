@@ -341,6 +341,8 @@ export interface DecorSlab {
   readonly bottomMm: number;
   readonly topMm: number;
   readonly solid?: false;
+  /** False for a box that only collides, its shape drawn by another (the metro station's round beech ends). */
+  readonly drawn?: false;
   readonly noun?: string;
   readonly paint?: Paint;
 }
@@ -361,6 +363,7 @@ export interface DecorVault {
   readonly springMm: number;
   readonly topMm: number;
   readonly noun?: string;
+  readonly paint?: Paint;
   /**
    * The stone joints on its outside, drawn as detail lines only (detail
    * plan 2026-11-05, owner: every joint): rings around the shell at
@@ -422,6 +425,15 @@ export interface DecorArch {
  * above the floor, `thickMm` deep across the piece. Its hub, and the knob
  * `knobMm` below the hub, are detail. Drawn only: a toy's moving part never
  * blocks track.
+ *
+ * `axis: 'along'` turns it to face along the track instead, `thickMm` deep
+ * along it (the metro station's round beech ends, 2026-11-07), and `axis:
+ * 'up'` lays it flat, `centreMm` the height of its middle (the collar round
+ * the metro tunnel's roof hole); `chordMm` cuts it flat that far from its
+ * centre on its +u side (across the piece, to the left, for a disc facing
+ * along: where the station's beech end meets the portal); `ringsMm`
+ * draws rings of those diameters round its centre in place of the hub (a
+ * hole bored through it, and its chamfer).
  */
 export interface DecorWheel {
   readonly kind: 'wheel';
@@ -430,6 +442,9 @@ export interface DecorWheel {
   readonly diameterMm: number;
   readonly thickMm: number;
   readonly knobMm?: number;
+  readonly axis?: 'across' | 'along' | 'up';
+  readonly ringsMm?: readonly number[];
+  readonly chordMm?: number;
   readonly noun?: string;
   readonly paint?: Paint;
 }

@@ -562,12 +562,19 @@ const RING_SIDES = 12;
  */
 function drawWheel(w: DecorWheel, f: ShapeFrame, pen: Pen): void {
   const r = w.diameterMm / 2, half = w.thickMm / 2, zc = f.floorMm + w.centreMm, ac = f.lengthMm / 2;
+  /*
+   * A point (u, v) on its face from its centre, `side` off its middle plane.
+   * Standing, v is up: the face across the piece, or along it. Lying flat
+   * (`up`), v is across and `side` is up.
+   */
+  const at: (u: number, side: number, v: number) => P3 =
+    w.axis === 'along' ? (u, side, v) => f.at(ac + side, u, zc + v) : w.axis === 'up' ? (u, side, v) => f.at(ac + u, v, zc + side) : (u, side, v) => f.at(ac + u, side, zc + v);
   const ring = (radius: number, below: number, sides: number) =>
     Array.from({ length: sides }, (_, i) => {
       const th = (2 * Math.PI * i) / sides;
-      return [ac + radius * Math.cos(th), zc - below + radius * Math.sin(th)] as const;
+      return [radius * Math.cos(th), -below + radius * Math.sin(th)] as const;
     });
-  const centre = f.at(ac, 0, zc);
+  const centre = at(0, 0, 0);
   const out = (a: P3, b: P3, c: P3, d: P3) => {
     // The quad's normal against the way from the centre to its middle: turned round when they disagree.
     const n = [(b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]), (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]), (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])];
@@ -575,21 +582,30 @@ function drawWheel(w: DecorWheel, f: ShapeFrame, pen: Pen): void {
     if (n[0]! * m[0]! + n[1]! * m[1]! + n[2]! * m[2]! >= 0) pen.quad(a, b, c, d);
     else pen.quad(d, c, b, a);
   };
-  const rim = ring(r, 0, WHEEL_SIDES);
+  // The rim, cut flat at `chordMm` from the centre on the +u side when it has a chord.
+  const c = w.chordMm;
+  const rim: (readonly [number, number])[] = [];
+  const whole = ring(r, 0, WHEEL_SIDES);
+  for (let i = 0; i < whole.length; i++) {
+    const p = whole[i]!, q = whole[(i + 1) % whole.length]!;
+    if (c === undefined || p[0] <= c) rim.push(p);
+    if (c !== undefined && (p[0] - c) * (q[0] - c) < 0) rim.push([c, p[1] + ((q[1] - p[1]) * (c - p[0])) / (q[0] - p[0])]);
+  }
   for (let i = 0; i < rim.length; i++) {
     const [a0, z0] = rim[i]!, [a1, z1] = rim[(i + 1) % rim.length]!;
-    out(f.at(a0, half, z0), f.at(a1, half, z1), f.at(a1, -half, z1), f.at(a0, -half, z0));
+    out(at(a0, half, z0), at(a1, half, z1), at(a1, -half, z1), at(a0, -half, z0));
     for (const side of [half, -half]) {
-      const hub = f.at(ac, side, zc);
-      out(hub, f.at(a0, side, z0), f.at(a1, side, z1), f.at(a1, side, z1));
-      pen.edge(f.at(a0, side, z0), f.at(a1, side, z1));
-      pen.grow(f.at(a0, side, z0));
+      const hub = at(0, side, 0);
+      out(hub, at(a0, side, z0), at(a1, side, z1), at(a1, side, z1));
+      pen.edge(at(a0, side, z0), at(a1, side, z1));
+      pen.grow(at(a0, side, z0));
     }
   }
-  const details = [ring(r / 8, 0, RING_SIDES), ...(w.knobMm === undefined ? [] : [ring(r / 8, w.knobMm, RING_SIDES)])];
+  const hubs = w.ringsMm ? w.ringsMm.map((d) => ring(d / 2, 0, WHEEL_SIDES)) : [ring(r / 8, 0, RING_SIDES)];
+  const details = [...hubs, ...(w.knobMm === undefined ? [] : [ring(r / 8, w.knobMm, RING_SIDES)])];
   for (const d of details) {
     for (const side of [half, -half]) {
-      for (let i = 0; i < d.length; i++) pen.detail(f.at(d[i]![0], side, d[i]![1]), f.at(d[(i + 1) % d.length]![0], side, d[(i + 1) % d.length]![1]));
+      for (let i = 0; i < d.length; i++) pen.detail(at(d[i]![0], side, d[i]![1]), at(d[(i + 1) % d.length]![0], side, d[(i + 1) % d.length]![1]));
     }
   }
 }

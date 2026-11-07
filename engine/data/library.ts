@@ -92,7 +92,7 @@ export function decorBoxesOf(owner: string, decor: readonly DecorShape[], riseMm
     const drawOnly = (drawn: DrawnShape) => ({ solid: false, draw: true, ...noun, shape: drawn });
     switch (shape.kind) {
       case 'slab':
-        return [boxOf('footprint', shape.atMm, shape.lengthMm, shape.widthMm, shape.bottomMm, shape.topMm, { solid: shape.solid !== false, draw: true, ...noun })];
+        return [boxOf('footprint', shape.atMm, shape.lengthMm, shape.widthMm, shape.bottomMm, shape.topMm, { solid: shape.solid !== false, draw: shape.drawn !== false, ...noun })];
       case 'vault': {
         /*
          * A vault's solid parts only (eng D10): its two walls, from the floor
@@ -119,7 +119,10 @@ export function decorBoxesOf(owner: string, decor: readonly DecorShape[], riseMm
       }
       case 'wheel': {
         const r = shape.diameterMm / 2;
-        return [boxOf('footprint', shape.atMm, shape.diameterMm, shape.thickMm, shape.centreMm - r, shape.centreMm + r, drawOnly(shape))];
+        // Its box: the disc's two faces across, along, or (lying flat) above and below its middle.
+        const [l, w, half] = shape.axis === 'along' ? [shape.thickMm, shape.diameterMm, r] : shape.axis === 'up' ? [shape.diameterMm, shape.diameterMm, shape.thickMm / 2] : [shape.diameterMm, shape.thickMm, r];
+        if (shape.chordMm !== undefined && !(shape.chordMm > 0 && shape.chordMm < r)) throw new Error(`${owner}: a wheel's flat must cut it between its centre and its rim.`);
+        return [boxOf('footprint', shape.atMm, l, w, shape.centreMm - half, shape.centreMm + half, drawOnly(shape))];
       }
       case 'towers':
         return [boxOf('footprint', [(shape.cableFromMm + shape.cableToMm) / 2, 0], shape.cableToMm - shape.cableFromMm, 2 * shape.spreadMm + shape.postMm, 0, Math.max(...shape.towers.map((t) => t.heightMm)), drawOnly(shape))];

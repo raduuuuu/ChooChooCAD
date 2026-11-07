@@ -282,7 +282,7 @@ describe('swapping a placed piece, plain and decorated (plan T6, CEO E8, design 
    * equal [ [ 'SS' ], [ 'A' ], [ 'TT' ], …(5) ]`.
    */
   it('a plain piece offers its decorated versions, a decorated one its plain base, others nothing', () => {
-    expect(['A', 'SS', 'D', 'TT', 'HP', 'LC', 'E', 'HB'].map((id) => offers(id))).toEqual([['SS'], ['A'], ['TT'], ['D'], ['LC'], ['HP'], [], []]);
+    expect(['A', 'SS', 'D', 'TT', 'MS', 'HP', 'LC', 'E', 'HB'].map((id) => offers(id))).toEqual([['SS'], ['A'], ['TT', 'MT', 'MS'], ['D', 'MT', 'MS'], ['D', 'TT', 'MT'], ['LC'], ['HP'], [], []]);
   });
 
   /*

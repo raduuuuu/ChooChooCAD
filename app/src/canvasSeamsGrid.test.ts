@@ -303,8 +303,8 @@ const PAINTS = [
 ].map((pt) => ({ fill: pt.fill.slice(2), line: pt.line.slice(2) }));
 
 describe('paint in 3D keeps clear of the verdict red and keeps its lines readable', () => {
-  it('the Elevated station wears five paints', () => {
-    expect(PAINTS.map((pt) => pt.fill).sort()).toEqual(['paint-base', 'paint-grey', 'paint-red', 'paint-roof', 'track-fill']);
+  it('the built-in pieces wear seven paints: the Elevated station five, the metro pieces their grey and white', () => {
+    expect([...new Set(PAINTS.map((pt) => pt.fill))].sort()).toEqual(['paint-base', 'paint-grey', 'paint-metro', 'paint-red', 'paint-roof', 'paper', 'track-fill']);
   });
 
   /*

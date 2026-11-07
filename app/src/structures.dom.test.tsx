@@ -70,6 +70,8 @@ describe('structures in the library and on the floor', () => {
       'Add Level crossing. Works like HP, Crossing, printed. Unverified size.',
       'Add Station straight. Works like A, Medium straight. Unverified size.',
       'Add Tunnel straight. Works like D, Long straight. Unverified size.',
+      'Add Metro tunnel. Works like D, Long straight. Unverified size.',
+      'Add Metro station. Works like D, Long straight. Unverified size.',
     ]);
     expect(within(group).getByText('Works like HP, Crossing, printed')).toBeTruthy();
     expect(within(group).getAllByRole('button')[0]!.getAttribute('title')).toContain('Works like HP, Crossing, printed.');
