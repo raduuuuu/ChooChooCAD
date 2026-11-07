@@ -182,8 +182,16 @@ const roofSign = (x: number, y: number, z: number, diameterMm: number): DecorWhe
  * it, round two slots split by a bar along it.
  */
 const ROOF_SLOTS = { along: 70, from: -66, to: -38, top: 104 } as const;
-const shell = (r: number, fromDeg: number, x: number, l: number, thickMm: number, paint: Paint, noun: string): DecorCanopy =>
-  ({ kind: 'canopy', alongMm: x, lengthMm: l, sectionMm: arc(r, fromDeg, 180, 12), thickMm, lipMm: 0, noun, paint });
+const shell = (r: number, fromDeg: number, x: number, l: number, thickMm: number, paint: Paint, noun: string, toDeg = 180): DecorCanopy =>
+  ({ kind: 'canopy', alongMm: x, lengthMm: l, sectionMm: arc(r, fromDeg, toDeg, 12), thickMm, lipMm: 0, noun, paint });
+/*
+ * The doors' windows, one in each leaf (the front and top photos): 15 wide
+ * in the middle of the leaf, seen through, so paper. Inside, on the doors
+ * against the back wall, from 45 to 63 up; outside, on the curved panel,
+ * from 92 to 113 degrees round the barrel.
+ */
+const WINDOW = { width: 15, bottom: 45, top: 63, fromDeg: 92, toDeg: 113 } as const;
+const LEAVES = [(DOORS.from + 104) / 2, (104 + DOORS.to) / 2];
 
 export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
   {
@@ -281,7 +289,7 @@ export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
    * curving up over the roof to its frame, and the red knob that slides
    * them, low on the back, two M signs near
    * the top of the back, and the opening in the roof's top over the doors.
-   * The doors' windows are not drawn. F puts it on the left.
+   * The doors have a window in each leaf, inside and out. F puts it on the left.
    */
   {
     id: 'MS', name: 'Metro station', base: 'D', oneSided: 'station',
@@ -292,7 +300,8 @@ export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
       flat(108, -131, HALL_LEN, 6, 0, SHELL.z, 'station', METRO),
       shell(SHELL.r, FRONT_DEG, 108, HALL_LEN, 6, METRO, 'roof'),
       flat(108, SHELL.front - 1.5, HALL_LEN, 3, FRONT_Z - 8, FRONT_Z, 'roof', RED, false),
-      ...sign(108, SHELL.front, 1, FRONT_Z + 8, 16, 'sign'),
+      // In front of the roof frame, which reaches a little over the edge.
+      ...sign(108, ROOF_SLOTS.to, 1, FRONT_Z + 8, 16, 'sign'),
       flat(108, -76, INNER_LEN, 104, 0, 22, 'platform', WHITE),
       flat(108, -27.5, INNER_LEN, 2, 22, 22.4, 'platform', RED, false),
       // Inside, on the back wall: posters, the doors, benches with their backs.
@@ -306,6 +315,10 @@ export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
       // A curved sliding panel: from the roof frame's back edge, over the top, down to the wall.
       shell(SHELL.r + 0.8, (Math.acos((ROOF_SLOTS.from - SHELL.across) / SHELL.r) * 180) / Math.PI, (DOORS.from + DOORS.to) / 2, DOORS.to - DOORS.from, 1, RED, 'doors'),
       { kind: 'wheel', atMm: [108, -137], centreMm: 12, diameterMm: 10, thickMm: 4, noun: 'knob', paint: RED },
+      ...LEAVES.flatMap((x) => [
+        flat(x, -126.3, WINDOW.width, 0.4, WINDOW.bottom, WINDOW.top, 'window', WHITE, false),
+        shell(SHELL.r + 1.4, WINDOW.fromDeg, x, WINDOW.width, 0.6, WHITE, 'window', WINDOW.toDeg),
+      ]),
       // Outside, near the top of the barrel's back: two M signs, 22 across.
       ...roofSign(44, -96, 101, 22),
       ...roofSign(168, -96, 101, 22),
