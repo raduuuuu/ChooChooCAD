@@ -172,11 +172,14 @@ const roundEnd = (x: number): DecorShape[] => [
   { kind: 'slab', atMm: [x, (DISC.outer + DISC.cut) / 2], lengthMm: END, widthMm: DISC.cut - DISC.outer, bottomMm: 0, topMm: 2 * DISC.r, drawn: false, noun: 'station', paint: BEECH },
 ];
 /*
- * The opening in the roof's top over the doors (the top view): a raised
- * dark frame 70 along and 28 deep on the roof's front edge, a little over
- * it, round two slots split by a bar along it.
+ * The opening in the roof's top over the doors (the top view): a dark frame
+ * 70 along, laid on the roof's slope 3 proud of it (owner, 2026-11-07), from
+ * the front edge back to 66 from the track's centre, round two slots split
+ * by a bar along it.
  */
-const ROOF_SLOTS = { along: 70, from: -66, to: -38, top: 104 } as const;
+const ROOF_SLOTS = { along: 70, from: -66, proud: 3 } as const;
+/** Where on the barrel's circle a point `across` from the track's centre lies, in degrees. */
+const degOf = (across: number) => (Math.acos((across - SHELL.across) / SHELL.r) * 180) / Math.PI;
 const shell = (r: number, fromDeg: number, x: number, l: number, thickMm: number, paint: Paint, noun: string, toDeg = 180): DecorCanopy =>
   ({ kind: 'canopy', alongMm: x, lengthMm: l, sectionMm: arc(r, fromDeg, toDeg, 12), thickMm, lipMm: 0, noun, paint });
 /*
@@ -296,7 +299,7 @@ export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
       shell(SHELL.r, FRONT_DEG, 108, HALL_LEN, 6, METRO, 'roof'),
       flat(108, SHELL.front - 1.5, HALL_LEN, 3, FRONT_Z - 8, FRONT_Z, 'roof', RED, false),
       // In front of the roof frame, which reaches a little over the edge.
-      ...sign(108, ROOF_SLOTS.to, 1, FRONT_Z + 8, 16, 'sign'),
+      ...sign(108, SHELL.front, 1, FRONT_Z + 8, 16, 'sign'),
       flat(108, -76, INNER_LEN, 104, 0, 22, 'platform', WHITE),
       flat(108, -27.5, INNER_LEN, 2, 22, 22.4, 'platform', RED, false),
       // Inside, on the back wall: posters, the doors, benches with their backs.
@@ -308,7 +311,7 @@ export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
       // Outside: the doors on the wall and up the curve, and the knob.
       flat((DOORS.from + DOORS.to) / 2, -134.75, DOORS.to - DOORS.from, 1.5, 20, SHELL.z, 'doors', RED, false),
       // A curved sliding panel: from the roof frame's back edge, over the top, down to the wall.
-      shell(SHELL.r + 0.8, (Math.acos((ROOF_SLOTS.from - SHELL.across) / SHELL.r) * 180) / Math.PI, (DOORS.from + DOORS.to) / 2, DOORS.to - DOORS.from, 1, RED, 'doors'),
+      shell(SHELL.r + 0.8, degOf(ROOF_SLOTS.from), (DOORS.from + DOORS.to) / 2, DOORS.to - DOORS.from, 1, RED, 'doors'),
       { kind: 'wheel', atMm: [108, -137], centreMm: 12, diameterMm: 10, thickMm: 4, noun: 'knob', paint: RED },
       ...LEAVES.flatMap((x) => [
         flat(x, -126.3, WINDOW.width, 0.4, WINDOW.bottom, WINDOW.top, 'window', WHITE, false),
@@ -318,9 +321,10 @@ export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
       ...sign(44, -134, -1, 58, 22, 'sign', 1.5),
       ...sign(168, -134, -1, 58, 22, 'sign', 1.5),
       // The opening in the roof's top, its frame and its two dark slots.
-      flat(108, (ROOF_SLOTS.from + ROOF_SLOTS.to) / 2, ROOF_SLOTS.along, ROOF_SLOTS.to - ROOF_SLOTS.from, FRONT_Z - 1, ROOF_SLOTS.top, 'roof', METRO, false),
-      flat(108, -58, ROOF_SLOTS.along - 8, 10, ROOF_SLOTS.top - 3, ROOF_SLOTS.top + 0.2, 'roof', SHADOW, false),
-      flat(108, -46, ROOF_SLOTS.along - 8, 10, ROOF_SLOTS.top - 3, ROOF_SLOTS.top + 0.2, 'roof', SHADOW, false),
+      shell(SHELL.r + ROOF_SLOTS.proud, FRONT_DEG, 108, ROOF_SLOTS.along, ROOF_SLOTS.proud, METRO, 'roof', degOf(ROOF_SLOTS.from)),
+      // The two slots, a bar's width apart, just over the frame.
+      shell(SHELL.r + ROOF_SLOTS.proud + 0.2, FRONT_DEG + 3, 108, ROOF_SLOTS.along - 8, 0.4, SHADOW, 'roof', (FRONT_DEG + degOf(ROOF_SLOTS.from)) / 2 - 1.5),
+      shell(SHELL.r + ROOF_SLOTS.proud + 0.2, (FRONT_DEG + degOf(ROOF_SLOTS.from)) / 2 + 1.5, 108, ROOF_SLOTS.along - 8, 0.4, SHADOW, 'roof', degOf(ROOF_SLOTS.from) - 3),
     ],
     dimensions: {
       status: 'unverified',

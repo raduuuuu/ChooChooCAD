@@ -109,14 +109,20 @@ describe('the metro station', () => {
 describe('the metro station from above (owner, 2026-11-07)', () => {
   /*
    * MUTATION PROOFS, run:
-   * - the two slots left out: `expected [] to deeply equal [ [ 108, -72, true ], …(1) ]`.
+   * - the two slots left out: `expected [] to deeply equal [ [ 55.2 ], [ 55.2 ] ]`.
+   * - the frame a flat box again (its top level, 104): `expected [] to deeply equal [ [ 55 ] ]`.
    * - the outer signs left out: `expected [] to deeply equal [ [ 44, 'across', 58, 22 ], …(1) ]`.
    * - a sign laid on the roof's top again: `expected [ { kind: 'wheel', axis: 'up', …(6) } ] to deeply equal []`.
    */
-  it('has the opening in its roof over the doors, two dark slots in a frame, and an M sign upright on the back on each side of the doors', () => {
+  it('has the opening in its roof over the doors, a frame on the slope round two dark slots, and an M sign upright on the back on each side of the doors', () => {
     const decor = decorOf('MS');
-    const slots = decor.filter((d) => d.kind === 'slab' && d.paint?.fill === '--ink');
-    expect(slots.map((d) => (d.kind === 'slab' ? [d.atMm[0], d.atMm[1], d.topMm > 103] : null))).toEqual([[108, -58, true], [108, -46, true]]);
+    // The frame and its slots lie on the roof's circle (52 round (-82, 53)), 3 and 3.2 proud of it: they follow its slope.
+    const onSlope = (d: (typeof decor)[number]) =>
+      d.kind === 'canopy' ? [...new Set(d.sectionMm.map(([y, z]) => Math.round(Math.hypot(y + 82, z - 53) * 10) / 10))] : null;
+    const frame = decor.filter((d) => d.noun === 'roof' && d.kind === 'canopy' && 'paint' in d && d.paint?.fill === '--paint-metro' && d.lengthMm === 70);
+    expect(frame.map(onSlope)).toEqual([[55]]);
+    const slots = decor.filter((d) => 'paint' in d && d.paint?.fill === '--ink');
+    expect(slots.map(onSlope)).toEqual([[55.2], [55.2]]);
     const outside = wheels('MS').filter((w) => w.noun === 'sign' && w.paint?.fill === '--paint-red' && w.atMm[1] < -130);
     expect(outside.map((w) => [w.atMm[0], w.axis ?? 'across', w.centreMm, w.diameterMm])).toEqual([[44, 'across', 58, 22], [168, 'across', 58, 22]]);
     // Nothing lies on the roof's top (owner, 2026-11-07).
