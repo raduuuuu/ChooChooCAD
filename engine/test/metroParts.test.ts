@@ -121,6 +121,18 @@ describe('the metro station from above (owner, 2026-11-07)', () => {
   });
 });
 
+describe('the metro station’s door windows (owner, 2026-11-07)', () => {
+  /*
+   * MUTATION PROOF, run: the windows left out: `expected [] to deeply equal [ [ 'slab', '--paper' ], …(3) ]`.
+   */
+  it('a window in each leaf, inside on the back wall and outside on the curved panel, seen through so paper', () => {
+    const windows = decorOf('MS').filter((d) => d.noun === 'window');
+    expect(windows.map((d) => [d.kind, 'paint' in d ? d.paint?.fill : undefined])).toEqual([['slab', '--paper'], ['canopy', '--paper'], ['slab', '--paper'], ['canopy', '--paper']]);
+    const along = windows.map((d) => (d.kind === 'slab' ? d.atMm[0] : d.kind === 'canopy' ? d.alongMm : NaN));
+    expect(along).toEqual([90.5, 90.5, 117.5, 117.5]);
+  });
+});
+
 describe('the metro tunnel', () => {
   /*
    * MUTATION PROOF, run: `axis: 'up'` drawn standing (its `at` for `up`
