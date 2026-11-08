@@ -13,7 +13,7 @@
 
 import type { Segment } from '../geom/fk.js';
 import { domeHalfWidth, domeTop } from '../parts/dome.js';
-import type { DecorArch, DecorBarrier, DecorCanopy, DecorDome, DecorStation, DecorTowers, DecorTruss, DecorVault, DecorWheel, DrawnShape, Part } from '../parts/schema.js';
+import type { DecorArch, DecorBarrier, DecorCanopy, DecorDome, DecorPrism, DecorStation, DecorTowers, DecorTruss, DecorVault, DecorWheel, DrawnShape, Part } from '../parts/schema.js';
 
 /** A truss arch's chords in 3D: this deep, and twice this across. */
 export const TRUSS_CHORD_MM = 4;
@@ -129,6 +129,8 @@ export function drawShape(shape: DrawnShape, f: ShapeFrame, pen: Pen): void {
       return drawWheel(shape, f, pen);
     case 'dome':
       return drawDome(shape, f, pen);
+    case 'prism':
+      return drawPrism(shape, f, pen);
   }
 }
 
@@ -651,8 +653,19 @@ function drawWheel(w: DecorWheel, f: ShapeFrame, pen: Pen): void {
  * rim round its edge between them, the rim's two edges as its outline.
  */
 function drawDome(d: DecorDome, f: ShapeFrame, pen: Pen): void {
-  const NU = 16, NV = 12;
+  const NU = 20, NV = 20;
   const half = d.lengthMm / 2, mid = f.lengthMm / 2;
+  if (d.patches) {
+    // Each patch a quad lying on the surface, 0.6 over it, edged round.
+    const on = (a: number, c: number): P3 => f.at(mid + a, c, f.floorMm + domeTop(d, a, c) + 0.6);
+    for (const [a, c, l, w] of d.patches) {
+      const q = [on(a - l / 2, c - w / 2), on(a + l / 2, c - w / 2), on(a + l / 2, c + w / 2), on(a - l / 2, c + w / 2)] as const;
+      pen.quad(q[0], q[1], q[2], q[3]);
+      for (let k = 0; k < 4; k++) pen.edge(q[k]!, q[(k + 1) % 4]!);
+      pen.grow(q[0]);
+    }
+    return;
+  }
   const point = (i: number, j: number, under: boolean): P3 => {
     const u = -1 + (2 * i) / NU, v = -1 + (2 * j) / NV;
     const along = u * half, across = v * domeHalfWidth(d, u);
@@ -677,5 +690,37 @@ function drawDome(d: DecorDome, f: ShapeFrame, pen: Pen): void {
     pen.edge(point(i0, j0, false), point(i1, j1, false));
     pen.edge(point(i0, j0, true), point(i1, j1, true));
     pen.grow(point(i0, j0, false));
+  }
+}
+
+/**
+ * A PRISM: its convex outline at both ends, its sides between them, each
+ * face turned away from the outline's middle; the outline at both ends and
+ * the run of each corner as edges.
+ */
+function drawPrism(p: DecorPrism, f: ShapeFrame, pen: Pen): void {
+  const ys = p.sectionMm.map(([y]) => y);
+  const mid = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const len = f.lengthMm;
+  const at = (x: number, [y, z]: readonly [number, number]): P3 => f.at(x, y - mid, f.floorMm + z);
+  const n = p.sectionMm.length;
+  const cy = p.sectionMm.reduce((s, [y]) => s + y, 0) / n, cz = p.sectionMm.reduce((s, [, z]) => s + z, 0) / n;
+  const centre = at(len / 2, [cy, cz]);
+  const out = (a: P3, b: P3, c: P3, d: P3) => {
+    const nx = (b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]), ny = (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]), nz = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+    const m = [(a[0] + b[0] + c[0]) / 3 - centre[0], (a[1] + b[1] + c[1]) / 3 - centre[1], (a[2] + b[2] + c[2]) / 3 - centre[2]];
+    if (nx * m[0]! + ny * m[1]! + nz * m[2]! >= 0) pen.quad(a, b, c, d);
+    else pen.quad(d, c, b, a);
+  };
+  for (let i = 0; i < n; i++) {
+    const a = p.sectionMm[i]!, b = p.sectionMm[(i + 1) % n]!;
+    out(at(0, a), at(0, b), at(len, b), at(len, a));
+    for (const x of [0, len]) {
+      pen.edge(at(x, a), at(x, b));
+      if (i > 0 && i + 1 < n) out(at(x, p.sectionMm[0]!), at(x, a), at(x, b), at(x, b));
+    }
+    pen.edge(at(0, a), at(len, a));
+    pen.grow(at(0, a));
+    pen.grow(at(len, a));
   }
 }

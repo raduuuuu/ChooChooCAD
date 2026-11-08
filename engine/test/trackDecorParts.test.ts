@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { BUILT_IN, makeResolver } from '../data/library.js';
+import { BUILT_IN, decorBoxesOf, makeResolver } from '../data/library.js';
 import { CLEARANCE } from '../data/rampSeeds.js';
 import { ACTION_TUNNEL_STATION } from '../data/trackDecorSeeds.js';
 import { add, fromInt, scale, zetaPow, type Cyc } from '../src/geom/cyclotomic.js';
@@ -24,8 +24,8 @@ import { placeAll } from '../src/graph/frames.js';
 import { portsOf, type Frame, type Graph, type Piece, type Port, type Weld } from '../src/graph/model.js';
 import { findPlankOverlaps } from '../src/graph/overlap.js';
 import { renderGraph } from '../src/graph/render.js';
-import { domeTop } from '../src/parts/dome.js';
-import type { DecorDome, DecorSlab } from '../src/parts/schema.js';
+import { domeBarrel, domeTop } from '../src/parts/dome.js';
+import type { DecorDome, DecorPrism, DecorSlab, Part } from '../src/parts/schema.js';
 import { buildScene } from '../src/view3d/mesh.js';
 
 const resolve = makeResolver(BUILT_IN);
@@ -71,19 +71,49 @@ describe('the cargo crane', () => {
 
 describe('the cargo crane\'s gantry (owner, 2026-11-08: "check the crane again")', () => {
   /*
-   * MUTATION PROOF, run: the legs straight up (their tops where their feet are):
-   * `expected 150.5 to be greater than 165.5`.
+   * MUTATION PROOF, run: the legs straight up (their tops where their feet
+   * are): `expected 150.5 to be greater than 165.5`.
    */
   it('each leg leans in to the beam: its foot further out from the middle than its top', () => {
-    const decor = resolve('CC').decor ?? [];
-    const gantry = decor.filter((d) => d.noun === 'gantry');
-    // Each leg's lowest step (a post) and its top step (the arch), by which side of the tracks they stand.
-    for (const side of [1, -1]) {
-      const feet = gantry.filter((d): d is DecorSlab => d.kind === 'slab' && d.bottomMm === 0 && Math.sign(d.atMm[1] - 26) === side);
-      const top = gantry.find((d) => d.kind === 'arch' && Math.sign((d.acrossMm ?? 0) - 26) === side);
-      expect(feet.length).toBe(2);
-      expect(Math.abs(feet[0]!.atMm[1] - 26)).toBeGreaterThan(Math.abs((top as { acrossMm: number }).acrossMm - 26) + 15);
+    const legs = (resolve('CC').decor ?? []).filter((d): d is DecorPrism => d.kind === 'prism' && d.noun === 'gantry');
+    expect(legs).toHaveLength(4);
+    const mean = (ys: number[]) => ys.reduce((a, b) => a + b, 0) / ys.length;
+    const foot = (leg: DecorPrism) => mean(leg.sectionMm.filter(([, z]) => z === 0).map(([y]) => y));
+    const top = (leg: DecorPrism) => mean(leg.sectionMm.filter(([, z]) => z > 0).map(([y]) => y));
+    // The middle between the two legs' feet.
+    const middle = mean(legs.map(foot));
+    for (const leg of legs) expect(Math.abs(foot(leg) - middle)).toBeGreaterThan(Math.abs(top(leg) - middle) + 15);
+  });
+
+  /*
+   * MUTATION PROOF, run: drawPrism keeping each face as wound, not turned
+   * outward: `expected [ [ [ 20, -30, +0 ], …(2) ], …(1) ] to have a length
+   * of +0 but got 2`.
+   */
+  it('a sloping prism is drawn closed, every face turned outward', () => {
+    const prism: DecorPrism = { kind: 'prism', fromMm: 20, toMm: 60, sectionMm: [[-30, 0], [10, 0], [0, 50], [-20, 50]], noun: 'gantry', paint: { fill: '--paint-green', line: '--ink' } };
+    const part = { ...ACTION_TUNNEL_STATION, id: 'PX', decor: [prism], decorBody: decorBoxesOf('Part PX', [prism], CLEARANCE.riseMm) } as Part;
+    const own = makeResolver([...BUILT_IN, part]);
+    const ownPorts = (piece: Piece): readonly Port[] => portsOf(own(piece.partId), piece.turn);
+    const g: Graph = { pieces: [{ pieceId: 'p', partId: 'PX', turn: 'left' }], welds: [], anchors: new Map([['p', at(0, 0, 0)]]) };
+    const r = renderGraph(g, ownPorts, own, placeAll(g, ownPorts));
+    const { solid, solidPaint, paints } = buildScene({ segments: r.segments, bodies: r.bodies, ports: r.ports, welds: [], partOf: () => part, riseMm: CLEARANCE.riseMm, plankMm: 12 }).structures;
+    const p = (v: number) => [solid.positions[v * 3]!, solid.positions[v * 3 + 1]!, solid.positions[v * 3 + 2]!] as const;
+    type P = readonly [number, number, number];
+    const tris: [P, P, P][] = [];
+    for (let t = 0; t < solid.indices.length; t += 3) {
+      const vs = [solid.indices[t]!, solid.indices[t + 1]!, solid.indices[t + 2]!];
+      if (vs.every((v) => paints[solidPaint[v]!] === '--paint-green')) tris.push([p(vs[0]!), p(vs[1]!), p(vs[2]!)]);
     }
+    expect(tris.length).toBeGreaterThan(0);
+    const all = tris.flat();
+    const centre = [0, 1, 2].map((k) => all.reduce((s, q) => s + q[k]!, 0) / all.length);
+    // A face turned in: its normal, by its winding, pointing back toward the solid's middle.
+    const inward = tris.filter(([a, b, c]) => {
+      const n = [(b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]), (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]), (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])];
+      return n[0]! * (a[0] - centre[0]!) + n[1]! * (a[1] - centre[1]!) + n[2]! * (a[2] - centre[2]!) < -1e-6;
+    });
+    expect(inward).toHaveLength(0);
   });
 });
 
@@ -108,9 +138,12 @@ describe('the action tunnel station', () => {
   });
 
   /*
-   * MUTATION PROOF, run: the dome flat across (`acrossRiseMm: 0`): `expected 138 to be greater than 148`.
+   * MUTATION PROOFS, run: each end's hood flat across (`acrossRiseMm: 0`):
+   * `expected 112.66679382324219 to be greater than 122.66679382324219`;
+   * the roof's two barrels added, not crossed: `expected 198.72000122070312
+   * to be greater than 230`.
    */
-  it('its roof arches along the track and across it, highest in its middle', () => {
+  it('its roof is a groin vault: the arch rises between the posts, the hoods arch across, the arch stands full height at its sides', () => {
     const g: Graph = { pieces: [{ pieceId: 'p', partId: 'AT', turn: 'left' }], welds: [], anchors: new Map([['p', at(0, 0, 0)]]) };
     const r = renderGraph(g, ports, resolve, placeAll(g, ports));
     const s = buildScene({ segments: r.segments, bodies: r.bodies, ports: r.ports, welds: [], partOf: () => resolve('AT'), riseMm: CLEARANCE.riseMm, plankMm: 12 });
@@ -119,8 +152,22 @@ describe('the action tunnel station', () => {
     const roof: [number, number, number][] = [];
     for (let v = 0; v < p.length / 3; v++) if (paints[solidPaint[v]!] === '--paint-orange') roof.push([p[v * 3]!, p[v * 3 + 1]!, p[v * 3 + 2]!]);
     const topNear = (x: number, y: number) => Math.max(...roof.filter(([a, b]) => Math.abs(a - x) < 12 && Math.abs(b - y) < 12).map(([, , z]) => z));
-    // Along the middle line: higher in the middle than toward the ends; across the middle: higher on the line than out at the sides.
+    // Along the middle line: higher in the middle than over the hoods at the ends.
     expect(topNear(144, 0)).toBeGreaterThan(topNear(80, 0) + 10);
-    expect(topNear(144, 0)).toBeGreaterThan(topNear(144, 80) + 10);
+    // At an end, the hood: higher on the middle line than out at its sides.
+    expect(topNear(80, 0)).toBeGreaterThan(topNear(80, 45) + 10);
+    // Out at the sides in the middle, the arch's ends (the wings): as high as the crown, within 4.
+    expect(topNear(144, 66)).toBeGreaterThan(topNear(144, 0) - 4);
+  });
+
+  /*
+   * MUTATION PROOF, run: every window kept, none left out at the creases:
+   * `expected [ [ -36, -18, 11, 11 ], …(7) ] to deeply equal []`.
+   */
+  it('each of its roof windows lies on one barrel, none across the X where they meet', () => {
+    const windows = ACTION_TUNNEL_STATION.decor!.find((d): d is DecorDome => d.kind === 'dome' && d.patches !== undefined)!;
+    const across = windows.patches!.filter(([a, c, l, w]) => new Set([-1, 1].flatMap((i) => [-1, 1].map((j) => domeBarrel(windows, a + (i * l) / 2, c + (j * w) / 2)))).size > 1);
+    expect(across).toEqual([]);
+    expect(windows.patches!.length).toBeGreaterThan(20);
   });
 });

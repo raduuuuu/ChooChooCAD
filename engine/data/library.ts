@@ -120,12 +120,24 @@ export function decorBoxesOf(owner: string, decor: readonly DecorShape[], riseMm
         if (shape.fillToMm !== undefined && !(shape.fillToMm > crown)) throw new Error(`${owner}: an arch panel's top must stand over its crown.`);
         return [boxOf('footprint', [(shape.fromMm + shape.toMm) / 2, shape.acrossMm ?? 0], shape.toMm - shape.fromMm, shape.widthMm, shape.baseMm, shape.fillToMm ?? crown + shape.depthMm, drawOnly(shape))];
       }
+      case 'prism': {
+        const ys = shape.sectionMm.map(([y]) => y), zs = shape.sectionMm.map(([, z]) => z);
+        if (shape.sectionMm.length < 3 || !(shape.toMm > shape.fromMm)) throw new Error(`${owner}: a prism needs three or more points and a length.`);
+        const at = [(shape.fromMm + shape.toMm) / 2, (Math.min(...ys) + Math.max(...ys)) / 2] as const;
+        const [l, w, lo, hi] = [shape.toMm - shape.fromMm, Math.max(...ys) - Math.min(...ys), Math.min(...zs), Math.max(...zs)];
+        // A solid one collides as its bounding box, which a sloping leg fills well enough; it draws itself.
+        return [
+          ...(shape.solid === false ? [] : [boxOf('footprint', at, l, w, lo, hi, { solid: true, draw: false, ...noun })]),
+          boxOf('footprint', at, l, w, lo, hi, drawOnly(shape)),
+        ];
+      }
       case 'dome': {
         const wide = shape.widthMm + 2 * shape.bulgeMm;
-        const crown = shape.baseMm + shape.alongRiseMm + shape.acrossRiseMm;
-        if (!(shape.thickMm > 0 && shape.baseMm - shape.thickMm >= 0 && shape.bulgeMm >= 0)) throw new Error(`${owner}: a dome needs a thickness, a rim clear of the floor, and no negative bulge.`);
+        const crown = shape.baseMm + shape.alongRiseMm;
+        if (!(shape.thickMm > 0 && shape.baseMm - shape.thickMm >= 0 && shape.bulgeMm >= 0 && shape.alongRiseMm >= shape.acrossRiseMm && shape.acrossRiseMm >= 0 && (shape.archMm ?? 0) <= shape.lengthMm)) throw new Error(`${owner}: a dome needs a thickness, a rim clear of the floor, no negative bulge, its crown no lower than its ends, and its arch within its length.`);
         return [
-          boxOf('footprint', shape.atMm, shape.lengthMm, wide, shape.baseMm - shape.thickMm, crown, { solid: true, draw: false, ...noun }),
+          // Patches on a dome are its windows: drawn only.
+          ...(shape.patches ? [] : [boxOf('footprint', shape.atMm, shape.lengthMm, wide, shape.baseMm - shape.thickMm, crown, { solid: true, draw: false, ...noun })]),
           boxOf('footprint', shape.atMm, shape.lengthMm, wide, shape.baseMm - shape.thickMm, crown, drawOnly(shape)),
         ];
       }
