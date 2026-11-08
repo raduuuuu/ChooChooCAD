@@ -27,7 +27,7 @@ const MW = (modelId: string, creator: string): PartOrigin => ({ site: 'MakerWorl
 
 const REPLICAS = MW('1001504', 'Cactus 973');
 const AU3D_T = MW('904802', 'AU3D');
-const LILLABO = MW('2181560', 'Vamuss');
+const SMALL_PEG_PRINT = MW('2181560', 'Vamuss');
 
 export const PART_ORIGINS: Readonly<Record<string, PartOrigin>> = {
   L: REPLICAS, M: REPLICAS, O1: REPLICAS, P1: REPLICAS,
@@ -39,9 +39,9 @@ export const PART_ORIGINS: Readonly<Record<string, PartOrigin>> = {
   EE: MW('887239', 'AU3D'),
   F: MW('3121622', 'Isaxon'), G: MW('3121622', 'Isaxon'),
   F1: MW('892305', 'AU3D'), G1: MW('892305', 'AU3D'),
-  'IKEA-50': LILLABO, 'IKEA-100': LILLABO, 'IKEA-145': LILLABO, 'IKEA-205': LILLABO,
-  'IKEA-240': LILLABO, 'IKEA-C22': LILLABO, 'IKEA-C45': LILLABO, 'IKEA-C90': LILLABO,
-  'IKEA-SW': LILLABO, 'IKEA-SW-P': LILLABO, 'IKEA-X145': LILLABO,
+  'IKEA-50': SMALL_PEG_PRINT, 'IKEA-100': SMALL_PEG_PRINT, 'IKEA-145': SMALL_PEG_PRINT, 'IKEA-205': SMALL_PEG_PRINT,
+  'IKEA-240': SMALL_PEG_PRINT, 'IKEA-C22': SMALL_PEG_PRINT, 'IKEA-C45': SMALL_PEG_PRINT, 'IKEA-C90': SMALL_PEG_PRINT,
+  'IKEA-SW': SMALL_PEG_PRINT, 'IKEA-SW-P': SMALL_PEG_PRINT, 'IKEA-X145': SMALL_PEG_PRINT,
   N: MW('1238767', 'Cactus 973'),
   HH: MW('889540', 'AU3D'),
   HP: MW('681643', 'Martin'),

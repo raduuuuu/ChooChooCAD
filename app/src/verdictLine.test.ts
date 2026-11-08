@@ -312,7 +312,7 @@ describe('the limits note does not depend on the trust list', () => {
    * the fold: `expected '<div class="verdict verdict-fail" rol…' to contain
    * '<p class="verdict-limits">A built loo…'`.
    */
-  it('a switch plus IKEA layout keeps the brand note in view, and folds the rest with the limits note', () => {
+  it('a switch plus small-peg layout keeps the brand note in view, and folds the rest with the limits note', () => {
     const trust = trustFor(['L', 'IKEA-150']);
     expect(trust.map((t) => t.kind)).toEqual(['unverified-size', 'modelled-switch', 'brands-do-not-join']);
     const html = render(exceeds, trust);

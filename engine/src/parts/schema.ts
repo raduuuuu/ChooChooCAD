@@ -261,8 +261,8 @@ interface PartBase {
    * to center". With `gaugeWidthMm` at 26 the grooves therefore span 10mm to
    * 16mm either side of the centreline.
    *
-   * OPTIONAL, and that is the point. Nobody publishes a groove width for IKEA
-   * Lillabo or Lidl Playtive, so those parts leave it undefined and the canvas
+   * OPTIONAL, and that is the point. Nobody publishes a groove width for small-peg track
+   * small-peg or the look-alike system, so those parts leave it undefined and the canvas
    * draws them as a bare plank with no grooves. Drawing Generic's grooves on a
    * piece whose grooves nobody has measured would be the renderer inventing
    * data, which is the one thing this product must not do. Absent means
@@ -930,7 +930,7 @@ export function isUncorroborated(part: Part): boolean {
  * Ids are brand-prefixed so that two brands can both ship a part called "150"
  * without colliding, and user submissions follow the same rule. In the palette
  * that prefix is dead weight: the cards are grouped under a brand heading, so
- * every card in the IKEA group spelling out IKEA says nothing, and at
+ * every card in the small-peg group spelling out the system's name says nothing, and at
  * PLAYTIVE-200 it is long enough to break the card's two-column grid.
  *
  * Generic parts carry bare ids (A2, E1) and come back unchanged.

@@ -180,8 +180,8 @@ describe('the gap in pieces', () => {
   });
 
   /*
-   * A Generic-and-Playtive loop 60mm short, where PLAYTIVE-60 is exactly 60mm.
-   * Generic-to-Playtive is 'unknown', not 'joins', so nothing is suggested.
+   * A Generic-and-look-alike loop 60mm short, where PLAYTIVE-60 is exactly 60mm.
+   * Generic-to-look-alike is 'unknown', not 'joins', so nothing is suggested.
    *
    * MUTATION PROOF, run: delete the `brandFit` filter in `pieceRepair`.
    * Fails with `expected { direction: 'short', …(2) } to be null`.

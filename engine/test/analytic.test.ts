@@ -426,7 +426,7 @@ describe('the library: tiers, and a seed a user can correct', () => {
   });
 
   it('a user measurement OVERRIDES an unverified seed', () => {
-    // The whole point of seeds. The shipped figure for an IKEA straight is a
+    // The whole point of seeds. The shipped figure for a small-peg straight is a
     // 3D-print model title; a user with the piece in their hand beats it.
     expect(seed.dimensions.status).toBe('unverified');
     const lib = resolveLibrary([submission(148, 'user-measured', '2026-10-09T10:00:00Z')]);
@@ -443,7 +443,7 @@ describe('the library: tiers, and a seed a user can correct', () => {
    * trust; but a straight under its id leaves a layout's joint on the
    * switch's third end pointing at nothing, and placement threw. The built-in
    * switch stays. A correction with the same number of ends still wins, as
-   * the IKEA spec above shows.
+   * the small-peg spec above shows.
    *
    * The four-ended crossing is here because the end count used to be
    * `kind === 'switch' ? 3 : 2`, which counted H as two (eng review D6).
@@ -646,7 +646,7 @@ describe('multi-brand catalogue provenance', () => {
         expect(isUnverified(p), p.id).toBe(false);
       } else {
         // The honest state of the world: nobody publishes piece dimensions for
-        // IKEA Lillabo or Lidl Playtive, or a Generic switch's diverging leg. If
+        // small-peg or look-alike track, or a Generic switch's diverging leg. If
         // that ever changes, upgrade the part and this assertion changes with
         // it, deliberately.
         // Or measured from the owner's photos since (photoReadings.ts), deliberately.
@@ -665,8 +665,8 @@ describe('multi-brand catalogue provenance', () => {
 
   it('every third-party length is a whole millimetre, so it stays exact', () => {
     // The inch hazard: US brands round to fractions of an inch, and 25.4mm is
-    // not an integer, so such a part could not live in Z[zeta16] at all. IKEA
-    // and Playtive are metric, which is why they CAN be added at all. This
+    // not an integer, so such a part could not live in Z[zeta16] at all. small-peg
+    // and look-alike are metric, which is why they CAN be added at all. This
     // guards the boundary rather than assuming it.
     for (const p of BUILT_IN) {
       if (p.kind !== 'straight') continue;
@@ -677,13 +677,13 @@ describe('multi-brand catalogue provenance', () => {
   /*
    * A THIRD-PARTY CURVE ONLY WHERE A REPRODUCTION GIVES THE RADIUS. Until
    * 2026-10-29 no third-party curve existed, because no source states a
-   * radius for IKEA or Playtive. The Lillabo reproduction in
-   * `IKEA_REPRODUCTION` gives one off its meshes, so IKEA has curves and
-   * Playtive still does not. This pins both halves: a curve may only rest on
+   * radius for small-peg or look-alike. The small-peg reproduction in
+   * `SMALL_PEG_REPRODUCTION` gives one off its meshes, so the small-peg system has curves and
+   * look-alike still does not. This pins both halves: a curve may only rest on
    * that reproduction, and the numbers it was modelled from are the ones read
    * off the 3MF, not the catalogue's own.
    *
-   * MUTATION PROOF, run: model the Lillabo curves at `innerRadiusMm: 192`.
+   * MUTATION PROOF, run: model the small-peg curves at `innerRadiusMm: 192`.
    * Fails with `IKEA-C22 far end: expected 3.8 to be less than 1`.
    */
   it('a third-party curve exists only where a reproduction measured its radius', () => {
@@ -714,14 +714,14 @@ describe('multi-brand catalogue provenance', () => {
    * Fails with `expected [ 50, 100, 146, 205, 240 ] to deeply equal [ 50,
    * 100, 145, 205, 240 ]`.
    */
-  it('the Lillabo straights are the lengths read off the reproduction', () => {
+  it('the small-peg straights are the lengths read off the reproduction', () => {
     const lengths = BUILT_IN.filter(
       (p) => p.brand === 'IKEA' && p.kind === 'straight' && p.dimensions.source.includes('a printed reproduction'),
     ).map((p) => (p as Extract<Part, { kind: 'straight' }>).lengthMm);
     expect(lengths).toEqual([50, 100, 145, 205, 240]);
   });
 
-  it('brand fit records that Generic and IKEA do not join', () => {
+  it('brand fit records that Generic and small-peg track do not join', () => {
     // The most useful fact the research produced, and the one a user actually
     // needs: these pieces do not physically connect.
     expect(brandFit('GENERIC', 'IKEA').fit).toBe('does-not-join');

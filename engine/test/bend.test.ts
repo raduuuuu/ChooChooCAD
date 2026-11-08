@@ -263,8 +263,8 @@ describe('the answer does not depend on how the layout was built (eng review D13
    *
    * MUTATION PROOF, run: the `.sort(...)` on `others` in solve.ts removed
    * (insertion order) fails with `expected '{"tier":"beyond","figure":{"unit":"pc…'
-   * to be '{"tier":"beyond","figure":{"unit":"pc…'`: the same layout listing IKEA
-   * then Playtive one way and Playtive then IKEA the other.
+   * to be '{"tier":"beyond","figure":{"unit":"pc…'`: the same layout listing the small-peg piece
+   * then look-alike one way and look-alike then small-peg the other.
    */
   it('the same loop built forwards, backwards and renamed gives the same lambda and the same words', () => {
     const ids = ['E1', 'E1', 'E1', 'E1', 'IKEA-150', 'PLAYTIVE-60', 'E1', 'E1', 'E1', 'E1', 'A'];

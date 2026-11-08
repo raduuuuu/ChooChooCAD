@@ -1,0 +1,540 @@
+{
+  "comment": "Brand words allowed by exact token, per file (repo-checkups plan, R1). A brand word on a line passes only inside one of its file's tokens. Images: the only files of their kind that may be committed (C7).",
+  "allow": [
+    {
+      "file": "app/src/App.tsx",
+      "token": "'IKEA'",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "app/src/App.tsx",
+      "token": "'PLAYTIVE'",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "app/src/App.tsx",
+      "token": "'HAPE'",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "app/src/App.tsx",
+      "token": "'THOMAS'",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "app/src/App.tsx",
+      "token": "'MELISSA_DOUG'",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "app/src/SubmitPart.tsx",
+      "token": "'IKEA'",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "app/src/SubmitPart.tsx",
+      "token": "'PLAYTIVE'",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "app/src/SubmitPart.tsx",
+      "token": "'HAPE'",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "app/src/app.css",
+      "token": "\"PLAYTIVE-200\"",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "app/src/oldNames.ts",
+      "token": "'brio.'",
+      "why": "legacy storage key that oldNames.ts migrates (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "app/src/oldNames.ts",
+      "token": "'BRIO'",
+      "why": "legacy storage key that oldNames.ts migrates (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "app/src/oldNames.dom.test.tsx",
+      "token": "'BRIO'",
+      "why": "legacy storage key that oldNames.ts migrates (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "app/src/oldNames.dom.test.tsx",
+      "token": "'IKEA'",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "app/src/previewGeometry.test.ts",
+      "token": "'IKEA-C45'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "app/src/shareLink.test.ts",
+      "token": "'IKEA-150'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "app/src/shareLink.test.ts",
+      "token": "'IKEA-X145'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "app/src/shareLink.test.ts",
+      "token": "'PLAYTIVE-110'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "app/src/shareLink.test.ts",
+      "token": "'PLAYTIVE-150'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "app/src/shareLink.test.ts",
+      "token": "'PLAYTIVE-200'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "app/src/shareLink.test.ts",
+      "token": "'PLAYTIVE-30'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "app/src/shareLink.test.ts",
+      "token": "'PLAYTIVE-60'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "app/src/traitNames.dom.test.tsx",
+      "token": "'IKEA Lillabo track'",
+      "why": "verbatim failure message of a mutation that was run (CLAUDE.md: record the real message)"
+    },
+    {
+      "file": "app/src/traitNames.dom.test.tsx",
+      "token": "\"Nobody (not even IKEA) publishes dimensions\"",
+      "why": "verbatim failure message of a mutation that was run (CLAUDE.md: record the real message)"
+    },
+    {
+      "file": "app/src/traitNames.dom.test.tsx",
+      "token": "[ 'IKEA' ]",
+      "why": "verbatim failure message of a mutation that was run (CLAUDE.md: record the real message)"
+    },
+    {
+      "file": "app/src/traitNames.dom.test.tsx",
+      "token": "'IKEA-C45'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "app/src/traitNames.test.ts",
+      "token": "'Lillabo curve, 45°'",
+      "why": "verbatim failure message of a mutation that was run (CLAUDE.md: record the real message)"
+    },
+    {
+      "file": "app/src/traitNames.test.ts",
+      "token": "[ 'Lillabo curve,",
+      "why": "verbatim failure message of a mutation that was run (CLAUDE.md: record the real message)"
+    },
+    {
+      "file": "app/src/traitNames.test.ts",
+      "token": "SYSTEM_NAME.IKEA",
+      "why": "verbatim failure message of a mutation that was run (CLAUDE.md: record the real message)"
+    },
+    {
+      "file": "app/src/traitNames.test.ts",
+      "token": "'IKEA Lillabo'",
+      "why": "verbatim failure message of a mutation that was run (CLAUDE.md: record the real message)"
+    },
+    {
+      "file": "app/src/traitNames.test.ts",
+      "token": "'IKEA-150'",
+      "why": "verbatim failure message of a mutation that was run (CLAUDE.md: record the real message)"
+    },
+    {
+      "file": "app/src/traitNames.test.ts",
+      "token": "'IKEA-50'",
+      "why": "verbatim failure message of a mutation that was run (CLAUDE.md: record the real message)"
+    },
+    {
+      "file": "app/src/traitNames.test.ts",
+      "token": "'IKEA-C45'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "app/src/traitNames.test.ts",
+      "token": "'PLAYTIVE-110'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "app/src/verdictLine.regression-1.test.ts",
+      "token": "'IKEA-150'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "app/src/verdictLine.test.ts",
+      "token": "'IKEA-150'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "app/test/makers.ts",
+      "token": "/\\b(ikea|lillabo|lidl|playtive|lupilu|hape|thomas|melissa|doug|brio)\\b/i",
+      "why": "a guard that must name the brands it rejects"
+    },
+    {
+      "file": "engine/data/origins.ts",
+      "token": "'IKEA-50'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/data/origins.ts",
+      "token": "'IKEA-100'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/data/origins.ts",
+      "token": "'IKEA-145'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/data/origins.ts",
+      "token": "'IKEA-205'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/data/origins.ts",
+      "token": "'IKEA-240'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/data/origins.ts",
+      "token": "'IKEA-C22'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/data/origins.ts",
+      "token": "'IKEA-C45'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/data/origins.ts",
+      "token": "'IKEA-C90'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/data/origins.ts",
+      "token": "'IKEA-SW'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/data/origins.ts",
+      "token": "'IKEA-SW-P'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/data/origins.ts",
+      "token": "'IKEA-X145'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/data/thirdParty.ts",
+      "token": "`IKEA-${lengthMm}`",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/data/thirdParty.ts",
+      "token": "`IKEA-${code}`",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/data/thirdParty.ts",
+      "token": "'IKEA-SW'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/data/thirdParty.ts",
+      "token": "'IKEA-SW-P'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/data/thirdParty.ts",
+      "token": "'IKEA-X145'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/data/thirdParty.ts",
+      "token": "'IKEA-150'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/data/thirdParty.ts",
+      "token": "'PLAYTIVE-30'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/data/thirdParty.ts",
+      "token": "'PLAYTIVE-60'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/data/thirdParty.ts",
+      "token": "'PLAYTIVE-110'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/data/thirdParty.ts",
+      "token": "'PLAYTIVE-150'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/data/thirdParty.ts",
+      "token": "'PLAYTIVE-200'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/data/thirdParty.ts",
+      "token": "'IKEA'",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "engine/data/thirdParty.ts",
+      "token": "'PLAYTIVE'",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "engine/src/parts/schema.ts",
+      "token": "'IKEA'",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "engine/src/parts/schema.ts",
+      "token": "'PLAYTIVE'",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "engine/src/parts/schema.ts",
+      "token": "'HAPE'",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "engine/src/parts/schema.ts",
+      "token": "'THOMAS'",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "engine/src/parts/schema.ts",
+      "token": "'MELISSA_DOUG'",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "engine/src/parts/schema.ts",
+      "token": "IKEA:",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "engine/src/parts/schema.ts",
+      "token": "PLAYTIVE:",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "engine/src/parts/schema.ts",
+      "token": "HAPE:",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "engine/src/parts/schema.ts",
+      "token": "THOMAS:",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "engine/src/parts/schema.ts",
+      "token": "MELISSA_DOUG:",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "engine/src/parts/schema.ts",
+      "token": "PLAYTIVE-200",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/analytic.test.ts",
+      "token": "'PLAYTIVE-110'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/analytic.test.ts",
+      "token": "'IKEA-150'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/analytic.test.ts",
+      "token": "'IKEA-99'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/analytic.test.ts",
+      "token": "'IKEA-C22'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/analytic.test.ts",
+      "token": "'IKEA-C45'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/analytic.test.ts",
+      "token": "'IKEA-C90'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/analytic.test.ts",
+      "token": "'PLAYTIVE'",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "engine/test/analytic.test.ts",
+      "token": "'IKEA'",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "engine/test/analytic.test.ts",
+      "token": "'HAPE'",
+      "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
+    },
+    {
+      "file": "engine/test/analytic.test.ts",
+      "token": "`IKEA-C22 far end:",
+      "why": "verbatim failure message of a mutation that was run (CLAUDE.md: record the real message)"
+    },
+    {
+      "file": "engine/test/analytic.test.ts",
+      "token": "'Lillabo tiny'",
+      "why": "a submitted part's own name, the fixture a user would type"
+    },
+    {
+      "file": "engine/test/bend.test.ts",
+      "token": "'IKEA-150'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/bend.test.ts",
+      "token": "'PLAYTIVE-60'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/multiRoad.test.ts",
+      "token": "'IKEA-SW'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/multiRoad.test.ts",
+      "token": "'IKEA-SW-P'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/multiRoad.test.ts",
+      "token": "'IKEA-X145'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/origins.test.ts",
+      "token": "IKEA-205's",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/origins.test.ts",
+      "token": "'IKEA-150'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/origins.test.ts",
+      "token": "'PLAYTIVE-30'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/origins.test.ts",
+      "token": "'PLAYTIVE-60'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/origins.test.ts",
+      "token": "'PLAYTIVE-110'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/origins.test.ts",
+      "token": "'PLAYTIVE-150'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/origins.test.ts",
+      "token": "'PLAYTIVE-200'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/origins.test.ts",
+      "token": "\"Brio Fan\"",
+      "why": "a guard that must name the brands it rejects"
+    },
+    {
+      "file": "engine/test/origins.test.ts",
+      "token": "`expected 'Brio Fan' not to match /brio/i`",
+      "why": "a guard that must name the brands it rejects"
+    },
+    {
+      "file": "engine/test/origins.test.ts",
+      "token": "/brio/i",
+      "why": "a guard that must name the brands it rejects"
+    },
+    {
+      "file": "engine/test/repair.test.ts",
+      "token": "PLAYTIVE-60",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/repair.test.ts",
+      "token": "'PLAYTIVE-200'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/repair.test.ts",
+      "token": "'PLAYTIVE-110'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/repair.test.ts",
+      "token": "'PLAYTIVE-30'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/shortCode.test.ts",
+      "token": "'IKEA-150'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/shortCode.test.ts",
+      "token": "'PLAYTIVE-200'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/shortCode.test.ts",
+      "token": "\"PLAYTIVE-200\"",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "engine/test/view3dMesh.test.ts",
+      "token": "'IKEA-150'",
+      "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    }
+  ],
+  "images": [
+    {
+      "file": "app/public/favicon.svg",
+      "why": "the app's icon"
+    },
+    {
+      "file": "app/public/og.png",
+      "why": "the link preview image"
+    }
+  ]
+}

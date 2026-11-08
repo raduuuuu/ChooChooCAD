@@ -79,7 +79,7 @@ describe('look-alike parts draw differently (8A)', () => {
 describe('the drawings follow the library', () => {
   /*
    * A CORRECTION KEEPS ITS ID AND CHANGES ITS SHAPE, which is why the
-   * drawings are rebuilt per library and not cached by id (eng D1). A Lillabo
+   * drawings are rebuilt per library and not cached by id (eng D1). A small-peg
    * 45-degree curve corrected to 67.5 degrees must draw differently.
    */
   it('a corrected curve draws its corrected shape', () => {
