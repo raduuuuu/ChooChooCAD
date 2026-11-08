@@ -9,11 +9,11 @@
  *
  *        crane  ___jib___                     y (mm, + toward the cargo end)
  *          ||  /         \__ hook             223  the base's cargo end
- *    ______||_________________________        189  the first leg
+ *    ______||_________________________        176  the first leg's foot
  *   |  ______________________________ |       124  the cargo pegs' middle
  *   | |   cargo pegs    post  ==  == | |       36  the black-and-yellow post
  *   |_|_____________________|_A__B__|_|        0   track A;  -50 track B
- *   base                                     -132  the second leg; -167 the far end
+ *   base                                     -124  the second leg's foot; -167 the far end
  *
  * READ, NOT MEASURED, but for the tracks' length: the base's length and the
  * heights from the lying photo against the medium straight, the places along
@@ -42,7 +42,14 @@ const PITCH = 50;
 /** The base, as deep as the tracks are long (the end views' 128 counts the pegs), from the cargo end (223) to the far end (-167). */
 const BASE = { from: 0, to: LEN, cargo: 223, far: -167, top: 10 } as const;
 /** The gantry: legs 24 thick across the tracks, the beam from 112 to 146. */
-const LEGS = [189, -132];
+/*
+ * Each leg leans in to the beam (the side view, owner 2026-11-08): from the
+ * cargo end, the first from 15 to 78 at the floor and 41 to 100 under the
+ * beam, the second from 316 to 379 at the floor and 289 to 345 under it.
+ * Drawn in three steps, each as wide as the leg at its middle height.
+ */
+const LEG_FEET = [[15, 78, 41, 100], [316, 379, 289, 345]] as const;
+const LEG_STEPS = 3;
 const BEAM = { bottom: 112, top: 146, from: 17, to: 92 } as const;
 
 const slab = (x: number, y: number, l: number, w: number, bottomMm: number, topMm: number, noun: string, paint: Paint, solid = true): DecorSlab =>
@@ -53,35 +60,47 @@ const slab = (x: number, y: number, l: number, w: number, bottomMm: number, topM
  * them, filled to the beam. Seen side-on the real legs splay out to the
  * floor; here they step out, 40 thick to 45 up and 24 above.
  */
-const leg = (y: number): DecorShape[] => [
-  slab(BASE.from + 8, y, 16, 40, 0, 45, 'gantry', GREEN),
-  slab(BASE.to - 8, y, 16, 40, 0, 45, 'gantry', GREEN),
-  slab(BASE.from + 8, y, 16, 24, 45, 70, 'gantry', GREEN),
-  slab(BASE.to - 8, y, 16, 24, 45, 70, 'gantry', GREEN),
-  { kind: 'arch', fromMm: BASE.from, toMm: BASE.to, baseMm: 70, riseMm: 30, depthMm: 0, widthMm: 24, acrossMm: y, fillToMm: BEAM.bottom, noun: 'gantry', paint: GREEN },
-];
+const leg = ([outFoot, inFoot, outTop, inTop]: readonly [number, number, number, number]): DecorShape[] => {
+  const step = BEAM.bottom / LEG_STEPS;
+  // The leg's span, from the cargo end, at a height: straight between its foot and its top.
+  const at = (z: number) => [outFoot + ((outTop - outFoot) * z) / BEAM.bottom, inFoot + ((inTop - inFoot) * z) / BEAM.bottom] as const;
+  const across = ([a, b]: readonly [number, number]) => ({ y: BASE.cargo - (a + b) / 2, w: Math.abs(b - a) });
+  return Array.from({ length: LEG_STEPS }, (_, k): DecorShape[] => {
+    const { y, w } = across(at(step * (k + 0.5)));
+    const [z0, z1] = [step * k, step * (k + 1)];
+    // The top step carries the arch over the opening seen end-on; the lower ones are its two posts.
+    return k < LEG_STEPS - 1
+      ? [slab(BASE.from + 8, y, 16, w, z0, z1, 'gantry', GREEN), slab(BASE.to - 8, y, 16, w, z0, z1, 'gantry', GREEN)]
+      : [{ kind: 'arch', fromMm: BASE.from, toMm: BASE.to, baseMm: z0, riseMm: 20, depthMm: 0, widthMm: w, acrossMm: y, fillToMm: z1, noun: 'gantry', paint: GREEN }];
+  }).flat();
+};
 
 const CRANE_DECOR: readonly DecorShape[] = [
   // The base either side of the tracks; the tracks' own planks cover it between.
   slab(54, (BASE.cargo + 25) / 2, LEN, BASE.cargo - 25, 0, BASE.top, 'base', GREY),
   slab(54, (-PITCH - 25 + BASE.far) / 2, LEN, -PITCH - 25 - BASE.far, 0, BASE.top, 'base', GREY),
   // Cargo pegs: two rows of four on the cargo half.
-  ...[78, 152].flatMap((y) => [30, 78].flatMap((x) => [-8, 8].map((d) => ({ kind: 'wheel' as const, axis: 'up' as const, atMm: [x, y + d] as const, centreMm: BASE.top + 4, diameterMm: 6, thickMm: 8, noun: 'base', paint: GREY })))),
-  ...leg(LEGS[0]!),
-  ...leg(LEGS[1]!),
-  slab((BEAM.from + BEAM.to) / 2, (LEGS[0]! + 12 + LEGS[1]! - 12) / 2, BEAM.to - BEAM.from, LEGS[0]! - LEGS[1]! + 24, BEAM.bottom, BEAM.top, 'gantry', GREEN),
+  // Square stubs, not discs: sixteen 32-sided discs cost nearly the piece's whole triangle budget (eng D8).
+  ...[78, 152].flatMap((y) => [30, 78].flatMap((x) => [-8, 8].map((d) => slab(x, y + d, 6, 6, BASE.top, BASE.top + 8, 'base', GREY)))),
+  ...leg(LEG_FEET[0]),
+  ...leg(LEG_FEET[1]),
+  // The beam, from the first leg's top to the second's.
+  slab((BEAM.from + BEAM.to) / 2, BASE.cargo - (LEG_FEET[0][2] + LEG_FEET[1][3]) / 2, BEAM.to - BEAM.from, LEG_FEET[1][3] - LEG_FEET[0][2], BEAM.bottom, BEAM.top, 'gantry', GREEN),
   // The black-and-yellow post between the cargo and the first track, floor to beam, in bands 12 tall.
   ...Array.from({ length: Math.ceil((BEAM.bottom - BASE.top) / 12) }, (_, k) =>
     slab(54, 36, 14, 14, BASE.top + 12 * k, Math.min(BEAM.bottom, BASE.top + 12 * (k + 1)), 'post', k % 2 === 0 ? YELLOW : STRIPE)),
   // The crane on the beam over the cargo end: its beech post with a red band, the yellow head, the jib out over the tracks, the hook and its spreader.
   { kind: 'wheel', axis: 'up', atMm: [54, 135], centreMm: (BEAM.top + 206) / 2, diameterMm: 46, thickMm: 206 - BEAM.top, noun: 'crane', paint: BEECH },
-  { kind: 'wheel', axis: 'up', atMm: [54, 135], centreMm: 161, diameterMm: 47, thickMm: 22, noun: 'crane', paint: RED },
+  { kind: 'wheel', axis: 'up', atMm: [54, 135], centreMm: 170, diameterMm: 47, thickMm: 27, noun: 'crane', paint: RED },
   { kind: 'wheel', axis: 'up', atMm: [54, 135], centreMm: 218, diameterMm: 40, thickMm: 24, noun: 'crane', paint: YELLOW },
   { kind: 'wheel', atMm: [54, 160], centreMm: 218, diameterMm: 16, thickMm: 6, noun: 'crane', paint: RED },
-  slab(54, 65, 10, 140, 212, 226, 'jib', RED, false),
+  // The jib, from the head out to over the first track's edge (the side view: its tip 15 from the track's middle).
+  slab(54, 73.5, 10, 123, 212, 226, 'jib', RED, false),
+  // The hook's bar, from the jib's tip down to the spreader.
+  slab(54, 20, 4, 4, BEAM.top + 14, 212, 'hook', RED, false),
   // The hook's spreader, just over the beam under the jib's tip, its two arms out either side.
-  slab(54, -2, 30, 12, BEAM.top + 4, BEAM.top + 14, 'hook', RED, false),
-  ...[-1, 1].map((d) => slab(54 + d * 22, -2, 10, 12, BEAM.top + 4, BEAM.top + 38, 'hook', RED, false)),
+  slab(54, 20, 30, 12, BEAM.top + 4, BEAM.top + 14, 'hook', RED, false),
+  ...[-1, 1].map((d) => slab(54 + d * 22, 20, 10, 12, BEAM.top + 4, BEAM.top + 38, 'hook', RED, false)),
 ];
 
 export const CARGO_CRANE: MultiRoadPart = {

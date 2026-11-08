@@ -69,6 +69,24 @@ describe('the cargo crane', () => {
   });
 });
 
+describe('the cargo crane\'s gantry (owner, 2026-11-08: "check the crane again")', () => {
+  /*
+   * MUTATION PROOF, run: the legs straight up (their tops where their feet are):
+   * `expected 150.5 to be greater than 165.5`.
+   */
+  it('each leg leans in to the beam: its foot further out from the middle than its top', () => {
+    const decor = resolve('CC').decor ?? [];
+    const gantry = decor.filter((d) => d.noun === 'gantry');
+    // Each leg's lowest step (a post) and its top step (the arch), by which side of the tracks they stand.
+    for (const side of [1, -1]) {
+      const feet = gantry.filter((d): d is DecorSlab => d.kind === 'slab' && d.bottomMm === 0 && Math.sign(d.atMm[1] - 26) === side);
+      const top = gantry.find((d) => d.kind === 'arch' && Math.sign((d.acrossMm ?? 0) - 26) === side);
+      expect(feet.length).toBe(2);
+      expect(Math.abs(feet[0]!.atMm[1] - 26)).toBeGreaterThan(Math.abs((top as { acrossMm: number }).acrossMm - 26) + 15);
+    }
+  });
+});
+
 describe('the action tunnel station', () => {
   it('is a 288 straight, joining a straight at both ends clear of its base', () => {
     expect([ACTION_TUNNEL_STATION.lengthMm, ACTION_TUNNEL_STATION.ends]).toEqual([288, { start: 'socket', end: 'peg' }]);
