@@ -86,10 +86,19 @@ from two readers".
 
 For builders: you turn a piece issue's photos into a drawn piece and open a
 pull request. You need Claude Code, [bun](https://bun.sh) and gstack's browser
-for comparing the 3D render with each photo. `bun run photos <folder>` checks
-a piece's photos (location removed, grid and reference straight found, what to
-reshoot); the drawing workflow is being added now, and until it lands, pieces
-are drawn by the maintainer. Read [AGENTS.md](AGENTS.md) first.
+for comparing the 3D render with each photo. Read [AGENTS.md](AGENTS.md)
+first.
+
+1. Pick an issue labelled `piece: waiting` from the pinned "Pieces wanted and
+   in progress" issue.
+2. In Claude Code, in its default permission mode (you approve each step), run
+   `/draw-piece <issue number>`. Other agents can follow
+   [the same steps](.claude/skills/draw-piece/SKILL.md).
+3. It downloads the photos into the git-ignored `photos/` folder, checks them
+   with `bun run photos`, measures, asks the sender for anything missing,
+   draws the piece, compares its 3D render with every photo and opens a pull
+   request from your fork. Builders can't set labels, so it comments on the
+   issue instead.
 
 ## For the maintainer: removing a photo
 

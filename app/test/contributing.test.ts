@@ -1,10 +1,13 @@
 /**
  * THE COMMUNITY INTAKE (community-pieces plan, docs/plan/2026-11-08-community-pieces.md):
- * the issue form, the label list, AGENTS.md and the published photo guide.
+ * the issue form, the label list, AGENTS.md, the drawing skill and the published
+ * photo guide.
  *
  * Value: protects=the form asks for photos with a real upload field and puts
  * removing location data first (CEO D1, the V3 check: GitHub keeps it); the
- * piece labels agree between the list, the form and CONTRIBUTING.md (eng D3);
+ * piece labels agree between the list, the form, CONTRIBUTING.md and the
+ * drawing skill (eng D3), which AGENTS.md links for agents that don't load
+ * Claude skills (eng E1-3);
  * the owner's rules live in AGENTS.md and CLAUDE.md loads them (eng D2); the
  * photo guide is built as a page and says GitHub posts are public (design D11)
  * Value: fails_when=a field, a required box, a label, a rule or the guide's
@@ -15,11 +18,14 @@
  * hand, V2), or that the wording is clear to a parent (the outside pilot, T6)
  */
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const read = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const form = read('.github/ISSUE_TEMPLATE/new-piece.yml');
+const SKILL = '.claude/skills/draw-piece/SKILL.md';
+/** Every `piece: ...` label a file names, in backticks or quotes, sorted. */
+const namedLabels = (text: string) => [...new Set([...text.matchAll(/[`"](piece: [a-z ]+)[`"]/g)].map((m) => m[1]!))].sort();
 const labels: string[] = (JSON.parse(read('.github/piece-labels.json')) as { labels: { name: string }[] }).labels.map((l) => l.name);
 
 describe('the new-piece issue form', () => {
@@ -60,9 +66,16 @@ describe('the piece labels', () => {
     expect(labels).toHaveLength(4);
     const formLabels = [...(form.match(/^labels: \[(.*)\]$/m)?.[1] ?? '').matchAll(/"([^"]+)"/g)].map((m) => m[1]!);
     for (const l of formLabels) expect(labels).toContain(l);
-    const contributing = read('CONTRIBUTING.md');
-    const named = [...new Set([...contributing.matchAll(/`(piece: [a-z ]+)`/g)].map((m) => m[1]!))].sort();
-    expect(named).toEqual([...labels].sort());
+    expect(namedLabels(read('CONTRIBUTING.md'))).toEqual([...labels].sort());
+  });
+
+  /*
+   * MUTATION PROOF, run (2026-11-08): the skill's `piece: needs info` renamed
+   * `piece: question` in one step: `expected [ 'piece: drawing', …(4) ] to deeply
+   * equal [ 'piece: drawing', …(3) ]`.
+   */
+  it('are the ones the drawing skill sets and names, all four', () => {
+    expect(namedLabels(read(SKILL))).toEqual([...labels].sort());
   });
 });
 
@@ -72,6 +85,15 @@ describe("the maintainer's rules", () => {
    * - the `@AGENTS.md` line removed from CLAUDE.md: `expected '# ChooChooCAD\n\n\n## Skill routing\n…' to match /^@AGENTS\.md$/m`.
    * - the stacked-PR rule deleted from AGENTS.md: `expected '# AGENTS.md Rules for any AI agent (C…' to match /Don't stack pull requests/`.
    */
+  /*
+   * MUTATION PROOF, run (2026-11-08): the link's path misspelt `draw-pieces`:
+   * `expected false to be true`.
+   */
+  it('link the drawing skill, which exists, as plain steps any agent can follow', () => {
+    const link = read('AGENTS.md').match(/\]\((\.claude\/skills\/[^)]+)\)/)?.[1] ?? '';
+    expect(existsSync(new URL(`../../${link}`, import.meta.url)) && link === SKILL).toBe(true);
+  });
+
   it('live in AGENTS.md, which CLAUDE.md loads', () => {
     expect(read('CLAUDE.md')).toMatch(/^@AGENTS\.md$/m);
     // Whitespace collapsed: a rule wrapped across lines still matches.
