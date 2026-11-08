@@ -20,7 +20,7 @@
  * run by hand and read 216.29 and 216.56mm (PR description), not in CI
  */
 
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -231,6 +231,33 @@ describe('checking a folder', () => {
       rmSync(dir, { recursive: true, force: true });
     }
   }, 60_000);
+
+  /*
+   * A side, end or underside photo has no grid to read (photo guide, step 3):
+   * the drawing skill runs --location-only on everything it downloads.
+   * MUTATION PROOFS, run (2026-11-08):
+   * - the location-only branch removed (every photo fully checked):
+   *   `expected 1 to be +0`.
+   * - its location step skipped: `expected +0 to be 2`.
+   */
+  it('with --location-only, strips and reports location but asks no grid of a side or underside photo', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'photos-'));
+    try {
+      // A plain image with no grid: the full check would ask for a reshoot.
+      const blank: RgbImage = { width: 200, height: 150, rgb: new Uint8Array(200 * 150 * 3).fill(200) };
+      writeFileSync(join(dir, 'side.bmp'), bmp(blank));
+      expect(checkFolder(dir, () => {})).toBe(1);
+      const lines: string[] = [];
+      expect(checkFolder(dir, (l) => lines.push(l), { locationOnly: true })).toBe(0);
+      expect(lines).toEqual(['side.bmp: OK']);
+      // A located photo is still found, reported and stripped.
+      writeFileSync(join(dir, 'end.jpg'), jpeg(APP0, exifApp1(6, true)));
+      expect(checkFolder(dir, () => {}, { locationOnly: true })).toBe(2);
+      expect(hasLocation(new Uint8Array(readFileSync(join(dir, 'end.jpg'))))).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 
   /*
    * MUTATION PROOF, run (2026-11-08): sips offered off macOS: `expected [ 'sips', 'magick',

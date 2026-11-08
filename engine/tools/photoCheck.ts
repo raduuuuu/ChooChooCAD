@@ -15,6 +15,11 @@
  * Exit: 2 when any photo carried location data (the drawing skill reports it
  * privately: a copy already posted keeps it), else 1 when any photo needs a
  * reshoot or the trial fails, else 0.
+ *
+ * `--location-only`: the first step alone, for every photo that isn't a top
+ * view (the underside, a side or end photo when one was asked for). Those show
+ * shape and markings, not sizes, so no grid or reference is looked for; the
+ * drawing skill runs it on everything downloaded before anyone looks.
  */
 
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -122,8 +127,12 @@ export function trialVerdict(readings: readonly { photo: string; valueMm: number
 
 const PHOTO = /\.(jpe?g|png|heic|heif|bmp)$/i;
 
-/** Check every photo in a folder, stripping location data from JPEGs in place. Prints a report; returns the exit code. */
-export function checkFolder(dir: string, print: (line: string) => void = console.log): number {
+/**
+ * Check every photo in a folder, stripping location data from JPEGs in place.
+ * With `locationOnly`, nothing else: no pixels read, no trial. Prints a
+ * report; returns the exit code.
+ */
+export function checkFolder(dir: string, print: (line: string) => void = console.log, { locationOnly = false } = {}): number {
   const files = readdirSync(dir).filter((f) => PHOTO.test(f)).sort();
   if (files.length === 0) {
     print(`No photos in ${dir}.`);
@@ -144,6 +153,12 @@ export function checkFolder(dir: string, print: (line: string) => void = console
     } else if (/\.(heic|heif)$/i.test(f)) {
       reshoot = true;
       lines.push('FORMAT: HEIC photos can\'t have their location removed here. Set the camera to "Most Compatible" (JPEG), or export as JPEG, and check again.');
+    }
+    if (locationOnly) {
+      const head = lines.some((l) => l.startsWith('FORMAT')) ? 'NEEDS WORK' : 'OK';
+      print(`${f}: ${head}`);
+      for (const l of lines) print(`  ${l}`);
+      continue;
     }
     let check: ImageCheck;
     try {
@@ -170,10 +185,12 @@ export function checkFolder(dir: string, print: (line: string) => void = console
 }
 
 if (import.meta.main) {
-  const dir = process.argv[2];
+  const args = process.argv.slice(2);
+  const locationOnly = args.includes('--location-only');
+  const dir = args.find((a) => !a.startsWith('--'));
   if (!dir) {
-    console.error('usage: bun run photos <folder of photos>');
+    console.error('usage: bun run photos [--location-only] <folder of photos>');
     process.exit(2);
   }
-  process.exit(checkFolder(dir));
+  process.exit(checkFolder(dir, console.log, { locationOnly }));
 }
