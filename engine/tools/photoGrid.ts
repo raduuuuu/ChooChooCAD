@@ -5,8 +5,10 @@
  *   six hand points ──fit──▶ first map (perspective only)
  *        │
  *        ▼  predict every 10mm crossing, then for each one:
- *   lineness = darkness in red (blue ink absorbs red; paper reflects it)
- *   wood = red well above blue (orange); a crossing near wood is skipped
+ *   lineness = darkness in the darkest channel (any ink: blue ink absorbs red,
+ *              red or brown ink green and blue; paper reflects all three)
+ *   wood = green well above blue (beech is yellow-orange; paper and ink of
+ *          either colour are not); a crossing near wood is skipped
  *   strongest line within ±WINDOW px across each direction, sub-pixel
  *        │
  *        ▼  fit perspective + lens bowing (k1), drop outliers, predict again
@@ -86,9 +88,10 @@ export function fitMap(points: readonly GridPoint[], size: { width: number; heig
 }
 
 /**
- * Red darkness at a sub-pixel position, bilinear: blue grid ink absorbs red,
- * so it is high on a line and low on paper (measured on the trial photo: red
- * 196 on paper, 163 on a 10mm line). NaN outside the photo or on wood.
+ * Darkness at a sub-pixel position, bilinear: 255 less the darkest channel, so
+ * any ink colour reads (measured: blue paper 196 and its 10mm line 163, both in
+ * red; pink paper 184 and its brown-red line 108, both in blue). NaN outside
+ * the photo or on wood.
  */
 function lineness(img: RgbImage, x: number, y: number): number {
   const x0 = Math.floor(x), y0 = Math.floor(y);
@@ -97,8 +100,9 @@ function lineness(img: RgbImage, x: number, y: number): number {
   let wood = false;
   const at = (xx: number, yy: number) => {
     const i = (yy * img.width + xx) * 3;
-    if (img.rgb[i]! - img.rgb[i + 2]! > WOOD_RED_OVER_BLUE) wood = true;
-    return 255 - img.rgb[i]!;
+    const [r, g, b] = [img.rgb[i]!, img.rgb[i + 1]!, img.rgb[i + 2]!];
+    if (g - b > WOOD_GREEN_OVER_BLUE) wood = true;
+    return 255 - Math.min(r, g, b);
   };
   const v = (at(x0, y0) * (1 - fx) + at(x0 + 1, y0) * fx) * (1 - fy) + (at(x0, y0 + 1) * (1 - fx) + at(x0 + 1, y0 + 1) * fx) * fy;
   return wood ? NaN : v;
@@ -108,10 +112,14 @@ function lineness(img: RgbImage, x: number, y: number): number {
 export const WINDOW = 12;
 /** How far along each line to average, px, skipping the crossing itself. */
 const ARM = 30, GAP = 5;
-/** A line must stand this far above its surroundings, in red-darkness units (a 10mm line measured 33). */
+/** A line must stand this far above its surroundings, in darkness units (a 10mm line measured 33). */
 const MIN_CONTRAST = 10;
-/** Red this far above blue is wood (orange; paper measured red 18 below blue), and the crossing is skipped. */
-const WOOD_RED_OVER_BLUE = 30;
+/**
+ * Green this far above blue is wood, and the crossing is skipped. Measured
+ * (2026-11-08): beech 22 to 30 on both papers; blue paper -2, pink paper +1,
+ * brown-red ink +3, grey track plastic -3 to +5.
+ */
+export const WOOD_GREEN_OVER_BLUE = 14;
 
 /**
  * The exact crossing near `guess`: the strongest line across `along` and the

@@ -1,7 +1,7 @@
 /**
  * THE EXACT END OF A PLANK (plan 2026-11-02, E2 revisited): the hand-read end
  * is only a seed. Across the end, on the flat top face beside the peg or
- * socket, the edge is where wood (red well above blue) gives way to paper.
+ * socket, the edge is where wood (green well above blue) gives way to paper.
  *
  *   paper coords:  ── groove ── top face ──[peg/socket]── top face ── groove ──
  *   sampled:                    |c| in [SHOULDER_IN, SHOULDER_OUT] mm from the centreline
@@ -21,15 +21,27 @@ import type { RgbImage } from './photoImage.js';
 export const SHOULDER_IN = 6.5, SHOULDER_OUT = 9.5;
 /** How far along the axis to look for the edge, mm either side of the seed. */
 export const SEARCH = 3;
+/**
+ * The least woodness step from top face to what lies past the end for a line
+ * to count. Measured (2026-11-08): beech onto blue paper about 50, onto pink
+ * paper 33, onto the plank's own shadow on pink paper 22 (top face 52, shadow 30).
+ */
+const MIN_STEP = 15;
 
-/** Red minus blue: high on beech, negative on paper and grid ink. Bilinear, NaN outside. */
+/**
+ * The red–green average minus blue: high on beech (70 on the synthetic one,
+ * about 38 on real beech), near zero on paper and grid ink of either colour
+ * (blue paper -13, pink paper +5, brown-red ink +10). A larger step than green
+ * minus blue alone, so the edge lands as sharply as red minus blue did on blue
+ * paper. Bilinear, NaN outside.
+ */
 function woodness(img: RgbImage, [x, y]: Pt): number {
   const x0 = Math.floor(x), y0 = Math.floor(y);
   if (x0 < 0 || y0 < 0 || x0 + 1 >= img.width || y0 + 1 >= img.height) return NaN;
   const fx = x - x0, fy = y - y0;
   const at = (xx: number, yy: number) => {
     const i = (yy * img.width + xx) * 3;
-    return img.rgb[i]! - img.rgb[i + 2]!;
+    return (img.rgb[i]! + img.rgb[i + 1]!) / 2 - img.rgb[i + 2]!;
   };
   return (at(x0, y0) * (1 - fx) + at(x0 + 1, y0) * fx) * (1 - fy) + (at(x0, y0 + 1) * (1 - fx) + at(x0 + 1, y0 + 1) * fx) * fy;
 }
@@ -69,7 +81,7 @@ export function refineEnd(img: RgbImage, map: PaperMap, seed: Pt, other: Pt): Re
       }
       if (vs.some(Number.isNaN)) continue;
       const wood = median(vs.slice(0, 15)), paper = median(vs.slice(-15));
-      if (wood - paper < 30) continue; // no clear wood-to-paper step here
+      if (wood - paper < MIN_STEP) continue; // no clear wood-to-paper step here
       const half = (wood + paper) / 2;
       // The last crossing from wood to paper going outward.
       for (let i = vs.length - 1; i > 0; i--) {

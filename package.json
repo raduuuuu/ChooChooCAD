@@ -9,7 +9,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "calibration": "bun engine/tools/calibration.ts"
+    "calibration": "bun engine/tools/calibration.ts",
+    "photos": "bun engine/tools/photoCheck.ts",
+    "photos:score": "bun engine/tools/photoScoreboard.ts"
   },
   "dependencies": {
     "react": "^19.3.0",
