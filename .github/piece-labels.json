@@ -1,0 +1,9 @@
+{
+  "comment": "The one list of piece labels (community-pieces plan, eng D3). A test checks the issue form, CONTRIBUTING.md and the drawing skill name exactly these.",
+  "labels": [
+    { "name": "piece: waiting", "description": "Photos sent; nobody is drawing it yet." },
+    { "name": "piece: drawing", "description": "Someone is drawing this piece." },
+    { "name": "piece: needs info", "description": "Waiting on the person who sent it; closes after 30 days without a reply, any reply reopens it." },
+    { "name": "piece: unsupported", "description": "The app can't hold this piece's shape yet; the issue says why." }
+  ]
+}

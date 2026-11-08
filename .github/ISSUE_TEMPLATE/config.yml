@@ -1,0 +1,6 @@
+# Blank issues stay on for everything else (the setting is repo-wide).
+blank_issues_enabled: true
+contact_links:
+  - name: How to contribute
+    url: https://github.com/raduuuuu/ChooChooCAD/blob/main/CONTRIBUTING.md
+    about: How pieces get from your photos into the app, and what happens after you send them.
