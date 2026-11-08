@@ -1,5 +1,5 @@
 /**
- * FROM THE FLOOR TO THE ENGINE (CALIBRATION.md, "After the afternoon").
+ * FROM THE FLOOR TO THE ENGINE (the calibration sheet, "Afterwards").
  *
  * `measurements.ts` holds the raw readings; this file is the only place they
  * become engine numbers. Every reading is optional: a null keeps the estimate
@@ -7,7 +7,8 @@
  * when every number in that budget came off the floor.
  *
  * Also the findings: what each answer means, taken row by row from the
- * contingency table in CALIBRATION.md, so nobody re-derives it on the day.
+ * contingency table decided before the readings were taken, so nobody
+ * re-derives it on the day.
  * The Q1 cross-check needs the solver, which imports the part data, so it
  * lives in `engine/tools/calibration.ts` instead.
  */
@@ -142,7 +143,7 @@ const mm = (x: number): string => `${Math.round(x * 100) / 100}mm`;
 
 /**
  * What the readings say, one line per answered question, each ending in the
- * CALIBRATION.md contingency it triggers. Q1 is the tool's, see the header.
+ * contingency it triggers. Q1 is the tool's, see the header.
  */
 export function findings(m: Measurements): string[] {
   const out: string[] = [];

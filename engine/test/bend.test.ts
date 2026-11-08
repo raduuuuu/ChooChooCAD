@@ -14,7 +14,7 @@
  * Value: seam=none for the engine specs; the oracle is a second, independent
  * solver kept only here (eng review D5)
  * Value: no_claim=that 2.7 degrees is what every Generic joint does: it is a
- * lower bound inferred from one loop (CALIBRATION.md Q1), and Q1b on the
+ * lower bound inferred from one loop (calibration sheet Q1), and Q1b on the
  * calibration sheet's follow-up page is the next reading
  */
 

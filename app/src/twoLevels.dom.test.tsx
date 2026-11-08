@@ -118,7 +118,7 @@ describe('a bridge on the canvas', () => {
    * `expected 'Grid: 10 cm?Not a loop yet. 2 separat…' to contain 'Raised
    * track: supports are not checke…'`.
    *
-   * The clearance is the MEASURED -6mm (CALIBRATION.md Q5: 55mm train
+   * The clearance is the MEASURED -6mm (calibration sheet Q5: 55mm train
    * 2026-10-30; 61mm rise from the owner's 73mm ramp top, 2026-11-03), said
    * as the bridges say it (app-focus review 2026-11-04, CEO D2, eng D1).
    * MUTATION PROOF, run: `vehicleHeightMm: 44` in measurements.ts fails with

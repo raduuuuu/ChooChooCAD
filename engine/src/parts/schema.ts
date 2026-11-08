@@ -247,7 +247,7 @@ interface PartBase {
   /**
    * Thickness of the plank, millimetres. PUBLISHED.
    *
-   * 12mm, from the same sentence. Recorded because `CALIBRATION.md` lists plank
+   * 12mm, from the same sentence. Recorded because the calibration questions listed plank
    * thickness as one of the unknowns gating elevation work, and it turned out to
    * be published rather than needing a measurement.
    */

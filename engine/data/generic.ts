@@ -65,7 +65,7 @@ const GENERIC_PUBLISHED: DimensionSource = {
  * These replace two wrong values that shipped on 2026-10-08. `gaugeWidthMm` held
  * 40, which is the PLANK WIDTH under the wrong name, and `plankWidthMm` held a
  * 44mm ESTIMATE invented for a number that was already in the file. The plank
- * thickness is a bonus: `CALIBRATION.md` lists it as an unknown gating elevation
+ * thickness is a bonus: the calibration questions listed it as an unknown gating elevation
  * work, and it turns out to be published.
  */
 const PLANK_WIDTH_MM = 40;

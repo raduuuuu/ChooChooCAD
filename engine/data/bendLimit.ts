@@ -4,7 +4,7 @@
  * Three sources, in this order (eng review, "The limit: one value, defined by
  * the solver"):
  *
- * 1. MEASURED: CALIBRATION.md Q2's bend reading, when one was taken.
+ * 1. MEASURED: calibration sheet Q2's bend reading, when one was taken.
  * 2. INFERRED: the bend the Q1 loop needs, when it closed on the floor and a
  *    train ran round it. That loop is a fact about real joints: they bent at
  *    least that far, all at once, and still carried a train. It is a LOWER
@@ -73,7 +73,7 @@ export function q1BendDeg(stretchMm: number): { deg: number; firstLinearDeg: num
 export function deriveBendLimit(m: Measurements, stretchMm: number): BendLimit {
   const measured = measuredBendDeg(m);
   if (measured !== null) {
-    return { deg: measured, status: 'measured', source: 'CALIBRATION.md Q2, measured on one joint', marginDeg: 0 };
+    return { deg: measured, status: 'measured', source: 'calibration sheet Q2, measured on one joint', marginDeg: 0 };
   }
   if (m.q1.closes === true && m.q1.trainRuns === true) {
     const q1 = q1BendDeg(stretchMm);
@@ -81,7 +81,7 @@ export function deriveBendLimit(m: Measurements, stretchMm: number): BendLimit {
       return {
         deg: q1.deg,
         status: 'inferred',
-        source: 'CALIBRATION.md Q1: a loop that closed and carried a train needed this much',
+        source: 'calibration sheet Q1: a loop that closed and carried a train needed this much',
         marginDeg: Math.max(0, q1.deg - q1.firstLinearDeg),
       };
     }

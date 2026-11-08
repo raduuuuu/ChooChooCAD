@@ -1,6 +1,6 @@
 /**
  * `bun run calibration`: what the readings in `engine/data/measurements.ts`
- * change, printed in the order CALIBRATION.md asks the questions.
+ * change, printed in the order the calibration sheet asks the questions.
  *
  * Read-only. It writes nothing; the part data already reads the same file,
  * so filling it in IS writing the numbers into the engine. This only says
