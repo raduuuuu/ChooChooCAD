@@ -900,6 +900,14 @@ Measurement and method: `.gstack/qa-reports/20261020T163029Z-split-cursor/`.
 
 ---
 
+## P2 — "Checked with catalogue sizes." overstates photo-read pieces (filed by /plan-design-review, 2026-11-08, D19)
+
+**What:** the friend screen's always-shown sentence (`CATALOGUE_SIZES`, app/src/linkWords.ts:36) names photo-read sizes when a shared layout uses an unverified photo-drawn piece: "Checked with catalogue sizes and sizes read from photos."
+**Why:** DESIGN.md rule 13 makes this sentence the friend screen's promise; today it is untrue for layouts using the stations, crane, tunnel and other photo pieces.
+**Pros:** the trust screen stops overstating. **Cons:** one more sentence variant beside the community one (docs/plan/2026-11-08-community-pieces.md, design D8).
+**Context:** found in the design review of the community-pieces plan; that plan fixes the community case only. Start at linkWords.ts and FriendScreen.
+**Effort:** human S / CC S. **Priority:** P2. **Depends on:** nothing.
+
 ## P2 — Wire the approved analytics (D8, 2026-11-04)
 
 **2026-11-04, built (branch analytics), site code set (`raduuuuu`):** `app/public/count.js` (the reviewed copy, sha-pinned), `countedPath`/`counterPath`/`counterTag` in app/src/linkFragment.ts, inserted by main.tsx in production only. `GOATCOUNTER_CODE` is `raduuuuu`. Left: after the deploy, open the GoatCounter dashboard and confirm visits arrive, and that a shared link shows as `/shared-link`.
