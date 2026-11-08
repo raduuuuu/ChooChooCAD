@@ -8,7 +8,7 @@ Mode: Builder
 
 ## Problem Statement
 
-The owner measured real Generic track (CALIBRATION.md, `engine/data/measurements.ts`,
+The owner measured real Generic track (the calibration sheet, `engine/data/measurements.ts`,
 2026-10-30). The decisive reading is Q1: the loop E E E E D E E E E A has an exact
 72mm gap, the app reports it EXCEEDS the give, and on the floor it **closes with every
 joint seated (strained) and a train runs round it**.
@@ -25,7 +25,7 @@ sideways; over a 400mm-wide loop those small angles add up to centimetres.
 
 ### The Q1 readings, reconciled
 
-`engine/data/measurements.ts` is the authoritative record; the sheet in CALIBRATION.md
+`engine/data/measurements.ts` is the authoritative record; the filled-in paper sheet
 is what was written on the floor. Two Q1 entries on the sheet were corrected by the
 owner in this session, and step 1 records both corrections with this date in the
 sheet (a dated note under Q1) and in `measurements.ts`'s `method`:

@@ -11,7 +11,7 @@
  * the road witnesses are the PUBLISHED catalogue parts, so a road is checked
  * against a part this file does not define
  * Value: no_claim=nothing about real Generic switches, which nobody has measured
- * (`CALIBRATION.md` Q6)
+ * (calibration sheet Q6)
  */
 
 import { describe, expect, it } from 'vitest';

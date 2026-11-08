@@ -110,8 +110,8 @@ const PLAYTIVE_UNVERIFIED: DimensionSource = {
 /**
  * Lillabo plug and nest radii from the generator author's own measurements.
  *
- * Recorded because they resolve an open question in `CALIBRATION.md`, which
- * lists "6.25 vs 6.4mm" as one of two unexplained plug/nest pairs sitting 23x
+ * Recorded because they resolve an open calibration question, which
+ * listed "6.25 vs 6.4mm" as one of two unexplained plug/nest pairs sitting 23x
  * away from the other. These are the IKEA figures, as RADII, against Generic's
  * 11.5mm peg and 15-17mm socket as DIAMETERS. Different brand and different
  * convention, which is why they looked irreconcilable.

@@ -7,7 +7,7 @@
  * exactly (owner decision L2, 2026-10-23). Nobody has measured whether 216 is
  * the run or the length along the slope: if it is the slope, the run is
  * sqrt(216^2 - 61^2), about 207.2mm, and every ramp loop is off by about
- * 8.8mm per ramp (the 61mm rise is the owner's, measurements.ts Q5). That is `CALIBRATION.md` Q4, still open, which is why this
+ * 8.8mm per ramp (the 61mm rise is the owner's, measurements.ts Q5). That is calibration sheet Q4, still open, which is why this
  * part is `unverified` (eng review finding T2: the schema has no "estimated"
  * dimension status, and unverified is the honest one) and sits outside
  * `GENERIC_PARTS`, whose parts are all published.
@@ -23,7 +23,7 @@ import { MEASUREMENTS } from './measurements.js';
 
 const RAMP_SOURCE: DimensionSource = {
   status: 'unverified',
-  source: 'the published piece table: N, Ascending, 216mm; CALIBRATION.md Q4 (run or slope, unmeasured)',
+  source: 'the published piece table: N, Ascending, 216mm; calibration sheet Q4 (run or slope, unmeasured)',
   note:
     '216mm taken as the floor run (owner decision L2, 2026-10-23). If it is the slope length, the run is about 207.2mm (with the measured 61mm rise). ' +
     'A printed replica, read off its 3MF mesh on 2026-11-03, covers 216.0mm of floor from its socket end to the face behind its peg and rises 60.7mm: the run, on that replica.',
@@ -58,7 +58,7 @@ export const RAMP_SEEDS: readonly Part[] = [
     lengthMm: 216, rise: 1,
     dimensions: {
       ...RAMP_SOURCE,
-      source: 'the published track guide: N1 is an N track with two male connectors; CALIBRATION.md Q4 (run or slope, unmeasured)',
+      source: 'the published track guide: N1 is an N track with two male connectors; calibration sheet Q4 (run or slope, unmeasured)',
     },
     slop: jointSlop(MEASUREMENTS),
     ends: { start: 'peg', end: 'peg' }, heightMm: 0,

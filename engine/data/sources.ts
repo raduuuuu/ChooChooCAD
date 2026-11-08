@@ -228,7 +228,7 @@ export const RESOLVED: readonly Citation[] = [
         'the plank width mislabelled, the real gauge is 26, and the 44mm ' +
         'plankWidthMm estimated on 2026-10-08 was a guess at a number already ' +
         'in the file. Plank thickness 12mm came free and answers one of ' +
-        "CALIBRATION.md's listed unknowns.",
+        "the calibration sheet's listed unknowns.",
     },
   },
 ];
@@ -253,7 +253,7 @@ export const KNOWN_ABSENT = [
  * modelled error, and E1 of the fifth eng review set that error's ceiling. Both
  * need a number to start from, and there isn't one.
  *
- * Four source classes were searched and enumerated in `CALIBRATION.md` Q6:
+ * Four source classes were searched and enumerated in calibration sheet Q6:
  * the manufacturer's own pages for 33344 and 33346, retailer specifications,
  * patent and dimensioned drawings, and the published track guide, which
  * is the citation behind every other figure in this file. None publishes the
@@ -271,7 +271,7 @@ export const KNOWN_ABSENT = [
  * is a multi-road piece in the schema and `portsOf` returns its three ports,
  * both proven by `switches.test.ts` against a locally declared part. That part
  * documents the MODEL and claims nothing about real track. Measuring a real switch is the
- * only way forward, and `CALIBRATION.md` Q6 says exactly what to measure.
+ * only way forward, and calibration sheet Q6 says exactly what to measure.
  */
 export const SWITCH_GEOMETRY_ABSENT = {
   searchedOn: '2026-10-13',
@@ -283,7 +283,7 @@ export const SWITCH_GEOMETRY_ABSENT = {
   ],
   outcome: 'no citable figure; measurement required',
   blocks: 'the switch catalogue row',
-  seeAlso: 'CALIBRATION.md Q6',
+  seeAlso: 'calibration sheet Q6',
 } as const;
 
 /**
@@ -342,7 +342,7 @@ export const GENERIC_PIECE_TABLE: ReadonlyArray<{
   { ids: 'K', name: 'Switching and Crossing', lengthMm: 216, blocker: 'needs-graph' },
   { ids: 'K1', name: 'Double Straight', lengthMm: 216, blocker: 'needs-graph', note: 'Two parallel straights in one piece: four ends.' },
   { ids: 'L, L1, M, M1', name: 'Curved Switch', lengthMm: 144, innerRadiusMm: 182, blocker: 'in-catalogue', note: 'The quintessential Generic switch. L and M held as unverified multi-road seeds (switchSeeds.ts); L1 and M1 not found on printed reproductions.' },
-  { ids: 'N, N1', name: 'Ascending', lengthMm: 216, blocker: 'in-catalogue', note: 'Raises or lowers the track by 64mm. Both held as unverified seeds (rampSeeds.ts, two-layer plan): N with one peg and one socket, N1 with two pegs. 216 taken as the run, CALIBRATION.md Q4.' },
+  { ids: 'N, N1', name: 'Ascending', lengthMm: 216, blocker: 'in-catalogue', note: 'Raises or lowers the track by 64mm. Both held as unverified seeds (rampSeeds.ts, two-layer plan): N with one peg and one socket, N1 with two pegs. 216 taken as the run, calibration sheet Q4.' },
   { ids: 'O, P', name: 'Short Curved Switch', innerRadiusMm: 90, blocker: 'in-catalogue', note: 'The Y switch. Both held as unverified multi-road seeds.' },
   { ids: 'O1, P1', name: 'Short Curved Switch', lengthMm: 108, innerRadiusMm: 90, blocker: 'in-catalogue', note: 'Both held as unverified multi-road seeds (switchSeeds.ts).' },
   { ids: 'Q', name: 'Five-Point Switch', lengthMm: 144, innerRadiusMm: 182, blocker: 'needs-graph', note: 'Outer turns 45 degrees, inner turns 22.5.' },

@@ -1,5 +1,5 @@
 /**
- * THE AFTERNOON ON THE FLOOR, AS NUMBERS (CALIBRATION.md, task V3).
+ * THE AFTERNOON ON THE FLOOR, AS NUMBERS (the calibration sheet, task V3).
  *
  * Fill this in from the printed sheet (`docs/calibration-sheet.html`); the
  * keys match its boxes. Leave anything you did not measure as `null`: a null
@@ -12,7 +12,7 @@
  * After filling it in:
  *   bun run calibration     what each answer changes, and the Q1 cross-check
  *   bun run test            the specs that pin today's estimates will fail;
- *                           that is the point, see CALIBRATION.md step 3
+ *                           that is the point: update them to the measured figure
  */
 
 import type { Measurements } from './calibration.js';
@@ -22,7 +22,7 @@ export const MEASUREMENTS: Measurements = {
   measuredOn: '2026-10-30',
   /** How, in a few words: "digital caliper, steel rule", "phone photo over a rule". */
   method:
-    'read off the filled-in CALIBRATION.md; instrument not recorded. Q1 corrected by the owner ' +
+    'read off the filled-in calibration sheet; instrument not recorded. Q1 corrected by the owner ' +
     'the same day: the sheet\'s train NO meant it did not derail, and the 4mm under "if not" is void ' +
     'because the loop closed. The Q2 bend box ("4 mm over 0 mm") was not measured.',
 

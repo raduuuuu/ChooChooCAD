@@ -1,11 +1,11 @@
 /**
  * THE FLOOR'S NUMBERS REACH THE ENGINE, AND ONLY AS FAR AS THEY WERE READ
- * (CALIBRATION.md, "After the afternoon"; task V3).
+ * (the calibration sheet, "Afterwards"; task V3).
  *
  * Value: protects=a blank sheet changes nothing; a filled Q2 becomes the give
  * every Generic part shares, marked measured only when both of its numbers were
  * read; a reading that cannot be right stops the load, naming the field; each
- * answer is read against the contingency row CALIBRATION.md decided in
+ * answer is read against the contingency row decided in
  * advance; the Q1 loop is checked against the engine's own verdict
  * Value: fails_when=a null stops meaning "keep the estimate", the axial give
  * is understated (the bound it backs is only sound as an upper bound), a half
@@ -145,7 +145,7 @@ describe('F4 turns the supports check on', () => {
 });
 
 describe('Q1 against the engine', () => {
-  it('the engine sees the 72mm loop CALIBRATION.md describes', () => {
+  it('the engine sees the 72mm loop the calibration sheet describes', () => {
     expect(engineOnQ1().gapMm).toBeCloseTo(72, 9);
   });
 

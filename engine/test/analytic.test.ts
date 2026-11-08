@@ -137,7 +137,7 @@ describe('the bend: how far the joints must turn to close a loop', () => {
   });
 
   /*
-   * THE FLOOR'S LOOP CLOSES, AND NOW THE ENGINE SAYS SO (CALIBRATION.md Q1,
+   * THE FLOOR'S LOOP CLOSES, AND NOW THE ENGINE SAYS SO (calibration sheet Q1,
    * 2026-10-30). E E E E D E E E E A is 72mm short; on the floor every joint
    * seated and a train ran round it. The axial-only bound refused it (20mm of
    * stretch against 72mm). The bend model says it closes, needing about 2.7

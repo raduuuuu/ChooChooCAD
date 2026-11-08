@@ -17,7 +17,7 @@
  * this node environment. It cannot dispatch an event, so this reads markup
  * rather than interacting
  * Value: no_claim=nothing about whether the give bound is sound, which needs
- * CALIBRATION.md Q2; nothing about colour or the glyph, which DESIGN.md rules 1
+ * calibration sheet Q2; nothing about colour or the glyph, which DESIGN.md rules 1
  * and 2 own and which `app.css` renders
  *
  * WHY THIS EXISTS. `engine/src/solver/residual.ts:36-42` states the engine's

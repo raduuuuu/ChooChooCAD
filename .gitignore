@@ -11,3 +11,7 @@ crash-repro.ts
 # The owner's track photos and their crops: never committed (public repo;
 # phone photos carry the GPS location they were taken at). Plan 2026-11-02, SEC1.
 photos/
+
+# The owner's private calibration notes (public until 2026-11-08). The public
+# records are docs/calibration-sheet.html and engine/data/measurements.ts.
+/CALIBRATION.md

@@ -3,7 +3,7 @@
  *
  * The floor said what the engine did not: a loop 72mm short closes, with every
  * joint seated, because each joint turns a little and over a loop 400mm across
- * those turns add up to centimetres (CALIBRATION.md Q1, 2026-10-30). This
+ * those turns add up to centimetres (calibration sheet Q1, 2026-10-30). This
  * module answers one question about a run of track: what is the smallest
  * WORST-joint bend, as a share `lambda` of each joint's own limit, that closes
  * every loop in it, given that each joint may also pull apart up to its

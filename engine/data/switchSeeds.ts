@@ -4,7 +4,7 @@
  * READ THIS BEFORE TRUSTING ANYTHING IN HERE.
  *
  * No manufacturer figure exists for a switch's diverging leg (see
- * `SWITCH_GEOMETRY_ABSENT` in sources.ts and `CALIBRATION.md` Q6). What exists
+ * `SWITCH_GEOMETRY_ABSENT` in sources.ts and calibration sheet Q6). What exists
  * are printed models that reproduce Generic switches. On 2026-10-22 their 3MF
  * files were downloaded and the geometry read straight off the meshes: each
  * connector's end face was located, giving a position and an outward
@@ -77,7 +77,7 @@ const REPRODUCTION: DimensionSource = {
     'A 3D-print reproduction, not a measurement of a real switch. Through length and ' +
     'radius agree with the published piece table; the 45-degree arc and the ' +
     'shared heel come only from the reproduction. Upgrade when someone measures a ' +
-    'real switch (CALIBRATION.md Q6).',
+    'real switch (calibration sheet Q6).',
 };
 
 const PROFILE = {
