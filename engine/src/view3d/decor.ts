@@ -74,7 +74,7 @@ export function roadTopAbove(part: Part, a: number, riseMm: number, plankMm: num
  * arch is a half circle on the straight walls. `steps` cuts each half circle.
  */
 export function vaultSection(
-  widthMm: number, wallMm: number, springMm: number, steps = 12,
+  widthMm: number, wallMm: number, springMm: number, steps = 12, bore?: DecorVault['bore'], round?: boolean,
 ): { readonly outer: readonly (readonly [number, number])[]; readonly inner: readonly (readonly [number, number])[] } {
   const ring = (r: number) => {
     const pts: (readonly [number, number])[] = [[-r, 0]];
@@ -85,7 +85,19 @@ export function vaultSection(
     pts.push([r, 0]);
     return pts;
   };
-  return { outer: ring(widthMm / 2), inner: ring(widthMm / 2 - wallMm) };
+  if (!bore) return { outer: ring(widthMm / 2), inner: ring(widthMm / 2 - wallMm) };
+  // A circle round the bore's centre, as many points as the outside so the end faces pair them: from where it meets the floor, over the top, back to the floor.
+  const circle = (r: number) => {
+    const low = Math.asin(Math.max(-1, (bore.floorMm - bore.centreMm) / r));
+    const pts: (readonly [number, number])[] = [];
+    for (let i = 0; i <= steps + 2; i++) {
+      // From below the left side (pi - low, low < 0) round through the top to below the right (low).
+      const a = Math.PI - low - ((Math.PI - 2 * low) * i) / (steps + 2);
+      pts.push([r * Math.cos(a), bore.centreMm + r * Math.sin(a)]);
+    }
+    return pts;
+  };
+  return { outer: round ? circle(widthMm / 2) : ring(widthMm / 2), inner: circle(bore.radiusMm) };
 }
 
 /** The box's bottom and top, millimetres above the table, or null for wood that is not decoration. */
@@ -125,7 +137,7 @@ export function drawShape(shape: DrawnShape, f: ShapeFrame, pen: Pen): void {
 function drawVault(v: DecorVault, f: ShapeFrame, pen: Pen): void {
   const len = f.lengthMm;
   const at = (t: number, [across, h]: readonly [number, number]) => f.at(t, across, f.floorMm + h);
-  const { outer, inner } = vaultSection(v.widthMm, v.wallMm, v.springMm);
+  const { outer, inner } = vaultSection(v.widthMm, v.wallMm, v.springMm, 12, v.bore, v.round);
   const sweep = (ring: readonly (readonly [number, number])[], facing: 1 | -1) => {
     for (let i = 0; i + 1 < ring.length; i++) {
       const [a0, a1, b0, b1] = [at(0, ring[i]!), at(len, ring[i]!), at(0, ring[i + 1]!), at(len, ring[i + 1]!)];
@@ -156,7 +168,7 @@ function drawStones(v: DecorVault, f: ShapeFrame, pen: Pen): void {
   const len = f.lengthMm;
   const r = v.widthMm / 2 + JOINT_LIFT_MM;
   const at = (t: number, across: number, h: number) => f.at(t, across, f.floorMm + h);
-  const { outer } = vaultSection(2 * r, v.wallMm, v.springMm);
+  const { outer } = vaultSection(2 * r, v.wallMm, v.springMm, 12, v.bore, v.round);
   for (const t of ringsMm) for (let i = 0; i + 1 < outer.length; i++) pen.detail(at(t, ...outer[i]!), at(t, ...outer[i + 1]!));
   for (const h of wallMm) for (const side of [r, -r]) pen.detail(at(0, side, h), at(len, side, h));
   for (const deg of archDeg) {

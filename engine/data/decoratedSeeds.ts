@@ -114,7 +114,9 @@ const BEECH: Paint = { fill: '--track-fill', line: '--ink-soft' };
 /** The portals: their outer faces 203 apart, centred on the 216 track; each 18 along. */
 const PORTAL_FROM = 6.5;
 const PORTAL_LEN = 18;
-const portal = (x: number): DecorVault => ({ kind: 'vault', atMm: [x, 0], lengthMm: PORTAL_LEN, widthMm: 80, wallMm: 9, springMm: 40, topMm: 80, noun: 'portal', paint: METRO });
+/** The portal's bore (the end-on photos): a circle of 31 round 41 up, down to the plank's top. */
+const PORTAL_BORE = { centreMm: 41, radiusMm: 31, floorMm: 12 } as const;
+const portal = (x: number): DecorVault => ({ kind: 'vault', atMm: [x, 0], lengthMm: PORTAL_LEN, widthMm: 80, wallMm: 9, springMm: 40, topMm: 80, bore: PORTAL_BORE, noun: 'portal', paint: METRO });
 /*
  * Each portal's walls flare out at the floor to the track's end (the side
  * photo): drawn as a foot under each wall, 25 tall, from the portal's outer
@@ -253,8 +255,8 @@ export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
     },
   },
   /*
-   * THE METRO TUNNEL: the long straight under a red tube 66 wide and 72
-   * tall (walls 3 thick, straight to 39, then round), its ribs every 23.9,
+   * THE METRO TUNNEL: the long straight under a round red tube 66 across
+   * and 72 tall, resting on the plank (walls 3 thick), its ribs every 23.9,
    * between the two portals; in its middle a raised collar 38 round a dark
    * hole 30 across in its roof, and an M sign 22 across standing 6 proud on each
    * side (from above they read as two stubs).
@@ -263,7 +265,8 @@ export const DECORATED_SEEDS: readonly DecoratedSpec[] = [
     id: 'MT', name: 'Metro tunnel', base: 'D',
     decor: [
       ...portals,
-      { kind: 'vault', atMm: [108, 0], lengthMm: INNER_LEN, widthMm: 66, wallMm: 3, springMm: 39, topMm: 72, noun: 'tunnel', paint: RED,
+      // A round tube resting on the plank: 66 across round 39 up, its wall 3 thick (the side photo shows the plank under it).
+      { kind: 'vault', atMm: [108, 0], lengthMm: INNER_LEN, widthMm: 66, wallMm: 3, springMm: 39, topMm: 72, bore: { centreMm: 39, radiusMm: 30, floorMm: 12 }, round: true, noun: 'tunnel', paint: RED,
         joints: { ringsMm: Array.from({ length: 6 }, (_, k) => ((k + 1) * INNER_LEN) / 7), wallMm: [], archDeg: [] } },
       { kind: 'wheel', axis: 'up', atMm: [108, 0], centreMm: 71, diameterMm: 38, thickMm: 8, ringsMm: [30], noun: 'tunnel', paint: RED },
       // The hole itself, dark, just over the collar's top.
