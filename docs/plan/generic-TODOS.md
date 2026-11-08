@@ -1047,3 +1047,14 @@ IP questions below should be settled before anything is published publicly
 **Priority:** P3
 **Depends on:** the Elevated station's paint shipping
 
+
+## Repo checkups: decide after four weekly runs (2026-11-08, repo-checkups plan)
+
+- **Propose `/checkup` to gstack (C3, deferred).** After four weekly runs of
+  the checkup, open a gstack issue with what each check caught and its false
+  alarms; the skill's generic steps are kept apart from this repo's rules so
+  moving them is a cut. Why deferred: gstack is consolidating skills; evidence
+  makes the proposal land. **Effort:** S to M. **Priority:** P2.
+- **OpenSSF Scorecard (C5, deferred).** Weekly, its score copied into the
+  tracking issue, if the first month shows a second report earns attention.
+  **Effort:** S. **Priority:** P3.
