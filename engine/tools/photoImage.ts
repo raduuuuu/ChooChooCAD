@@ -1,8 +1,10 @@
 /**
  * A photo's pixels, with no image library (plan 2026-11-02, E2 revisited):
- * macOS `sips` converts the photo to an uncompressed BMP, and this reads it.
+ * a converter (`sips` on macOS; ImageMagick or ffmpeg elsewhere, community-
+ * pieces plan eng D5) turns the photo into an uncompressed BMP, and this
+ * reads it. A BMP is read directly.
  *
- *   photo.jpg ──sips -s format bmp──▶ photo.bmp ──readBmp──▶ { width, height, rgb }
+ *   photo.jpg ──sips | magick | ffmpeg──▶ photo.bmp ──readBmp──▶ { width, height, rgb }
  */
 
 import { execFileSync } from 'node:child_process';
@@ -47,13 +49,39 @@ export function readBmp(bytes: Uint8Array): RgbImage {
   return { width, height, rgb };
 }
 
-/** Any photo `sips` can open, as pixels. */
+/**
+ * The converters tried, in order, to turn a photo into a BMP: macOS's `sips`,
+ * then ImageMagick and ffmpeg anywhere (community-pieces plan, eng D5: builders
+ * on Linux and Windows). Each is `[command, args for (in, out)]`.
+ */
+export function bmpConverters(platform: string): readonly (readonly [string, (from: string, to: string) => string[]])[] {
+  const others = [
+    ['magick', (f: string, t: string) => [f, t]],
+    ['convert', (f: string, t: string) => [f, t]],
+    ['ffmpeg', (f: string, t: string) => ['-loglevel', 'error', '-y', '-i', f, t]],
+  ] as const;
+  return platform === 'darwin' ? [['sips', (f, t) => ['-s', 'format', 'bmp', f, '--out', t]], ...others] : others;
+}
+
+/** What to say when no converter can open the photo. */
+export const NO_CONVERTER =
+  'No image converter found: on macOS `sips` is built in; elsewhere install ImageMagick (`magick`) or ffmpeg, or save the photo as a BMP.';
+
+/** Any photo as pixels: a BMP read directly, anything else through the first converter that works. */
 export function loadPhoto(path: string): RgbImage {
+  if (/\.bmp$/i.test(path)) return readBmp(readFileSync(path));
   const dir = mkdtempSync(join(tmpdir(), 'photo-'));
   try {
     const bmp = join(dir, 'photo.bmp');
-    execFileSync('sips', ['-s', 'format', 'bmp', path, '--out', bmp], { stdio: 'ignore' });
-    return readBmp(readFileSync(bmp));
+    for (const [command, args] of bmpConverters(process.platform)) {
+      try {
+        execFileSync(command, args(path, bmp), { stdio: 'ignore' });
+        return readBmp(readFileSync(bmp));
+      } catch {
+        // Not installed, or it can't read this photo: try the next one.
+      }
+    }
+    throw new Error(NO_CONVERTER);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
