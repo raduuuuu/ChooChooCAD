@@ -192,6 +192,7 @@ function drawTruss(t: DecorTruss, f: ShapeFrame, pen: Pen): void {
   /** A circular chord through both springings and its crown, as height above the table. */
   const chord = (crown: number) => {
     const half = (toMm - fromMm) / 2, rise = crown - springMm;
+    if (t.parabolic) return (a: number) => floor + springMm + rise * (1 - ((a - fromMm - half) / half) ** 2);
     const r = (half * half + rise * rise) / (2 * rise);
     return (a: number) => floor + crown - (r - Math.sqrt(Math.max(0, r * r - (a - fromMm - half) ** 2)));
   };
@@ -219,8 +220,28 @@ function drawTruss(t: DecorTruss, f: ShapeFrame, pen: Pen): void {
       const a = along(i), c = side * sideMm;
       const roadTop = f.roadTop(a);
       pen.edge(at(a, c, outer(a) - TRUSS_CHORD_MM), at(a, c, inner(a)));
-      if (inner(a) - TRUSS_CHORD_MM > roadTop) pen.edge(at(a, c, inner(a) - TRUSS_CHORD_MM), at(a, c, roadTop));
-      if (side === 1 && i % 2 === 0 && outer(a) - TRUSS_CHORD_MM > roadTop + 40) pen.edge(at(a, sideMm, outer(a) - TRUSS_CHORD_MM), at(a, -sideMm, outer(a) - TRUSS_CHORD_MM));
+      if (t.hangers === undefined && inner(a) - TRUSS_CHORD_MM > roadTop) pen.edge(at(a, c, inner(a) - TRUSS_CHORD_MM), at(a, c, roadTop));
+      if (t.braced !== false && side === 1 && i % 2 === 0 && outer(a) - TRUSS_CHORD_MM > roadTop + 40) pen.edge(at(a, sideMm, outer(a) - TRUSS_CHORD_MM), at(a, -sideMm, outer(a) - TRUSS_CHORD_MM));
+    }
+    // A set count of hangers, evenly spaced between the springings.
+    for (let i = 1; i <= (t.hangers ?? 0); i++) {
+      const a = fromMm + ((toMm - fromMm) * i) / (t.hangers! + 1), c = side * sideMm;
+      const top = inner(a) - TRUSS_CHORD_MM, bottom = f.roadTop(a);
+      if (top <= bottom) continue;
+      if (t.hangerMm === undefined) {
+        pen.edge(at(a, c, top), at(a, c, bottom));
+        continue;
+      }
+      // A flat bar: its two faces in the rib's plane, edged round.
+      const w = t.hangerMm / 2;
+      for (const d of [1, -1]) {
+        const y = c + d * TRUSS_HALF_MM;
+        const [p, q, r, s] = [at(a - w, y, bottom), at(a + w, y, bottom), at(a + w, y, top), at(a - w, y, top)];
+        if (d === 1) pen.quad(p, q, r, s);
+        else pen.quad(s, r, q, p);
+        pen.edge(p, s);
+        pen.edge(q, r);
+      }
     }
   }
 }

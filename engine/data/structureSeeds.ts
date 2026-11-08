@@ -471,7 +471,54 @@ export const HARBOUR_BRIDGE: StraightPart = {
   slop: ESTIMATED_SLOP, ...PROFILE,
 };
 
-export const STRUCTURE_SEEDS = [STATION, RISER, TRACK_SUPPORT, TUNNEL_OVERPASS, STONE_ARCH_BRIDGE, SUSPENSION_BRIDGE, HARBOUR_BRIDGE] as const;
+
+/*
+ * THE BOWSTRING BRIDGE (owner's photos 2026-11-08: one from above on
+ * millimetre paper, one lying on its side): a medium straight (A, 144, the
+ * owner: "the same as a medium straight") one level up, hung from two red
+ * arches either side of it; floor track passes under between their feet.
+ *
+ *                 ____ crown 130 (outer), inner chord 114 ____
+ *               /     five flat hangers down to deck          \
+ *   socket     /=========== deck, one level up ================\     peg
+ *          foot                                                 foot
+ *          -20  0 ........ floor track passes under ......... 144  164
+ *
+ * - The arches' ribs stand 22.7 either side of the track: parabolas from
+ *   12 up at their feet, 11 past each end of the deck, steep enough to meet
+ *   the deck's level at its ends (the side photo).
+ * - Each foot is a red wedge, 18 along, 8 wide and 16 tall: floor level
+ *   only, so the raised track joined to the deck passes over it.
+ * - A black tie rod runs across between the feet at each end.
+ *
+ * READ, NOT MEASURED, but for the deck's length: scaled by the deck, so
+ * within about 5mm.
+ */
+const BS_LEN = 144;
+const BS_PAST = 20;
+const BS_SIDE = 22.7;
+const BS_RED: Paint = { fill: '--paint-red', line: '--ink' };
+const BS_ROD: Paint = { fill: '--ink', line: '--paper' };
+const bsFoot = (x: number, side: 1 | -1) =>
+  ({ kind: 'slab' as const, atMm: [x, side * BS_SIDE] as const, lengthMm: 18, widthMm: 8, bottomMm: 0, topMm: 16, noun: 'foot', paint: BS_RED });
+export const BOWSTRING_BRIDGE: StraightPart = {
+  id: 'BW', brand: 'GENERIC', kind: 'straight', name: 'Bowstring bridge',
+  lengthMm: BS_LEN, ends: { start: 'socket', end: 'peg' }, deck: 1,
+  deckClearanceMm: CLEARANCE.riseMm,
+  decor: [
+    ...[-BS_PAST + 9, BS_LEN + BS_PAST - 9].flatMap((x) => [bsFoot(x, 1), bsFoot(x, -1)]),
+    ...[-BS_PAST + 9, BS_LEN + BS_PAST - 9].map((x) => ({ kind: 'slab' as const, atMm: [x, 0] as const, lengthMm: 4, widthMm: 2 * BS_SIDE - 8, bottomMm: 6, topMm: 10, solid: false as const, noun: 'tie rod', paint: BS_ROD })),
+    { kind: 'truss', fromMm: -BS_PAST + 9, toMm: BS_LEN + BS_PAST - 9, springMm: 12, crownMm: 130, innerCrownMm: 114, sideMm: BS_SIDE, hangers: 5, hangerMm: 5, parabolic: true, braced: false, noun: 'arch', paint: BS_RED },
+  ],
+  dimensions: {
+    status: 'unverified',
+    source: "the owner's photos of a real one, 2026-11-08: the deck's length the owner's (a medium straight's), the rest scaled by it",
+    note: 'A 144 deck one level up, hung from two red parabolic arches 22.7 either side of it, springing 12 up at feet reaching 20 past each end, crowns 130 (outer) and 114 (inner), five flat hangers; floor track passes under between the feet. Heights within about 5mm.',
+  },
+  slop: ESTIMATED_SLOP, ...PROFILE,
+};
+
+export const STRUCTURE_SEEDS = [STATION, RISER, TRACK_SUPPORT, TUNNEL_OVERPASS, STONE_ARCH_BRIDGE, SUSPENSION_BRIDGE, HARBOUR_BRIDGE, BOWSTRING_BRIDGE] as const;
 
 /** How the app names each structure in a sentence, and what its list line says it carries (design decision 5). */
 export const STRUCTURE_WORDS: Readonly<Record<string, { readonly word: string; readonly carries: string }>> = {
@@ -481,6 +528,7 @@ export const STRUCTURE_WORDS: Readonly<Record<string, { readonly word: string; r
   TO: { word: 'tunnel', carries: 'road raised over a passage, floor track passes through' },
   SA: { word: 'bridge', carries: 'road over the arch, floor track passes under' },
   HB: { word: 'bridge', carries: 'road raised between the portals, floor track passes under' },
+  BW: { word: 'bridge', carries: 'road raised under its arches, floor track passes under' },
   SB: { word: 'bridge', carries: 'road over the main span, floor track passes under' },
   PR: { word: 'pier', carries: 'no track connections' },
   TU: { word: 'tunnel', carries: 'road between walls, under a roof' },

@@ -29,6 +29,8 @@ import { findBridges, findPlankOverlaps } from '../src/graph/overlap.js';
 import { renderGraph } from '../src/graph/render.js';
 import { assemblyOrder } from '../src/graph/assembly.js';
 import { solveGraph } from '../src/graph/solve.js';
+import { buildScene } from '../src/view3d/mesh.js';
+import { CLEARANCE } from '../data/rampSeeds.js';
 
 // The station from the library: its boxes are derived from its shapes there.
 const resolve = makeResolver([...BUILT_IN, PIER, TUNNEL]);
@@ -415,5 +417,50 @@ describe('the harbour arch bridge (Sydney bridge plan 2026-11-03)', () => {
     const g = scene([hb, ['under', 'A', at(108, -72, 4)]]);
     const r = solveGraph(g, ports, resolve, () => 0, placeAll(g, ports));
     expect(r.underBridges).toEqual([{ bridge: 'hb', under: 'under' }]);
+  });
+});
+
+describe('the bowstring bridge (owner\'s photos 2026-11-08)', () => {
+  const bw = ['bw', 'BW', at(0, 0, 0)] as const;
+
+  /*
+   * MUTATION PROOF, run: the feet left out: `expected [] to deeply equal [ 'bw floor' ]`.
+   */
+  it('floor track passes under the deck between the feet, not through a foot', () => {
+    // Feet from -20 to -2 and 146 to 164 along, 22.7 either side.
+    expect(clashes(scene([bw, ['under', 'A', at(72, -72, 4)]]))).toEqual([]);
+    expect(clashes(scene([bw, ['floor', 'A', at(-11, -72, 4)]]))).toEqual(['bw floor']);
+  });
+
+  /*
+   * MUTATION PROOF, run: the feet reaching the raised level (`topMm: 70`): `expected [ 'bw on' ] to deeply equal []`.
+   */
+  it('raised track joined at the deck\'s end passes over its feet', () => {
+    expect(clashes(scene([bw, ['on', 'A', at(144, 0, 0, 1)]]))).toEqual([]);
+  });
+
+  it('lists floor track under its deck for its room sentence', () => {
+    const g = scene([bw, ['under', 'A', at(72, -72, 4)]]);
+    const r = solveGraph(g, ports, resolve, () => 0, placeAll(g, ports));
+    expect(r.underBridges).toEqual([{ bridge: 'bw', under: 'under' }]);
+  });
+
+  /*
+   * MUTATION PROOF, run: the arch circular again (`parabolic` ignored): `expected 93.92736053466797 to be less than 75`.
+   */
+  it('its arches rise steeply from their feet, meeting the deck\'s level at its ends (the side photo)', () => {
+    const g = scene([bw]);
+    const r = renderGraph(g, ports, resolve, placeAll(g, ports));
+    const s = buildScene({ segments: r.segments, bodies: r.bodies, ports: r.ports, welds: [], partOf: () => resolve('BW'), riseMm: CLEARANCE.riseMm, plankMm: 12 });
+    const { solid, solidPaint, paints } = s.structures;
+    const p = solid.positions;
+    // The arch's red where it passes the deck's start, beside the deck (not the feet, at the ends).
+    let top = -Infinity;
+    for (let v = 0; v < p.length / 3; v++) {
+      if (paints[solidPaint[v]!] !== '--paint-red' || p[v * 3 + 2]! < 20) continue;
+      if (Math.abs(p[v * 3]!) < 6) top = Math.max(top, p[v * 3 + 2]!);
+    }
+    expect(top).toBeGreaterThan(40);
+    expect(top).toBeLessThan(75);
   });
 });
