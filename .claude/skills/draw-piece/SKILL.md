@@ -100,7 +100,7 @@ on these copies.
 
 **Then sort them.** Open each photo and move the top views (the piece and the
 medium straight lying flat on the grid, seen from straight above) into
-`photos/issue-N/top/`. The underside photo and any side or end photo stay
+`photos/issue-N/top/`. Any underside, side or end photo stays
 where they are: they show shape and markings, not sizes.
 
 **Then the full check, on the top views only:**
@@ -118,8 +118,8 @@ bun run photos photos/issue-N/top
 - **Exit 0.** Go on.
 
 Then check that the views the form asks for are there: the top view twice
-(pieces moved between) and the underside. A view that is missing: post
-**Reshoot** naming it, and stop. Side and end photos are not required (step 5).
+(pieces moved between). A view that is missing: post **Reshoot** naming it,
+and stop. Underside, side and end photos are not required (step 5).
 
 ## 5. Look at every photo
 
@@ -128,8 +128,12 @@ anything. Top-view figures, how the piece works, what joins what, which end is
 a peg and which a socket usually show in a photo already. Note what each
 photo shows; you will compare the render with each one in step 9.
 
-Ask for a side or end photo only when the top views and the underside leave
-the shape unclear: how high something rises, a slope, a roof or a part
+Ask for an underside photo only when the typed markings are empty or unclear,
+or when two readers' figures disagree (versions of a piece can differ; their
+markings tell them apart). Post **Underside photo**, set `piece: needs info`
+(maintainer), and stop.
+
+Ask for a side or end photo only when the top views leave the shape unclear: how high something rises, a slope, a roof or a part
 standing up. Heights still come from a ruler reading (step 7), never from a
 photo. Post **Side or end photo**, naming what it should show, set
 `piece: needs info` (maintainer), and stop.
@@ -268,6 +272,11 @@ faces or anything private in a public comment.
 > - <photo k>: <the check's words>
 >
 > Post them as a new comment here.
+
+**Underside photo**
+> Thanks! Could you add a photo of the piece's underside, turned over so what
+> is printed or moulded on it shows? Versions of the same piece can differ, and
+> the markings tell them apart. No paper or ruler needed.
 
 **Side or end photo**
 > Thanks! The top views don't show <what is unclear, e.g. how the roof rises>.

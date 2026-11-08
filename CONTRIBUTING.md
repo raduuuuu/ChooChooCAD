@@ -27,7 +27,8 @@ people, faces, house numbers, letters or screens.
 What to have ready, and how to take the photos, is in the
 [photo guide](https://woodentrain.world/photo-guide.html): the piece, one
 medium straight (144 mm) as the ruler, white, blue or pink millimetre or graph paper, the top
-view twice and the underside. Side or end photos only if someone asks. If you don't have a medium or a long straight, send what you have;
+view twice, and the markings on its underside typed into the form. Underside, side or end photos
+only if someone asks. If you don't have a medium or a long straight, send what you have;
 someone will ask for what's missing.
 
 ### Remove where a photo was taken
