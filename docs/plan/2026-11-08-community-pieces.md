@@ -1439,10 +1439,11 @@ Effort assumption: features ~30x, tests ~50x, verification ~3x.
   - Surfaced by: eng D3, D8; CEO A1, X4, D18
   - Files: .github/ISSUE_TEMPLATE/new-piece.yml, config.yml, .github/piece-labels.json
   - Verify: node tests for required fields and label agreement (mutation run)
-- [ ] **T4 (P1, human: ~4d / CC: ~2.5h)** — engine-tools — photoCheck.ts on engine/tools/photo*, automatic straight finder, portable photoImage, BMP fixtures, `bun run photos`
+- [x] **T4 (P1, human: ~4d / CC: ~2.5h)** — engine-tools — photoCheck.ts on engine/tools/photo*, automatic straight finder, portable photoImage, BMP fixtures, `bun run photos`
   - Surfaced by: eng D5 (Codex OV-E3); CEO X1, OV-4
   - Files: engine/tools/photoCheck.ts, engine/tools/photoImage.ts, package.json
   - Verify: vitest on fixtures (GPS reported then stripped; straight found; repeat pair; 216 trial), mutation run
+  - Done 2026-11-08: vitest on synthetic photos and BMP fixtures, each test's mutation run and recorded. The real-photo fixes (red ink on pink paper, wood across the middle, shadows, perspective, two sheets) are guarded by `bun run photos:score`, 10/10 on the owner's ten photos, which stay uncommitted; the 216 trial read 216.57 and 216.85mm. Cream or yellow paper is refused (the owner's choice: it is as warm a colour as the wood); the guide, form and CONTRIBUTING.md now ask for white, blue or pink paper.
 - [ ] **T5 (P1, human: ~2d / CC: ~1.5h)** — skill — draw-piece on engine/tools
   - Surfaced by: CEO A2, S3-1, OV-1, D18; eng D5, D8
   - Files: .claude/skills/draw-piece/SKILL.md

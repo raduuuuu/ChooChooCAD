@@ -26,7 +26,7 @@ people, faces, house numbers, letters or screens.
 
 What to have ready, and how to take the photos, is in the
 [photo guide](https://woodentrain.world/photo-guide.html): the piece, one
-medium straight (144 mm) as the ruler, millimetre or graph paper, and each view
+medium straight (144 mm) as the ruler, white, blue or pink millimetre or graph paper, and each view
 twice. If you don't have a medium or a long straight, send what you have;
 someone will ask for what's missing.
 
@@ -86,9 +86,10 @@ from two readers".
 
 For builders: you turn a piece issue's photos into a drawn piece and open a
 pull request. You need Claude Code, [bun](https://bun.sh) and gstack's browser
-for comparing the 3D render with each photo. The drawing workflow and its photo
-check are being added now; until they land, pieces are drawn by the
-maintainer. Read [AGENTS.md](AGENTS.md) first.
+for comparing the 3D render with each photo. `bun run photos <folder>` checks
+a piece's photos (location removed, grid and reference straight found, what to
+reshoot); the drawing workflow is being added now, and until it lands, pieces
+are drawn by the maintainer. Read [AGENTS.md](AGENTS.md) first.
 
 ## For the maintainer: removing a photo
 

@@ -40,6 +40,11 @@ the design rules are in [DESIGN.md](DESIGN.md); how people contribute is in
 ## Photos and measurements
 
 - Photos are never committed. They live in `photos/`, which is git-ignored.
+- First, `bun run photos <folder>` on the downloaded copies: it reports and
+  removes location data (in place, so never on the only copy), finds the grid
+  and the reference straight, and says what to reshoot. Exit 2 means a photo
+  carried its location: report that privately, as above. Exit 1 means a
+  reshoot; ask for it in the photo guide's words.
 - Measure with the photo tools in `engine/tools/photo*.ts` (grid, perspective
   and lens fit, end refinement, agreement within `TOLERANCE_MM`). Don't write a
   second pipeline.
