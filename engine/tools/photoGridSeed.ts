@@ -6,13 +6,18 @@
  *        │  for each angle θ in [-45°, 45°): line darkness projected on θ's normal
  *        ▼
  *   the angle whose profile is most peaked = one family of lines; θ + 90° the other
- *        │  in each profile: the darkest peaks are the 10mm lines (5mm and 1mm
- *        │  lines are fainter), their median spacing the 10mm pitch
+ *        │  in each profile: the strong peaks' spacing, made exact by the 1mm
+ *        │  lines when they show; a comb picks the peak most lines agree with,
+ *        │  then steps peak to peak towards the middle (perspective changes the pitch)
  *        ▼
- *   9 crossings at ±20mm around the middle, labelled in paper mm ──▶ findGrid
+ *   12 crossings near where the two lines found meet (the anchor), clear of wood
+ *        │  findGrid, ring by ring: ±30, 60, 120mm, then the whole photo,
+ *        │  each ring predicted from a fit of the one before
+ *        ▼
+ *   every crossing, labelled in paper mm
  *
- * The labels are relative (the crossing nearest the middle is 0, 0): a check
- * needs lengths, not where on the sheet the pieces lie.
+ * The labels are relative (the anchor is 0, 0): a check needs lengths, not
+ * where on the sheet the pieces lie.
  */
 
 import type { GridPoint, Pt } from './photo.js';
