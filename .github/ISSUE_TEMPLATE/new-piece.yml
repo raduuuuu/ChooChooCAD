@@ -15,13 +15,13 @@ body:
         1. **Turn off location for your camera**, or remove it from each photo afterwards ([how, for each phone and computer](https://github.com/raduuuuu/ChooChooCAD/blob/main/CONTRIBUTING.md#remove-where-a-photo-was-taken)). Photos posted here are public, and GitHub keeps them online even if the issue is deleted later.
         2. The piece, and one **medium straight** (144 mm) to lie beside it as the ruler. For your first piece, also a **long straight** (216 mm).
         3. A sheet of white, blue or pink millimetre or graph paper, laid flat (not cream or yellow: the wood can't be told from it).
-        4. The top view twice, moving the pieces between, and one photo of the underside. No side or end photos unless someone asks.
+        4. The top view twice, moving the pieces between. Type the markings below; a photo of the underside, or of the side or end, only if someone asks.
         5. Nothing else in the frame: no people, faces, house numbers, letters or screens.
   - type: upload
     id: photos
     attributes:
       label: Photos
-      description: "The top view twice and the underside. On your first piece, two photos of the long straight too. Side or end photos only if someone asks."
+      description: "The top view twice. On your first piece, two photos of the long straight too. Underside, side or end photos only if someone asks."
     validations:
       required: true
   - type: textarea
