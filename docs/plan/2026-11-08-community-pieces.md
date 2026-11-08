@@ -785,7 +785,7 @@ decisions (R2, R3); the others integrated cleanly.
 palette ─▶ (missing piece) ─▶ "Missing a piece? Send photos" ─▶ GitHub form
    │                                                           (new tab)
    └▶ groups: System ▸ Straights | Curves | Switches & crossings | Ramps |
-              Buffers ▸ Structures ▸ Decorated      (AD1, mock first)
+              Buffers ▸ Structures      (AD1; decorated inside, D3)
 piece card ─▶ status line: "Unverified size" | "confirmed by N readers" | ✓
 verdict    ─▶ notes include the community caveat when such a piece is used
 ```
@@ -1553,9 +1553,13 @@ Pass 6, responsive and accessibility (5 → 8):
 Phones get the read-only view, which hides the palette: no phone palette.
 
 Pass 7, unresolved decisions:
-- D18 (7A): the regroup (T12) is built only after the owner sets up the
-  design tool and approves a /design-shotgun round of the 320px rail; T11 and
-  the other tracks proceed.
+- D18 (7A, then reversed to 7B by the owner, 2026-11-08: "skip this step,
+  the process you shared is not working (refuses a valid Gemini key)"): no
+  mock first. The regroup (T12) is built from this review's written spec on
+  its own branch; the owner checks it live in the browser and /design-review
+  checks the 320px rail before it merges. History: 7A (mock first after the
+  owner set up the design tool) was chosen, then dropped when the design
+  tool's setup refused a valid Gemini key.
 
 ### Interaction states
 
@@ -1636,10 +1640,10 @@ Synthesized from this review's findings. Effort assumption: features ~30x.
   - Surfaced by: Pass 5 D15
   - Files: app/src/App.tsx
   - Verify: test with a mixed shelf (mutation run)
-- [ ] **D-T9 (P2, human: ~1d / CC: ~45min)** — library — regroup spec, mock first
+- [ ] **D-T9 (P2, human: ~1d / CC: ~45min)** — library — regroup from the written spec, reviewed live
   - Surfaced by: Pass 1 D3, D4; Pass 7 D18
   - Files: app/src/App.tsx
-  - Verify: approved /design-shotgun round before code; dom test pins groups and order
+  - Verify: owner checks the branch live and /design-review passes on the 320px rail before merge; dom test pins groups and order
 
 ## Design Review Completion Summary
 
@@ -1668,8 +1672,9 @@ Synthesized from this review's findings. Effort assumption: features ~30x.
   +====================================================================+
 ```
 
-Pass 1 stays at 7: the regroup has no visual mock yet (D18 gates it) and all
-groups open means a long scroll past 21 switches (D4, the owner's choice).
+Pass 1 stays at 7: the regroup is specified in words only, with no visual
+mock (D18 reversed to review-live), and all groups open means a long scroll
+past 21 switches (D4, the owner's choice).
 
 ### Unresolved Decisions
 
@@ -1687,6 +1692,6 @@ None.
 
 - **OUTSIDE COVERAGE:** codex, three completed runs: plan-review after CEO (6 findings), plan-review after eng (4 findings), design phase (APP UI, no hard rejections, 6 findings). Plus a native Claude design subagent (9 findings; native, not outside coverage). All findings resolved into decisions D3-D18 of the design review or earlier.
 - **CROSS-MODEL:** Codex (gpt-6-astra) and the Claude design subagent (Claude Opus 5.5) agreed on the card's trust presentation, the link's placement, the submission burden and the thin regroup spec; Codex alone flagged the photo guide's privacy sentence and the "Add a part" confusion; the subagent alone flagged the friend-screen sentence and rule 4's units.
-- **VERDICT:** CEO CLEARED. Eng review complete (0 unresolved, 0 critical gaps; issues_open because its findings became tasks). Design review complete (0 unresolved); overall 7/10 because the regroup mock waits on the design tool (D18). Eng review required.
+- **VERDICT:** CEO CLEARED. Eng review complete (0 unresolved, 0 critical gaps; issues_open because its findings became tasks). Design review complete (0 unresolved); overall 7/10 because the regroup is reviewed live after it is built rather than mocked first (D18, reversed by the owner). Eng review required.
 
 NO UNRESOLVED DECISIONS
