@@ -399,7 +399,16 @@ export interface DecorTruss {
   readonly crownMm: number;
   readonly innerCrownMm: number;
   readonly sideMm: number;
+  /** This many hangers down to the road, evenly spaced, in place of one at every step (the bowstring bridge's five). */
+  readonly hangers?: number;
+  /** The hangers as flat bars this wide along the road, not lines. */
+  readonly hangerMm?: number;
+  /** Parabolic chords, rising steeply from the springings, in place of circular ones. */
+  readonly parabolic?: true;
+  /** False for an arch with no bracing across its top. */
+  readonly braced?: false;
   readonly noun?: string;
+  readonly paint?: Paint;
 }
 
 /**
