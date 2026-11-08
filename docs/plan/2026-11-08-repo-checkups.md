@@ -559,10 +559,11 @@ its comment goes in that PR). AGENTS.md has no diagrams. 0 stale.
 Synthesized from this review's findings. Each task derives from a specific
 finding above. Run with Claude Code or Codex; checkbox as you ship.
 
-- [ ] **T1 (P1, human: ~1h / CC: ~10min)** — github — scanners on; `.github/dependabot.yml` (bun, actions; monthly, grouped)
+- [x] **T1 (P1, human: ~1h / CC: ~10min)** — github — scanners on; `.github/dependabot.yml` (bun, actions; monthly, grouped)
   - Surfaced by: problem table (scanners off); C9 (D10)
   - Files: .github/dependabot.yml
   - Verify: `gh api repos/raduuuuu/ChooChooCAD --jq .security_and_analysis` shows enabled; Dependabot's first run in the Insights tab reads `bun.lock` (the `bun` ecosystem is unverified here; if it isn't supported, say so in the PR and keep only GitHub Actions updates)
+  - Done 2026-11-08: Dependabot alerts, security updates, secret scanning and push protection enabled (`gh api` readback shows all four on); `bun` is a supported ecosystem for version updates (GA 2025-02), its security updates unconfirmed in GitHub's docs.
 - [ ] **T2 (P1, human: ~1d / CC: ~45min)** — repo — R1 brand cleanup and `.github/checkup-allow.json` (brand tokens, two images)
   - Surfaced by: problem table (167 lines); R1; C7
   - Files: up to 27 files with brand lines, .github/checkup-allow.json
