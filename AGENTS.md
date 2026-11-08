@@ -62,6 +62,10 @@ the design rules are in [DESIGN.md](DESIGN.md); how people contribute is in
 
 ## Drawing a piece
 
+- The whole workflow from a piece issue to a pull request is
+  [.claude/skills/draw-piece/SKILL.md](.claude/skills/draw-piece/SKILL.md):
+  `/draw-piece <issue number>` in Claude Code; any other agent follows the same
+  file as plain steps.
 - "Decorative" means parts drawn with realistic detail so they look like the
   real piece, not scenery. Collisions stay on the measured bodies.
 - Before opening a pull request for a piece drawn from photos, render it in 3D

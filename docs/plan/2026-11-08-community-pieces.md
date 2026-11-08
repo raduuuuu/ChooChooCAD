@@ -1448,6 +1448,7 @@ Effort assumption: features ~30x, tests ~50x, verification ~3x.
   - Surfaced by: CEO A2, S3-1, OV-1, D18; eng D5, D8
   - Files: .claude/skills/draw-piece/SKILL.md
   - Verify: T6
+  - Written 2026-11-08: the skill (steps 0 to 12 and the comment templates), linked from AGENTS.md, described in CONTRIBUTING.md; a test pins its labels to the one list and AGENTS.md's link to it. Not yet run on an issue: that is T6's dry run.
 - [ ] **T6 (P1, human: ~1d / CC: ~30min)** — pilot — dry run, then one outside contributor
   - Surfaced by: CEO D19
   - Files: none
@@ -1642,6 +1643,7 @@ Synthesized from this review's findings. Effort assumption: features ~30x.
   - Surfaced by: Pass 3 — D12
   - Files: .claude/skills/draw-piece/SKILL.md
   - Verify: the T6 dry run shows each comment
+  - Written 2026-11-08 in the skill's "Comment templates"; the dry run is pending.
 - [ ] **D-T4 (P2, human: ~3h / CC: ~20min)** — app — request link spec
   - Surfaced by: Pass 1 D5, Pass 3 D9, Pass 6 D17
   - Files: app/src/App.tsx, app/src/app.css
