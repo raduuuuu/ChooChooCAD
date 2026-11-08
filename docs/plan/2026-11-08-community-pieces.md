@@ -967,6 +967,7 @@ Effort assumption: docs ~30x, scripts and features ~30x, verification ~3x.
   - Verify: T6
 - [ ] **T6 (P1, human: ~1d / CC: ~30min)** — pilot — dry run, then one outside contributor
   - Surfaced by: OV-6/D19
+  - Owner, 2026-11-08: "the photos from that POV are very hard to be taken with a grid background. Let's make that as an optional step and requested only if needed." Side and end photos are now optional, asked for by the skill only when the top views and the underside leave the shape unclear, with no paper or ruler (heights come from a ruler reading, as AGENTS.md already says). `bun run photos --location-only` strips location from every photo before anyone looks; the full check runs on the top views only. Found while preparing the dry run: the check treated every photo as a top view, so it would have refused every side photo taken as the guide said.
   - Files: none
   - Verify: a merged piece from an outside contributor, their notes recorded
 - [ ] **T7 (P2, human: ~3h / CC: ~20min)** — app — palette link (after T6)

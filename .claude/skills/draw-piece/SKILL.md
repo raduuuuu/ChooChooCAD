@@ -78,14 +78,16 @@ or copy them anywhere else.
 3. A link that fails, or a file that isn't an image: post **Upload again**, set
    `piece: needs info` (maintainer) and stop.
 
-## 4. The photo check
+## 4. The photo check, in two passes
+
+**First, location, on every photo**, before you look at any of them:
 
 ```bash
-bun run photos photos/issue-N
+bun run photos --location-only photos/issue-N
 ```
 
 It removes location data from the downloaded copies in place, so run it only
-on these copies. **Look at no photo before it has run.**
+on these copies.
 
 - **Exit 2: a photo carried its location.** Never mention this in a public
   comment.
@@ -94,6 +96,19 @@ on these copies. **Look at no photo before it has run.**
   - Builder: stop. Tell the person running you to report it privately through
     the repository's "Report a vulnerability" (Security tab), naming the issue
     and the photo, and to draw nothing until the maintainer has dealt with it.
+- **Exit 0.** Go on.
+
+**Then sort them.** Open each photo and move the top views (the piece and the
+medium straight lying flat on the grid, seen from straight above) into
+`photos/issue-N/top/`. The underside photo and any side or end photo stay
+where they are: they show shape and markings, not sizes.
+
+**Then the full check, on the top views only:**
+
+```bash
+bun run photos photos/issue-N/top
+```
+
 - **Exit 1: a reshoot.** Post **Reshoot** with each photo's RESHOOT lines, in
   the words the check printed. Set `piece: needs info` (maintainer). Stop.
   - On the submitter's first piece, the long straight's trial must pass
@@ -103,8 +118,8 @@ on these copies. **Look at no photo before it has run.**
 - **Exit 0.** Go on.
 
 Then check that the views the form asks for are there: the top view twice
-(pieces moved between), one side, one end, the underside. A view that is
-missing: post **Reshoot** naming it, and stop.
+(pieces moved between) and the underside. A view that is missing: post
+**Reshoot** naming it, and stop. Side and end photos are not required (step 5).
 
 ## 5. Look at every photo
 
@@ -112,6 +127,12 @@ Open every photo and read them against each other before measuring or asking
 anything. Top-view figures, how the piece works, what joins what, which end is
 a peg and which a socket usually show in a photo already. Note what each
 photo shows; you will compare the render with each one in step 9.
+
+Ask for a side or end photo only when the top views and the underside leave
+the shape unclear: how high something rises, a slope, a roof or a part
+standing up. Heights still come from a ruler reading (step 7), never from a
+photo. Post **Side or end photo**, naming what it should show, set
+`piece: needs info` (maintainer), and stop.
 
 ## 6. Can the app hold it?
 
@@ -141,7 +162,7 @@ post **Can't hold it yet** naming it and the reason, set `piece: unsupported`
 - Say which line and which scale each figure used, and keep them fixed if you
   rerun.
 - The photo method is for pieces lying flat. Heights, and anything standing up,
-  need a ruler. The side and end photos only show the shape.
+  need a ruler. Side and end photos, when there are any, only show the shape.
 - Write down every figure, its source (photo and line, or "ruler, asked") and
   whether it is still missing.
 
@@ -247,6 +268,13 @@ faces or anything private in a public comment.
 > - <photo k>: <the check's words>
 >
 > Post them as a new comment here.
+
+**Side or end photo**
+> Thanks! The top views don't show <what is unclear, e.g. how the roof rises>.
+> Could you add a photo of the piece's <side / end>? No paper or ruler needed:
+> stand it on a table, hold the phone level with it, about 30 to 40 cm away,
+> and keep the whole piece in the picture
+> ([photo guide](https://woodentrain.world/photo-guide.html), step 3).
 
 **Can't hold it yet**
 > Thanks for sending this. The app can't hold this piece's shape yet:
