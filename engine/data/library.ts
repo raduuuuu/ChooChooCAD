@@ -42,6 +42,7 @@ import { CLEARANCE, RAMP_SEEDS } from './rampSeeds.js';
 import { DECORATED_SEEDS, type DecoratedSpec } from './decoratedSeeds.js';
 import { BUFFER_SEEDS } from './bufferSeeds.js';
 import { STRUCTURE_SEEDS } from './structureSeeds.js';
+import { CRANE_SEEDS, TRACK_DECOR_SEEDS } from './trackDecorSeeds.js';
 import { stored, write } from './storage.js';
 import { CROSSING_SEEDS, MULTI_ROAD_SEEDS, SWITCH_SEEDS } from './switchSeeds.js';
 import { THIRD_PARTY_SEEDS } from './thirdParty.js';
@@ -54,6 +55,8 @@ const PLAIN_BUILT_IN: readonly Part[] = [
   ...GENERIC_PARTS, ...RAMP_SEEDS, ...SWITCH_SEEDS, ...CROSSING_SEEDS, ...MULTI_ROAD_SEEDS, ...BUFFER_SEEDS,
   // A structure's drawn detail is shapes too, its boxes derived like a decorated piece's (eng D3, D6).
   ...STRUCTURE_SEEDS.map((p): Part => (p.decor ? { ...p, decorBody: decorBoxesOf(`Structure ${p.id}`, p.decor, CLEARANCE.riseMm) } : p)),
+  // Track with its own decoration that works like no standard part (the cargo crane's two tracks).
+  ...[...CRANE_SEEDS, ...TRACK_DECOR_SEEDS].map((p): Part => ({ ...p, decorBody: decorBoxesOf(`Part ${p.id}`, p.decor ?? [], CLEARANCE.riseMm) })),
   ...THIRD_PARTY_SEEDS,
 ];
 
@@ -116,6 +119,15 @@ export function decorBoxesOf(owner: string, decor: readonly DecorShape[], riseMm
         const crown = shape.baseMm + shape.riseMm;
         if (shape.fillToMm !== undefined && !(shape.fillToMm > crown)) throw new Error(`${owner}: an arch panel's top must stand over its crown.`);
         return [boxOf('footprint', [(shape.fromMm + shape.toMm) / 2, shape.acrossMm ?? 0], shape.toMm - shape.fromMm, shape.widthMm, shape.baseMm, shape.fillToMm ?? crown + shape.depthMm, drawOnly(shape))];
+      }
+      case 'dome': {
+        const wide = shape.widthMm + 2 * shape.bulgeMm;
+        const crown = shape.baseMm + shape.alongRiseMm + shape.acrossRiseMm;
+        if (!(shape.thickMm > 0 && shape.baseMm - shape.thickMm >= 0 && shape.bulgeMm >= 0)) throw new Error(`${owner}: a dome needs a thickness, a rim clear of the floor, and no negative bulge.`);
+        return [
+          boxOf('footprint', shape.atMm, shape.lengthMm, wide, shape.baseMm - shape.thickMm, crown, { solid: true, draw: false, ...noun }),
+          boxOf('footprint', shape.atMm, shape.lengthMm, wide, shape.baseMm - shape.thickMm, crown, drawOnly(shape)),
+        ];
       }
       case 'wheel': {
         const r = shape.diameterMm / 2;

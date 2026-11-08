@@ -197,12 +197,18 @@
    * 8.30:1. Their white parts use --paper (deltaE 51.8), lines --ink, 13.43:1.
    * The inside of an opening (the station's roof slots) uses --ink, lines
    * --paper, 13.43:1.
+   * --paint-yellow: the cargo crane's head and its black-and-yellow post
+   * (photos 2026-11-08), 1.53:1 on --floor; deltaE 46.2. Lines: --ink, 7.79:1.
+   * --paint-orange: the Action Tunnel Station's roof (photos 2026-11-08),
+   * 2.04:1 on --floor; deltaE 31.1 (20.1 from --paint-red). Lines: --ink, 5.87:1.
    */
   --paint-roof: #638e70;
   --paint-red: #e46560;
   --paint-base: #33251d;
   --paint-grey: #9fa693;
   --paint-metro: #41494e;
+  --paint-yellow: #e8b43a;
+  --paint-orange: #f0883e;
   /*
    * THE SEAM: the line across the plank where one piece ends and the next
    * begins (decision 11A of the 2026-10-22 editing plan).

@@ -12,7 +12,8 @@
  */
 
 import type { Segment } from '../geom/fk.js';
-import type { DecorArch, DecorBarrier, DecorCanopy, DecorStation, DecorTowers, DecorTruss, DecorVault, DecorWheel, DrawnShape, Part } from '../parts/schema.js';
+import { domeHalfWidth, domeTop } from '../parts/dome.js';
+import type { DecorArch, DecorBarrier, DecorCanopy, DecorDome, DecorStation, DecorTowers, DecorTruss, DecorVault, DecorWheel, DrawnShape, Part } from '../parts/schema.js';
 
 /** A truss arch's chords in 3D: this deep, and twice this across. */
 export const TRUSS_CHORD_MM = 4;
@@ -126,6 +127,8 @@ export function drawShape(shape: DrawnShape, f: ShapeFrame, pen: Pen): void {
       return drawCanopy(shape, f, pen);
     case 'wheel':
       return drawWheel(shape, f, pen);
+    case 'dome':
+      return drawDome(shape, f, pen);
   }
 }
 
@@ -640,5 +643,39 @@ function drawWheel(w: DecorWheel, f: ShapeFrame, pen: Pen): void {
     for (const side of [half, -half]) {
       for (let i = 0; i < d.length; i++) pen.detail(at(d[i]![0], side, d[i]![1]), at(d[(i + 1) % d.length]![0], side, d[(i + 1) % d.length]![1]));
     }
+  }
+}
+
+/**
+ * A DOMED ROOF (dome.ts): its top and its underside as grids of quads, a
+ * rim round its edge between them, the rim's two edges as its outline.
+ */
+function drawDome(d: DecorDome, f: ShapeFrame, pen: Pen): void {
+  const NU = 16, NV = 12;
+  const half = d.lengthMm / 2, mid = f.lengthMm / 2;
+  const point = (i: number, j: number, under: boolean): P3 => {
+    const u = -1 + (2 * i) / NU, v = -1 + (2 * j) / NV;
+    const along = u * half, across = v * domeHalfWidth(d, u);
+    return f.at(mid + along, across, f.floorMm + domeTop(d, along, across) - (under ? d.thickMm : 0));
+  };
+  for (let i = 0; i < NU; i++) {
+    for (let j = 0; j < NV; j++) {
+      pen.quad(point(i, j, false), point(i + 1, j, false), point(i + 1, j + 1, false), point(i, j + 1, false));
+      pen.quad(point(i, j + 1, true), point(i + 1, j + 1, true), point(i + 1, j, true), point(i, j, true));
+    }
+  }
+  // The rim: walk the edge round, each step a quad from top to underside, edged on both.
+  const rim: [number, number][] = [
+    ...Array.from({ length: NU }, (_, i): [number, number] => [i, 0]),
+    ...Array.from({ length: NV }, (_, j): [number, number] => [NU, j]),
+    ...Array.from({ length: NU }, (_, i): [number, number] => [NU - i, NV]),
+    ...Array.from({ length: NV }, (_, j): [number, number] => [0, NV - j]),
+  ];
+  for (let k = 0; k < rim.length; k++) {
+    const [i0, j0] = rim[k]!, [i1, j1] = rim[(k + 1) % rim.length]!;
+    pen.quad(point(i0, j0, false), point(i0, j0, true), point(i1, j1, true), point(i1, j1, false));
+    pen.edge(point(i0, j0, false), point(i1, j1, false));
+    pen.edge(point(i0, j0, true), point(i1, j1, true));
+    pen.grow(point(i0, j0, false));
   }
 }

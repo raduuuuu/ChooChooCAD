@@ -571,9 +571,30 @@ export interface DecorCanopy {
   readonly paint?: Paint;
 }
 
-export type DecorShape = DecorSlab | DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation | DecorBarrier | DecorCanopy | DecorWheel;
+/**
+ * A DOMED ROOF (the Action Tunnel Station, 2026-11-08): a shell `thickMm`
+ * thick, centred `atMm`, `lengthMm` along; `widthMm` across at its ends and
+ * `bulgeMm` wider each side in its middle; its rim at `baseMm`, rising
+ * `alongRiseMm` to its middle along and `acrossRiseMm` to its middle across
+ * (dome.ts). It collides as one box from its rim's underside to its crown.
+ */
+export interface DecorDome {
+  readonly kind: 'dome';
+  readonly atMm: readonly [number, number];
+  readonly lengthMm: number;
+  readonly widthMm: number;
+  readonly bulgeMm: number;
+  readonly baseMm: number;
+  readonly alongRiseMm: number;
+  readonly acrossRiseMm: number;
+  readonly thickMm: number;
+  readonly noun?: string;
+  readonly paint?: Paint;
+}
+
+export type DecorShape = DecorSlab | DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation | DecorBarrier | DecorCanopy | DecorWheel | DecorDome;
 /** A shape with its own drawing, which one decoration box carries (eng D10). */
-export type DrawnShape = DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation | DecorBarrier | DecorCanopy | DecorWheel;
+export type DrawnShape = DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation | DecorBarrier | DecorCanopy | DecorWheel | DecorDome;
 
 /** A derived decoration box: a body box at whole levels, carrying the shape's real heights for drawing. */
 export interface DecorBox extends BodyBox {
