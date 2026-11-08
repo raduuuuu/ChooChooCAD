@@ -250,7 +250,7 @@ describe('the station’s paint in 3D (paint plan 2026-11-07: CEO R1-R3, design 
   });
 
   it('every built-in paint is in the palette, fills and lines', () => {
-    expect([...PAINT_TOKENS].sort()).toEqual(['--ink', '--ink-soft', '--paint-base', '--paint-grey', '--paint-metro', '--paint-red', '--paint-roof', '--paper', '--track-fill']);
+    expect([...PAINT_TOKENS].sort()).toEqual(['--ink', '--ink-soft', '--paint-base', '--paint-grey', '--paint-metro', '--paint-orange', '--paint-red', '--paint-roof', '--paint-yellow', '--paper', '--track-fill']);
   });
 
   /*

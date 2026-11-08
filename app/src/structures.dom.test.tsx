@@ -54,7 +54,8 @@ describe('structures in the library and on the floor', () => {
     ]);
     expect(within(group).getAllByText('Estimated size')).toHaveLength(8);
     const trackList = container.querySelector('.palette-parts .palette-row') as HTMLElement;
-    expect(within(trackList).queryAllByRole('button', { name: /Elevated station|Riser|Track support|Tunnel|bridge/ }).length).toBe(0);
+    // Every structure by name (the Action Tunnel Station is track, and stays there).
+    expect(within(trackList).queryAllByRole('button', { name: /^Add (Elevated station|Riser|Track support|Tunnel with overpass|Stone arch bridge|Suspension bridge|Harbour arch bridge|Bowstring bridge)\./ }).length).toBe(0);
   });
 
   /*
