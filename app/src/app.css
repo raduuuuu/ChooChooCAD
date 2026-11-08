@@ -650,7 +650,7 @@
 
 /*
  * The brand shelves, pinned under the scrolling Generic list. One line each, so
- * a user can always see that IKEA and Playtive exist and what is wrong with
+ * a user can always see that the small-peg and look-alike systems exist and what is wrong with
  * their data, whatever the Generic list is doing above.
  */
 .palette-shelves {
@@ -966,7 +966,7 @@
  *
  * The line is also the disclosure control for the whole group. Capping the
  * palette and letting it scroll was the first attempt and it was worse: macOS
- * hides the overlay scrollbar until you scroll, so IKEA and Playtive just
+ * hides the overlay scrollbar until you scroll, so the small-peg and look-alike systems just
  * looked absent. A closed row still says the brand exists, still carries its
  * warning, and still costs one line.
  */

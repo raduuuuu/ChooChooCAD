@@ -180,7 +180,7 @@ const partsByBrand = (lib: readonly Part[], b: Brand) => {
  * CLOSED, so its pieces cost one line until you want them.
  *
  * The first attempt capped the palette and let it scroll, which gave the
- * canvas its space back and then hid IKEA and Playtive entirely below an
+ * canvas its space back and then hid the small-peg and look-alike systems entirely below an
  * invisible fold: on macOS the overlay scrollbar does not show until you
  * scroll, so a third of the catalogue simply looked absent. Collapsing is
  * better than clipping, because a closed row still says the brand is there
@@ -2179,9 +2179,9 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         {/*
           * GROUPED BY BRAND, because the brands are not interchangeable.
           *
-          * This is not organisation for its own sake. Generic and IKEA connectors
+          * This is not organisation for its own sake. Generic and small-peg connectors
           * are documented as not fitting each other, and no manufacturer
-          * publishes piece dimensions for IKEA or Playtive at all, so those
+          * publishes piece dimensions for small-peg or look-alike at all, so those
           * parts carry unverified sizes. Mixing them in one undifferentiated row
           * would say they are equivalent, and they are not. Each non-Generic group
           * states its provenance once, above its pieces.
@@ -2196,8 +2196,8 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         {/*
           * Generic SCROLLS; THE OTHER SHELVES DO NOT.
           *
-          * Two attempts got this wrong. Capping the palette hid IKEA and
-          * Playtive below an invisible fold. Collapsing them to one line each
+          * Two attempts got this wrong. Capping the palette hid small-peg and
+          * look-alike below an invisible fold. Collapsing them to one line each
           * helped but they were still inside the scrolling region, so with the
           * full Generic list above them they were still off-screen, and styling
           * the scrollbar was decorating the problem rather than fixing it.

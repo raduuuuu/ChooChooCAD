@@ -1,10 +1,10 @@
 /**
- * Third-party track: IKEA Lillabo and Lidl Playtive.
+ * Third-party track: the small-peg and look-alike systems.
  *
  * READ THIS BEFORE TRUSTING ANYTHING IN HERE.
  *
  * Every dimension below is `unverified`. Not a hedge: no manufacturer publishes
- * piece dimensions for either brand. IKEA's own product page gives the PACKAGE
+ * piece dimensions for either brand. The small-peg maker's own product page gives the PACKAGE
  * size and nothing else. The figures here come from 3D-printing projects that
  * reproduce the track, which is the best that exists and is not a catalogue.
  *
@@ -15,45 +15,43 @@
  *    their guide, to avoid patent issues each has small deviations in their
  *    measurements." (the published track guide)
  *
- * 2. Advertised lengths are unreliable even from manufacturers. "The 3-inch
- *    straights advertised by Maxim, for example, are actually 82mm long."
- *    (same page)
+ * 2. Advertised lengths are unreliable even from manufacturers: one maker's
+ *    advertised 3-inch straights are actually 82mm long (same page).
  *
  * 3. The same brand varies by country. "in some countries, dimensions of the
  *    tracks may differ a little bit from the commonly known." (the track
- *    generator author, who measured IKEA stock from Germany and Poland)
+ *    generator author, who measured small-peg stock from Germany and Poland)
  *
  * 4. The brands do not physically join Generic anyway. "the most popular systems
- *    are incompatible... fitting IKEA track plug (shorter) to Generic track nest
+ *    are incompatible... fitting small-peg track plug (shorter) to Generic track nest
  *    (longer) may be impossible without braking or damaging one of the parts."
- *    (same author). IKEA's own reviews agree: "the pegs and holes are smaller
+ *    (same author). Owners' reviews on the small-peg maker's site agree: "the pegs and holes are smaller
  *    and does not fit the Generic".
  *
- * IKEA CURVES, AND WHY THERE ARE STILL NONE FOR PLAYTIVE. A curve needs a
+ * SMALL-PEG CURVES, AND WHY THERE ARE STILL NONE FOR THE LOOK-ALIKE SYSTEM. A curve needs a
  * radius and nobody PUBLISHES one for either brand. Until 2026-10-29 this file
  * held straights only for that reason. One reproduction now gives a radius
- * for Lillabo: a printed reproduction whose description says the
- * pieces were modelled "zu 100% den IKEA Lillabo Schienen (gekauft 2025)
- * nachempfunden", copied from Lillabo track bought in 2025, rather than
- * drawn as a compromise between IKEA and Generic. Read off its 3MF meshes the
+ * for small-peg track: a printed reproduction whose description says its
+ * pieces were copied from small-peg track bought in 2025, rather than
+ * drawn as a compromise between small-peg and Generic. Read off its 3MF meshes the
  * way `switchSeeds.ts` reads switches, its curves come out at a centreline
  * radius of 202.1 to 202.6mm in three angles, 22.5, 45 and 90 degrees. That
  * is Generic E's 202 to within the scatter, and the lattice holds integers
  * only, so the seeds use 202 (inner 182). The rounding moves the far end of a
- * 45-degree curve by about 0.4mm, half the estimated joint slop. Playtive
- * still has no curve: the Lidl reproductions found (a printed reproduction) come
+ * 45-degree curve by about 0.4mm, half the estimated joint slop. The look-alike
+ * system still has no curve: the look-alike reproductions found (a printed reproduction) come
  * in 10-degree steps, which the 22.5-degree lattice cannot hold, and their
  * two arc fits disagree by 15mm, so they are not a radius anyone could cite.
  *
  * One thing that is NOT a problem, contrary to an earlier worry: both brands are
  * metric and every figure below is a whole number of millimetres, so all of them
- * are exactly representable in Z[zeta16]. The inch-rounding hazard applies to US
- * brands such as Maxim and Jesse's Toy Box, which are not in this file.
+ * are exactly representable in Z[zeta16]. The inch-rounding hazard applies to
+ * inch-based makers, none of which are in this file.
  *
  * HOW THESE GET FIXED. Not by more searching; there is nothing to find. A user
  * who owns the track measures it and submits the figure, which overrides the
- * seed. That is also the only route to a Playtive curve, and the only way the
- * Lillabo radius stops resting on one reproduction.
+ * seed. That is also the only route to a look-alike curve, and the only way the
+ * small-peg radius stops resting on one reproduction.
  */
 
 import type { Cyc } from '../src/geom/cyclotomic.js';
@@ -70,7 +68,7 @@ const UNMEASURED_SLOP = {
 
 const STANDARD_ENDS: PartEnds = { start: 'socket', end: 'peg' };
 
-const IKEA_UNVERIFIED: DimensionSource = {
+const SMALL_PEG_UNVERIFIED: DimensionSource = {
   status: 'unverified',
   source: '3D-print reproductions and an OpenSCAD generator',
   note:
@@ -82,13 +80,13 @@ const IKEA_UNVERIFIED: DimensionSource = {
 };
 
 /**
- * The Lillabo reproduction, measured off its 3MF on 2026-10-29.
+ * The small-peg reproduction, measured off its 3MF on 2026-10-29.
  *
- * Better than `IKEA_UNVERIFIED` because its author says it copies bought
+ * Better than `SMALL_PEG_UNVERIFIED` because its author says it copies bought
  * track rather than splitting the difference with Generic, and still
  * `unverified`, because a copy of a part is not a measurement of it.
  */
-const IKEA_REPRODUCTION: DimensionSource = {
+const SMALL_PEG_REPRODUCTION: DimensionSource = {
   status: 'unverified',
   source:
     'a printed reproduction, modelled on ' +
@@ -100,7 +98,7 @@ const IKEA_REPRODUCTION: DimensionSource = {
     'Upgrade when someone measures real small-peg track.',
 };
 
-const PLAYTIVE_UNVERIFIED: DimensionSource = {
+const LOOK_ALIKE_UNVERIFIED: DimensionSource = {
   status: 'unverified',
   source: '3D-print reproductions (printed reproduction titles for look-alike track)',
   note:
@@ -108,66 +106,66 @@ const PLAYTIVE_UNVERIFIED: DimensionSource = {
 };
 
 /**
- * Lillabo plug and nest radii from the generator author's own measurements.
+ * small-peg plug and nest radii from the generator author's own measurements.
  *
  * Recorded because they resolve an open calibration question, which
  * listed "6.25 vs 6.4mm" as one of two unexplained plug/nest pairs sitting 23x
- * away from the other. These are the IKEA figures, as RADII, against Generic's
+ * away from the other. These are the small-peg figures, as RADII, against Generic's
  * 11.5mm peg and 15-17mm socket as DIAMETERS. Different brand and different
  * convention, which is why they looked irreconcilable.
  */
-export const IKEA_CONNECTOR = {
+export const SMALL_PEG_CONNECTOR = {
   plugRadiusMm: 6.25,
   nestRadiusMm: 6.4,
   source: 'an OpenSCAD track generator, author measurements',
 } as const;
 
 /** Profile read off the same meshes: 40 wide, 12 thick, as on Generic. Grooves unmeasured. */
-const LILLABO_PROFILE = { heightMm: 0, gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12 } as const;
+const SMALL_PEG_PROFILE = { heightMm: 0, gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12 } as const;
 
-const lillaboStraight = (lengthMm: number): StraightPart => ({
+const smallPegStraight = (lengthMm: number): StraightPart => ({
   id: `IKEA-${lengthMm}`, brand: 'IKEA', kind: 'straight', name: 'Small-peg straight',
   lengthMm,
-  dimensions: IKEA_REPRODUCTION, slop: UNMEASURED_SLOP, ends: STANDARD_ENDS, ...LILLABO_PROFILE,
+  dimensions: SMALL_PEG_REPRODUCTION, slop: UNMEASURED_SLOP, ends: STANDARD_ENDS, ...SMALL_PEG_PROFILE,
 });
 
-const lillaboCurve = (code: string, arcSteps: number, name: string): CurvePart => ({
+const smallPegCurve = (code: string, arcSteps: number, name: string): CurvePart => ({
   id: `IKEA-${code}`, brand: 'IKEA', kind: 'curve', name,
   innerRadiusMm: 182, arcSteps,
-  dimensions: IKEA_REPRODUCTION, slop: UNMEASURED_SLOP, ends: STANDARD_ENDS, ...LILLABO_PROFILE,
+  dimensions: SMALL_PEG_REPRODUCTION, slop: UNMEASURED_SLOP, ends: STANDARD_ENDS, ...SMALL_PEG_PROFILE,
 });
 
-const LILLABO_STRAIGHTS: readonly StraightPart[] = [50, 100, 145, 205, 240].map(lillaboStraight);
+const SMALL_PEG_STRAIGHTS: readonly StraightPart[] = [50, 100, 145, 205, 240].map(smallPegStraight);
 
-const LILLABO_CURVES: readonly CurvePart[] = [
-  lillaboCurve('C22', 1, 'Small-peg curve, 22.5°'),
-  lillaboCurve('C45', 2, 'Small-peg curve, 45°'),
-  lillaboCurve('C90', 4, 'Small-peg curve, 90°'),
+const SMALL_PEG_CURVES: readonly CurvePart[] = [
+  smallPegCurve('C22', 1, 'Small-peg curve, 22.5°'),
+  smallPegCurve('C45', 2, 'Small-peg curve, 45°'),
+  smallPegCurve('C90', 4, 'Small-peg curve, 90°'),
 ];
 
 /**
- * THE LILLABO SWITCH AND CROSSING, from the same reproduction set.
+ * THE SMALL-PEG SWITCH AND CROSSING, from the same reproduction set.
  *
  * The two "y" files (`y-fmm`, `y-mff`) are an ordinary switch read from the
  * other end: with their shared end taken as the heel, one road is a 145
  * straight and the other a 45-degree curve at the 202 centreline, both
  * exact, which is why the end reader first took them for Ys. `fmm` has a
  * socket heel and pegs, `mff` the reverse. The `-tt` files add a quarter
- * circle of about 84mm that matches no Lillabo piece, and are left out.
+ * circle of about 84mm that matches no small-peg piece, and are left out.
  *
  * The crossing's roads are two 145 straights, so the second one crosses at
  * 72.5, half a millimetre off the grid. ROUNDED (owner, 2026-10-30): its
  * ends sit at (72, -72) and (72, 73), still 145 apart, the road 0.5mm off
  * the middle of the first, and 0.5mm along it.
  */
-const LILLABO_SWITCH_SOURCE: DimensionSource = {
-  ...IKEA_REPRODUCTION,
+const SMALL_PEG_SWITCH_SOURCE: DimensionSource = {
+  ...SMALL_PEG_REPRODUCTION,
   note:
     'The y-fmm and y-mff files, reframed from their shared end: straight end at 145.1, ' +
     'curved end on the 202 centreline, both to 0.2mm. Exact on the grid.',
 };
-const LILLABO_CROSSING_SOURCE: DimensionSource = {
-  ...IKEA_REPRODUCTION,
+const SMALL_PEG_CROSSING_SOURCE: DimensionSource = {
+  ...SMALL_PEG_REPRODUCTION,
   note:
     'Cross-145: two 145 roads, the second crossing at (72.4 to 72.5, +/-72.5). ROUNDED to ' +
     'the grid: its ends at (72, -72) and (72, 73), 0.5mm off the true middle each way.',
@@ -175,7 +173,7 @@ const LILLABO_CROSSING_SOURCE: DimensionSource = {
 const other = (p: Polarity): Polarity => (p === 'peg' ? 'socket' : 'peg');
 const xy = (x: number, y: number): Cyc => [x, 0, 0, 0, y, 0, 0, 0];
 
-const lillaboSwitch = (heel: Polarity): MultiRoadPart => ({
+const smallPegSwitch = (heel: Polarity): MultiRoadPart => ({
   id: heel === 'socket' ? 'IKEA-SW' : 'IKEA-SW-P',
   brand: 'IKEA', kind: 'multi-road',
   name: heel === 'socket' ? 'Small-peg switch' : 'Small-peg switch, peg heel',
@@ -190,12 +188,12 @@ const lillaboSwitch = (heel: Polarity): MultiRoadPart => ({
   ],
   sizeLabel: 'r202',
   flip: { label: 'Branch to the other side', verb: 'branch it to the other side', after: 'Now branches to the other side.' },
-  dimensions: LILLABO_SWITCH_SOURCE, slop: UNMEASURED_SLOP, ...LILLABO_PROFILE,
+  dimensions: SMALL_PEG_SWITCH_SOURCE, slop: UNMEASURED_SLOP, ...SMALL_PEG_PROFILE,
 });
 
-const LILLABO_MULTI_ROAD: readonly MultiRoadPart[] = [
-  lillaboSwitch('socket'),
-  lillaboSwitch('peg'),
+const SMALL_PEG_MULTI_ROAD: readonly MultiRoadPart[] = [
+  smallPegSwitch('socket'),
+  smallPegSwitch('peg'),
   {
     id: 'IKEA-X145', brand: 'IKEA', kind: 'multi-road', name: 'Small-peg crossing',
     ports: [
@@ -209,14 +207,14 @@ const LILLABO_MULTI_ROAD: readonly MultiRoadPart[] = [
       { from: 2, to: 3, shape: { kind: 'straight', lengthMm: 145 } },
     ],
     sizeLabel: '145×145',
-    dimensions: LILLABO_CROSSING_SOURCE, slop: UNMEASURED_SLOP, ...LILLABO_PROFILE,
+    dimensions: SMALL_PEG_CROSSING_SOURCE, slop: UNMEASURED_SLOP, ...SMALL_PEG_PROFILE,
   },
 ];
 
 /**
- * SEEDS, not a catalogue. Brand-prefixed ids. Playtive is straights only.
+ * SEEDS, not a catalogue. Brand-prefixed ids. The look-alike system is straights only.
  *
- * These exist so that someone who owns IKEA or Playtive track finds a row to
+ * These exist so that someone who owns small-peg or look-alike track finds a row to
  * CORRECT rather than a blank form. Every one is `unverified`, and a user
  * submission for the same id overrides it, because a person with the piece in
  * their hand is a better source than a 3D-print model title. See
@@ -226,47 +224,47 @@ export const THIRD_PARTY_SEEDS: readonly Part[] = [
   {
     id: 'IKEA-150', brand: 'IKEA', kind: 'straight', name: 'Small-peg straight',
     lengthMm: 150,
-    dimensions: IKEA_UNVERIFIED,
+    dimensions: SMALL_PEG_UNVERIFIED,
     slop: UNMEASURED_SLOP, ends: STANDARD_ENDS, heightMm: 0,
     // Profile assumed to match the de facto Generic cross section. Also unverified:
-    // IKEA's own reviews say the connectors differ, so the profile may too.
+    // Owners' reviews on the small-peg maker's site say the connectors differ, so the profile may too.
     gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12,
   },
-  ...LILLABO_STRAIGHTS,
-  ...LILLABO_CURVES,
-  ...LILLABO_MULTI_ROAD,
+  ...SMALL_PEG_STRAIGHTS,
+  ...SMALL_PEG_CURVES,
+  ...SMALL_PEG_MULTI_ROAD,
   {
     id: 'PLAYTIVE-30', brand: 'PLAYTIVE', kind: 'straight', name: 'Look-alike straight, short',
     lengthMm: 30,
-    dimensions: PLAYTIVE_UNVERIFIED,
+    dimensions: LOOK_ALIKE_UNVERIFIED,
     slop: UNMEASURED_SLOP, ends: STANDARD_ENDS, heightMm: 0,
     gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12,
   },
   {
     id: 'PLAYTIVE-60', brand: 'PLAYTIVE', kind: 'straight', name: 'Look-alike straight',
     lengthMm: 60,
-    dimensions: PLAYTIVE_UNVERIFIED,
+    dimensions: LOOK_ALIKE_UNVERIFIED,
     slop: UNMEASURED_SLOP, ends: STANDARD_ENDS, heightMm: 0,
     gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12,
   },
   {
     id: 'PLAYTIVE-110', brand: 'PLAYTIVE', kind: 'straight', name: 'Look-alike straight, medium',
     lengthMm: 110,
-    dimensions: PLAYTIVE_UNVERIFIED,
+    dimensions: LOOK_ALIKE_UNVERIFIED,
     slop: UNMEASURED_SLOP, ends: STANDARD_ENDS, heightMm: 0,
     gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12,
   },
   {
     id: 'PLAYTIVE-150', brand: 'PLAYTIVE', kind: 'straight', name: 'Look-alike straight, long',
     lengthMm: 150,
-    dimensions: PLAYTIVE_UNVERIFIED,
+    dimensions: LOOK_ALIKE_UNVERIFIED,
     slop: UNMEASURED_SLOP, ends: STANDARD_ENDS, heightMm: 0,
     gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12,
   },
   {
     id: 'PLAYTIVE-200', brand: 'PLAYTIVE', kind: 'straight', name: 'Look-alike straight, extra long',
     lengthMm: 200,
-    dimensions: PLAYTIVE_UNVERIFIED,
+    dimensions: LOOK_ALIKE_UNVERIFIED,
     slop: UNMEASURED_SLOP, ends: STANDARD_ENDS, heightMm: 0,
     gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12,
   },

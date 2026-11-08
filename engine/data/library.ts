@@ -7,7 +7,7 @@
  * palette, and the set of things inventory could count. That works for one brand
  * whose dimensions are published. It breaks the moment the answer to "what track
  * exists" is "more than anyone has written down", which is the real situation:
- * nobody publishes piece dimensions for IKEA Lillabo or Lidl Playtive, and the
+ * nobody publishes piece dimensions for small-peg or look-alike track, and the
  * reference says there is no dimensional standard because brands deviate
  * deliberately to avoid patents.
  *
@@ -302,7 +302,7 @@ export interface Submission {
 /**
  * Resolve the library: built-ins, then submissions, better source wins.
  *
- * The override rule is the whole reason the tiers exist. A seed says "IKEA
+ * The override rule is the whole reason the tiers exist. A seed says "small-peg
  * straights are about 150mm, nobody has measured one"; the moment a user
  * measures theirs, that figure replaces the seed for them, and later for
  * everyone. Equal trust keeps the newer submission, because a person

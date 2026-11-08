@@ -4,10 +4,10 @@ import { shortCode } from '../src/parts/schema.js';
 
 describe('shortCode', () => {
   it('strips a part its own brand prefix', () => {
-    const ikea = BUILT_IN.find((p) => p.id === 'IKEA-150')!;
-    expect(shortCode(ikea)).toBe('150');
-    const playtive = BUILT_IN.find((p) => p.id === 'PLAYTIVE-200')!;
-    expect(shortCode(playtive)).toBe('200');
+    const smallPeg = BUILT_IN.find((p) => p.id === 'IKEA-150')!;
+    expect(shortCode(smallPeg)).toBe('150');
+    const lookAlike = BUILT_IN.find((p) => p.id === 'PLAYTIVE-200')!;
+    expect(shortCode(lookAlike)).toBe('200');
   });
 
   it('leaves a bare id alone', () => {

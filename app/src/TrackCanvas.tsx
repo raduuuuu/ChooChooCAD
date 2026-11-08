@@ -500,7 +500,7 @@ export function TrackCanvas({
    * concentric arcs because the stroke follows the path.
    *
    * A part with no published groove width gets the first two strokes only. An
-   * IKEA or Playtive piece is drawn as a bare plank, because nobody has
+   * small-peg or look-alike piece is drawn as a bare plank, because nobody has
    * measured its grooves and inventing them would be the renderer making up
    * data. Absent looks absent.
    */
@@ -510,7 +510,7 @@ export function TrackCanvas({
    * The layer count is the MAX across the layout, not the first piece's.
    *
    * Taking it from segment 0 meant a chain that happened to start with an
-   * IKEA straight (two layers, no published grooves) drew only two layers for
+   * small-peg straight (two layers, no published grooves) drew only two layers for
    * everything, silently erasing the grooves from every Generic piece behind it.
    * Per-segment `layers()` still decides what each piece gets; this only sets
    * how many passes to make.

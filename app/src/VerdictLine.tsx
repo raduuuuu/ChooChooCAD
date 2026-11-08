@@ -656,8 +656,8 @@ export function VerdictLine({
   // Every failure is GREY. Never green, never styled as a near-pass.
   //
   // The part register rides here too (QA 2026-11-01, owner's answer A). It
-  // was empty on every failure, so a Lillabo piece on Generic track said nothing
-  // until the loop closed, though the IKEA shelf promises the verdict says
+  // was empty on every failure, so a small-peg piece on Generic track said nothing
+  // until the loop closed, though the small-peg shelf promises the verdict says
   // what it means. What the parts are is true whether or not a loop exists.
   if (isFailure(e.kind)) {
     // The checker's own limit is said as one sentence that already ends with "build it and see" (R2).

@@ -5,7 +5,7 @@
  * Value: protects=a layout that is not a loop yet shows the part notes a
  * closed one would: brands that do not join Generic, sizes nobody measured
  * Value: fails_when=the failure branch passes an empty register again, as it
- * did since X2a, so the IKEA shelf's "the verdict says what that means" was
+ * did since X2a, so the small-peg shelf's "the verdict says what that means" was
  * false until the loop closed
  * Value: why_new=verdictLine.test.ts renders the register only on reached
  * verdicts (EXACT, EXCEEDS, IMPOSSIBLE), never on a failure
@@ -15,7 +15,7 @@
  * is the joint's geometry and stays as it is
  */
 
-// Regression: ISSUE-002 — a Lillabo piece on a Generic switch got no note while the layout was open
+// Regression: ISSUE-002 — a small-peg piece on a Generic switch got no note while the layout was open
 // Found by /qa on 2026-11-01
 // Report: .gstack/qa-reports/run-20261101T084601Z/qa-report-woodentrain.world-2026-11-01.md
 
@@ -62,7 +62,7 @@ describe('a layout that is not a loop yet', () => {
    * `expected '<div class="verdict verdict-unknown" …' to match /do not
    * physically join/`.
    */
-  it('a Generic straight with a Lillabo straight: says they do not join, and the size is unmeasured', () => {
+  it('a Generic straight with a small-peg straight: says they do not join, and the size is unmeasured', () => {
     const html = verdictHtml(pair('A', 'IKEA-150'));
     expect(html).toMatch(/Not a loop yet/);
     expect(html).toMatch(/do not physically join/);
@@ -70,13 +70,13 @@ describe('a layout that is not a loop yet', () => {
   });
 
   /*
-   * The QA layout itself: a seed switch and a Lillabo straight. The brand
+   * The QA layout itself: a seed switch and a small-peg straight. The brand
    * note and the unmeasured count stay in view; which parts and why fold
    * behind "N notes" (share plan, design 4A, eng D69).
    * MUTATION PROOF, run (the pre-fix branch): `expected '<div class="verdict
    * verdict-unknown" …' to match /nobody has measured/`.
    */
-  it('the QA layout (curved switch L + Lillabo straight) shows its part notes', () => {
+  it('the QA layout (curved switch L + small-peg straight) shows its part notes', () => {
     const html = verdictHtml(pair('L', 'IKEA-150'));
     const [before] = html.split('<div id="verdict-folded"');
     expect(before).toMatch(/do not physically join/);

@@ -143,9 +143,9 @@ Approach B.
     lists EVERY third-party part kind in the run with its limit and status, sorted by
     part id. No weld is singled out as binding (that is not unique). Examples:
     within: "Closes: needs 80% of each joint's bend. Generic joints were shown to bend
-    {LIMIT}°; joints to IKEA C45 can bend an estimated 1.5°."
+    {LIMIT}°; joints to small-peg C45 can bend an estimated 1.5°."
     beyond: "Needs 130% of each joint's bend. Generic joints were shown to bend
-    {LIMIT}°; joints to IKEA C45 can bend an estimated 1.5°. It may still close on
+    {LIMIT}°; joints to small-peg C45 can bend an estimated 1.5°. It may still close on
     the floor."
     An estimated third-party bound is never described as shown by real joints. The
     order-independence test covers this copy.
