@@ -572,11 +572,12 @@ export interface DecorCanopy {
 }
 
 /**
- * A DOMED ROOF (the Action Tunnel Station, 2026-11-08): a shell `thickMm`
- * thick, centred `atMm`, `lengthMm` along; `widthMm` across at its ends and
- * `bulgeMm` wider each side in its middle; its rim at `baseMm`, rising
- * `alongRiseMm` to its middle along and `acrossRiseMm` to its middle across
- * (dome.ts). It collides as one box from its rim's underside to its crown.
+ * A DOMED ROOF (the Action Tunnel Station, 2026-11-08): a groin-vaulted
+ * shell `thickMm` thick, centred `atMm`, `lengthMm` along; `widthMm` across
+ * at its ends and `bulgeMm` wider each side in its middle; its corners at
+ * `baseMm`, rising `alongRiseMm` to its crown and `acrossRiseMm` to the
+ * middle of each end (dome.ts). It collides as one box from its corners'
+ * underside to its crown.
  */
 export interface DecorDome {
   readonly kind: 'dome';
@@ -588,13 +589,37 @@ export interface DecorDome {
   readonly alongRiseMm: number;
   readonly acrossRiseMm: number;
   readonly thickMm: number;
+  /** How far along its arch spans, between where it springs (the station's posts); the whole length when left out. */
+  readonly archMm?: number;
+  /**
+   * Patches lying on it in place of the shell: (along from its centre,
+   * across, length, width) each, drawn just over its surface (the station's
+   * vent windows). Such a dome draws only them and never collides.
+   */
+  readonly patches?: readonly (readonly [number, number, number, number])[];
   readonly noun?: string;
   readonly paint?: Paint;
 }
 
-export type DecorShape = DecorSlab | DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation | DecorBarrier | DecorCanopy | DecorWheel | DecorDome;
+/**
+ * A PRISM (the cargo crane's sloping legs and lattice jib, 2026-11-08): a
+ * convex outline in the plane across the piece, `sectionMm` as (across,
+ * height) points, run along it from `fromMm` to `toMm`. `solid: false` for
+ * one that never collides (a jib's members).
+ */
+export interface DecorPrism {
+  readonly kind: 'prism';
+  readonly fromMm: number;
+  readonly toMm: number;
+  readonly sectionMm: readonly (readonly [number, number])[];
+  readonly solid?: false;
+  readonly noun?: string;
+  readonly paint?: Paint;
+}
+
+export type DecorShape = DecorSlab | DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation | DecorBarrier | DecorCanopy | DecorWheel | DecorDome | DecorPrism;
 /** A shape with its own drawing, which one decoration box carries (eng D10). */
-export type DrawnShape = DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation | DecorBarrier | DecorCanopy | DecorWheel | DecorDome;
+export type DrawnShape = DecorVault | DecorTruss | DecorArch | DecorTowers | DecorStation | DecorBarrier | DecorCanopy | DecorWheel | DecorDome | DecorPrism;
 
 /** A derived decoration box: a body box at whole levels, carrying the shape's real heights for drawing. */
 export interface DecorBox extends BodyBox {

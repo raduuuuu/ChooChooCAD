@@ -21,7 +21,7 @@
  */
 
 import { add, fromInt, scale, zetaPow, type Cyc } from '../src/geom/cyclotomic.js';
-import { domeTop } from '../src/parts/dome.js';
+import { domeBarrel, domeTop } from '../src/parts/dome.js';
 import type { DecorDome, DecorShape, DecorSlab, MultiRoadPart, Paint, SlopBudget, StraightPart } from '../src/parts/schema.js';
 
 const ESTIMATED_SLOP: SlopBudget = { axialMm: 0.8, angularDeg: 1.5, calibrationStatus: 'estimated' };
@@ -46,10 +46,9 @@ const BASE = { from: 0, to: LEN, cargo: 223, far: -167, top: 10 } as const;
  * Each leg leans in to the beam (the side view, owner 2026-11-08): from the
  * cargo end, the first from 15 to 78 at the floor and 41 to 100 under the
  * beam, the second from 316 to 379 at the floor and 289 to 345 under it.
- * Drawn in three steps, each as wide as the leg at its middle height.
+ * Drawn as sloping posts at both ends of the base.
  */
 const LEG_FEET = [[15, 78, 41, 100], [316, 379, 289, 345]] as const;
-const LEG_STEPS = 3;
 const BEAM = { bottom: 112, top: 146, from: 17, to: 92 } as const;
 
 const slab = (x: number, y: number, l: number, w: number, bottomMm: number, topMm: number, noun: string, paint: Paint, solid = true): DecorSlab =>
@@ -61,18 +60,38 @@ const slab = (x: number, y: number, l: number, w: number, bottomMm: number, topM
  * floor; here they step out, 40 thick to 45 up and 24 above.
  */
 const leg = ([outFoot, inFoot, outTop, inTop]: readonly [number, number, number, number]): DecorShape[] => {
-  const step = BEAM.bottom / LEG_STEPS;
-  // The leg's span, from the cargo end, at a height: straight between its foot and its top.
-  const at = (z: number) => [outFoot + ((outTop - outFoot) * z) / BEAM.bottom, inFoot + ((inTop - inFoot) * z) / BEAM.bottom] as const;
-  const across = ([a, b]: readonly [number, number]) => ({ y: BASE.cargo - (a + b) / 2, w: Math.abs(b - a) });
-  return Array.from({ length: LEG_STEPS }, (_, k): DecorShape[] => {
-    const { y, w } = across(at(step * (k + 0.5)));
-    const [z0, z1] = [step * k, step * (k + 1)];
-    // The top step carries the arch over the opening seen end-on; the lower ones are its two posts.
-    return k < LEG_STEPS - 1
-      ? [slab(BASE.from + 8, y, 16, w, z0, z1, 'gantry', GREEN), slab(BASE.to - 8, y, 16, w, z0, z1, 'gantry', GREEN)]
-      : [{ kind: 'arch', fromMm: BASE.from, toMm: BASE.to, baseMm: z0, riseMm: 20, depthMm: 0, widthMm: w, acrossMm: y, fillToMm: z1, noun: 'gantry', paint: GREEN }];
-  }).flat();
+  // From the cargo end to across the piece; the leg's outline seen side-on, sloping from its foot to its top.
+  const y = (d: number) => BASE.cargo - d;
+  const section = [[y(outFoot), 0], [y(inFoot), 0], [y(inTop), BEAM.bottom], [y(outTop), BEAM.bottom]] as const;
+  const archAt = (outTop + inTop + outFoot + inFoot) / 4 + ((outTop + inTop - outFoot - inFoot) / 4) * 0.7;
+  return [
+    // Its two posts, at either end of the base, each 18 along.
+    { kind: 'prism', fromMm: BASE.from, toMm: BASE.from + 18, sectionMm: section, noun: 'gantry', paint: GREEN },
+    { kind: 'prism', fromMm: BASE.to - 18, toMm: BASE.to, sectionMm: section, noun: 'gantry', paint: GREEN },
+    // Over the opening between them, seen end-on: an arch near its top, as wide as the leg there.
+    { kind: 'arch', fromMm: BASE.from, toMm: BASE.to, baseMm: 80, riseMm: 18, depthMm: 0, widthMm: Math.abs(inTop - outTop), acrossMm: y(archAt), fillToMm: BEAM.bottom, noun: 'gantry', paint: GREEN },
+  ];
+};
+
+/*
+ * The jib, side-on (the side view): a lattice from the head out to over the
+ * first track's edge, a top and a bottom chord with six diagonals between.
+ */
+const JIB = { from: 135, to: 12, x: 54, width: 8, top: [226, 223], bottom: [208, 212], bar: 3 } as const;
+const jibAt = (y: number, chord: readonly [number, number]) => chord[0] + ((chord[1] - chord[0]) * (JIB.from - y)) / (JIB.from - JIB.to);
+const jib = (): DecorShape[] => {
+  const member = (pts: readonly (readonly [number, number])[]): DecorShape =>
+    ({ kind: 'prism', fromMm: JIB.x - JIB.width / 2, toMm: JIB.x + JIB.width / 2, sectionMm: pts, solid: false, noun: 'jib', paint: RED });
+  const chord = (c: readonly [number, number], down: number) =>
+    member([[JIB.from, jibAt(JIB.from, c)], [JIB.to, jibAt(JIB.to, c)], [JIB.to, jibAt(JIB.to, c) - down], [JIB.from, jibAt(JIB.from, c) - down]]);
+  const n = 6;
+  const diagonals = Array.from({ length: n }, (_, k) => {
+    const y0 = JIB.from - ((JIB.from - JIB.to) * k) / n, y1 = JIB.from - ((JIB.from - JIB.to) * (k + 1)) / n;
+    // Alternately down and up between the chords, each a bar 3 wide along the jib.
+    const [a, b] = k % 2 === 0 ? [[y0, jibAt(y0, JIB.top)], [y1, jibAt(y1, JIB.bottom)]] : [[y0, jibAt(y0, JIB.bottom)], [y1, jibAt(y1, JIB.top)]];
+    return member([[a[0]!, a[1]!], [a[0]! - JIB.bar, a[1]!], [b[0]! - JIB.bar, b[1]!], [b[0]!, b[1]!]]);
+  });
+  return [chord(JIB.top, JIB.bar), chord(JIB.bottom, -JIB.bar), ...diagonals];
 };
 
 const CRANE_DECOR: readonly DecorShape[] = [
@@ -94,8 +113,7 @@ const CRANE_DECOR: readonly DecorShape[] = [
   { kind: 'wheel', axis: 'up', atMm: [54, 135], centreMm: 170, diameterMm: 47, thickMm: 27, noun: 'crane', paint: RED },
   { kind: 'wheel', axis: 'up', atMm: [54, 135], centreMm: 218, diameterMm: 40, thickMm: 24, noun: 'crane', paint: YELLOW },
   { kind: 'wheel', atMm: [54, 160], centreMm: 218, diameterMm: 16, thickMm: 6, noun: 'crane', paint: RED },
-  // The jib, from the head out to over the first track's edge (the side view: its tip 15 from the track's middle).
-  slab(54, 73.5, 10, 123, 212, 226, 'jib', RED, false),
+  ...jib(),
   // The hook's bar, from the jib's tip down to the spreader.
   slab(54, 20, 4, 4, BEAM.top + 14, 212, 'hook', RED, false),
   // The hook's spreader, just over the beam under the jib's tip, its two arms out either side.
@@ -140,23 +158,47 @@ export const CARGO_CRANE: MultiRoadPart = {
  *      (______ round plate 170 ______)   base 288, plate 170 across, 8 tall
  *
  * READ, NOT MEASURED, but for the track's length: scaled by it (side view)
- * and by the track's 26 gauge (end view), so within about 10mm. The roof's
- * vents, its flared ends and the sign under it are not drawn.
+ * and by the track's 26 gauge (end view), so within about 10mm. Its track
+ * is drawn in beech, as all track is; the real one is grey plastic.
  */
 const ORANGE: Paint = { fill: '--paint-orange', line: '--ink' };
 const AT_LEN = 288;
 const AT_POSTS = { along: [85, 203], across: 42, size: 20 } as const;
 /*
- * The roof: a dome arched along the track and across it (side and end
- * views), 174 along, 120 across at its ends and 200 in its middle (the top
- * view), its rim 100 up, its crown 162. Each post stands up to meet it.
+ * The roof: a groin vault (dome.ts), 140 along, 104 across at its ends and
+ * 160 in its middle (the top view), thin plastic 4 thick. Its round arch
+ * springs at the posts, 118 apart, from 90 to its crown at 162 (the side
+ * view); the hoods over the posts are arched to 134 in their middle (the end
+ * view, the arch's ends the wings behind them); the two meet in the orange X
+ * of the top view.
+ * Each post stands up to meet it.
  */
 const AT_ROOF: DecorDome = {
-  kind: 'dome', atMm: [AT_LEN / 2, 0], lengthMm: 174, widthMm: 120, bulgeMm: 40,
-  baseMm: 100, alongRiseMm: 38, acrossRiseMm: 24, thickMm: 4, noun: 'roof', paint: ORANGE,
+  kind: 'dome', atMm: [AT_LEN / 2, 0], lengthMm: 140, widthMm: 104, bulgeMm: 28, archMm: AT_POSTS.along[1] - AT_POSTS.along[0],
+  baseMm: 90, alongRiseMm: 72, acrossRiseMm: 44, thickMm: 4, noun: 'roof', paint: ORANGE,
+};
+/*
+ * The roof's vent windows (the top view): 11 square on an 18 grid round its
+ * middle, five rows along and seven across, but where the roof's orange X
+ * creases, where there are none: each window lies on one barrel.
+ */
+const AT_WINDOWS: DecorDome = {
+  ...AT_ROOF,
+  noun: 'roof',
+  paint: { fill: '--ink', line: '--paper' },
+  patches: [-2, -1, 0, 1, 2].flatMap((row) =>
+    [-3, -2, -1, 0, 1, 2, 3]
+      .map((col) => [row * 18, col * 18, 11, 11] as const)
+      .filter(([a, c, l, w]) => new Set([-1, 1].flatMap((i) => [-1, 1].map((j) => domeBarrel(AT_ROOF, a + (i * l) / 2, c + (j * w) / 2)))).size === 1),
+  ),
 };
 /** A post's top: 2 under the roof's underside, as the roof is drawn in flat facets that sag a little between its points. */
 const postTop = (x: number, y: number) => Math.floor(domeTop(AT_ROOF, x - AT_LEN / 2, y) - AT_ROOF.thickMm - 2);
+/** The sign hangs 15 in from the front posts, where the roof has risen clear of its hood (the end view). */
+const SIGN_AT = AT_POSTS.along[0] + 15;
+const SIGN_WIDTH = 2 * AT_POSTS.across - AT_POSTS.size;
+/** Under the roof at both its ends, where the vault is lowest. */
+const signTop = postTop(SIGN_AT, SIGN_WIDTH / 2);
 export const ACTION_TUNNEL_STATION: StraightPart = {
   id: 'AT', brand: 'GENERIC', kind: 'straight', name: 'Action Tunnel Station',
   lengthMm: AT_LEN, ends: { start: 'socket', end: 'peg' },
@@ -165,11 +207,14 @@ export const ACTION_TUNNEL_STATION: StraightPart = {
     ...[-1, 1].flatMap((side) => [AT_LEN / 2 - 103, AT_LEN / 2 + 103].map((x) => slab(x, side * 35, 44, 30, 0, 8, 'base', GREY))),
     ...AT_POSTS.along.flatMap((x) => [-1, 1].map((side) => slab(x, side * AT_POSTS.across, AT_POSTS.size, AT_POSTS.size, 8, postTop(x, side * AT_POSTS.across), 'post', BEECH))),
     AT_ROOF,
+    AT_WINDOWS,
+    // The sign just inside the roof's front, behind the front posts, 14 tall, 2 under the roof.
+    slab(SIGN_AT, 0, 2, SIGN_WIDTH, signTop - 14, signTop, 'sign', { fill: '--paper', line: '--ink' }, false),
   ],
   dimensions: {
     status: 'unverified',
     source: "the owner's photos of a real one, 2026-11-08: the track's length the owner's (two medium straights'), the rest read off the photos",
-    note: 'A 288 straight through four posts 20 square, 42 either side, at 85 and 203 along; an orange domed roof on them, 174 along, 120 across at its ends and 200 in its middle, its rim 100 up and its crown 162; a round plate 170 across in the middle. Within about 10mm.',
+    note: 'A 288 straight through four posts 20 square, 42 either side, at 85 and 203 along, to about 104; an orange domed roof on them, 140 along, 120 across at its ends and 200 in its middle, its crown 165, its ends curling down over the posts and its corners flaring up; a round plate 170 across in the middle. Within about 10mm.',
   },
   slop: ESTIMATED_SLOP, ...PROFILE,
 };
