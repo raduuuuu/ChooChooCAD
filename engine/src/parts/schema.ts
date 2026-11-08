@@ -362,6 +362,14 @@ export interface DecorVault {
   readonly wallMm: number;
   readonly springMm: number;
   readonly topMm: number;
+  /**
+   * A round opening in place of the straight-sided one (the metro portals,
+   * owner's photos 2026-11-07): a circle `radiusMm` round `centreMm` up,
+   * open from `floorMm` (the plank's top), the track running under it.
+   */
+  readonly bore?: { readonly centreMm: number; readonly radiusMm: number; readonly floorMm: number };
+  /** Round outside too: a circle `widthMm` across round the bore's centre, resting on its floor (the metro tunnel's tube on its plank). */
+  readonly round?: true;
   readonly noun?: string;
   readonly paint?: Paint;
   /**

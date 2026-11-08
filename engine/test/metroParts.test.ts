@@ -57,16 +57,15 @@ describe('the metro pieces are long straights', () => {
   });
 
   /*
-   * MUTATION PROOF, run: the tube 66 tall (`topMm: 66`): `expected 63 to be
-   * greater than or equal to 67`.
+   * MUTATION PROOF, run: the tube's bore 26 round 39 (its top 65): `expected 65 to be greater than or equal to 67`.
    */
   it('the portals stand 203 apart outside, and the train clears the tube and the portals', () => {
     for (const id of ['MT', 'MS']) {
       const vaults = decorOf(id).filter((d): d is DecorVault => d.kind === 'vault');
       const portals = vaults.filter((v) => v.noun === 'portal');
       expect(portals.map((v) => [v.atMm[0] - v.lengthMm / 2, v.atMm[0] + v.lengthMm / 2])).toEqual([[6.5, 24.5], [191.5, 209.5]]);
-      // Each opening's top, inside: the outer top less the wall.
-      for (const v of vaults) expect(v.topMm - v.wallMm).toBeGreaterThanOrEqual(12 + CLEARANCE.trainMm);
+      // Each opening's top, inside: a round bore's top, or the outer top less the wall.
+      for (const v of vaults) expect(v.bore ? v.bore.centreMm + v.bore.radiusMm : v.topMm - v.wallMm).toBeGreaterThanOrEqual(12 + CLEARANCE.trainMm);
     }
   });
 });
