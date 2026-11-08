@@ -1,5 +1,7 @@
 # ChooChooCAD
 
+@AGENTS.md
+
 ## Skill routing
 
 When the user's request matches an available skill, invoke it via the Skill tool. Route only to skills in the session's available-skills list; answer directly for quick questions or small scoped edits.

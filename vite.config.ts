@@ -24,5 +24,8 @@ export default defineConfig({
   root: 'app',
   plugins: [react()],
   server: { port: 5173 },
+  // The photo guide is a second page, served at /photo-guide.html with the
+  // app's own tokens and fonts (community-pieces plan, design D11).
+  build: { rollupOptions: { input: { index: 'app/index.html', guide: 'app/photo-guide.html' } } },
   define: { __APP_VERSION__: JSON.stringify(buildVersion()) },
 });

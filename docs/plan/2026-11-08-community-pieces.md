@@ -439,6 +439,27 @@ D3 asked, answer "Selective expansion (recommended)", 2026-11-08.
   carries a shared layout) is not sent, before removing GoatCounter's
   `countedPath` guard.
 
+## Verification results (community track step 1, 2026-11-08)
+
+- V1 PASS: an issue attachment (`https://github.com/user-attachments/assets/…`)
+  downloads with plain `curl`, no sign-in; the file is byte-identical to the
+  upload.
+- V2 PASS: issue forms accept `type: upload`; GitHub's form preview on a
+  branch rendered it as an "Upload files" button with its required marker and
+  no error. The form uses it for photos.
+- V3: GitHub KEEPS location data. A synthetic test photo with fake GPS
+  (0°N 0°E) came back byte-identical, GPS included, and is downloadable by
+  anyone without signing in.
+- New finding: the attachment URL still answered 200 after the test issue was
+  deleted, so deleting an issue or editing out an image does not take a photo
+  offline.
+- Owner's decision on these findings (2026-11-08): "Keep photos, harden the
+  form": the form's first step is removing location data, it states that
+  posted photos can't be removed later, and the maintainer's removal steps add
+  a GitHub Support request for the attachment itself (CONTRIBUTING.md).
+  Declined: photos via a builder only; pausing intake.
+- Test artifacts removed: issue #192, branch `intake-form-test`, the test photo.
+
 ## Deferred: none. NOT in scope: a hosted bot (A2 C declined; B later on the same skill, not recorded as a TODO because it was not asked as a deferral).
 
 ## Expansion candidates (each asked separately)

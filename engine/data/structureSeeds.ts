@@ -16,7 +16,7 @@
  *   tunnel   TU     own road through; walls either side      roof: no raised track over it
  *
  * THE PIER AND THE OLD TUNNEL ARE ESTIMATES until a real piece is
- * photographed (photo guide, docs/photo-guide.html): round numbers that look
+ * photographed (photo guide, app/photo-guide.html): round numbers that look
  * right beside the 144mm medium straight. Verdicts that use one say so, like
  * any unverified piece.
  */
@@ -31,7 +31,7 @@ const PROFILE = { gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12, groo
 const ESTIMATE = (what: string): DimensionSource => ({
   status: 'unverified',
   source: 'round-number estimates beside the medium straight',
-  note: `${what} Not measured: photograph a real one (docs/photo-guide.html) to replace these.`,
+  note: `${what} Not measured: photograph a real one (the photo guide, woodentrain.world/photo-guide.html) to replace these.`,
 });
 
 /** The deck's length: a medium straight. */
