@@ -165,10 +165,18 @@ post **Can't hold it yet** naming it and the reason, set `piece: unsupported`
   - `bun engine/tools/photoCrop.ts <photo> <x> <y>` enlarges a point to read it
     to a fraction of a pixel (macOS, `sips`). The photo check skips its crops.
   - `--auto` finds each end from your hand-read seed, on wood or grey
-    plastic. When it prints `NOT FOUND, hand reading kept`, that end is your
-    seed: say so beside the figure.
+    plastic. A grey end is kept only when it reads the same from seeds either
+    side of yours; otherwise it prints `NOT FOUND, hand reading kept`, and that
+    end is your seed: say so beside the figure.
 - Each figure is read on both top views; the two must agree within 0.5 mm
-  (`agreedFigure` in `engine/data/photoReadings.ts`), or ask for a third photo.
+  (`agreedFigure` in `engine/data/photoReadings.ts`).
+- When they don't, look at the heights first. The medium straight sets the
+  scale at its own top face, about 12 mm up; a figure on a face at another
+  height (track set into a plastic base, a raised deck) reads short or long,
+  and by a different amount in each photo, because each was taken from a
+  different height. Then the figure needs a ruler (**Figures needed**), and a
+  third photo would only disagree again. Otherwise post **Another top view**,
+  set `piece: needs info` (maintainer), and stop.
 - Say which line and which scale each figure used, and keep them fixed if you
   rerun.
 - The photo method is for pieces lying flat. Heights, and anything standing up,
@@ -290,6 +298,12 @@ faces or anything private in a public comment.
 > stand it on a table, hold the phone level with it, about 30 to 40 cm away,
 > and keep the whole piece in the picture
 > ([photo guide](https://woodentrain.world/photo-guide.html), step 3).
+
+**Another top view**
+> Thanks! The two top views read <figure> <a> mm and <b> mm, too far apart to
+> choose between. Could you take one more top view, after moving the pieces,
+> following the [photo guide](https://woodentrain.world/photo-guide.html)?
+> Post it as a new comment here.
 
 **Can't hold it yet**
 > Thanks for sending this. The app can't hold this piece's shape yet:

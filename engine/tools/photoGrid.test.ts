@@ -47,7 +47,8 @@ const PLANK = { x0: 60, x1: 100, y0: 40, y1: 200 } as const;
 /** Beech, as measured on the trial photo; grey, the plastic of the #204 station's track. */
 const BEECH = [205, 165, 115] as const, GREY = [125, 126, 128] as const;
 
-function drawPhoto(plank: readonly [number, number, number] = BEECH): RgbImage {
+/** With `shadow`, a grey shadow 2.5mm deep past the plank's far end (y1): as dark again over the paper as the plank is over it. */
+function drawPhoto(plank: readonly [number, number, number] = BEECH, shadow = false): RgbImage {
   const rgb = new Uint8Array(W * H * 3);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
@@ -59,6 +60,7 @@ function drawPhoto(plank: readonly [number, number, number] = BEECH): RgbImage {
       if (inGrid && (near(u, 10) < 0.18 || near(v, 10) < 0.18)) [r, g, b] = [163, 179, 189];
       else if (inGrid && (near(u, 5) < 0.12 || near(v, 5) < 0.12)) [r, g, b] = [180, 192, 202];
       if (u >= PLANK.x0 && u <= PLANK.x1 && v >= PLANK.y0 && v <= PLANK.y1) [r, g, b] = plank;
+      else if (shadow && u >= PLANK.x0 && u <= PLANK.x1 && v > PLANK.y1 && v <= PLANK.y1 + 2.5) [r, g, b] = [168, 169, 170];
       const i = (y * W + x) * 3;
       rgb[i] = r; rgb[i + 1] = g; rgb[i + 2] = b;
     }
@@ -146,6 +148,25 @@ describe('the end finder on grey plastic', () => {
     expect(b).not.toBeNull();
     expect(Math.abs(pixelToPaper(g.map, a!.px)[1] - PLANK.y0)).toBeLessThan(0.1);
     expect(Math.abs(pixelToPaper(g.map, b!.px)[1] - PLANK.y1)).toBeLessThan(0.1);
+  });
+});
+
+describe('a grey end with a hard shadow past it', () => {
+  /*
+   * Read from one seed, the edge lands at the plank or at the shadow's far
+   * side, depending on whether the search reaches past the shadow (the #204
+   * station's socket end moved 0.5 to 2.4mm as its seed moved 9px). Of the
+   * seven seeds, those reaching past the shadow read it unevenly (spread 0.58
+   * and 0.72mm) and are dropped; the five left agree on the plank's end.
+   * MUTATION PROOF, run (2026-11-09): no spread limit (STEADY_SPREAD =
+   * Infinity), so the seven disagree by 2.3mm: `expected null not to be null`.
+   */
+  it('is found at the plank, not at the shadow', () => {
+    const shaded = drawPhoto(GREY, true);
+    const g = findGrid(shaded, seeds, spec);
+    const end = refineEnd(shaded, g.map, paperToPixel(TRUE, [79.5, PLANK.y1 - 1]), paperToPixel(TRUE, [80.5, PLANK.y0 + 1]));
+    expect(end).not.toBeNull();
+    expect(Math.abs(pixelToPaper(g.map, end!.px)[1] - PLANK.y1)).toBeLessThan(0.1);
   });
 });
 
