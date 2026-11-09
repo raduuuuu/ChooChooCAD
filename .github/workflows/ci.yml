@@ -104,6 +104,14 @@ jobs:
       - name: Install
         run: bun install --frozen-lockfile
 
+      # The repo's rules over the whole tree, before anything is built (repo-checkups
+      # plan, C6): brand names, private files, images, paths in the rules files.
+      # Offline and read-only; this workflow can't write anything. A finding names
+      # the AGENTS.md rule and .github/checkup-allow.json. The weekly and post-merge
+      # run, with the tracking issue, is checkup.yml.
+      - name: Repo content checks
+        run: bun run checkup --content
+
       # Ordered cheapest-signal-first: types before tests before the bundle.
       - name: Typecheck
         run: bun run typecheck

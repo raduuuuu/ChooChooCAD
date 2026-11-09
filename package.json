@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "calibration": "bun engine/tools/calibration.ts",
     "photos": "bun engine/tools/photoCheck.ts",
-    "photos:score": "bun engine/tools/photoScoreboard.ts"
+    "photos:score": "bun engine/tools/photoScoreboard.ts",
+    "checkup": "bun engine/tools/checkup.ts"
   },
   "dependencies": {
     "react": "^19.3.0",
