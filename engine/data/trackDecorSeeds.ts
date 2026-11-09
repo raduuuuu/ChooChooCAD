@@ -237,7 +237,8 @@ export const ACTION_TUNNEL_STATION: StraightPart = {
  * - Four equal arches each side, each 143 across, springing at the band's
  *   top: the two big ones whole (15 to 158, 85 to 228); the two at the ends,
  *   centred on the band's ends (15 and 228), show only their inner halves,
- *   cut there (`drawnFromMm`, `drawnToMm`).
+ *   cut there (`drawnFromMm`, `drawnToMm`). Each arch is a flat solid band,
+ *   126 at its outer edge's crown down to 116 at its inner's (`band`).
  * - Where the arches rise past one level they block raised track (library.ts);
  *   the low ends and the band never do.
  * - The sides 28.6 either side of the road's middle (the top views, at
@@ -253,7 +254,7 @@ const DA_ARCH = { crown: 126, inner: 116, span: 143 } as const;
 const DA_BARS = [86.5, 156.5] as const;
 const daArch = (fromMm: number, cut: { drawnFromMm?: number; drawnToMm?: number } = {}): DecorShape => ({
   kind: 'truss', fromMm, toMm: fromMm + DA_ARCH.span, springMm: DA_BAND.top, crownMm: DA_ARCH.crown, innerCrownMm: DA_ARCH.inner,
-  sideMm: DA_SIDE, hangers: 0, parabolic: true, braced: false, ...cut, noun: 'arch', paint: ORANGE,
+  sideMm: DA_SIDE, hangers: 0, parabolic: true, braced: false, band: true, ...cut, noun: 'arch', paint: ORANGE,
 });
 export const DOUBLE_ARCH_BRIDGE: StraightPart = {
   id: 'DA', brand: 'GENERIC', kind: 'straight', name: 'Double-arch bridge',

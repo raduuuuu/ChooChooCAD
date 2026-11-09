@@ -573,3 +573,49 @@ describe('a truss arch blocks raised track where it rises past one level (owner,
     for (const b of ribs({ ...tall, drawnFromMm: 86.5 })) expect(b.atMm[0] - b.lengthMm / 2).toBeGreaterThanOrEqual(86.5 - 1e-9);
   });
 });
+
+describe('a truss arch drawn as one solid band (the double-arch bridge, 2026-11-09)', () => {
+  const band: DecorTruss = { kind: 'truss', fromMm: 15, toMm: 158, springMm: 23, crownMm: 126, innerCrownMm: 116, sideMm: 28.6, hangers: 0, parabolic: true, braced: false, band: true };
+  const drawn = (t: DecorTruss) => {
+    const quads: P3[][] = [], edges: [P3, P3][] = [];
+    const pen: Pen = { quad: (...q) => quads.push(q), edge: (a, b) => edges.push([a, b]), detail: () => {}, grow: () => {} };
+    drawShape(t, { at: (a, y, z) => [a, y, z], lengthMm: 0, floorMm: 0, roadTop: () => 12, plankMm: 12 }, pen);
+    return { quads, edges };
+  };
+
+  /*
+   * MUTATION PROOF, run (2026-11-09): `band` ignored (drawn as a truss):
+   * `expected 22 to be +0 // Object.is equality`, its verticals between the chords.
+   */
+  it('has no verticals between its chords, only lines along them', () => {
+    const across = drawn(band).edges.filter(([p, q]) => Math.abs(p[0] - q[0]) < 1e-9);
+    expect(across.length).toBe(0);
+  });
+
+  /*
+   * MUTATION PROOF, run (2026-11-09): the two faces left out (top and
+   * underside only): `expected false to be true // Object.is equality`.
+   */
+  /*
+   * MUTATION PROOF, run (2026-11-09): the band down to the inner chord (which
+   * meets the outer at the springings): `expected 1.5972222222222143 to be
+   * close to 10`, near a springing.
+   */
+  it('is as deep all along as at its crown, down to where it springs', () => {
+    const faces = drawn(band).quads.filter((q) => new Set(q.map((p) => p[1])).size === 1 && new Set(q.map((p) => p[0])).size === 2);
+    for (const q of faces) {
+      for (const a of new Set(q.map((p) => p[0]))) {
+        const zs = q.filter((p) => p[0] === a).map((p) => p[2]);
+        if (Math.min(...zs) > 23 + 1e-9) expect(Math.max(...zs) - Math.min(...zs)).toBeCloseTo(10, 9);
+      }
+    }
+    expect(faces.length).toBeGreaterThan(40);
+  });
+
+  it('fills each face from the inner chord up to the outer, 116 to 126 at the crown', () => {
+    // The box starts where the arch springs, 15 along: its crown, 86.5 along, is 71.5 into it.
+    const atCrown = (q: P3[]) => q.some((p) => Math.abs(p[0] - 71.5) < 1e-9);
+    const face = drawn(band).quads.some((q) => atCrown(q) && q.some((p) => Math.abs(p[2] - 126) < 1e-9) && q.some((p) => Math.abs(p[2] - 116) < 1e-9) && new Set(q.map((p) => p[1])).size === 1);
+    expect(face).toBe(true);
+  });
+});
