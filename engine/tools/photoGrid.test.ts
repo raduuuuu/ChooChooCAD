@@ -152,6 +152,12 @@ describe('the end finder on grey plastic', () => {
 });
 
 describe('a grey end with a hard shadow past it', () => {
+  // Drawn and fitted here, as the other photos in this file are, not inside the
+  // spec: there the drawing counted against vitest's 5 s timeout and the spec
+  // timed out under a loaded full run (2026-11-09; it reads the same every time).
+  const shaded = drawPhoto(GREY, true);
+  const g = findGrid(shaded, seeds, spec);
+
   /*
    * Read from one seed, the edge lands at the plank or at the shadow's far
    * side, depending on whether the search reaches past the shadow (the #204
@@ -162,8 +168,6 @@ describe('a grey end with a hard shadow past it', () => {
    * Infinity), so the seven disagree by 2.3mm: `expected null not to be null`.
    */
   it('is found at the plank, not at the shadow', () => {
-    const shaded = drawPhoto(GREY, true);
-    const g = findGrid(shaded, seeds, spec);
     const end = refineEnd(shaded, g.map, paperToPixel(TRUE, [79.5, PLANK.y1 - 1]), paperToPixel(TRUE, [80.5, PLANK.y0 + 1]));
     expect(end).not.toBeNull();
     expect(Math.abs(pixelToPaper(g.map, end!.px)[1] - PLANK.y1)).toBeLessThan(0.1);
