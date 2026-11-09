@@ -11,7 +11,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { fromCrop, parseArgs, windowAround, ZOOM } from './photoCrop.js';
+import { CROP, cropPath, fromCrop, parseArgs, windowAround, ZOOM } from './photoCrop.js';
 
 describe('crop windows', () => {
   it('centres on the point, and a point read in the crop comes back to it', () => {
@@ -31,6 +31,20 @@ describe('crop windows', () => {
 
   it('a window at the photo edge stays inside it', () => {
     expect(windowAround(4000, 3000, 10, 2995, 60)).toEqual({ x0: 0, y0: 2880, side: 120 });
+  });
+});
+
+describe('the crop file', () => {
+  /*
+   * MUTATION PROOF, run (2026-11-09): CROP written without the window numbers
+   * (`/\.crop\.png$/`): `expected false to be true`. The photo check skips
+   * files matching it, so a crop left in top/ is not checked as a photo.
+   */
+  it('is named beside its photo, by a pattern the photo check skips', () => {
+    const out = cropPath('photos/issue-1/top/3.jpg', { x0: 940, y0: 740, side: 120 });
+    expect(out).toBe('photos/issue-1/top/3.crop-940-740-120.png');
+    expect(CROP.test(out)).toBe(true);
+    expect(CROP.test('photos/issue-1/top/3.jpg')).toBe(false);
   });
 });
 

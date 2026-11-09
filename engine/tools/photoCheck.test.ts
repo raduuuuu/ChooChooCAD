@@ -9,7 +9,8 @@
  * no 1mm lines, without halving or doubling every length; the medium and long
  * straights are found and the long one reads 216mm against the medium; the
  * trial passes, fails off-target and fails on disagreeing photos; a folder
- * exits 0 only when every photo is usable
+ * exits 0 only when every photo is usable, and leaves out crops; a large piece
+ * over the middle is neither warm paper nor a missing grid
  * Value: fails_when=a segment walk, the angle search, the 1mm pitch, the scale
  * retry, the plank body test or the trial rule is wrong
  * Value: why_new=no automatic check existed; photoMeasure.ts needs hand seeds
@@ -25,9 +26,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { Homography, Pt } from './photo.js';
-import { checkFolder, checkImage, trialVerdict } from './photoCheck.js';
+import { checkFolder, checkImage, paperTooWarm, trialVerdict } from './photoCheck.js';
+import { cropPath } from './photoCrop.js';
 import { hasLocation, orientationOf, stripMetadata } from './photoExif.js';
 import { pixelToPaper, type PaperMap } from './photoGrid.js';
+import { findGridAuto } from './photoGridSeed.js';
 import { bmpConverters, type RgbImage } from './photoImage.js';
 
 // ── JPEG segments, built byte by byte ────────────────────────────────────────
@@ -98,9 +101,11 @@ function mapFor(deg: number): PaperMap {
  * as 10mm ones (the owner's real paper); 'flat' prints 5mm as dark as 10mm with
  * no 1mm lines (only the reference's length can settle the scale); 'cream'
  * is the plain grid on a sheet as warm a colour as the wood; 'two' is the plain
- * grid on two sheets side by side, the second (u past 90mm) 0.6mm out each way.
+ * grid on two sheets side by side, the second (u past 90mm) 0.6mm out each way;
+ * 'roof' is the plain grid with an orange roof over the photo's whole central
+ * half (the #204 station's, as a large piece is photographed), hiding the straights.
  */
-function drawPhoto(deg: number, paper: 'plain' | 'mm' | 'flat' | 'cream' | 'two' = 'plain'): RgbImage {
+function drawPhoto(deg: number, paper: 'plain' | 'mm' | 'flat' | 'cream' | 'two' | 'roof' = 'plain'): RgbImage {
   const map = mapFor(deg);
   const rgb = new Uint8Array(W * H * 3);
   const near = (q: number, step: number) => Math.abs(q - step * Math.round(q / step));
@@ -117,6 +122,7 @@ function drawPhoto(deg: number, paper: 'plain' | 'mm' | 'flat' | 'cream' | 'two'
         else if (paper === 'mm' && (near(gu, 1) < 0.1 || near(gv, 1) < 0.1)) rgbv = [184, 195, 205];
       } else rgbv = [120, 160, 90]; // a green table past the sheet
       if (inside(MEDIUM, u, v) || inside(LONG, u, v)) rgbv = [205, 165, 115]; // beech
+      if (paper === 'roof' && x > W / 4 - 20 && x < (3 * W) / 4 + 20 && y > H / 4 - 20 && y < (3 * H) / 4 + 20) rgbv = [235, 120, 40];
       const k = (y * W + x) * 3;
       rgb[k] = rgbv[0]; rgb[k + 1] = rgbv[1]; rgb[k + 2] = rgbv[2];
     }
@@ -180,6 +186,44 @@ describe('paper as warm as the wood', () => {
     expect(c.problems).toEqual([expect.stringMatching(/use white, blue or pink millimetre paper/)]);
     expect(c.longMm).toBeUndefined();
   }, 30_000);
+});
+
+describe('a large piece over the middle of the photo', () => {
+  const roof = drawPhoto(0, 'roof');
+
+  /*
+   * MUTATION PROOF, run (2026-11-09): the paper read from the central half
+   * again (the #204 dry run refused pink paper as too warm):
+   * `expected true to be false`.
+   */
+  it('is not taken for warm paper', () => {
+    expect(paperTooWarm(roof)).toBe(false);
+  });
+
+  /*
+   * MUTATION PROOF, run (2026-11-09): no wider search when the central half
+   * shows no lines (the #204 dry run's "no regular grid lines"): every scale
+   * answers `no regular grid lines found…`, `expected undefined to be defined`.
+   */
+  it('still has its grid found, from the paper around it', () => {
+    // At the scales photoCheck.ts tries: around the roof this plain paper's 5mm lines read as the pitch.
+    const found = [1, 2, 0.5].map((scale) => findGridAuto(roof, scale));
+    const g = found.find((r) => 'grid' in r);
+    expect(g, JSON.stringify(found)).toBeDefined();
+    expect(g && 'grid' in g && g.grid.rmsMm).toBeLessThan(0.1);
+  }, 60_000);
+
+  /*
+   * The roof is a wide warm piece, so with the straights under it the check
+   * reads "something lies against the medium straight".
+   * MUTATION PROOF, run (2026-11-09): the first scale's answer kept whatever
+   * it was: `expected 'no usable grid: too little of the gri…' to match /medium straight/`.
+   */
+  it('is told about the medium straight, not that the grid is missing', () => {
+    const [problem] = checkImage(roof).problems;
+    expect(problem).toMatch(/medium straight/);
+    expect(problem).not.toMatch(/no usable grid/);
+  }, 60_000);
 });
 
 describe('the 216mm trial', () => {
@@ -254,6 +298,26 @@ describe('checking a folder', () => {
       writeFileSync(join(dir, 'end.jpg'), jpeg(APP0, exifApp1(6, true)));
       expect(checkFolder(dir, () => {}, { locationOnly: true })).toBe(2);
       expect(hasLocation(new Uint8Array(readFileSync(join(dir, 'end.jpg'))))).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  /*
+   * The drawing skill crops top views to read ends by hand (the #204 dry run).
+   * MUTATION PROOF, run (2026-11-09): the crop filter removed:
+   * `expected [ 'side.bmp: OK', …(1) ] to deeply equal [ 'side.bmp: OK' ]`
+   * (the crop read as `side.crop-0-0-120.png: OK`).
+   */
+  it('leaves out a crop left beside a photo', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'photos-'));
+    try {
+      const blank: RgbImage = { width: 200, height: 150, rgb: new Uint8Array(200 * 150 * 3).fill(200) };
+      writeFileSync(join(dir, 'side.bmp'), bmp(blank));
+      writeFileSync(join(dir, cropPath('side.bmp', { x0: 0, y0: 0, side: 120 })), bmp(blank));
+      const lines: string[] = [];
+      checkFolder(dir, (l) => lines.push(l), { locationOnly: true });
+      expect(lines).toEqual(['side.bmp: OK']);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -163,11 +163,10 @@ post **Can't hold it yet** naming it and the reason, set `piece: unsupported`
     reads every figure in one photo from a points file beside it (its format
     is in the script's header);
   - `bun engine/tools/photoCrop.ts <photo> <x> <y>` enlarges a point to read it
-    to a fraction of a pixel (macOS, `sips`). It saves the crop beside the
-    photo, so crop from a copy in `photos/issue-N/work/`, never from `top/`:
-    a crop left in `top/` is checked as a photo on the next run.
-  - The ends of grey plastic track give no edge to the automatic reading;
-    read those ends by hand on a crop, and say so.
+    to a fraction of a pixel (macOS, `sips`). The photo check skips its crops.
+  - `--auto` finds each end from your hand-read seed, on wood or grey
+    plastic. When it prints `NOT FOUND, hand reading kept`, that end is your
+    seed: say so beside the figure.
 - Each figure is read on both top views; the two must agree within 0.5 mm
   (`agreedFigure` in `engine/data/photoReadings.ts`), or ask for a third photo.
 - Say which line and which scale each figure used, and keep them fixed if you

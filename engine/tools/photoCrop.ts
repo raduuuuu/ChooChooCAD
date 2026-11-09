@@ -16,6 +16,14 @@ import { basename, dirname, join } from 'node:path';
 
 export const ZOOM = 4;
 
+/** A crop's file name, so the photo check can leave crops out of a folder of photos. */
+export const CROP = /\.crop-\d+-\d+-\d+\.png$/;
+
+/** Where the crop of `photo` through window `w` is written: beside the photo. */
+export function cropPath(photo: string, w: Window): string {
+  return join(dirname(photo), `${basename(photo).replace(/\.[^.]+$/, '')}.crop-${w.x0}-${w.y0}-${w.side}.png`);
+}
+
 export interface Window {
   readonly x0: number;
   readonly y0: number;
@@ -77,7 +85,7 @@ if (import.meta.main) {
   const width = Number(sipsGet(photo, 'pixelWidth'));
   const height = Number(sipsGet(photo, 'pixelHeight'));
   const w = windowAround(width, height, x, y, half);
-  const out = join(dirname(photo), `${basename(photo).replace(/\.[^.]+$/, '')}.crop-${w.x0}-${w.y0}-${w.side}.png`);
+  const out = cropPath(photo, w);
   execFileSync('sips', ['-s', 'format', 'png', '-c', String(w.side), String(w.side), '--cropOffset', String(w.y0), String(w.x0), photo, '--out', out], { stdio: 'ignore' });
   execFileSync('sips', ['-z', String(w.side * ZOOM), String(w.side * ZOOM), out], { stdio: 'ignore' });
   console.log(JSON.stringify({ crop: out, ...w, zoom: ZOOM }));

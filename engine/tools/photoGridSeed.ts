@@ -2,7 +2,7 @@
  * THE GRID'S FIRST POINTS, FOUND WITHOUT A HAND (community-pieces plan, eng D5):
  * findGrid needs a few seed crossings; a contributor's photo arrives with none.
  *
- *   central half of the photo, wood skipped
+ *   central half of the photo, wood skipped (nearly the whole photo when a large piece hides it)
  *        │  for each angle θ in [-45°, 45°): line darkness projected on θ's normal
  *        ▼
  *   the angle whose profile is most peaked = one family of lines; θ + 90° the other
@@ -87,11 +87,18 @@ export interface Profile {
   readonly t0: number;
 }
 
-/** The central half's darkness projected on the normal at angle `deg` (degrees). */
-export function profile(img: RgbImage, deg: number, stride = STRIDE): Profile {
+/**
+ * Where the lines are looked for, as the share of the photo left out on each
+ * side: the central half first; nearly the whole photo when a large piece
+ * covers the middle (a station's roof filled it, 2026-11-09).
+ */
+export const CENTRAL = 1 / 4, WIDE = 1 / 16;
+
+/** The darkness inside the window `inset` from each side, projected on the normal at angle `deg` (degrees). */
+export function profile(img: RgbImage, deg: number, stride = STRIDE, inset = CENTRAL): Profile {
   const c = Math.cos((deg * Math.PI) / 180), s = Math.sin((deg * Math.PI) / 180);
-  const x0 = Math.floor(img.width / 4), x1 = Math.ceil((3 * img.width) / 4);
-  const y0 = Math.floor(img.height / 4), y1 = Math.ceil((3 * img.height) / 4);
+  const x0 = Math.floor(img.width * inset), x1 = Math.ceil(img.width * (1 - inset));
+  const y0 = Math.floor(img.height * inset), y1 = Math.ceil(img.height * (1 - inset));
   const ts = [x0 * c + y0 * s, x1 * c + y0 * s, x0 * c + y1 * s, x1 * c + y1 * s];
   const t0 = Math.floor(Math.min(...ts)), n = Math.ceil(Math.max(...ts)) - t0 + 1;
   const sum = new Float64Array(n), count = new Float64Array(n);
@@ -135,10 +142,10 @@ function peakedness(p: Profile): number {
  * degrees; with `both`, scored on θ and θ + 90° together, since a grid's two
  * families are square to each other and one noisy direction alone can win.
  */
-function bestAngle(img: RgbImage, lo: number, hi: number, step: number, both = false): number {
+function bestAngle(img: RgbImage, lo: number, hi: number, step: number, both = false, inset = CENTRAL): number {
   let best = lo, score = -Infinity;
   for (let a = lo; a <= hi + 1e-9; a += step) {
-    const sc = peakedness(profile(img, a)) + (both ? peakedness(profile(img, a + 90)) : 0);
+    const sc = peakedness(profile(img, a, STRIDE, inset)) + (both ? peakedness(profile(img, a + 90, STRIDE, inset)) : 0);
     if (sc > score) { score = sc; best = a; }
   }
   return best;
@@ -257,8 +264,8 @@ function strongPhase(v: Float64Array, pitch: number, peaks: readonly number[] | 
  * exactly. Any factor of two left (no 1mm lines) is settled by the reference
  * straight's length, in photoCheck.ts.
  */
-export function lineFamily(img: RgbImage, deg: number): LineFamily | null {
-  const p = profile(img, deg, 1);
+export function lineFamily(img: RgbImage, deg: number, inset = CENTRAL): LineFamily | null {
+  const p = profile(img, deg, 1, inset);
   const c = Math.cos((deg * Math.PI) / 180), s = Math.sin((deg * Math.PI) / 180);
   const mid = (img.width / 2) * c + (img.height / 2) * s - p.t0;
   const peaks = strongPeaks(p.values);
@@ -344,17 +351,28 @@ function clearOfWood(img: RgbImage, [x, y]: Pt): boolean {
   return true;
 }
 
+/** The two families of 10mm lines inside the window `inset` from each side, or null when either doesn't show. */
+function families(img: RgbImage, inset: number): readonly [LineFamily, LineFamily] | null {
+  const coarse = bestAngle(img, -45, 44, 1, true, inset);
+  const degA = bestAngle(img, coarse - 1, coarse + 1, 0.1, false, inset);
+  const degB = bestAngle(img, degA + 87, degA + 93, 0.1, false, inset);
+  const fa = lineFamily(img, degA, inset), fb = lineFamily(img, degB, inset);
+  return fa && fb ? [fa, fb] : null;
+}
+
+/** Each photo's families, found once: photoCheck.ts asks again at each scale, and they don't depend on it. */
+const familiesCache = new WeakMap<RgbImage, readonly [LineFamily, LineFamily] | null>();
+
 /**
  * Twelve seed crossings near the anchor crossing (where the two families' lines
  * found nearest the middle meet) and clear of wood, labelled in relative paper
  * mm (the anchor is 0, 0), or why none could be found.
  */
 export function seedGrid(img: RgbImage, scale = 1): { seeds: GridPoint[] } | { reason: string } {
-  const coarse = bestAngle(img, -45, 44, 1, true);
-  const degA = bestAngle(img, coarse - 1, coarse + 1, 0.1);
-  const degB = bestAngle(img, degA + 87, degA + 93, 0.1);
-  const fa = lineFamily(img, degA), fb = lineFamily(img, degB);
-  if (!fa || !fb) return { reason: 'no regular grid lines found in the middle of the photo: is the millimetre paper flat and in focus?' };
+  if (!familiesCache.has(img)) familiesCache.set(img, families(img, CENTRAL) ?? families(img, WIDE));
+  const found = familiesCache.get(img);
+  if (!found) return { reason: 'no regular grid lines found: is the millimetre paper flat and in focus?' };
+  const [fa, fb] = found;
   // `scale` corrects a 10mm pitch read at 5mm or 20mm (photoCheck.ts retries with 2 and 0.5).
   const a = { ...fa, pitch: fa.pitch * scale }, b = { ...fb, pitch: fb.pitch * scale };
   // Seeds gather round the crossing of the two lines found (0, 0): the families

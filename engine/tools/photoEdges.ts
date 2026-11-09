@@ -8,6 +8,9 @@
  *   along the axis, ±SEARCH mm:  wood level ─╲_ paper level → crossing of the halfway value
  *   all crossings ──least squares line──▶ its value on the centreline = the end
  *
+ * A grey plastic piece is as colourless as the paper, so where wood finds too
+ * few samples the step is looked for in darkness instead (the #204 dry run).
+ *
  * Only ends that face away from the camera show their top-face edge as the
  * outline; an end facing the camera shows a sliver of its end face. The
  * caller keeps every piece across the middle of the photo (straddlesCentre).
@@ -27,6 +30,12 @@ export const SEARCH = 3;
  * paper 33, onto the plank's own shadow on pink paper 22 (top face 52, shadow 30).
  */
 const MIN_STEP = 15;
+/**
+ * The same for darkness, onto grey plastic. On the synthetic photo grey reads
+ * 130 and paper 41; grid ink, being coloured, keeps a bright channel and reads
+ * little darker than its paper.
+ */
+const MIN_DARK_STEP = 40;
 
 /**
  * The red–green average minus blue: high on beech (70 on the synthetic one,
@@ -42,6 +51,23 @@ function woodness(img: RgbImage, [x, y]: Pt): number {
   const at = (xx: number, yy: number) => {
     const i = (yy * img.width + xx) * 3;
     return (img.rgb[i]! + img.rgb[i + 1]!) / 2 - img.rgb[i + 2]!;
+  };
+  return (at(x0, y0) * (1 - fx) + at(x0 + 1, y0) * fx) * (1 - fy) + (at(x0, y0 + 1) * (1 - fx) + at(x0 + 1, y0 + 1) * fx) * fy;
+}
+
+/**
+ * 255 less the brightest channel: high on grey plastic, low on paper of any
+ * colour and on its coloured grid lines (one channel of red or blue ink stays
+ * bright), so a grid line past the end doesn't read as the edge. Bilinear, NaN
+ * outside.
+ */
+function darkness(img: RgbImage, [x, y]: Pt): number {
+  const x0 = Math.floor(x), y0 = Math.floor(y);
+  if (x0 < 0 || y0 < 0 || x0 + 1 >= img.width || y0 + 1 >= img.height) return NaN;
+  const fx = x - x0, fy = y - y0;
+  const at = (xx: number, yy: number) => {
+    const i = (yy * img.width + xx) * 3;
+    return 255 - Math.max(img.rgb[i]!, img.rgb[i + 1]!, img.rgb[i + 2]!);
   };
   return (at(x0, y0) * (1 - fx) + at(x0 + 1, y0) * fx) * (1 - fy) + (at(x0, y0 + 1) * (1 - fx) + at(x0 + 1, y0 + 1) * fx) * fy;
 }
@@ -71,28 +97,34 @@ export function refineEnd(img: RgbImage, map: PaperMap, seed: Pt, other: Pt): Re
   const axis: Pt = [(s[0] - o[0]) / len, (s[1] - o[1]) / len]; // outward, along the plank
   const across: Pt = [-axis[1], axis[0]];
   const at = (c: number, t: number): Pt => paperToPixel(map, [s[0] + across[0] * c + axis[0] * t, s[1] + across[1] * c + axis[1] * t]);
-  const found: [number, number][] = [];
-  for (const side of [-1, 1]) {
-    for (let c = SHOULDER_IN; c <= SHOULDER_OUT + 1e-9; c += 0.25) {
-      const ts: number[] = [], vs: number[] = [];
-      for (let t = -SEARCH; t <= SEARCH + 1e-9; t += 0.05) {
-        ts.push(t);
-        vs.push(woodness(img, at(side * c, t)));
-      }
-      if (vs.some(Number.isNaN)) continue;
-      const wood = median(vs.slice(0, 15)), paper = median(vs.slice(-15));
-      if (wood - paper < MIN_STEP) continue; // no clear wood-to-paper step here
-      const half = (wood + paper) / 2;
-      // The last crossing from wood to paper going outward.
-      for (let i = vs.length - 1; i > 0; i--) {
-        if (vs[i - 1]! >= half && vs[i]! < half) {
-          const f = (vs[i - 1]! - half) / (vs[i - 1]! - vs[i]!);
-          found.push([side * c, ts[i - 1]! + f * (ts[i]! - ts[i - 1]!)]);
-          break;
+  // Edge samples: where `level` steps down by at least `minStep` from the piece to the paper.
+  const edges = (level: (img: RgbImage, p: Pt) => number, minStep: number): [number, number][] => {
+    const found: [number, number][] = [];
+    for (const side of [-1, 1]) {
+      for (let c = SHOULDER_IN; c <= SHOULDER_OUT + 1e-9; c += 0.25) {
+        const ts: number[] = [], vs: number[] = [];
+        for (let t = -SEARCH; t <= SEARCH + 1e-9; t += 0.05) {
+          ts.push(t);
+          vs.push(level(img, at(side * c, t)));
+        }
+        if (vs.some(Number.isNaN)) continue;
+        const piece = median(vs.slice(0, 15)), paper = median(vs.slice(-15));
+        if (piece - paper < minStep) continue; // no clear piece-to-paper step here
+        const half = (piece + paper) / 2;
+        // The last crossing from piece to paper going outward.
+        for (let i = vs.length - 1; i > 0; i--) {
+          if (vs[i - 1]! >= half && vs[i]! < half) {
+            const f = (vs[i - 1]! - half) / (vs[i - 1]! - vs[i]!);
+            found.push([side * c, ts[i - 1]! + f * (ts[i]! - ts[i - 1]!)]);
+            break;
+          }
         }
       }
     }
-  }
+    return found;
+  };
+  const wood = edges(woodness, MIN_STEP);
+  const found = wood.length >= 8 ? wood : edges(darkness, MIN_DARK_STEP);
   if (found.length < 8) return null;
   // Least squares t = a + b·c; the end's centre is at c = 0.
   const n = found.length;
