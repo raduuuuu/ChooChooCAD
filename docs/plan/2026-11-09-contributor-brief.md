@@ -323,6 +323,43 @@ The brief is the only way to contribute; the photo form and /draw-piece's drawin
    Pass: build. Fail: the plan returns to the owner (C7 removed the fallback),
    who is asked to choose between bringing the photo form back, waiting for
    the sandbox to allow it, or a brief for Claude Code users only.
+   **Spike results (2026-11-09, run by the owner in a claude.ai chat,
+   desktop; kit: the trial pair 84401/84402 and the T switch 84405, location
+   removed; a made-up GPS photo for the location test).** Ubuntu 24.04, root,
+   Node 22.23.4; clone of 7477f4e in 1.7 s; `npm install -g bun` gave Bun
+   1.4.4; ImageMagick 6.9.12 (`convert`, no `magick`) and ffmpeg 6.1.1 already
+   present; `bun install --frozen-lockfile` passed; every run under 7 s.
+
+   | Item | Result | Pass |
+   |---|---|---|
+   | Location found and removed | exit 2, then 0; GPS block empty | yes |
+   | Trial pair within 0.05 mm of local (216.57, 216.85) | 216.57, 216.89; TRIAL 216.73 | yes |
+   | `photoCrop.ts` off macOS | failed: no `sips`; Claude cropped with ImageMagick instead | no (known; port it) |
+   | T switch A, through road (library 216.46) | 216.38, 216.32 | yes |
+   | T switch B, curved end along (108.50) | 108.26, 108.28 | yes |
+   | T switch C, curved end out (105.53) | 105.17, 104.96 (0.57 off) | one pass over 0.5 |
+   | Picks repeated from scratch | A, B within 0.06 mm; C within 0.21 | yes |
+   | Phone path, GitHub re-upload, Free plan | not run | open |
+
+   Reading: the sandbox runs the repo's tools and reproduces the Mac's
+   readings; a chat Claude picks points well enough for A and B. C missed
+   because `photoMeasure.ts` measures only point to point: Claude built a
+   "foot" point on the straight road by hand (unrefined), and that pick is
+   what moved. What a brief can't leave to Claude's own helper scripts, so
+   the build adds before the brief:
+   - `photoCrop.ts` falls back to ImageMagick 6 (`convert`) or ffmpeg off macOS;
+   - `photoMeasure.ts` finds its grid itself (`findGridAuto`, as `photoCheck`
+     does): today the seeds' millimetres are given by hand, and on a tilted
+     sheet Claude counted lines by script to label them;
+   - an "offset from a line" figure (a point's distance from the line through
+     two refined ends), so no figure needs a hand-made foot point;
+   - a figure that fails the across-the-middle rule is refused alone, with
+     the other end suggested, not the whole run (B passed by 2 px);
+   - the brief says points are full-resolution pixels (the chat shows a
+     smaller preview) and that `pip` needs `--break-system-packages`.
+   Still to run before the draft pilot: the phone path, the re-measure after
+   a GitHub upload, and a Free plan.
+
 1. **The brief** (C6, C3, E2): one Markdown file, in the repo and served by
    the site (`app/public/`, so the download and the repo copy are one file).
    It starts with a version and date. It tells the sender's Claude, in
