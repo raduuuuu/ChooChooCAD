@@ -11,7 +11,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { CROP, cropPath, fromCrop, parseArgs, windowAround, ZOOM } from './photoCrop.js';
+import { CROP, cropPath, enlarge, fromCrop, parseArgs, windowAround, ZOOM } from './photoCrop.js';
 
 describe('crop windows', () => {
   it('centres on the point, and a point read in the crop comes back to it', () => {
@@ -27,6 +27,21 @@ describe('crop windows', () => {
   it('a quarter pixel in the crop is a sixteenth in the photo', () => {
     const w = windowAround(4000, 3000, 1000, 800, 60);
     expect(fromCrop(w, 241, 240)).toEqual([1000.25, 800]);
+  });
+
+  /*
+   * MUTATION PROOF, run (2026-11-09): the zoom not divided out of the source
+   * pixel (`w.x0 + x`): `expected [ 13, 10 ] to deeply equal [ 10, 10 ]`.
+   */
+  it('enlarges each photo pixel into a 4x4 square, nearest neighbour', () => {
+    const img = { width: 20, height: 20, rgb: new Uint8Array(20 * 20 * 3) };
+    for (let y = 0; y < 20; y++) for (let x = 0; x < 20; x++) img.rgb.set([x, y, 0], (y * 20 + x) * 3);
+    const crop = enlarge(img, { x0: 10, y0: 10, side: 4 });
+    expect([crop.width, crop.height]).toEqual([16, 16]);
+    const px = (x: number, y: number) => [crop.rgb[(y * 16 + x) * 3], crop.rgb[(y * 16 + x) * 3 + 1]];
+    expect(px(3, 3)).toEqual([10, 10]);
+    expect(px(4, 0)).toEqual([11, 10]);
+    expect(px(15, 15)).toEqual([13, 13]);
   });
 
   it('a window at the photo edge stays inside it', () => {
@@ -63,8 +78,14 @@ describe('the command line', () => {
     expect(parseArgs(['p.jpg', '63 17', '50'])).toHaveProperty('error');
   });
 
-  it('refuses a half size that is not a positive number', () => {
+  /*
+   * MUTATION PROOF, run (2026-11-09): the whole-number check dropped (back to
+   * `half <= 0`): `expected { photo: 'p.jpg', x: 63, …(2) } to have property
+   * "error"`; a half of 60.25 made a 120.5 px window no crop name matches.
+   */
+  it('refuses a half size that is not a whole positive number', () => {
     expect(parseArgs(['p.jpg', '63', '17', '0'])).toHaveProperty('error');
     expect(parseArgs(['p.jpg', '63', '17', 'big'])).toHaveProperty('error');
+    expect(parseArgs(['p.jpg', '63', '17', '60.25'])).toHaveProperty('error');
   });
 });

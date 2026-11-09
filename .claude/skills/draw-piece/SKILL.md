@@ -163,7 +163,10 @@ post **Can't hold it yet** naming it and the reason, set `piece: unsupported`
     reads every figure in one photo from a points file beside it (its format
     is in the script's header);
   - `bun engine/tools/photoCrop.ts <photo> <x> <y>` enlarges a point to read it
-    to a fraction of a pixel (macOS, `sips`). The photo check skips its crops.
+    to a fraction of a pixel, on any system (`sips` on macOS; ImageMagick or
+    ffmpeg elsewhere, to read the photo). A portrait phone photo is turned
+    upright first, as are `photoMeasure`'s, so a point read off a crop is the
+    same pixel there. The photo check skips its crops.
   - `--auto` finds each end from your hand-read seed, on wood or grey
     plastic. A grey end is kept only when it reads the same from seeds either
     side of yours; otherwise it prints `NOT FOUND, hand reading kept`, and that

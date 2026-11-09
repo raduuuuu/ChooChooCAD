@@ -1,18 +1,24 @@
 /**
  * `bun engine/tools/photoCrop.ts <photo> <x> <y> [half]`: a 4x enlargement of
  * the square around one point of a photo, so the point can be read to a
- * fraction of a pixel (plan 2026-11-02, eng E2). Uses macOS `sips`; no image
- * library.
+ * fraction of a pixel (plan 2026-11-02, eng E2). Runs anywhere a photo can be
+ * read (measuring-tools plan 2026-11-09, item 1): no `sips`, no image library.
  *
- *   photo ──sips crop (x0, y0, side)──▶ window ──sips resample x4──▶ crop.png
+ *   photo ──loadUpright──▶ pixels as a phone shows them ──window (x0, y0, side)──▶
+ *         ──x4 nearest neighbour──▶ writePng ──▶ crop.png
  *   a point read at (cx, cy) in crop.png sits at (x0 + cx/4, y0 + cy/4) in the photo
+ *
+ * Nearest neighbour keeps each photo pixel a 4x4 square, so the eye can split
+ * it. A rotated phone photo is turned upright first, so the crop shows what
+ * the phone shows and its coordinates are upright ones.
  *
  * Photos stay on the owner's machine (SEC1): the crop is written next to the
  * photo, in the ignored photos/ folder, never into the repo.
  */
 
-import { execFileSync } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
+import { loadUpright, PhotoError, writePng, type RgbImage } from './photoImage.js';
 
 export const ZOOM = 4;
 
@@ -38,6 +44,21 @@ export function windowAround(width: number, height: number, x: number, y: number
   return { x0, y0, side };
 }
 
+/** The window's pixels, each one a zoom x zoom square. */
+export function enlarge(img: RgbImage, w: Window, zoom = ZOOM): RgbImage {
+  const side = w.side * zoom;
+  const rgb = new Uint8Array(side * side * 3);
+  for (let y = 0; y < side; y++) {
+    for (let x = 0; x < side; x++) {
+      const s = ((w.y0 + Math.floor(y / zoom)) * img.width + w.x0 + Math.floor(x / zoom)) * 3, d = (y * side + x) * 3;
+      rgb[d] = img.rgb[s]!;
+      rgb[d + 1] = img.rgb[s + 1]!;
+      rgb[d + 2] = img.rgb[s + 2]!;
+    }
+  }
+  return { width: side, height: side, rgb };
+}
+
 /** Where a point read in the enlarged crop sits in the original photo. */
 export function fromCrop(w: Window, cx: number, cy: number): readonly [number, number] {
   return [w.x0 + cx / ZOOM, w.y0 + cy / ZOOM];
@@ -58,35 +79,29 @@ export function parseArgs(argv: readonly string[]): CropArgs | { readonly error:
   const num = (s: string) => (/^\s*-?\d+(\.\d+)?\s*$/.test(s) ? Number(s) : NaN);
   const x = num(xs), y = num(ys), half = halfs === undefined ? 60 : num(halfs);
   if (!Number.isFinite(x) || !Number.isFinite(y)) return { error: `x and y must each be one number, got "${xs}" and "${ys}"` };
-  if (!Number.isFinite(half) || half <= 0) return { error: `half must be a positive number, got "${halfs}"` };
+  // A whole half keeps the window whole pixels, so its name matches CROP (eng G8).
+  if (!Number.isInteger(half) || half <= 0) return { error: `half must be a whole positive number of pixels, got "${halfs}"` };
   return { photo, x, y, half };
-}
-
-function sipsGet(photo: string, key: string): string {
-  const out = execFileSync('sips', ['-g', key, photo], { encoding: 'utf8' });
-  const m = out.match(new RegExp(`${key}:\\s*(\\S+)`));
-  if (!m) throw new Error(`sips did not report ${key} for ${photo}`);
-  return m[1]!;
 }
 
 if (import.meta.main) {
   const args = parseArgs(process.argv.slice(2));
   if ('error' in args) {
-    console.error(args.error);
+    console.error(`USAGE usage: ${args.error}`);
     process.exit(2);
   }
   const { photo, x, y, half } = args;
-  // A rotated phone photo stores its pixels sideways; crop coordinates would not match what is seen.
-  const orientation = sipsGet(photo, 'orientation');
-  if (orientation !== '1' && orientation !== '<nil>') {
-    console.error(`${photo} has EXIF orientation ${orientation}; save it upright first (e.g. open and re-export), then crop.`);
+  let img: RgbImage;
+  try {
+    img = loadUpright(photo);
+  } catch (e) {
+    if (!(e instanceof PhotoError)) throw e;
+    console.error(`REFUSED ${e.code}: ${e.message}\n${e.fix}`);
     process.exit(1);
   }
-  const width = Number(sipsGet(photo, 'pixelWidth'));
-  const height = Number(sipsGet(photo, 'pixelHeight'));
-  const w = windowAround(width, height, x, y, half);
+  const w = windowAround(img.width, img.height, x, y, half);
   const out = cropPath(photo, w);
-  execFileSync('sips', ['-s', 'format', 'png', '-c', String(w.side), String(w.side), '--cropOffset', String(w.y0), String(w.x0), photo, '--out', out], { stdio: 'ignore' });
-  execFileSync('sips', ['-z', String(w.side * ZOOM), String(w.side * ZOOM), out], { stdio: 'ignore' });
-  console.log(JSON.stringify({ crop: out, ...w, zoom: ZOOM }));
+  writeFileSync(out, writePng(enlarge(img, w)));
+  console.log(JSON.stringify({ crop: out, ...w, zoom: ZOOM, width: img.width, height: img.height }));
+  console.error(`a point at (cx, cy) in this crop is (${w.x0} + cx/${ZOOM}, ${w.y0} + cy/${ZOOM}) in the photo, which is ${img.width}x${img.height} upright`);
 }

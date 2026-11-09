@@ -16,7 +16,7 @@ import { readFileSync } from 'node:fs';
 import { measurePhoto, scaleAndMeasure, type PhotoInput, type PhotoResult, type Pt } from './photo.js';
 import { refineEnd, straddlesCentre } from './photoEdges.js';
 import { findGrid, pixelToPaper } from './photoGrid.js';
-import { loadPhoto } from './photoImage.js';
+import { loadUpright, PhotoError, type RgbImage } from './photoImage.js';
 
 type Input = PhotoInput & { readonly paper?: { readonly cols: readonly [number, number]; readonly rows: readonly [number, number] } };
 
@@ -40,7 +40,15 @@ if (import.meta.main) {
   const input = JSON.parse(readFileSync(file, 'utf8')) as Input;
   if (flag !== '--auto') report(measurePhoto(input));
   else {
-    const img = loadPhoto(photo!);
+    // Upright, as the crop reads it (photoCrop.ts), so a point picked off a crop means the same pixel here.
+    let img: RgbImage;
+    try {
+      img = loadUpright(photo!);
+    } catch (e) {
+      if (!(e instanceof PhotoError)) throw e;
+      console.error(`REFUSED ${e.code}: ${e.message}\n${e.fix}`);
+      process.exit(1);
+    }
     const paper = input.paper ?? { cols: [0, 180] as const, rows: [0, 280] as const };
     const g = findGrid(img, input.grid, { cols: steps(paper.cols), rows: steps(paper.rows) });
     console.log(`grid: ${g.points.length} of ${g.tried} crossings, rms ${g.rmsMm.toFixed(3)}mm, worst ${g.maxMm.toFixed(3)}mm, lens k1 ${g.map.k1.toFixed(4)}`);
