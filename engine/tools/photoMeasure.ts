@@ -36,7 +36,7 @@ import { basename, dirname, extname, join, resolve } from 'node:path';
 import { GRID_RESIDUAL_MAX_MM, K_PLAUSIBLE, measurePhoto, offsetAlong, REFERENCE_MM, type GridPoint, type PhotoInput, type Pt } from './photo.js';
 import { CODES, refusal, type Code, type Refusal } from './photoCodes.js';
 import { CROP, fromCrop, ZOOM } from './photoCrop.js';
-import { facesAway, refineEnd, type RefinedEnd } from './photoEdges.js';
+import { centreAcross, facesAway, refineEnd, type RefinedEnd } from './photoEdges.js';
 import { findGrid, pixelToPaper, WOOD_GREEN_OVER_BLUE, type FoundGrid } from './photoGrid.js';
 import { findGridAuto } from './photoGridSeed.js';
 import { loadUpright, PhotoError, writePng, type RgbImage } from './photoImage.js';
@@ -207,12 +207,16 @@ export function needsPhoto(file: PointsFile): string | null {
 // ── The result ───────────────────────────────────────────────────────────────
 
 /** One end: its point as given (`seed`) and as used (`at`), refined or kept by hand. */
-export type End =
+export type End = (
   | { readonly seed: Pt; readonly at: Pt; readonly refined: true; readonly samples: number; readonly spreadMm: number }
-  | { readonly seed: Pt; readonly at: Pt; readonly refined: false; readonly reason: string };
+  | { readonly seed: Pt; readonly at: Pt; readonly refined: false; readonly reason: string }
+) & {
+  /** A road's end moved across to the middle of its side edges, mm (centreAcross); absent where it couldn't be. */
+  readonly acrossMm?: number;
+};
 
 export interface Why {
-  readonly code: 'end-hand-read' | 'facing-not-checked' | 'reference-hand-read';
+  readonly code: 'end-hand-read' | 'end-not-centred' | 'facing-not-checked' | 'reference-hand-read';
   readonly end?: string;
   readonly text: string;
 }
@@ -394,10 +398,17 @@ export function measure(points: Points, img: RgbImage): MeasureResult {
     if (!apart(line[0], line[1])) return refused('geometry', `the ${f.kind === 'distance' ? 'figure' : 'line'}'s two ends are under 1mm apart on the paper`, notRead, 'not checked');
     if (f.kind !== 'distance' && f.toward && !apart(f.point, f.toward)) return refused('geometry', '"point" and "toward" are under 1mm apart on the paper', notRead, 'not checked');
 
-    const a = endOf(line[0], refineEnd(img, grid.map, line[0], line[1]));
-    const b = endOf(line[1], refineEnd(img, grid.map, line[1], line[0]));
+    // A road's ends: centred across the road first (a pick a few px off-centre moves offset and along), then refined along it.
+    const across = [centreAcross(img, grid.map, line[0], line[1]), centreAcross(img, grid.map, line[1], line[0])] as const;
+    const placed = [across[0]?.px ?? line[0], across[1]?.px ?? line[1]] as const;
+    const withAcross = (e: End, c: (typeof across)[number]): End => (c ? { ...e, seed: e.seed, acrossMm: c.shiftMm } : e);
+    const a = withAcross({ ...endOf(placed[0], refineEnd(img, grid.map, placed[0], placed[1])), seed: line[0] }, across[0]);
+    const b = withAcross({ ...endOf(placed[1], refineEnd(img, grid.map, placed[1], placed[0])), seed: line[1] }, across[1]);
     const ends: End[] = [a, b];
     const why: Why[] = [...refWhy];
+    across.forEach((c, i) => {
+      if (!c) why.push({ code: 'end-not-centred', end: labels[i], text: `the ${labels[i]} could not be centred across its road (its side edges not found 4-10mm in), so it is where it was picked` });
+    });
     const faceFix = (what: string) => `${what}; the photo is uncropped, taken from above the middle of the sheet`;
     for (const [e, other, label] of [[a, b, labels[0]], [b, a, labels[1]]] as const) {
       if (!facesAway(img, e.at, other.at)) {
