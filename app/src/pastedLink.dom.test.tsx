@@ -16,10 +16,9 @@
 import { StrictMode } from 'react';
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
+import { watchReloads } from '../test/reloads.js';
 import { App } from './App.js';
 import { GRAPH_STORAGE_KEY } from './storageKeys.js';
-
-const reloaded = (calls: unknown[][]) => calls.some((c) => String(c[0]).includes('Not implemented: navigation'));
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -34,14 +33,15 @@ const paste = (hash: string) =>
   });
 
 it('everything saved: the tab reloads into the link (D8)', () => {
-  const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const reloaded = watchReloads();
   render(
     <StrictMode>
       <App />
     </StrictMode>,
   );
   paste('#v1.abc');
-  expect(reloaded(errors.mock.calls)).toBe(true);
+  expect(reloaded()).toBe(true);
 });
 
 /*
@@ -50,7 +50,8 @@ it('everything saved: the tab reloads into the link (D8)', () => {
  * with a held-back save.
  */
 it('a save held back: no reload, the address goes back, and it says so (D15, D34)', () => {
-  const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const reloaded = watchReloads();
   // A stored layout the loader refuses: its notice is unread, so the graph save is held back.
   localStorage.setItem(GRAPH_STORAGE_KEY, '{not json');
   render(
@@ -59,14 +60,15 @@ it('a save held back: no reload, the address goes back, and it says so (D15, D34
     </StrictMode>,
   );
   paste('#v1.abc');
-  expect(reloaded(errors.mock.calls)).toBe(false);
+  expect(reloaded()).toBe(false);
   expect(location.hash).toBe('');
   expect(screen.getByText("Your last changes couldn't be saved, so the link wasn't opened. Your changes are still here.")).toBeTruthy();
 });
 
 it('an ordinary hash is not a link and changes nothing', () => {
-  const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const reloaded = watchReloads();
   render(<App />);
   paste('#notes');
-  expect(reloaded(errors.mock.calls)).toBe(false);
+  expect(reloaded()).toBe(false);
 });

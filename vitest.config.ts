@@ -35,8 +35,7 @@ export default defineConfig({
       },
       {
         // No React plugin: vitest's transform reads `jsx: react-jsx` from
-        // tsconfig.json, and @vitejs/plugin-react targets the root vite 8,
-        // whose plugin type does not match the vite vitest 3 carries.
+        // tsconfig.json, which is all these specs need.
         test: {
           name: 'dom',
           include: ['app/**/*.dom.test.tsx'],
