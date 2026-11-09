@@ -5,7 +5,7 @@
  * Value: protects=from six seed points read 3px off, the grid finder lands on
  * the 10mm lines (not the 5mm ones), fits perspective and lens bowing to a
  * known model within 0.05mm, and the end finder puts a plank's end within
- * 0.05mm of where it was drawn; a BMP of either row order reads back the same
+ * 0.05mm of where it was drawn (a grey plastic one within 0.1mm); a BMP of either row order reads back the same
  * pixels; a piece is "across the middle" only when its ends straddle the centre
  * Value: fails_when=the line signal, the sub-pixel step, the bowing term,
  * the outlier drop or the edge crossing is wrong
@@ -44,7 +44,10 @@ const TRUE: PaperMap = (() => {
 /** The plank: paper x 60..100mm (40 wide), y 40..200mm, its ends at y = 40 and y = 200 on x = 80. */
 const PLANK = { x0: 60, x1: 100, y0: 40, y1: 200 } as const;
 
-function drawPhoto(): RgbImage {
+/** Beech, as measured on the trial photo; grey, the plastic of the #204 station's track. */
+const BEECH = [205, 165, 115] as const, GREY = [125, 126, 128] as const;
+
+function drawPhoto(plank: readonly [number, number, number] = BEECH): RgbImage {
   const rgb = new Uint8Array(W * H * 3);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
@@ -55,7 +58,7 @@ function drawPhoto(): RgbImage {
       const inGrid = u >= 0 && u <= 180 && v >= 0 && v <= 250;
       if (inGrid && (near(u, 10) < 0.18 || near(v, 10) < 0.18)) [r, g, b] = [163, 179, 189];
       else if (inGrid && (near(u, 5) < 0.12 || near(v, 5) < 0.12)) [r, g, b] = [180, 192, 202];
-      if (u >= PLANK.x0 && u <= PLANK.x1 && v >= PLANK.y0 && v <= PLANK.y1) [r, g, b] = [205, 165, 115]; // beech
+      if (u >= PLANK.x0 && u <= PLANK.x1 && v >= PLANK.y0 && v <= PLANK.y1) [r, g, b] = plank;
       const i = (y * W + x) * 3;
       rgb[i] = r; rgb[i + 1] = g; rgb[i + 2] = b;
     }
@@ -119,6 +122,30 @@ describe('the grid finder', () => {
     const seedB = paperToPixel(TRUE, [79.5, PLANK.y1 - 1]);
     const a = refineEnd(photo, g.map, seedA, seedB)!;
     expect(Math.abs(Math.abs(a.slope) - 1 / 158)).toBeLessThan(0.002);
+  });
+});
+
+describe('the end finder on grey plastic', () => {
+  const grey = drawPhoto(GREY);
+  const g = findGrid(grey, seeds, spec);
+
+  /*
+   * MUTATION PROOF, run: the darkness fallback removed (wood samples only)
+   * fails with `expected null not to be null`: grey is as colourless as the
+   * paper, the #204 dry run's station track. Within 0.1mm, not beech's 0.05:
+   * these ends lie on a 10mm line, whose ink reads darker than the paper the
+   * halfway level is taken from, so each end reads about half a pixel long
+   * (0.06 and 0.08mm measured).
+   */
+  it('puts both ends of a grey plank within 0.1mm of where they were drawn', () => {
+    const seedA = paperToPixel(TRUE, [80.5, PLANK.y0 + 1]);
+    const seedB = paperToPixel(TRUE, [79.5, PLANK.y1 - 1]);
+    const a = refineEnd(grey, g.map, seedA, seedB);
+    const b = refineEnd(grey, g.map, seedB, seedA);
+    expect(a).not.toBeNull();
+    expect(b).not.toBeNull();
+    expect(Math.abs(pixelToPaper(g.map, a!.px)[1] - PLANK.y0)).toBeLessThan(0.1);
+    expect(Math.abs(pixelToPaper(g.map, b!.px)[1] - PLANK.y1)).toBeLessThan(0.1);
   });
 });
 

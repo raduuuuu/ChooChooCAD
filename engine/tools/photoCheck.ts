@@ -26,6 +26,7 @@ import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { agreedFigure, TOLERANCE_MM, TRIAL } from '../data/photoReadings.js';
 import { GRID_RESIDUAL_MAX_MM, scaleAndMeasure } from './photo.js';
+import { CROP } from './photoCrop.js';
 import { straddlesCentre } from './photoEdges.js';
 import { hasLocation, stripMetadata } from './photoExif.js';
 import { pixelToPaper, WOOD_GREEN_OVER_BLUE, type FoundGrid } from './photoGrid.js';
@@ -58,33 +59,37 @@ export const AUTO_GRID_RMS_MAX_MM = 0.3;
  */
 type Found = { grid: FoundGrid; planks: ReturnType<typeof namePlanks>; tooWide: number };
 function gridAndPlanks(img: RgbImage): Found | { reason: string } {
-  let first: Found | { reason: string } | null = null;
+  // With no medium straight at any scale, the first scale that found a grid says why (not a scale that found none).
+  let first: Found | { reason: string } | null = null, firstGrid: Found | null = null;
   for (const scale of [1, 2, 0.5]) {
     const found = findGridAuto(img, scale);
     const wood = 'reason' in found ? null : findWood(img, found.grid);
     const attempt = 'reason' in found ? found : { grid: found.grid, planks: namePlanks(wood!.planks), tooWide: wood!.tooWide };
     first ??= attempt;
-    if (!('reason' in attempt) && attempt.planks.reference) return attempt;
+    if ('reason' in attempt) continue;
+    if (attempt.planks.reference) return attempt;
+    firstGrid ??= attempt;
   }
-  return first!;
+  return firstGrid ?? first!;
 }
 
 /**
  * True when the paper is as warm as wood: green over blue past wood's bar on
- * the paper. The paper is read as the brightest half of the photo's central
- * half, at its 25th percentile (a bright orange piece can fill the rest).
- * Measured (2026-11-08): white, blue and pink papers 1 or less; cream paper
- * with orange lines 25, where wood and paper can't be told apart.
+ * the paper. The paper is read as the brightest quarter of the whole photo, at
+ * its 25th percentile: paper is the brightest thing in it, and a large orange
+ * piece can fill the middle (a station's roof read 31 there on pink paper).
+ * Measured (2026-11-09): white, blue and pink papers 6 or less; cream paper
+ * with orange lines 18, where wood and paper can't be told apart.
  */
 export function paperTooWarm(img: RgbImage): boolean {
   const px: [number, number][] = [];
-  for (let y = img.height >> 2; y < (3 * img.height) >> 2; y += 4) {
-    for (let x = img.width >> 2; x < (3 * img.width) >> 2; x += 4) {
+  for (let y = 0; y < img.height; y += 4) {
+    for (let x = 0; x < img.width; x += 4) {
       const i = (y * img.width + x) * 3;
       px.push([img.rgb[i]! + img.rgb[i + 1]! + img.rgb[i + 2]!, img.rgb[i + 1]! - img.rgb[i + 2]!]);
     }
   }
-  const bright = px.sort((a, b) => a[0] - b[0]).slice(px.length >> 1).map((p) => p[1]).sort((a, b) => a - b);
+  const bright = px.sort((a, b) => a[0] - b[0]).slice(px.length - (px.length >> 2)).map((p) => p[1]).sort((a, b) => a - b);
   return bright.length > 0 && bright[bright.length >> 2]! > WOOD_GREEN_OVER_BLUE;
 }
 
@@ -133,7 +138,8 @@ const PHOTO = /\.(jpe?g|png|heic|heif|bmp)$/i;
  * report; returns the exit code.
  */
 export function checkFolder(dir: string, print: (line: string) => void = console.log, { locationOnly = false } = {}): number {
-  const files = readdirSync(dir).filter((f) => PHOTO.test(f)).sort();
+  // A crop (photoCrop.ts) left beside a photo is a piece of one, not a photo.
+  const files = readdirSync(dir).filter((f) => PHOTO.test(f) && !CROP.test(f)).sort();
   if (files.length === 0) {
     print(`No photos in ${dir}.`);
     return 1;
