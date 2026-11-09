@@ -219,6 +219,68 @@ export const ACTION_TUNNEL_STATION: StraightPart = {
   slop: ESTIMATED_SLOP, ...PROFILE,
 };
 
+/*
+ * THE DOUBLE-ARCH BRIDGE (a contributor's photos, 2026-11-09, issue #231): a 240
+ * straight, socket to peg, between two orange sides, each a row of
+ * overlapping arches on a flat band, joined over the road by two round
+ * cross bars at the big arches' tops. No deck and no supports of its own:
+ * like any straight it lies on the floor, or at a level on separate
+ * supports.
+ *
+ *   side view            cross bars 118 to 124, at 86.5 and 156.5 along
+ *          ___ crown 126 ___     ___ crown 126 ___
+ *         /    inner 116    \ X /    inner 116    \
+ *        |                   X                     |
+ *    ====|=== band, 23 tall ===================== |====  road, 0 to 240
+ *   socket 15                85  158              228  peg
+ *
+ * - Four equal arches each side, each 143 across, springing at the band's
+ *   top: the two big ones whole (15 to 158, 85 to 228); the two at the ends,
+ *   centred on the band's ends (15 and 228), show only their inner halves,
+ *   cut there (`drawnFromMm`, `drawnToMm`).
+ * - Where the arches rise past one level they block raised track (library.ts);
+ *   the low ends and the band never do.
+ * - The sides 28.6 either side of the road's middle (the top views, at
+ *   the cross bars).
+ *
+ * READ, NOT MEASURED, but for the length: the side view traced off the side
+ * photo, scaled by the 240 along its bottom edge, so within about 5mm.
+ */
+const DA_LEN = 240;
+const DA_SIDE = 28.6;
+const DA_BAND = { from: 15, to: 228, top: 23 } as const;
+const DA_ARCH = { crown: 126, inner: 116, span: 143 } as const;
+const DA_BARS = [86.5, 156.5] as const;
+const daArch = (fromMm: number, cut: { drawnFromMm?: number; drawnToMm?: number } = {}): DecorShape => ({
+  kind: 'truss', fromMm, toMm: fromMm + DA_ARCH.span, springMm: DA_BAND.top, crownMm: DA_ARCH.crown, innerCrownMm: DA_ARCH.inner,
+  sideMm: DA_SIDE, hangers: 0, parabolic: true, braced: false, ...cut, noun: 'arch', paint: ORANGE,
+});
+export const DOUBLE_ARCH_BRIDGE: StraightPart = {
+  id: 'DA', brand: 'GENERIC', kind: 'straight', name: 'Double-arch bridge',
+  lengthMm: DA_LEN, ends: { start: 'socket', end: 'peg' },
+  decor: [
+    // The flat band along the bottom of each side, 4 thick.
+    ...[-1, 1].map((side) => slab((DA_BAND.from + DA_BAND.to) / 2, side * DA_SIDE, DA_BAND.to - DA_BAND.from, 4, 0, DA_BAND.top, 'side', ORANGE)),
+    // The two big arches each side, overlapping in the middle.
+    daArch(DA_BAND.from),
+    daArch(DA_BAND.to - DA_ARCH.span),
+    // The half arches at the ends, centred on the band's ends and cut there.
+    daArch(DA_BAND.from - DA_ARCH.span / 2, { drawnFromMm: DA_BAND.from }),
+    daArch(DA_BAND.to - DA_ARCH.span / 2, { drawnToMm: DA_BAND.to }),
+    // The cross bars over the road, about 6 round, at the big arches' tops.
+    ...DA_BARS.map((x) => slab(x, 0, 6, 2 * DA_SIDE, 118, 124, 'cross bar', ORANGE)),
+  ],
+  dimensions: {
+    status: 'unverified',
+    source:
+      "a contributor's photos of a real one, 2026-11-09 (issue #231): the length read off two top views beside a medium straight (240.01 and 240.22, agreed 240.11); " +
+      'the side view (the band, the arches, the cross bars) traced off a side photo and scaled by that length; ' +
+      "the sides' place across read off both top views at the cross bars; nothing from a ruler",
+    note: 'A 240 straight between two orange sides 28.6 either side of it: a band 23 tall from 15 to 228 along, two overlapping arches each side (15 to 158 and 85 to 228, crowns 126 outer and 116 inner), two cross bars 118 to 124 up at 86.5 and 156.5, and a half arch at each end of each side. Within about 5mm.',
+  },
+  slop: ESTIMATED_SLOP, ...PROFILE,
+};
+
 export const CRANE_SEEDS: readonly MultiRoadPart[] = [CARGO_CRANE];
 /** Straights with their own decoration that work like no standard part. */
-export const TRACK_DECOR_SEEDS: readonly StraightPart[] = [ACTION_TUNNEL_STATION];
+export const TRACK_DECOR_SEEDS: readonly StraightPart[] = [ACTION_TUNNEL_STATION, DOUBLE_ARCH_BRIDGE];
