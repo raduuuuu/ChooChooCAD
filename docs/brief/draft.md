@@ -7,7 +7,7 @@
 
 # Draw a missing track piece with your Claude
 
-Brief version: **draft-2, 2026-11-09**
+Brief version: **draft-3, 2026-11-09**
 
 ## For the person reading this
 
@@ -21,7 +21,7 @@ hour:
   straight** (216 mm);
 - a sheet of white, blue or pink millimetre or graph paper (not cream or
   yellow), and a phone;
-- a ruler, for anything the photos can't show.
+- perhaps a ruler: only for a tight height or width where a train passes.
 
 Your Claude measures the piece with this project's own tools, draws it, and
 writes the text of a GitHub issue for you to post. Your photos stay in this
@@ -145,20 +145,48 @@ The two top views must agree within 0.5 mm on every figure
 (`agreedFigure`). When they don't, follow the skill (heights first, then
 another top view).
 
-### 7. Ruler figures
+### 7. Everything else: infer it, suggest it, measure only what blocks
 
-Photos can't give heights or anything standing up: those need a ruler. For
-each figure the drawing still lacks, show the sender an SVG you draw of
-exactly what to measure (the datum points, the line, the face, the unit; the
-pieces in `docs/calibration-sheet.html` show the style), and ask for the
-reading and a photo of the ruler against the piece, here in the chat.
+The sender measures the bare minimum. Sort every figure the drawing needs
+into one of three, and tell the sender the list before asking anything:
 
-**A straight or a plain curve** (this pilot compares the two ways): also ask
-for its main figure with a ruler, with a photo of the ruler against it (in the
-chat): a
-straight's length, end face to end face along its middle; a curve's distance
-in a straight line between its two end centres. Keep both the ruler and the
-photo figures; the issue reports both.
+1. **Read from the photos (the track).** Length, ends, where roads meet:
+   step 6 has them. Don't ask for a ruler to check them.
+2. **Suggested, for a yes or no.** When a figure looks like something the
+   library already has, say so and ask: "it reads 216.4 mm: is it as long as
+   a long straight? Lay them side by side." Compare with the library's
+   pieces (the seed files) and with sums of them (two medium straights, a
+   long and a short). Take the library's figure on a yes; keep the photo's on
+   a no. Never ask for a ruler where laying two pieces together answers it.
+3. **Measured with a ruler: only what can block a train, and only when it's
+   close.** The clear height over the road (the road's top face, where the
+   wheels run, to the underside of the lowest thing spanning it: a roof, a
+   cross bar, an arch). Estimate it first from the side photo (below): the
+   app's trains stand 55 mm above the road (`clearance()` in
+   `engine/data/calibration.ts`), so under 70 mm is close and needs a ruler;
+   over that, the estimate stands. The same for the clear width between walls
+   either side of the road, when it looks narrower than a train. Nothing
+   spans the road, or it clears easily: no ruler at all. For each, show an
+   SVG of exactly what to measure (the two faces, the line, the unit;
+   `docs/calibration-sheet.html` shows the style) and ask for the reading
+   and a photo of the ruler against the piece, here in the chat.
+
+Everything else is **inferred**, never asked: decoration, side walls, arches,
+outer widths, where a structure starts and ends along the piece.
+
+- **The side view comes from the side photo, traced.** Crop it
+  (`photoCrop.ts`) where the outline turns, read those points, and scale them
+  by the piece's own length along its bottom edge in the same photo (the top
+  views gave that length): a ratio, no script of your own. A grid behind or under the piece doesn't help: it
+  stands at another distance from the camera than the piece's near face, so
+  it gives the wrong scale. Round to the millimetre.
+- **Widths seen from above come from the top views,** by `photoMeasure.ts`
+  like any figure; a face higher or lower than the track's top reads a little
+  long or short, which is fine for these.
+- **Show the drawing beside the side photo** and ask the sender: does it
+  match the shape? Redraw what they say is wrong before step 8.
+- In the piece's `source`, say which figures were inferred and from which
+  photo, which were suggested and confirmed, and which a ruler gave.
 
 ### 8. Draw it
 
