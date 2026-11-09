@@ -36,6 +36,14 @@ const MIN_STEP = 15;
  * little darker than its paper.
  */
 const MIN_DARK_STEP = 40;
+/**
+ * Grey plastic's edge can follow the seed (its shadow is as grey as it is): on
+ * the #204 station one end moved 0.5 to 2.4mm as the seed moved 9px. So it is
+ * read from seeds this far apart along the axis, mm; readings spread past
+ * STEADY_SPREAD are dropped, and at least STEADY_MIN left must agree within
+ * STEADY_AGREE, or the end is not found and the hand reading stays.
+ */
+const STEADY_SEEDS = [-1.5, -1, -0.5, 0, 0.5, 1, 1.5], STEADY_SPREAD = 0.5, STEADY_MIN = 3, STEADY_AGREE = 0.3;
 
 /**
  * The red–green average minus blue: high on beech (70 on the synthetic one,
@@ -97,13 +105,13 @@ export function refineEnd(img: RgbImage, map: PaperMap, seed: Pt, other: Pt): Re
   const axis: Pt = [(s[0] - o[0]) / len, (s[1] - o[1]) / len]; // outward, along the plank
   const across: Pt = [-axis[1], axis[0]];
   const at = (c: number, t: number): Pt => paperToPixel(map, [s[0] + across[0] * c + axis[0] * t, s[1] + across[1] * c + axis[1] * t]);
-  // Edge samples: where `level` steps down by at least `minStep` from the piece to the paper.
-  const edges = (level: (img: RgbImage, p: Pt) => number, minStep: number): [number, number][] => {
+  // Edge samples: where `level` steps down by at least `minStep` from the piece to the paper, searched round `from` mm along the axis.
+  const edges = (level: (img: RgbImage, p: Pt) => number, minStep: number, from = 0): [number, number][] => {
     const found: [number, number][] = [];
     for (const side of [-1, 1]) {
       for (let c = SHOULDER_IN; c <= SHOULDER_OUT + 1e-9; c += 0.25) {
         const ts: number[] = [], vs: number[] = [];
-        for (let t = -SEARCH; t <= SEARCH + 1e-9; t += 0.05) {
+        for (let t = from - SEARCH; t <= from + SEARCH + 1e-9; t += 0.05) {
           ts.push(t);
           vs.push(level(img, at(side * c, t)));
         }
@@ -123,16 +131,27 @@ export function refineEnd(img: RgbImage, map: PaperMap, seed: Pt, other: Pt): Re
     }
     return found;
   };
-  const wood = edges(woodness, MIN_STEP);
-  const found = wood.length >= 8 ? wood : edges(darkness, MIN_DARK_STEP);
+  const wood = fit(edges(woodness, MIN_STEP));
+  if (wood) return { px: at(0, wood.a), samples: wood.n, spreadMm: wood.spread, slope: wood.b };
+  const steady = STEADY_SEEDS.map((from) => fit(edges(darkness, MIN_DARK_STEP, from))).filter((f) => f !== null && f.spread <= STEADY_SPREAD) as Fit[];
+  if (steady.length < STEADY_MIN) return null;
+  const ends = steady.map((f) => f.a).sort((x, y) => x - y);
+  if (ends.at(-1)! - ends[0]! > STEADY_AGREE) return null;
+  const mid = steady.find((f) => f.a === ends[Math.floor(ends.length / 2)])!;
+  return { px: at(0, mid.a), samples: mid.n, spreadMm: mid.spread, slope: mid.b };
+}
+
+interface Fit { readonly a: number; readonly b: number; readonly n: number; readonly spread: number }
+
+/** Least squares t = a + b·c through the edge samples (the end's centre is at c = 0), or null under eight samples. */
+function fit(found: readonly [number, number][]): Fit | null {
   if (found.length < 8) return null;
-  // Least squares t = a + b·c; the end's centre is at c = 0.
   const n = found.length;
   const mc = found.reduce((q, [c]) => q + c, 0) / n, mt = found.reduce((q, [, t]) => q + t, 0) / n;
   const b = found.reduce((q, [c, t]) => q + (c - mc) * (t - mt), 0) / found.reduce((q, [c]) => q + (c - mc) ** 2, 0);
   const a = mt - b * mc;
   const spread = Math.sqrt(found.reduce((q, [c, t]) => q + (t - (a + b * c)) ** 2, 0) / n);
-  return { px: at(0, a), samples: n, spreadMm: spread, slope: b };
+  return { a, b, n, spread };
 }
 
 /** True when a piece's two ends lie either side of the photo's centre row or column, so both face away from the camera. */
