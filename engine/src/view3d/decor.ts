@@ -13,11 +13,10 @@
 
 import type { Segment } from '../geom/fk.js';
 import { domeHalfWidth, domeTop } from '../parts/dome.js';
+import { TRUSS_CHORD_MM, TRUSS_HALF_MM, trussChord } from '../parts/truss.js';
 import type { DecorArch, DecorBarrier, DecorCanopy, DecorDome, DecorPrism, DecorStation, DecorTowers, DecorTruss, DecorVault, DecorWheel, DrawnShape, Part } from '../parts/schema.js';
 
-/** A truss arch's chords in 3D: this deep, and twice this across. */
-export const TRUSS_CHORD_MM = 4;
-export const TRUSS_HALF_MM = 2;
+export { TRUSS_CHORD_MM, TRUSS_HALF_MM } from '../parts/truss.js';
 /** A truss arch's verticals and hangers stand this far apart along the road. */
 export const TRUSS_STEP_MM = 12;
 /** A cable's lowest point clears the road by this much. */
@@ -192,18 +191,16 @@ function drawStones(v: DecorVault, f: ShapeFrame, pen: Pen): void {
  * at each cut.
  */
 function drawTruss(t: DecorTruss, f: ShapeFrame, pen: Pen): void {
-  const { fromMm, toMm, springMm, crownMm, innerCrownMm, sideMm } = t;
+  const { fromMm, toMm, crownMm, innerCrownMm, sideMm } = t;
   const floor = f.floorMm;
   const lo = t.drawnFromMm ?? fromMm, hi = t.drawnToMm ?? toMm;
   // Along the piece, from its start: the box starts where the drawn stretch does.
   const at = (a: number, across: number, z: number) => f.at(a - lo, across, z);
   const shown = (a: number) => a > lo && a < hi;
-  /** A circular chord through both springings and its crown, as height above the table. */
+  /** A chord through both springings and its crown, as height above the table. */
   const chord = (crown: number) => {
-    const half = (toMm - fromMm) / 2, rise = crown - springMm;
-    if (t.parabolic) return (a: number) => floor + springMm + rise * (1 - ((a - fromMm - half) / half) ** 2);
-    const r = (half * half + rise * rise) / (2 * rise);
-    return (a: number) => floor + crown - (r - Math.sqrt(Math.max(0, r * r - (a - fromMm - half) ** 2)));
+    const above = trussChord(t, crown);
+    return (a: number) => floor + above(a);
   };
   const outer = chord(crownMm), inner = chord(innerCrownMm);
   // An even count, so a step lands on the crown.

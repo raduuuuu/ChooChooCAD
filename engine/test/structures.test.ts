@@ -446,6 +446,16 @@ describe('the harbour arch bridge (Sydney bridge plan 2026-11-03)', () => {
    * MUTATION PROOF, run: deckClearanceMm left out of the solver's bridge test
    * fails with `expected [] to deeply equal [ { bridge: 'hb', under: 'under' } ]`.
    */
+  /*
+   * MUTATION PROOF, run (2026-11-09): the arch drawing only again (no solid
+   * ribs): `expected [] to deeply equal [ 'hb over' ]`.
+   */
+  it('track two levels up, across the middle, runs into its arch (owner, 2026-11-09)', () => {
+    // The arch's crown at 142.5 reaches level 2 (122 up); level 3 (183 up) clears it.
+    expect(clashes(scene([hb, ['over', 'A', at(108, -72, 4, 2)]]))).toEqual(['hb over']);
+    expect(clashes(scene([hb, ['above', 'A', at(108, -72, 4, 3)]]))).toEqual([]);
+  });
+
   it('lists floor track under its deck for its room sentence (next-parts R2)', () => {
     const g = scene([hb, ['under', 'A', at(108, -72, 4)]]);
     const r = solveGraph(g, ports, resolve, () => 0, placeAll(g, ports));

@@ -37,6 +37,7 @@
 import { isStructure, type BodyBox, type DecorBox, type DecorShape, type DimensionSource, type DrawnShape, type Part } from '../src/parts/schema.js';
 import { DIMENSION_TRUST, trustRank, type DimensionStatus } from '../src/parts/schema.js';
 import { portsOf } from '../src/graph/model.js';
+import { TRUSS_HALF_MM, TRUSS_RIB_STEP_MM, trussChord } from '../src/parts/truss.js';
 import { GENERIC_PARTS } from './generic.js';
 import { CLEARANCE, RAMP_SEEDS } from './rampSeeds.js';
 import { DECORATED_SEEDS, type DecoratedSpec } from './decoratedSeeds.js';
@@ -74,9 +75,10 @@ export function decorLevels(bottomMm: number, topMm: number, riseMm: number): re
  * THE BOXES A PART'S SHAPES TAKE UP (eng D4, D9, D10), derived, never written
  * by hand: each box at the whole levels its heights reach, carrying those
  * heights for drawing. A slab is its own box; a vault collides with its two
- * walls and its roof, and one more box, not solid, draws it; a truss, an
- * arch band or a bridge's towers is drawing only, one box that draws it and
- * never collides. A shape with no height is a seed error, refused when the
+ * walls and its roof, and one more box, not solid, draws it; a truss arch
+ * collides only where it rises past one level, its two ribs from there up;
+ * an arch band or a bridge's towers is drawing only, one box that draws it
+ * and never collides. A shape with no height is a seed error, refused when the
  * library loads.
  */
 export function decorBoxesOf(owner: string, decor: readonly DecorShape[], riseMm: number): DecorBox[] {
@@ -117,7 +119,21 @@ export function decorBoxesOf(owner: string, decor: readonly DecorShape[], riseMm
         // The box covers the stretch drawn: the whole arch, or the part a cut leaves.
         const from = shape.drawnFromMm ?? shape.fromMm, to = shape.drawnToMm ?? shape.toMm;
         if (!(from >= shape.fromMm && to <= shape.toMm && from < to)) throw new Error(`${owner}: a truss arch's drawn stretch must lie within the arch, and be longer than nothing.`);
-        return [boxOf('footprint', [(from + to) / 2, 0], to - from, 2 * shape.sideMm, shape.springMm, shape.crownMm, drawOnly(shape))];
+        /*
+         * Where its outer chord rises past one level (the ramp's rise), each rib
+         * is solid from that height up, so raised track through the arch clashes
+         * (owner, 2026-11-09); lower, and its low ends, it never collides. Cut
+         * into steps, each as tall as the chord's highest point over it.
+         */
+        const outer = trussChord(shape, shape.crownMm), crownAt = (shape.fromMm + shape.toMm) / 2;
+        const steps = Math.max(1, Math.ceil((to - from) / TRUSS_RIB_STEP_MM));
+        const ribs = Array.from({ length: steps }, (_, i) => [from + ((to - from) * i) / steps, from + ((to - from) * (i + 1)) / steps] as const).flatMap(([a0, a1]) => {
+          const top = Math.max(outer(a0), outer(a1), crownAt > a0 && crownAt < a1 ? shape.crownMm : -Infinity);
+          return top > riseMm
+            ? [1, -1].map((side) => boxOf('wall', [(a0 + a1) / 2, side * shape.sideMm], a1 - a0, 2 * TRUSS_HALF_MM, riseMm, top, { solid: true, draw: false, ...noun }))
+            : [];
+        });
+        return [...ribs, boxOf('footprint', [(from + to) / 2, 0], to - from, 2 * shape.sideMm, shape.springMm, shape.crownMm, drawOnly(shape))];
       }
       case 'arch': {
         const crown = shape.baseMm + shape.riseMm;
