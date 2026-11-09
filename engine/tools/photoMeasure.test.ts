@@ -288,8 +288,8 @@ describe('the command line', () => {
 
   it('bad usage exits 2 with USAGE and its code first, the fix last', () => {
     const t = io({ 'p.json': { figures: { o: { point: [1, 1], line: [[0, 0], [9, 9]], read: 'offset' } } } });
-    expect(main(['p.json', '--json'], t.io)).toBe(2);
-    expect(t.err[0]).toMatch(/^USAGE usage: unknown flag --json\n/);
+    expect(main(['p.json', '--jsn'], t.io)).toBe(2);
+    expect(t.err[0]).toMatch(/^USAGE usage: unknown flag --jsn\n/);
     expect(main(['p.json'], t.io)).toBe(2);
     expect(t.err[1]).toMatch(/^USAGE needs-photo: /);
     expect(t.err[1]!.split('\n').at(-1)).toBe(CODES['needs-photo'].fix);

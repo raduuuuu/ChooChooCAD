@@ -25,6 +25,9 @@ export const ZOOM = 4;
 /** A crop's file name, so the photo check can leave crops out of a folder of photos. */
 export const CROP = /\.crop-\d+-\d+-\d+\.png$/;
 
+/** An overlay's file name (photoMeasure --overlay), left out of a folder of photos too. */
+export const OVERLAY = /\.overlay\.png$/;
+
 /** Where the crop of `photo` through window `w` is written: beside the photo. */
 export function cropPath(photo: string, w: Window): string {
   return join(dirname(photo), `${basename(photo).replace(/\.[^.]+$/, '')}.crop-${w.x0}-${w.y0}-${w.side}.png`);

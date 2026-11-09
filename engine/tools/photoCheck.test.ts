@@ -256,14 +256,17 @@ describe('checking a folder', () => {
    * The drawing skill crops top views to read ends by hand (the #204 dry run).
    * MUTATION PROOF, run (2026-11-09): the crop filter removed:
    * `expected [ 'side.bmp: OK', …(1) ] to deeply equal [ 'side.bmp: OK' ]`
-   * (the crop read as `side.crop-0-0-120.png: OK`).
+   * (the crop read as `side.crop-0-0-120.png: OK`). The overlay filter removed
+   * (2026-11-09): `expected [ 'side.bmp: OK', …(1) ] to deeply equal
+   * [ 'side.bmp: OK' ]` (the overlay read as `side.overlay.png: OK`).
    */
-  it('leaves out a crop left beside a photo', () => {
+  it('leaves out a crop or an overlay left beside a photo', () => {
     const dir = mkdtempSync(join(tmpdir(), 'photos-'));
     try {
       const blank: RgbImage = { width: 200, height: 150, rgb: new Uint8Array(200 * 150 * 3).fill(200) };
       writeFileSync(join(dir, 'side.bmp'), bmp(blank));
       writeFileSync(join(dir, cropPath('side.bmp', { x0: 0, y0: 0, side: 120 })), bmp(blank));
+      writeFileSync(join(dir, 'side.overlay.png'), bmp(blank));
       const lines: string[] = [];
       checkFolder(dir, (l) => lines.push(l), { locationOnly: true });
       expect(lines).toEqual(['side.bmp: OK']);
