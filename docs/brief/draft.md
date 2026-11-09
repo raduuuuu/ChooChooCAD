@@ -101,7 +101,9 @@ Ask for (the photo guide, `app/photo-guide.html` in the clone, has the steps):
 - **The top view, twice:** the piece and the medium straight lying flat on the
   paper, about 2 cm apart, every piece across the middle of the photo, the
   phone held level straight above the middle of the sheet, nothing cropped.
-  Move the pieces between the two photos.
+  The camera zoomed to **2x** (not 1x, never 0.5x or portrait mode), the
+  phone about 60 to 80 cm up so both pieces and a ring of grid fit. Move the
+  pieces between the two photos.
 - **A side photo** (required): the piece standing on a table, the phone level
   with it, 30 to 40 cm away, the whole piece in the picture. No paper.
 - **On a first piece, the long straight twice**, beside the medium straight,
