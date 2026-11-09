@@ -152,6 +152,11 @@ describe('the grid and the reference, by the scale table', () => {
     }
   }, 120_000);
 
+  /*
+   * MUTATION PROOF, run (2026-11-09): a warm paper's failure not renamed:
+   * `expected { kind: 'refused', …(3) } to match object …`, code `reference-unread`
+   * instead of `paper-warm`.
+   */
   it('no grid at any scale: grid-not-found; warm paper: paper-warm, naming its warmth', () => {
     const blank: RgbImage = { width: 400, height: 300, rgb: new Uint8Array(400 * 300 * 3).fill(200) };
     expect(measure({ figures: { x: { kind: 'distance', ends: [[10, 10], [200, 200]] } } }, blank)).toMatchObject({ kind: 'refused', refused: { code: 'grid-not-found' } });

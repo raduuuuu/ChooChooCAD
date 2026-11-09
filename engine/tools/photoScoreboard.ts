@@ -32,6 +32,9 @@ const EXPECT: readonly [string, Want, string][] = [
   ['85582', 'ok', 'pink paper, red ink, an orange and grey piece; the reference\'s shadow on the paper'],
   ['85784', /touch/, 'pink paper, the orange roof over the whole middle, 1cm from the straight (read as warm paper, then as no grid, before 2026-11-09)'],
   ['85785', 'ok', 'pink paper, the same piece from further back'],
+  ['85844', 'ok-long', 'white paper under a warm evening lamp, paper 19 green over blue: the trial (refused as warm paper before 2026-11-09)'],
+  ['85845', 'ok-long', 'the same lamp, paper 13: under wood\'s bar, but its grid read as wood unbalanced (no grid before 2026-11-09)'],
+  ['85846', 'ok', 'the same lamp, a bridge beside the reference'],
 ];
 
 export function score(dir: string, print: (line: string) => void = console.log): number {

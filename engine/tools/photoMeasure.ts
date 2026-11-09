@@ -41,7 +41,7 @@ import { findGrid, pixelToPaper, WOOD_GREEN_OVER_BLUE, type FoundGrid } from './
 import { findGridAuto } from './photoGridSeed.js';
 import { loadUpright, PhotoError, writePng, type RgbImage } from './photoImage.js';
 import { drawOverlay, type KeyRow } from './photoOverlay.js';
-import { AUTO_GRID_RMS_MAX_MM, findWood, gridAndPlanks, namePlanks, paperWarmth, type Plank } from './photoStraights.js';
+import { AUTO_GRID_RMS_MAX_MM, BALANCE_ABOVE, balanced, findWood, gridAndPlanks, namePlanks, paperWarmth, type Plank } from './photoStraights.js';
 
 // ── The points file ──────────────────────────────────────────────────────────
 
@@ -263,8 +263,21 @@ const endOf = (seed: Pt, r: RefinedEnd | null, why = 'no clean edge found there'
   r ? { seed, at: r.px, refined: true, samples: r.samples, spreadMm: r.spreadMm } : { seed, at: seed, refined: false, reason: why };
 const kept = (seed: Pt, why: string): End => ({ seed, at: seed, refined: false, reason: why });
 
-/** Every figure in one photo, or why the photo is refused. Pure: the points and the pixels in, one result out. */
+/**
+ * Every figure in one photo, or why the photo is refused. Pure: the points and the pixels in, one result out.
+ * A warm paper (a warm lamp) is read balanced on itself; one as warm as wood is named only when the grid or the
+ * reference still can't be read. Any other photo is read as loaded.
+ */
 export function measure(points: Points, img: RgbImage): MeasureResult {
+  const warmth = paperWarmth(img), warm = warmth > WOOD_GREEN_OVER_BLUE;
+  const r = measurePixels(points, warmth > BALANCE_ABOVE ? balanced(img) : img);
+  if (r.kind === 'refused' && warm && (r.refused.code === 'grid-not-found' || r.refused.code === 'reference-unread')) {
+    return { ...r, refused: refusal('paper-warm', `the paper reads ${warmth} green over blue, as warm as wood (over ${WOOD_GREEN_OVER_BLUE}), and ${r.refused.reason}: cream or yellow paper, or a very warm lamp`) };
+  }
+  return r;
+}
+
+function measurePixels(points: Points, img: RgbImage): MeasureResult {
   const photo = { width: img.width, height: img.height };
   const centre: Pt = [img.width / 2, img.height / 2];
   const inPhoto = ([x, y]: Pt) => x >= 0 && y >= 0 && x <= img.width - 1 && y <= img.height - 1;
@@ -276,11 +289,6 @@ export function measure(points: Points, img: RgbImage): MeasureResult {
 
   for (const [i, g] of (points.grid ?? []).entries()) if (!inPhoto(g.px)) return refuse('point-outside', outside(`grid[${i}]`, g.px));
   for (const i of [0, 1] as const) if (points.reference && !inPhoto(points.reference[i])) return refuse('point-outside', outside(`reference[${i}]`, points.reference[i]));
-
-  const warmth = paperWarmth(img);
-  if (warmth > WOOD_GREEN_OVER_BLUE) {
-    return refuse('paper-warm', `the paper reads ${warmth} green over blue, as warm as wood (over ${WOOD_GREEN_OVER_BLUE}): cream or yellow paper, or a warm lamp`);
-  }
 
   // The grid and the reference, by the scale table above.
   let grid: FoundGrid, gridUsed: GridUsed, refEnds: readonly [End, End], refSource: 'given' | 'found';

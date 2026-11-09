@@ -127,13 +127,27 @@ describe('two sheets in view', () => {
 
 describe('paper as warm as the wood', () => {
   /*
-   * MUTATION PROOF, run (2026-11-08): paperTooWarm skipped: `expected [ Array(1) ] to deeply
-   * equal [ StringMatching{…} ]` (read on, it fails later for the wrong reason).
+   * MUTATION PROOF, run (2026-11-09): the warm branch in checkImage removed:
+   * `expected [ Array(1) ] to deeply equal [ StringMatching{…} ]` (another
+   * reshoot reason, not what paper to use).
    */
   it('is refused with what paper to use, not read', () => {
     const c = checkImage(drawPhoto(0, 'cream'));
     expect(c.problems).toEqual([expect.stringMatching(/use white, blue or pink millimetre paper/)]);
     expect(c.longMm).toBeUndefined();
+  }, 30_000);
+
+  /*
+   * MUTATION PROOF, run (2026-11-09): read without balancing (the photo as
+   * loaded): `expected [ Array(1) ] to deeply equal []`, the problem "the paper
+   * is as warm a colour as the wood…", as the owner's evening photos were.
+   */
+  it('is not what a warm lamp gives white paper: balanced on the paper, it reads as in daylight', () => {
+    const lamp = drawPhoto(0, 'lamp');
+    expect(paperTooWarm(lamp)).toBe(true);
+    const c = checkImage(lamp);
+    expect(c.problems).toEqual([]);
+    expect(Math.abs(c.longMm! - 216)).toBeLessThan(0.3);
   }, 30_000);
 });
 
