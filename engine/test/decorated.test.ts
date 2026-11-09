@@ -524,9 +524,52 @@ describe('a truss arch cut at a piece\'s end (the double-arch bridge, 2026-11-09
    * `expected 143 to be 71.5 // Object.is equality`.
    */
   it('takes up only the stretch drawn, and refuses a stretch outside the arch', () => {
-    const [box] = decorBoxesOf('test', [half], 61);
+    const box = decorBoxesOf('test', [half], 61).find((b) => b.draw);
     expect(box!.lengthMm).toBe(71.5);
     expect(box!.atMm[0]).toBeCloseTo(35.75, 9);
     expect(() => decorBoxesOf('test', [{ ...half, drawnToMm: 80 }], 61)).toThrow(/drawn stretch must lie within the arch/);
+  });
+});
+
+describe('a truss arch blocks raised track where it rises past one level (owner, 2026-11-09)', () => {
+  const RISE = 61;
+  const tall: DecorTruss = { kind: 'truss', fromMm: 15, toMm: 158, springMm: 23, crownMm: 126, innerCrownMm: 116, sideMm: 28.6, hangers: 0, parabolic: true, braced: false };
+  const ribs = (t: DecorTruss) => decorBoxesOf('test', [t], RISE).filter((b) => b.solid);
+
+  /*
+   * MUTATION PROOF, run (2026-11-09): the ribs left out (drawing only, as
+   * before): `expected 0 to be greater than 0`.
+   */
+  it('is solid on both ribs from the ramp\'s height up, only where its chord is past it', () => {
+    const solid = ribs(tall);
+    expect(solid.length).toBeGreaterThan(0);
+    expect(new Set(solid.map((b) => b.atMm[1]))).toEqual(new Set([28.6, -28.6]));
+    for (const b of solid) {
+      expect(b.bottomMm).toBe(RISE);
+      expect(b.levels[0]).toBe(1);
+    }
+    // The low ends are not solid: the parabola passes 61 this far from each springing (14.7),
+    // and the first solid step starts no more than one step (12) before that.
+    const past = 71.5 * (1 - Math.sqrt(1 - (RISE - 23) / (126 - 23)));
+    const along = solid.map((b) => [b.atMm[0] - b.lengthMm / 2, b.atMm[0] + b.lengthMm / 2]);
+    const first = Math.min(...along.map(([a]) => a!)), last = Math.max(...along.map(([, z]) => z!));
+    expect(first).toBeGreaterThan(15);
+    expect(first).toBeGreaterThan(15 + past - 12);
+    expect(last).toBeLessThan(158);
+    expect(last).toBeLessThan(158 - past + 12);
+    expect(Math.max(...solid.map((b) => b.topMm))).toBe(126);
+  });
+
+  /*
+   * MUTATION PROOF, run (2026-11-09): the ribs solid from where the arch
+   * springs, whatever its height: `expected [ { role: 'wall', …(8) }, …(23) ]
+   * to deeply equal []`.
+   */
+  it('a low arch, under one level, never collides', () => {
+    expect(ribs({ ...tall, crownMm: 55, innerCrownMm: 50 })).toEqual([]);
+  });
+
+  it('a cut arch is solid only over the stretch drawn', () => {
+    for (const b of ribs({ ...tall, drawnFromMm: 86.5 })) expect(b.atMm[0] - b.lengthMm / 2).toBeGreaterThanOrEqual(86.5 - 1e-9);
   });
 });

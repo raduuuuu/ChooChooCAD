@@ -7,7 +7,7 @@
 
 # Draw a missing track piece with your Claude
 
-Brief version: **draft-4, 2026-11-09**
+Brief version: **draft-5, 2026-11-09**
 
 ## For the person reading this
 
@@ -21,7 +21,7 @@ hour:
   straight** (216 mm);
 - a sheet of white, blue or pink millimetre or graph paper (not cream or
   yellow), and a phone;
-- perhaps a ruler: only for a tight height or width where a train passes.
+- perhaps a ruler: only for a tight height where a train passes under something.
 
 Your Claude measures the piece with this project's own tools, draws it, and
 writes the text of a GitHub issue for you to post. Your photos stay in this
@@ -166,9 +166,9 @@ into one of three, and tell the sender the list before asking anything:
    cross bar, an arch). Estimate it first from the side photo (below): the
    app's trains stand 55 mm above the road (`clearance()` in
    `engine/data/calibration.ts`), so under 70 mm is close and needs a ruler;
-   over that, the estimate stands. The same for the clear width between walls
-   either side of the road, when it looks narrower than a train. Nothing
-   spans the road, or it clears easily: no ruler at all. For each, show an
+   over that, the estimate stands. Nothing spans the road, or it clears
+   easily: no ruler at all. Widths are never measured for passage: the app
+   has no train width (owner, 2026-11-09). For each, show an
    SVG of exactly what to measure (the two faces, the line, the unit;
    `docs/calibration-sheet.html` shows the style) and ask for the reading
    and a photo of the ruler against the piece, here in the chat.

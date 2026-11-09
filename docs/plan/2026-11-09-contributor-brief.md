@@ -1032,9 +1032,11 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
         (a circular one can't rise past a semicircle, so #231 used parabolic);
         `--location-only` doesn't look in sub-folders (the skill's order keeps it
         safe; draft-2 dropped the step).
-      - For the owner: drawn-only arches don't collide, so a raised track through
-        #231's arches isn't flagged, only its cross bars; and the app records no
-        train width, so step 7's clear-width check is judgement.
+      - Owner, 2026-11-09: arches block track where they rise past the ramp's
+        height ("arches should block track if their height exceeds the ramp
+        height"): a truss arch's ribs are solid from one level up wherever its
+        chord passes it. No train width ("train width is not needed"): draft-5
+        drops step 7's clear-width check.
     - Not yet run: an outsider's pilot, the phone path, a Free plan.
 - [ ] **T3 (P1, human: ~3 days / CC: ~1h)** — engine — export the share-link codec; the untrusted-part validator; `engine/tools/briefLink.ts`
   - Surfaced by: Section 1 (DRY codec), Section 3 (validator), spec review 2 (links by script), Codex 2 (geometry)
