@@ -29,14 +29,17 @@ export function mapFor(deg: number): PaperMap {
  * darker than 5mm ones; 'mm' adds faint 1mm lines and prints 5mm lines as dark
  * as 10mm ones (the owner's real paper); 'flat' prints 5mm as dark as 10mm with
  * no 1mm lines (only the reference's length can settle the scale); 'cream'
- * is the plain grid on a sheet as warm a colour as the wood; 'two' is the plain
+ * is the plain grid on a yellow-cream sheet that, balanced on itself, is
+ * within wood's bar of the beech (they can't be told apart); 'lamp' is the
+ * plain photo under a warm evening lamp, every colour tinted as the owner's
+ * white paper was (2026-11-09: green 0.89, blue 0.77 of red); 'two' is the plain
  * grid on two sheets side by side, the second (u past 90mm) 0.6mm out each way;
  * 'roof' is the plain grid with an orange roof over the photo's whole central
  * half (the #204 station's, as a large piece is photographed), hiding the straights;
  * 'wavy' is the plain grid printed on a sheet that isn't flat, its lines
  * waving 0.7mm either way (no single map fits it).
  */
-export function drawPhoto(deg: number, paper: 'plain' | 'mm' | 'flat' | 'cream' | 'two' | 'roof' | 'wavy' = 'plain'): RgbImage {
+export function drawPhoto(deg: number, paper: 'plain' | 'mm' | 'flat' | 'cream' | 'lamp' | 'two' | 'roof' | 'wavy' = 'plain'): RgbImage {
   const map = mapFor(deg);
   const rgb = new Uint8Array(W * H * 3);
   const near = (q: number, step: number) => Math.abs(q - step * Math.round(q / step));
@@ -46,7 +49,7 @@ export function drawPhoto(deg: number, paper: 'plain' | 'mm' | 'flat' | 'cream' 
       const [u, v] = pixelToPaper(map, [x, y]);
       const [gu, gv] = paper === 'two' && u > 90 ? [u + 0.6, v + 0.6]
         : paper === 'wavy' ? [u + 0.7 * Math.sin(v / 9), v + 0.7 * Math.sin(u / 9)] : [u, v];
-      let rgbv: [number, number, number] = paper === 'cream' ? [209, 183, 162] : [196, 205, 214]; // paper (cream: measured on a real sheet)
+      let rgbv: [number, number, number] = paper === 'cream' ? [215, 185, 140] : [196, 205, 214]; // paper
       if (u >= 0 && u <= 180 && v >= 0 && v <= 260) {
         const ten = near(gu, 10) < 0.18 || near(gv, 10) < 0.18, five = near(gu, 5) < 0.14 || near(gv, 5) < 0.14;
         if (ten || (five && paper !== 'plain')) rgbv = [163, 179, 189];
@@ -55,6 +58,7 @@ export function drawPhoto(deg: number, paper: 'plain' | 'mm' | 'flat' | 'cream' 
       } else rgbv = [120, 160, 90]; // a green table past the sheet
       if (inside(MEDIUM, u, v) || inside(LONG, u, v)) rgbv = [205, 165, 115]; // beech
       if (paper === 'roof' && x > W / 4 - 20 && x < (3 * W) / 4 + 20 && y > H / 4 - 20 && y < (3 * H) / 4 + 20) rgbv = [235, 120, 40];
+      if (paper === 'lamp') rgbv = [rgbv[0], Math.round(rgbv[1] * 0.89), Math.round(rgbv[2] * 0.77)];
       const k = (y * W + x) * 3;
       rgb[k] = rgbv[0]; rgb[k + 1] = rgbv[1]; rgb[k + 2] = rgbv[2];
     }

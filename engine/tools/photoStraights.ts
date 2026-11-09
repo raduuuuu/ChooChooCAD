@@ -263,26 +263,64 @@ export function gridAndPlanks(img: RgbImage): Found | { reason: string } {
 }
 
 /**
- * True when the paper is as warm as wood: green over blue past wood's bar on
- * the paper. The paper is read as the brightest quarter of the whole photo, at
- * its 25th percentile: paper is the brightest thing in it, and a large orange
- * piece can fill the middle (a station's roof read 31 there on pink paper).
- * Measured (2026-11-09): white, blue and pink papers 6 or less; cream paper
- * with orange lines 18, where wood and paper can't be told apart.
+ * The paper's pixels, sampled every 4th pixel: the brightest quarter of the
+ * whole photo. Paper is the brightest thing in it, and a large orange piece
+ * can fill the middle (a station's roof read 31 there on pink paper).
  */
+function paperPixels(img: RgbImage): (readonly [number, number, number])[] {
+  const px: (readonly [number, number, number])[] = [];
+  for (let y = 0; y < img.height; y += 4) {
+    for (let x = 0; x < img.width; x += 4) {
+      const i = (y * img.width + x) * 3;
+      px.push([img.rgb[i]!, img.rgb[i + 1]!, img.rgb[i + 2]!]);
+    }
+  }
+  const sum = (p: readonly number[]) => p[0]! + p[1]! + p[2]!;
+  return px.sort((a, b) => sum(a) - sum(b)).slice(px.length - (px.length >> 2));
+}
+
+/**
+ * True when the paper is as warm as wood: green over blue past wood's bar on
+ * the paper, read at the paper pixels' 25th percentile. Measured (2026-11-09):
+ * white, blue and pink papers 6 or less in daylight; cream paper with orange
+ * lines 18, where wood and paper can't be told apart; white paper under a warm
+ * evening lamp 13 to 19. The last reads fine once balanced, so a warm paper
+ * refuses a photo only when it still can't be read (photoCheck, measure).
+ */
+/**
+ * Paper past this green over blue is read balanced (a warm lamp): daylight
+ * papers read 6 or less, lamp-lit white 13 to 19. Balancing only past wood's
+ * bar (14) was run (2026-11-09): 85845, at 13, found no grid.
+ */
+export const BALANCE_ABOVE = 10;
+
 export function paperTooWarm(img: RgbImage): boolean {
   return paperWarmth(img) > WOOD_GREEN_OVER_BLUE;
 }
 
 /** The paper's green over blue, read as paperTooWarm reads it, so a refusal can name it. */
 export function paperWarmth(img: RgbImage): number {
-  const px: [number, number][] = [];
-  for (let y = 0; y < img.height; y += 4) {
-    for (let x = 0; x < img.width; x += 4) {
-      const i = (y * img.width + x) * 3;
-      px.push([img.rgb[i]! + img.rgb[i + 1]! + img.rgb[i + 2]!, img.rgb[i + 1]! - img.rgb[i + 2]!]);
-    }
-  }
-  const bright = px.sort((a, b) => a[0] - b[0]).slice(px.length - (px.length >> 2)).map((p) => p[1]).sort((a, b) => a - b);
-  return bright.length > 0 ? bright[bright.length >> 2]! : 0;
+  const gb = paperPixels(img).map((p) => p[1] - p[2]).sort((a, b) => a - b);
+  return gb.length > 0 ? gb[gb.length >> 2]! : 0;
+}
+
+/**
+ * The photo with its colour balanced on the paper: each channel scaled so the
+ * paper's median is grey. A warm lamp tints paper and wood alike; balanced, the
+ * paper reads near 0 green over blue and beech still 28 to 33 (2026-11-09,
+ * white paper at 13 to 19 before), so the grid and the planks are found by
+ * their colour as in daylight. Only a photo whose paper reads past
+ * BALANCE_ABOVE is balanced: balancing blue or pink paper grey moved the wood's warmth enough
+ * to lose two references the photo check reads unbalanced (84426, 85785).
+ */
+export function balanced(img: RgbImage): RgbImage {
+  const paper = paperPixels(img);
+  if (paper.length === 0) return img;
+  const median = ([0, 1, 2] as const).map((c) => paper.map((p) => p[c]).sort((a, b) => a - b)[paper.length >> 1]!);
+  if (median.some((m) => m === 0)) return img;
+  const grey = (median[0]! + median[1]! + median[2]!) / 3;
+  const gain = median.map((m) => grey / m);
+  const rgb = new Uint8Array(img.rgb.length);
+  for (let i = 0; i < rgb.length; i++) rgb[i] = Math.min(255, Math.round(img.rgb[i]! * gain[i % 3]!));
+  return { width: img.width, height: img.height, rgb };
 }

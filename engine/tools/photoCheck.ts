@@ -29,9 +29,9 @@ import { GRID_RESIDUAL_MAX_MM, scaleAndMeasure } from './photo.js';
 import { CROP, OVERLAY } from './photoCrop.js';
 import { straddlesCentre } from './photoEdges.js';
 import { hasLocation, stripMetadata } from './photoExif.js';
-import { pixelToPaper } from './photoGrid.js';
+import { pixelToPaper, WOOD_GREEN_OVER_BLUE } from './photoGrid.js';
 import { loadPhoto, type RgbImage } from './photoImage.js';
-import { AUTO_GRID_RMS_MAX_MM, gridAndPlanks, paperTooWarm } from './photoStraights.js';
+import { AUTO_GRID_RMS_MAX_MM, BALANCE_ABOVE, balanced, gridAndPlanks, paperWarmth } from './photoStraights.js';
 
 export interface ImageCheck {
   /** What to reshoot or fix, in plain words; empty when the photo is usable. */
@@ -42,10 +42,14 @@ export interface ImageCheck {
   readonly longMm?: number;
 }
 
+const WARM = 'the paper is as warm a colour as the wood, and they can\'t be told apart (cream or yellow paper, or a very warm lamp): use white, blue or pink millimetre paper, in daylight';
+
 /** One photo's pixels: grid, reference straight, and the long straight when present. */
-export function checkImage(img: RgbImage): ImageCheck {
-  if (paperTooWarm(img)) return { problems: ['the paper is as warm a colour as the wood (cream or yellow paper, or a warm lamp): use white, blue or pink millimetre paper, in daylight'] };
+export function checkImage(photo: RgbImage): ImageCheck {
+  // A warm paper (a warm lamp) is read balanced on itself; one as warm as wood is named only when that still fails.
+  const warmth = paperWarmth(photo), warm = warmth > WOOD_GREEN_OVER_BLUE, img = warmth > BALANCE_ABOVE ? balanced(photo) : photo;
   const found = gridAndPlanks(img);
+  if (warm && ('reason' in found || !found.planks.reference)) return { problems: [WARM] };
   if ('reason' in found) return { problems: [`no usable grid: ${found.reason}`] };
   const { grid } = found;
   const base = { gridPoints: grid.points.length, gridRmsMm: grid.rmsMm };
