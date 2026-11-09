@@ -17,7 +17,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, decorBoxesOf, makeResolver } from '../data/library.js';
 import { CLEARANCE } from '../data/rampSeeds.js';
-import { ACTION_TUNNEL_STATION } from '../data/trackDecorSeeds.js';
+import { ACTION_TUNNEL_STATION, DOUBLE_ARCH_BRIDGE } from '../data/trackDecorSeeds.js';
 import { add, fromInt, scale, zetaPow, type Cyc } from '../src/geom/cyclotomic.js';
 import { connectorSites } from '../src/graph/feasible.js';
 import { placeAll } from '../src/graph/frames.js';
@@ -25,7 +25,7 @@ import { portsOf, type Frame, type Graph, type Piece, type Port, type Weld } fro
 import { findPlankOverlaps } from '../src/graph/overlap.js';
 import { renderGraph } from '../src/graph/render.js';
 import { domeBarrel, domeTop } from '../src/parts/dome.js';
-import type { DecorDome, DecorPrism, DecorSlab, Part } from '../src/parts/schema.js';
+import type { DecorDome, DecorPrism, DecorSlab, DecorTruss, Part } from '../src/parts/schema.js';
 import { buildScene } from '../src/view3d/mesh.js';
 
 const resolve = makeResolver(BUILT_IN);
@@ -169,5 +169,56 @@ describe('the action tunnel station', () => {
     const across = windows.patches!.filter(([a, c, l, w]) => new Set([-1, 1].flatMap((i) => [-1, 1].map((j) => domeBarrel(windows, a + (i * l) / 2, c + (j * w) / 2)))).size > 1);
     expect(across).toEqual([]);
     expect(windows.patches!.length).toBeGreaterThan(20);
+  });
+});
+
+describe('the double-arch bridge', () => {
+  /*
+   * MUTATION PROOF, run: its length 216: `expected [ Array(2) ] to deeply
+   * equal [ Array(2) ]`.
+   */
+  it('is a 240 straight, joining a straight at both ends clear of its sides', () => {
+    expect([DOUBLE_ARCH_BRIDGE.lengthMm, DOUBLE_ARCH_BRIDGE.ends]).toEqual([240, { start: 'socket', end: 'peg' }]);
+    expect(DOUBLE_ARCH_BRIDGE.deck).toBeUndefined();
+    expect(clashes('DA', [['A', 0], ['A', 1]])).toEqual([]);
+  });
+
+  /*
+   * MUTATION PROOFS, run: the cross bars 60 to 66 up: `expected 48 to be
+   * greater than 55`; the sides 18 either side of the road: `expected -4 to
+   * be greater than 0`.
+   */
+  it('a train passes under its cross bars and between its sides', () => {
+    const slabs = DOUBLE_ARCH_BRIDGE.decor!.filter((d): d is DecorSlab => d.kind === 'slab');
+    const bars = slabs.filter((s) => s.noun === 'cross bar');
+    expect(bars).toHaveLength(2);
+    for (const b of bars) expect(b.bottomMm - DOUBLE_ARCH_BRIDGE.plankThicknessMm).toBeGreaterThan(CLEARANCE.trainMm);
+    for (const s of slabs.filter((x) => x.noun === 'side')) {
+      expect(Math.abs(s.atMm[1]) - s.widthMm / 2 - DOUBLE_ARCH_BRIDGE.plankWidthMm / 2).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('the double-arch bridge\'s arches (issue #231)', () => {
+  const trusses = DOUBLE_ARCH_BRIDGE.decor!.filter((d): d is DecorTruss => d.kind === 'truss');
+
+  /*
+   * MUTATION PROOF, run (2026-11-09): the half arches left out (as the issue
+   * drew it): `expected [ [ 15, 158 ], [ 85, 228 ] ] to deeply equal [ [ 15, 158 ], [ 85, 228 ], …(2) ]`.
+   */
+  it('draws two whole arches and a half arch at each end, cut at the band\'s ends', () => {
+    const drawn = trusses.map((t) => [t.drawnFromMm ?? t.fromMm, t.drawnToMm ?? t.toMm]);
+    expect(drawn).toEqual([[15, 158], [85, 228], [15, 86.5], [156.5, 228]]);
+  });
+
+  /*
+   * MUTATION PROOF, run (2026-11-09): the arches drawing only (no solid ribs
+   * in library.ts): `expected [] to deeply equal [ 'over p' ]`.
+   */
+  it('track one level up across it runs into its arches, even near an end; three levels up clears them', () => {
+    // A half arch's crown, 126, stands at the band's end, 15 along; level 3 starts at 183.
+    expect(clashes('DA', [], [['over', 'A', { ...at(120, -72, 4), level: 1 }]])).toEqual(['over p']);
+    expect(clashes('DA', [], [['end', 'A', { ...at(6, -72, 4), level: 1 }]])).toEqual(['end p']);
+    expect(clashes('DA', [], [['high', 'A', { ...at(120, -72, 4), level: 3 }]])).toEqual([]);
   });
 });
