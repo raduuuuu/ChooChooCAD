@@ -29,10 +29,9 @@ import { GRID_RESIDUAL_MAX_MM, scaleAndMeasure } from './photo.js';
 import { CROP } from './photoCrop.js';
 import { straddlesCentre } from './photoEdges.js';
 import { hasLocation, stripMetadata } from './photoExif.js';
-import { pixelToPaper, WOOD_GREEN_OVER_BLUE, type FoundGrid } from './photoGrid.js';
-import { findGridAuto } from './photoGridSeed.js';
+import { pixelToPaper } from './photoGrid.js';
 import { loadPhoto, type RgbImage } from './photoImage.js';
-import { findWood, namePlanks } from './photoStraights.js';
+import { AUTO_GRID_RMS_MAX_MM, gridAndPlanks, paperTooWarm } from './photoStraights.js';
 
 export interface ImageCheck {
   /** What to reshoot or fix, in plain words; empty when the photo is usable. */
@@ -41,56 +40,6 @@ export interface ImageCheck {
   readonly gridRmsMm?: number;
   /** The long straight read against the medium one, mm, when both are in the photo. */
   readonly longMm?: number;
-}
-
-/**
- * The most the automatic grid's crossings may disagree, rms mm. Stricter than
- * GRID_RESIDUAL_MAX_MM (a dozen hand-read points): hundreds of crossings on one
- * flat sheet measured 0.09 to 0.16 (2026-11-08, nine photos), two sheets side
- * by side 0.41; a measurement across two sheets is out by their misalignment.
- */
-export const AUTO_GRID_RMS_MAX_MM = 0.3;
-
-/**
- * The grid read at the scale that makes a plank the 144mm reference: the grid
- * finder can take 5mm lines for 10mm ones (or the reverse) on paper without
- * clear 1mm lines, which halves or doubles every length; the reference's known
- * length decides. Scale 1 first, then 2, then 0.5.
- */
-type Found = { grid: FoundGrid; planks: ReturnType<typeof namePlanks>; tooWide: number };
-function gridAndPlanks(img: RgbImage): Found | { reason: string } {
-  // With no medium straight at any scale, the first scale that found a grid says why (not a scale that found none).
-  let first: Found | { reason: string } | null = null, firstGrid: Found | null = null;
-  for (const scale of [1, 2, 0.5]) {
-    const found = findGridAuto(img, scale);
-    const wood = 'reason' in found ? null : findWood(img, found.grid);
-    const attempt = 'reason' in found ? found : { grid: found.grid, planks: namePlanks(wood!.planks), tooWide: wood!.tooWide };
-    first ??= attempt;
-    if ('reason' in attempt) continue;
-    if (attempt.planks.reference) return attempt;
-    firstGrid ??= attempt;
-  }
-  return firstGrid ?? first!;
-}
-
-/**
- * True when the paper is as warm as wood: green over blue past wood's bar on
- * the paper. The paper is read as the brightest quarter of the whole photo, at
- * its 25th percentile: paper is the brightest thing in it, and a large orange
- * piece can fill the middle (a station's roof read 31 there on pink paper).
- * Measured (2026-11-09): white, blue and pink papers 6 or less; cream paper
- * with orange lines 18, where wood and paper can't be told apart.
- */
-export function paperTooWarm(img: RgbImage): boolean {
-  const px: [number, number][] = [];
-  for (let y = 0; y < img.height; y += 4) {
-    for (let x = 0; x < img.width; x += 4) {
-      const i = (y * img.width + x) * 3;
-      px.push([img.rgb[i]! + img.rgb[i + 1]! + img.rgb[i + 2]!, img.rgb[i + 1]! - img.rgb[i + 2]!]);
-    }
-  }
-  const bright = px.sort((a, b) => a[0] - b[0]).slice(px.length - (px.length >> 2)).map((p) => p[1]).sort((a, b) => a - b);
-  return bright.length > 0 && bright[bright.length >> 2]! > WOOD_GREEN_OVER_BLUE;
 }
 
 /** One photo's pixels: grid, reference straight, and the long straight when present. */

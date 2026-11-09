@@ -23,6 +23,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { crc32, deflateSync } from 'node:zlib';
+import { CODES } from './photoCodes.js';
 import { jpegSize, orientationOf } from './photoExif.js';
 
 export interface RgbImage {
@@ -32,14 +33,16 @@ export interface RgbImage {
   readonly rgb: Uint8Array;
 }
 
-/** Why a photo can't be read, with a stable code and the fix as its own line. */
+/** Why a photo can't be read, with a stable code (photoCodes.ts) and the fix as its own line. */
 export class PhotoError extends Error {
+  readonly fix: string;
   constructor(
     readonly code: 'photo-missing' | 'no-converter' | 'photo-unreadable' | 'heic' | 'orientation',
     message: string,
-    readonly fix: string,
+    fix?: string,
   ) {
     super(message);
+    this.fix = fix ?? CODES[code].fix;
   }
 }
 
@@ -130,10 +133,6 @@ export function runConverter(command: string, args: string[], timeoutMs: number)
 
 export const DECODER: Decoder = { converters: bmpConverters(process.platform), deadlineMs: 60_000, run: runConverter };
 
-/** What to say when no converter is installed. */
-export const NO_CONVERTER =
-  'No image converter found: on macOS `sips` is built in; elsewhere install ImageMagick (`magick`) or ffmpeg, or save the photo as a BMP.';
-
 /** A photo's bytes, its kind and its pixels as stored. */
 function decode(path: string, decoder: Decoder): { bytes: Uint8Array; kind: PhotoKind; img: RgbImage } {
   const abs = resolve(path);
@@ -141,16 +140,16 @@ function decode(path: string, decoder: Decoder): { bytes: Uint8Array; kind: Phot
   try {
     bytes = new Uint8Array(readFileSync(abs));
   } catch (e) {
-    throw new PhotoError('photo-missing', `can't read ${abs}: ${(e as NodeJS.ErrnoException).code ?? (e as Error).message}`, 'check the path: it is the photo file itself, relative to where you run the command');
+    throw new PhotoError('photo-missing', `can't read ${abs}: ${(e as NodeJS.ErrnoException).code ?? (e as Error).message}`);
   }
   const kind = sniff(bytes);
-  if (kind === 'heic') throw new PhotoError('heic', `${abs} is a HEIC photo`, 'set the camera to "Most Compatible" (JPEG), or export the photo as JPEG');
+  if (kind === 'heic') throw new PhotoError('heic', `${abs} is a HEIC photo`);
   if (kind === 'other') throw new PhotoError('photo-unreadable', `${abs} is not a JPEG, PNG or BMP (its first bytes say so, whatever its name)`, 'give the photo as a JPEG, PNG or BMP');
   if (kind === 'bmp') {
     try {
       return { bytes, kind, img: readBmp(bytes) };
     } catch (e) {
-      throw new PhotoError('photo-unreadable', `${abs}: ${(e as Error).message}`, 'save the photo again as a JPEG or PNG');
+      throw new PhotoError('photo-unreadable', `${abs}: ${(e as Error).message}`);
     }
   }
   const dir = mkdtempSync(join(tmpdir(), 'photo-'));
@@ -176,8 +175,8 @@ function decode(path: string, decoder: Decoder): { bytes: Uint8Array; kind: Phot
         tried.push(`${command}: wrote a BMP that can't be read (${(e as Error).message})`);
       }
     }
-    if (tried.length === 0) throw new PhotoError('no-converter', `no converter to read ${abs} (tried ${decoder.converters.map(([c]) => c).join(', ')} on PATH)`, NO_CONVERTER);
-    throw new PhotoError('photo-unreadable', `${abs} could not be read: ${tried.join('; ')}`, 'open the photo and save it again as a JPEG; if that fails, retake it');
+    if (tried.length === 0) throw new PhotoError('no-converter', `no converter to read ${abs} (tried ${decoder.converters.map(([c]) => c).join(', ')} on PATH)`);
+    throw new PhotoError('photo-unreadable', `${abs} could not be read: ${tried.join('; ')}`);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -218,7 +217,7 @@ export function turn(img: RgbImage, orientation: 6 | 8): RgbImage {
 export function upright(img: RgbImage, orientation: number, stored: { width: number; height: number } | null): RgbImage {
   if (orientation === 1) return img;
   const refuse = (why: string) =>
-    new PhotoError('orientation', `the photo's EXIF orientation is ${orientation}: ${why}`, 'open the photo, save it again upright (or rotate and export it), and use that copy');
+    new PhotoError('orientation', `the photo's EXIF orientation is ${orientation}: ${why}`);
   if (orientation !== 6 && orientation !== 8) throw refuse('turned half way or mirrored, which these tools do not undo');
   if (!stored) throw refuse('its stored size could not be read');
   if (stored.width === stored.height) throw refuse('a square photo, so it cannot be told whether the converter already turned it');
