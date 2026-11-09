@@ -98,6 +98,20 @@ export function orientationOf(bytes: Uint8Array): number | undefined {
   return undefined;
 }
 
+/**
+ * The JPEG's stored size, from its frame header (SOF0 to SOF15; C4, C8 and CC
+ * are other markers). Phones often write progressive SOF2. An EXIF thumbnail's
+ * own frame header sits inside APP1, which `segments` steps over whole.
+ */
+export function jpegSize(bytes: Uint8Array): { width: number; height: number } {
+  for (const s of segments(bytes).list) {
+    if (s.marker < 0xc0 || s.marker > 0xcf || s.marker === 0xc4 || s.marker === 0xc8 || s.marker === 0xcc) continue;
+    if (s.end - s.start < 9) break;
+    return { height: (bytes[s.start + 5]! << 8) | bytes[s.start + 6]!, width: (bytes[s.start + 7]! << 8) | bytes[s.start + 8]! };
+  }
+  throw new Error('not a JPEG: no frame header');
+}
+
 /** A minimal Exif APP1 holding only an Orientation, big-endian. */
 function orientationSegment(orientation: number): Uint8Array {
   const tiff = [0x4d, 0x4d, 0x00, 0x2a, 0, 0, 0, 8, 0, 1, 0x01, 0x12, 0, 3, 0, 0, 0, 1, 0, orientation, 0, 0, 0, 0, 0, 0, 0, 0];
