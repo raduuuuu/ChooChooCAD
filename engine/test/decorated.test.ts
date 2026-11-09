@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { BUILT_IN, decorLevels, deriveDecorated, isStructure, makeResolver, resolveLibrary } from '../data/library.js';
+import { BUILT_IN, decorBoxesOf, decorLevels, deriveDecorated, isStructure, makeResolver, resolveLibrary } from '../data/library.js';
 import type { DecoratedSpec } from '../data/decoratedSeeds.js';
 import { add, fromInt, scale, zetaPow, type Cyc } from '../src/geom/cyclotomic.js';
 import { connectorSites } from '../src/graph/feasible.js';
@@ -14,8 +14,9 @@ import { placeAll } from '../src/graph/frames.js';
 import { portsOf, type Frame, type Graph, type Piece, type Port } from '../src/graph/model.js';
 import { findPlankOverlaps } from '../src/graph/overlap.js';
 import { renderGraph } from '../src/graph/render.js';
+import { drawShape, type P3, type Pen } from '../src/view3d/decor.js';
 import { buildScene } from '../src/view3d/mesh.js';
-import type { DimensionSource, Part } from '../src/parts/schema.js';
+import type { DecorTruss, DimensionSource, Part } from '../src/parts/schema.js';
 
 const RISE = 61;
 const FIXTURE_SOURCE: DimensionSource = { status: 'unverified', source: 'a test fixture', note: 'Not a real piece.' };
@@ -485,5 +486,47 @@ describe('the station building, measured and detailed (detail pilot)', () => {
     const next = sceneOf('left', 0, { buildMode: true, highlight: 's' });
     expect([next.structures.detail.map((g) => g.pieceId), next.nextBuilding !== null]).toEqual([['s'], true]);
     expect(sceneOf('left').nextBuilding).toBeNull();
+  });
+});
+
+describe('a truss arch cut at a piece\'s end (the double-arch bridge, 2026-11-09)', () => {
+  // A parabolic arch from -71.5 to 71.5, centred on a piece's start: only its inner half, 0 on, is drawn.
+  const half: DecorTruss = { kind: 'truss', fromMm: -71.5, toMm: 71.5, springMm: 23, crownMm: 126, innerCrownMm: 116, sideMm: 28.6, hangers: 0, parabolic: true, braced: false, drawnFromMm: 0 };
+  const drawn = (t: DecorTruss) => {
+    const pts: P3[] = [], edges: [P3, P3][] = [];
+    const pen: Pen = { quad: (...q) => pts.push(...q), edge: (a, b) => { edges.push([a, b]); pts.push(a, b); }, detail: () => {}, grow: () => {} };
+    drawShape(t, { at: (a, y, z) => [a, y, z], lengthMm: 0, floorMm: 0, roadTop: () => 12, plankMm: 12 }, pen);
+    return { pts, edges };
+  };
+
+  /*
+   * MUTATION PROOF, run (2026-11-09): the cut ignored (every step drawn):
+   * `expected -71.5 to be greater than or equal to -0.001`.
+   */
+  it('draws nothing past the cut, and reaches its crown at the cut', () => {
+    const { pts } = drawn(half);
+    // The box starts at the cut, so drawn points run 0 to 71.5 along it.
+    expect(Math.min(...pts.map((p) => p[0]))).toBeGreaterThanOrEqual(-0.001);
+    expect(Math.max(...pts.map((p) => p[0]))).toBeCloseTo(71.5, 6);
+    expect(Math.max(...pts.map((p) => p[2]))).toBeCloseTo(126, 6);
+  });
+
+  /*
+   * MUTATION PROOF, run (2026-11-09): no line across the cut: `expected [] to have a length of 2 but got +0`.
+   */
+  it('closes the cut with a line across its chords, one each side', () => {
+    const across = drawn(half).edges.filter(([a, b]) => Math.abs(a[0]) < 1e-9 && Math.abs(b[0]) < 1e-9 && a[2] !== b[2]);
+    expect(across).toHaveLength(2);
+  });
+
+  /*
+   * MUTATION PROOF, run (2026-11-09): the box over the whole arch:
+   * `expected 143 to be 71.5 // Object.is equality`.
+   */
+  it('takes up only the stretch drawn, and refuses a stretch outside the arch', () => {
+    const [box] = decorBoxesOf('test', [half], 61);
+    expect(box!.lengthMm).toBe(71.5);
+    expect(box!.atMm[0]).toBeCloseTo(35.75, 9);
+    expect(() => decorBoxesOf('test', [{ ...half, drawnToMm: 80 }], 61)).toThrow(/drawn stretch must lie within the arch/);
   });
 });

@@ -113,8 +113,12 @@ export function decorBoxesOf(owner: string, decor: readonly DecorShape[], riseMm
           boxOf('footprint', [x, y], l, w, 0, top, drawOnly(shape)),
         ];
       }
-      case 'truss':
-        return [boxOf('footprint', [(shape.fromMm + shape.toMm) / 2, 0], shape.toMm - shape.fromMm, 2 * shape.sideMm, shape.springMm, shape.crownMm, drawOnly(shape))];
+      case 'truss': {
+        // The box covers the stretch drawn: the whole arch, or the part a cut leaves.
+        const from = shape.drawnFromMm ?? shape.fromMm, to = shape.drawnToMm ?? shape.toMm;
+        if (!(from >= shape.fromMm && to <= shape.toMm && from < to)) throw new Error(`${owner}: a truss arch's drawn stretch must lie within the arch, and be longer than nothing.`);
+        return [boxOf('footprint', [(from + to) / 2, 0], to - from, 2 * shape.sideMm, shape.springMm, shape.crownMm, drawOnly(shape))];
+      }
       case 'arch': {
         const crown = shape.baseMm + shape.riseMm;
         if (shape.fillToMm !== undefined && !(shape.fillToMm > crown)) throw new Error(`${owner}: an arch panel's top must stand over its crown.`);
