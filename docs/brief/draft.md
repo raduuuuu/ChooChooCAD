@@ -7,7 +7,7 @@
 
 # Draw a missing track piece with your Claude
 
-Brief version: **draft-3, 2026-11-09**
+Brief version: **draft-4, 2026-11-09**
 
 ## For the person reading this
 
@@ -211,8 +211,13 @@ them.
 
 The issue carries no photos: they stay in this chat. Prepare one issue for
 the sender to post as a new blank issue at
-https://github.com/raduuuuu/ChooChooCAD/issues/new (signed in to GitHub),
-ready to paste:
+https://github.com/raduuuuu/ChooChooCAD/issues/new (signed in to GitHub).
+
+**Hand the body over as a file, not as chat text.** Write it to
+`photos/mine/issue.md` and share that file for the sender to download, open
+in a text editor, and copy from. Text copied from the chat's own reply pastes
+into GitHub as HTML: the folded sections then show as raw text (the first
+pilot's issue). Give the title in the chat, in one short code block.
 
 - **Title:** `Piece: <what it is, in a few words>`
 - **Body:**
@@ -253,8 +258,9 @@ Started <time>, first figure <time>.
 ````
 
 Keep the body under 60,000 characters; if it's longer, put the diff in a
-first comment, posted right after. Ask the sender to tick the licence box only
-if it's true.
+second file, `photos/mine/comment.md`, for a first comment posted right
+after. Tell the sender to tick the licence box on GitHub before posting, only
+if it's true: a drawing whose box is left empty can't go into the library.
 
 **For an unsupported piece** (step 5): the same issue, with "The app can't
 hold it yet: <reason>; the closest piece is <name>." under What is the

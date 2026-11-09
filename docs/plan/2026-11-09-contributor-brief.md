@@ -989,9 +989,31 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
   - Files: a draft of the brief (not linked anywhere): `docs/brief/draft.md`, draft-1 (2026-11-09).
     Built on the measuring tools (docs/plan/2026-11-09-measuring-tools.md, merged), with the
     ruler route for straights and plain curves the owner chose there (UC1 b). Draft-2: photos
-    stay in the chat, the issue is a blank one (C8). Draft-3: the bare minimum measured (C9). Before the pilot, from the spike: the phone
+    stay in the chat, the issue is a blank one (C8). Draft-3: the bare minimum measured (C9).
+    Draft-4: the issue body handed over as a file, the licence box ticked before posting. Before the pilot, from the spike: the phone
     path and a Free plan (still open); the re-measure after a GitHub upload is dropped (C8).
   - Verify: the outsider's issue reviewed; findings written into this plan before T3
+  - **Owner's own pilot run (2026-11-09, issue #231, a double-arch bridge).** Run in a
+    claude.ai chat, desktop, started on draft-1 and pulled to draft-3 on the way. Results:
+    - Reached a drawn piece and an issue with no ruler reading: length 240.01 and 240.22
+      (agreed 240.11), the side view traced off the side photo, the clearance over the
+      road (about 106) above the 70 mm bar, so inferred. The diff applies to the commit
+      the issue names (7acc164); typecheck and the 757 engine tests pass, re-run by the
+      maintainer.
+    - 48 minutes from start to the first figure, with a reshoot and two brief updates in
+      between.
+    - Found and fixed during the run: evening-lamp photos refused as warm paper (#229,
+      photos balanced on the paper); photos kept off GitHub (C8, #228); nine ruler
+      readings asked for a bridge and a side drawing that didn't match its photo (C9,
+      #230); the 2x zoom advice tried and dropped (#227 closed: not needed).
+    - Found in the issue: the body pasted as HTML (text copied from the chat's reply),
+      its folded sections shown as raw text: draft-4 hands the body over as a file. The
+      licence box left empty: draft-4 says to tick it before posting. No label (a blank
+      issue gets none): the maintainer adds `piece: waiting` until T4's forms.
+    - Found in the drawing: the half arches at each end of each side not drawn, the
+      truss shape drawing only whole arches: the shape is to stop at the piece's ends
+      (owner, 2026-11-09).
+    - Not yet run: an outsider's pilot, the phone path, a Free plan.
 - [ ] **T3 (P1, human: ~3 days / CC: ~1h)** — engine — export the share-link codec; the untrusted-part validator; `engine/tools/briefLink.ts`
   - Surfaced by: Section 1 (DRY codec), Section 3 (validator), spec review 2 (links by script), Codex 2 (geometry)
   - Files: app/src/shareLink.ts, engine/data/library.ts (or a new validator module beside it), engine/tools/briefLink.ts, their tests
