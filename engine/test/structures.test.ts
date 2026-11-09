@@ -25,7 +25,7 @@ import { bendRender } from '../src/graph/bendPose.js';
 import { connectorSites } from '../src/graph/feasible.js';
 import { placeAll } from '../src/graph/frames.js';
 import { levelOf, portsOf, type Frame, type Graph, type Piece, type Port } from '../src/graph/model.js';
-import { findBridges, findPlankOverlaps } from '../src/graph/overlap.js';
+import { clearOfRamp, findBridges, findPlankOverlaps } from '../src/graph/overlap.js';
 import { renderGraph } from '../src/graph/render.js';
 import { assemblyOrder } from '../src/graph/assembly.js';
 import { solveGraph } from '../src/graph/solve.js';
@@ -120,6 +120,39 @@ describe('the blocking table', () => {
    */
   it('a body under raised track is not a bridge', () => {
     expect(bridges(scene([['pier', 'PR', at(300, 0, 0)], ['up', 'D', at(300, -100, 4, 1)]]))).toBe(0);
+  });
+});
+
+describe('a body beside a ramp is judged by height, not level (2026-11-09)', () => {
+  /*
+   * A shared layout was refused: a bowstring bridge joined to the high end of
+   * a ramp, its floor feet (16mm tall, reaching 20mm past its deck) under the
+   * ramp's edges by 1.3mm. The ramp's underside is about 55mm up there.
+   * MUTATION PROOF, run (2026-11-09): the height test dropped (no
+   * `clearOfRamp` in the pair loop): `expected [ 'bw n' ] to deeply equal []`.
+   */
+  it('a bridge joined to the high end of a ramp: its feet stand under the ramp', () => {
+    const g: Graph = {
+      pieces: [{ pieceId: 'a', partId: 'A', turn: 'left' }, { pieceId: 'n', partId: 'N', turn: 'left' }, { pieceId: 'bw', partId: 'BW', turn: 'left' }],
+      welds: [{ a: { pieceId: 'a', port: 1 }, b: { pieceId: 'n', port: 0 } }, { a: { pieceId: 'n', port: 1 }, b: { pieceId: 'bw', port: 0 } }],
+    };
+    expect(clashes(g)).toEqual([]);
+  });
+
+  /*
+   * The ramp runs (0,0) to (216,0), its underside from 0 to the rise.
+   * MUTATION PROOF, run (2026-11-09): only the body's top compared (the
+   * "wholly over" half dropped): `expected false to be true`.
+   */
+  it('a floor box clashes under the low end, not under the high end, and a box over the ramp passes', () => {
+    const ramp = { slope: { x: 0, y: 0, dx: 216, dy: 0, zFrom: 0, zTo: CLEARANCE.riseMm } };
+    const square = (x: number): [number, number][] => [[x, 18], [x + 18, 18], [x + 18, 20], [x, 20]];
+    const foot = { z: { bottom: 0, top: 16 } };
+    expect(clearOfRamp(foot, ramp, square(0))).toBe(false);
+    expect(clearOfRamp(foot, ramp, square(198))).toBe(true);
+    expect(clearOfRamp({ z: { bottom: CLEARANCE.riseMm + CLEARANCE.plankMm, top: 200 } }, ramp, square(198))).toBe(true);
+    // No measured heights: judged by level, as before.
+    expect(clearOfRamp({}, ramp, square(198))).toBe(false);
   });
 });
 

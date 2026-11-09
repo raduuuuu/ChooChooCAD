@@ -29,6 +29,12 @@
  *   area when the joint is exact, and a closing joint that needs give may
  *   push a few millimetres into its neighbour, which is the give, reported
  *   by the loop figures, not a crossing.
+ * - a body wholly under a ramp, or wholly over it, where the two meet: a
+ *   ramp's plank rises off the floor (eng D23, as the 3D view draws it), so a
+ *   bridge's floor feet under the high end of the ramp joined to it touch
+ *   nothing. Levels alone can't say that: a ramp fills both of its levels.
+ *   Found on a shared layout, 2026-11-09: 1.3mm of foot under a ramp's edge
+ *   refused the whole layout.
  * - a pair with ends on the same exact spot: the vertex check already
  *   reports that spot, exactly, and saying it twice would draw two markers
  *   for one fault. Full membership per spot (`connectorSites`), not the clash
@@ -36,6 +42,7 @@
  *   the 16xE double circle still reported one stacked pair as an overlap.
  */
 
+import { CLEARANCE } from '../../data/rampSeeds.js';
 import type { Segment } from '../geom/fk.js';
 import type { Graph } from './model.js';
 import type { ConnectorSites } from './feasible.js';
@@ -75,6 +82,20 @@ export const OVERLAP_MIN_AREA_MM2 = 100;
  */
 export const OVERLAP_MIN_AREA_BODY_MM2 = 16;
 
+/**
+ * Whether `body` lies wholly under `ramp`'s plank, or wholly over it, across
+ * the `region` they share in plan: the plank's underside rises linearly along
+ * its axis (eng D23), so its lowest and highest points over the region are at
+ * the region's corners.
+ */
+export function clearOfRamp(body: Pick<Quad, 'z'>, ramp: Pick<Quad, 'slope'>, region: readonly Pt[]): boolean {
+  if (!body.z || !ramp.slope) return false;
+  const { x, y, dx, dy, zFrom, zTo } = ramp.slope;
+  const len2 = dx * dx + dy * dy;
+  const under = region.map(([px, py]) => zFrom + (zTo - zFrom) * Math.min(1, Math.max(0, ((px - x) * dx + (py - y) * dy) / len2)));
+  return body.z.top <= Math.min(...under) || body.z.bottom >= Math.max(...under) + CLEARANCE.plankMm;
+}
+
 /** Slice a curve this finely: 1/32 of a half turn, 5.6 degrees. */
 const SLICE_RAD = Math.PI / 32;
 
@@ -88,6 +109,10 @@ interface Quad {
   /** A body box (plan 2026-11-02): never exempt as a welded neighbour (OV4), never a bridge. */
   readonly body: boolean;
   readonly role?: BodyRole;
+  /** A ramp's plank: where its axis starts and runs, and its underside's height at either end, mm. */
+  readonly slope?: { readonly x: number; readonly y: number; readonly dx: number; readonly dy: number; readonly zFrom: number; readonly zTo: number };
+  /** A body with measured heights: its bottom and top above the floor, mm. */
+  readonly z?: { readonly bottom: number; readonly top: number };
   readonly pts: readonly Pt[];
   readonly minX: number;
   readonly minY: number;
@@ -268,8 +293,15 @@ function planksSharingArea(
     if (s.pieceId === undefined) continue;
     const lo = s.level ?? 0;
     const hi = lo + (s.rise ?? 0);
+    const [zFrom, zTo] = (s.highAtStart ? [hi, lo] : [lo, hi]).map((l) => l * CLEARANCE.riseMm) as [number, number];
+    const slope = !s.body && s.kind === 'straight' && hi !== lo
+      ? { x: s.from.x, y: s.from.y, dx: s.to.x - s.from.x, dy: s.to.y - s.from.y, zFrom, zTo }
+      : undefined;
+    const z = s.body && s.decor
+      ? { bottom: s.decor.floorLevel * CLEARANCE.riseMm + s.decor.bottomMm, top: s.decor.floorLevel * CLEARANCE.riseMm + s.decor.topMm }
+      : undefined;
     for (const q of plankQuads(s, s.halfWidthMm ?? plankHalfWidth(s.partId), s.pieceId)) {
-      quads.push(quad(q.pieceId, q.pts, lo, hi, s.body));
+      quads.push({ ...quad(q.pieceId, q.pts, lo, hi, s.body), ...(slope ? { slope } : {}), ...(z ? { z } : {}) });
     }
   }
 
@@ -313,6 +345,7 @@ function planksSharingArea(
         if (region.length < 3) continue;
         const area = signedArea(region);
         if (!(area > 0)) continue;
+        if (clearOfRamp(p, q, region) || clearOfRamp(q, p, region)) continue;
         let cx = 0, cy = 0;
         for (const [x, y] of region) { cx += x; cy += y; }
         const entry = shared.get(pk) ?? {
