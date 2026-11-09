@@ -1,0 +1,78 @@
+# The whole repo against its own rules, on a rhythm and after every merge
+# (repo-checkups plan, C1).
+#
+# Per-PR CI (ci.yml) proves a change works and, since C6, that it adds no brand
+# name, private file or unlisted image. It never looks back: drift between the
+# rules and the repo built up unseen until someone noticed by eye (a private
+# file public for weeks, 167 brand lines, scanners off; found 2026-11-08).
+#
+# This run writes what it finds into ONE tracking issue, label `checkup`, body
+# rewritten each time (`bun run checkup --issue`, engine/tools/checkup.ts):
+#
+#   push to main ─┐                          ┌─ Monday 06:17 UTC / workflow_dispatch
+#                 ▼                          ▼
+#        content checks · branches, PRs, issues (report only)
+#        big push since the last run, or 30 days ──▶ "a deep checkup is due"
+#        the owner's "/checkup done at <sha>" comment clears it
+#                 ▼
+#        the "Repo checkup" issue (pinned once by hand)
+#
+# No AI and no secrets (community plan D2): the deep checkup is /checkup, run by
+# the owner on their own machine when the issue says it's due.
+
+name: Checkup
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Weekly. A schedule on a public repo is disabled after 60 days without
+    # activity, and a failed scheduled run mails only whoever last edited this
+    # line; each push run reports a weekly run older than 10 days (R2).
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+# Exactly these: read the code, list pull requests, write the one issue. The
+# run's state lives in the issue body, not the Actions API.
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+# One run at a time, so a push run and the weekly run never rewrite the issue
+# together. GitHub keeps one pending run and replaces it with a newer one; that
+# loses nothing, because each run measures from the last commit the issue
+# recorded, not from its own push (O1).
+concurrency:
+  group: checkup
+  cancel-in-progress: false
+
+jobs:
+  checkup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Every branch and all history: merged branches are read with
+          # `git branch -r --merged`, and a big push by its ancestry.
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      # A dispatch on any other branch reports to its job summary and writes
+      # nothing, so it can't overwrite main's report (O6; pages.yml guards the
+      # same trap).
+      - name: Checkup, report only
+        if: github.ref != 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bun run checkup
+
+      - name: Checkup and the tracking issue
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bun run checkup --issue

@@ -564,22 +564,25 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
   - Files: .github/dependabot.yml
   - Verify: `gh api repos/raduuuuu/ChooChooCAD --jq .security_and_analysis` shows enabled; Dependabot's first run in the Insights tab reads `bun.lock` (the `bun` ecosystem is unverified here; if it isn't supported, say so in the PR and keep only GitHub Actions updates)
   - Done 2026-11-08: Dependabot alerts, security updates, secret scanning and push protection enabled (`gh api` readback shows all four on); `bun` is a supported ecosystem for version updates (GA 2025-02), its security updates unconfirmed in GitHub's docs.
-- [ ] **T2 (P1, human: ~1d / CC: ~45min)** — repo — R1 brand cleanup and `.github/checkup-allow.json` (brand tokens, two images)
+- [x] **T2 (P1, human: ~1d / CC: ~45min)** — repo — R1 brand cleanup and `.github/checkup-allow.json` (brand tokens, two images)
   - Surfaced by: problem table (167 lines); R1; C7
   - Files: up to 27 files with brand lines, .github/checkup-allow.json
   - Verify: `bun run checkup --content` (T3) exits 0; `bun run test` green
+  - Done 2026-11-08 (#199); `bun run checkup --content` exits 0 on main (2026-11-09), with the three extra terms T3 added.
 - [ ] **T3 (P1, human: ~1.5d / CC: ~1.5h)** — engine-tools + github — `checkup.ts`, its test, `bun run checkup`, `checkup.yml`, the C6 step in ci.yml
   - Surfaced by: C1, C6, C7, C8, O1, O2, O3, O6, R2; Sections 2, 4, 6
   - Files: engine/tools/checkup.ts, engine/tools/checkup.test.ts, engine/tools/checkupWorkflow.test.ts, package.json, .github/workflows/checkup.yml, .github/workflows/ci.yml
   - Verify: vitest with each pin's mutation run (including the workflow-text test); one `workflow_dispatch` on main creates the issue; a branch dispatch writes nothing
+  - Built 2026-11-09: 40 tests, 27 mutations run and recorded; content checks green on the repo. Changes from the plan: brand findings give the line, never the word (the report is public); a JPEG is checked for location listed or not, so an unlisted located photo is never named either; a link climbing out of the repo is dead; the brand terms gain three names. Left: the first `workflow_dispatch` on main, after merge.
 - [ ] **T4 (P1, human: ~3h / CC: ~20min)** — skill + docs — `/checkup` skill (generic steps apart) and the maintainer-only AGENTS.md line
   - Surfaced by: C1, C3 (generic-first), Section 8 runbook
   - Files: .claude/skills/checkup/SKILL.md, AGENTS.md
   - Verify: a docs test pins the AGENTS.md line and the skill's link (mutation run); one /checkup run posts `/checkup done at <sha>`
-- [ ] **T5 (P2, human: ~30min / CC: ~10min)** — github — delete the 186 merged branches (C4)
+- [x] **T5 (P2, human: ~30min / CC: ~10min)** — github — delete the 186 merged branches (C4)
   - Surfaced by: C4 (D4)
   - Files: none
   - Verify: `git branch -r --merged origin/main` lists only main; the stale-branch check reports none
+  - Nothing to delete (2026-11-09): GitHub held only main and two Dependabot branches (`git ls-remote --heads origin`). The 186 were stale local refs to branches already deleted on merge; `git fetch --prune` removed them. The problem table's count was wrong for the same reason, and the checker now counts only branches GitHub still has.
 
 ## Eng pass (manual, 2026-11-08; not a recorded /autoplan eng review)
 
