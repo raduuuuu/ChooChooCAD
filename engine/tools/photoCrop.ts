@@ -25,6 +25,9 @@ export const ZOOM = 4;
 /** A crop's file name, so the photo check can leave crops out of a folder of photos. */
 export const CROP = /\.crop-\d+-\d+-\d+\.png$/;
 
+/** An overlay's file name (photoMeasure --overlay), left out of a folder of photos too. */
+export const OVERLAY = /\.overlay\.png$/;
+
 /** Where the crop of `photo` through window `w` is written: beside the photo. */
 export function cropPath(photo: string, w: Window): string {
   return join(dirname(photo), `${basename(photo).replace(/\.[^.]+$/, '')}.crop-${w.x0}-${w.y0}-${w.side}.png`);
@@ -66,12 +69,28 @@ export function fromCrop(w: Window, cx: number, cy: number): readonly [number, n
 
 export type CropArgs = { readonly photo: string; readonly x: number; readonly y: number; readonly half: number };
 
+export const HELP = `usage: bun engine/tools/photoCrop.ts <photo> <x> <y> [half=60]
+
+A 4x enlargement of the square round (x, y), written beside the photo as
+<photo>.crop-x0-y0-side.png, so a point can be read to a quarter pixel. x and
+y are the photo's full pixels as a phone shows it (a portrait photo is turned
+upright first). half is the square's half side, a whole number of pixels: 60
+for a corner or a peg; about 200 to see a 40mm road's full width. stdout is one
+JSON line { crop, x0, y0, side, zoom, width, height }; stderr says how a crop
+point maps back. In a points file give a crop point as
+{ "crop": "<crop file>", "at": [cx, cy] } and photoMeasure maps it back.
+
+exit: 0 written · 1 the photo refused · 2 bad usage
+codes: ${(['photo-missing', 'no-converter', 'photo-unreadable', 'heic', 'orientation', 'usage'] as const).join(', ')}
+(each with its fix: bun engine/tools/photoMeasure.ts --help, or the drawing skill's "Measure codes")`;
+
 /**
  * The command line, or why it is refused. A coordinate must be one plain
  * number: "63 17" passed as one argument (a shell that does not split) is
  * refused here, not cropped at NaN.
  */
-export function parseArgs(argv: readonly string[]): CropArgs | { readonly error: string } {
+export function parseArgs(argv: readonly string[]): CropArgs | { readonly error: string } | { readonly help: true } {
+  if (argv.includes('--help') || argv.includes('-h')) return { help: true };
   const [photo, xs, ys, halfs, ...rest] = argv;
   if (!photo || xs === undefined || ys === undefined || rest.length > 0) {
     return { error: 'usage: bun engine/tools/photoCrop.ts <photo> <x> <y> [half=60]' };
@@ -86,8 +105,12 @@ export function parseArgs(argv: readonly string[]): CropArgs | { readonly error:
 
 if (import.meta.main) {
   const args = parseArgs(process.argv.slice(2));
+  if ('help' in args) {
+    console.log(HELP);
+    process.exit(0);
+  }
   if ('error' in args) {
-    console.error(`USAGE usage: ${args.error}`);
+    console.error(`USAGE usage: ${args.error}\nrun with --help for the usage`);
     process.exit(2);
   }
   const { photo, x, y, half } = args;

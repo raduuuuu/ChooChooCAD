@@ -187,6 +187,37 @@ describe('the grid and the reference, by the scale table', () => {
   }, 60_000);
 });
 
+describe('a road\'s ends centred across the road', () => {
+  /*
+   * MUTATION PROOF, run (2026-11-09): centring skipped (`centreAcross`
+   * never centring): `expected 0.965… to be less than 0.15`: a line picked
+   * 1mm off the medium straight's centreline reads its offset 1mm out, as the
+   * Linux sandbox's picks did on 84405 (out +0.63mm).
+   */
+  it('a line picked 1mm off-centre reads the same offset as one picked on it', () => {
+    const off = (p: Pt): Pt => [p[0] + 5, p[1]]; // 5px is 1mm on this photo, square to the line
+    const r = measured(measure({ figures: {
+      out: { kind: 'offset', point: LONG_ENDS[0], toward: px(120, 50), line: [off(MED[0]), off(MED[1])] },
+    } }, plain));
+    const f = value(r, 'out');
+    expect(Math.abs(f.valueMm - 60)).toBeLessThan(0.15);
+    expect(f.ends[0]!.acrossMm).toBeCloseTo(-1, 0);
+    expect(f.status).toBe('checked');
+  }, 60_000);
+
+  /*
+   * MUTATION PROOF, run (2026-11-09): the end-not-centred reason dropped:
+   * `expected [ 'end-hand-read', 'end-hand-read' ] to include 'end-not-centred'`.
+   */
+  it('an end whose road can\'t be found either side is provisional: end-not-centred', () => {
+    const r = measured(measure({ figures: { odd: { kind: 'distance', ends: [px(15, 132), LONG_ENDS[1]] } } }, plain));
+    const f = r.figures.odd!;
+    if ('refused' in f) throw new Error(f.refused.reason);
+    expect(f.status).toBe('provisional');
+    expect(f.why.map((w) => w.code)).toContain('end-not-centred');
+  }, 60_000);
+});
+
 describe('one figure refused, not the run', () => {
   /*
    * MUTATION PROOF, run (2026-11-09): a figure end facing the camera read
@@ -288,8 +319,8 @@ describe('the command line', () => {
 
   it('bad usage exits 2 with USAGE and its code first, the fix last', () => {
     const t = io({ 'p.json': { figures: { o: { point: [1, 1], line: [[0, 0], [9, 9]], read: 'offset' } } } });
-    expect(main(['p.json', '--json'], t.io)).toBe(2);
-    expect(t.err[0]).toMatch(/^USAGE usage: unknown flag --json\n/);
+    expect(main(['p.json', '--jsn'], t.io)).toBe(2);
+    expect(t.err[0]).toMatch(/^USAGE usage: unknown flag --jsn\n/);
     expect(main(['p.json'], t.io)).toBe(2);
     expect(t.err[1]).toMatch(/^USAGE needs-photo: /);
     expect(t.err[1]!.split('\n').at(-1)).toBe(CODES['needs-photo'].fix);

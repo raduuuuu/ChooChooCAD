@@ -20,6 +20,9 @@ import type { Pt } from './photo.js';
 import { paperToPixel, pixelToPaper, type PaperMap } from './photoGrid.js';
 import type { RgbImage } from './photoImage.js';
 
+/** A plank's top: 40mm wide, read up to a few percent long, and a little lost at the edges. */
+export const PLANK_WIDTH_MM = { min: 32, max: 50 } as const;
+
 /** The flat top face either side of the peg neck or socket mouth, mm from the plank's centreline. */
 export const SHOULDER_IN = 6.5, SHOULDER_OUT = 9.5;
 /** How far along the axis to look for the edge, mm either side of the seed. */
@@ -172,4 +175,71 @@ export function straddlesCentre(img: Pick<RgbImage, 'width' | 'height'>, a: Pt, 
   const mid = vertical ? img.height / 2 : img.width / 2;
   const [p, q] = vertical ? [a[1], b[1]] : [a[0], b[0]];
   return (p - mid) * (q - mid) < 0;
+}
+
+/** How far in from the end face the road's side edges are read, mm (past the end's bevel, short of a switch's branch). */
+export const CENTRE_BACK = [4, 6, 8, 10] as const;
+/** The side edges at different depths must put the middle within this of each other, mm. */
+export const CENTRE_AGREE = 0.3;
+
+/**
+ * The end at `seed` moved across its road to the middle of the road's two
+ * side edges (measuring-tools PR c, after the Linux sandbox run: a pick 5px
+ * off-centre moved \`out\` 0.6mm, and refineEnd only moves an end along its
+ * road). At each depth in CENTRE_BACK, inward from the seed towards `other`,
+ * the top face is scanned across, out to 25mm each side; each side's edge is
+ * the outermost step from wood to paper (the wood's level read across the
+ * face, since a socket's mouth shows paper in its middle). Kept when the width is a plank's
+ * and the middles agree; null otherwise (grey plastic, a branch alongside,
+ * a seed off the piece), and the pick stays where it was. For a road's end,
+ * not a switch's curved end: there the sides part a few mm in, where the
+ * curves split (on 84405 it moved C 0.7mm off its socket's middle).
+ *
+ *          other
+ *            │  axis (inward)
+ *    ┌───────┼───────┐  ← depth 10
+ *    │  ·····│·····  │  ← depth 4: left edge … right edge, middle = new across
+ *    └───────●───────┘  seed (end face)
+ */
+export function centreAcross(img: RgbImage, map: PaperMap, seed: Pt, other: Pt): { readonly px: Pt; readonly shiftMm: number; readonly widthMm: number } | null {
+  const s = pixelToPaper(map, seed), o = pixelToPaper(map, other);
+  const len = Math.hypot(s[0] - o[0], s[1] - o[1]);
+  if (!(len > 0)) return null;
+  const axis: Pt = [(s[0] - o[0]) / len, (s[1] - o[1]) / len];
+  const across: Pt = [-axis[1], axis[0]];
+  const at = (c: number, t: number): Pt => paperToPixel(map, [s[0] + across[0] * c + axis[0] * t, s[1] + across[1] * c + axis[1] * t]);
+  const mids: number[] = [], widths: number[] = [];
+  for (const back of CENTRE_BACK) {
+    const cs: number[] = [], vs: number[] = [];
+    for (let c = -25; c <= 25 + 1e-9; c += 0.1) {
+      cs.push(c);
+      vs.push(woodness(img, at(c, -back)));
+    }
+    if (vs.some(Number.isNaN)) continue;
+    // The wood's level from the top face across the road, not its middle: a socket's mouth shows paper there.
+    const face = vs.filter((_, i) => Math.abs(cs[i]!) <= 18).sort((a, b) => a - b);
+    const piece = face[Math.floor(face.length * 0.75)]!;
+    // Each side's own paper: a shadow beside one edge is warmer than open paper beside the other.
+    const paperL = median(vs.slice(0, 20)), paperR = median(vs.slice(-20));
+    if (piece - Math.max(paperL, paperR) < MIN_STEP) continue;
+    const halfL = (piece + paperL) / 2, halfR = (piece + paperR) / 2;
+    // The outermost crossing from wood to paper on each side (a groove inside the face is not an edge).
+    let left: number | null = null, right: number | null = null;
+    for (let i = 1; i < vs.length && left === null; i++) {
+      if (vs[i - 1]! < halfL && vs[i]! >= halfL) left = cs[i - 1]! + ((halfL - vs[i - 1]!) / (vs[i]! - vs[i - 1]!)) * (cs[i]! - cs[i - 1]!);
+    }
+    for (let i = vs.length - 1; i > 0 && right === null; i--) {
+      if (vs[i - 1]! >= halfR && vs[i]! < halfR) right = cs[i - 1]! + ((vs[i - 1]! - halfR) / (vs[i - 1]! - vs[i]!)) * (cs[i]! - cs[i - 1]!);
+    }
+    if (left === null || right === null) continue;
+    const width = right - left;
+    if (width < PLANK_WIDTH_MM.min || width > PLANK_WIDTH_MM.max) continue;
+    mids.push((left + right) / 2);
+    widths.push(width);
+  }
+  if (mids.length < 2) return null;
+  const sorted = [...mids].sort((a, b) => a - b);
+  if (sorted.at(-1)! - sorted[0]! > CENTRE_AGREE) return null;
+  const mid = median(mids);
+  return { px: at(mid, 0), shiftMm: mid, widthMm: median(widths) };
 }

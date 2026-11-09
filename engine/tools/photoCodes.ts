@@ -32,6 +32,7 @@ export const CODES = {
   'points-invalid': { recovery: 'edit-points', fix: 'fix the field named, as --help shows' },
   'no-figures': { recovery: 'edit-points', fix: 'add at least one figure under "figures"' },
   'needs-photo': { recovery: 'edit-points', fix: 'add --photo <photo>' },
+  'overlay-path': { recovery: 'edit-points', fix: 'give --overlay a folder, or a path ending .overlay.png' },
   internal: { recovery: 'human', fix: 're-run with the same input; if it happens again, report it with the trace file named above' },
 } as const satisfies Record<string, { recovery: Recovery; fix: string }>;
 

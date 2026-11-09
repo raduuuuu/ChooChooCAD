@@ -30,16 +30,17 @@
  * photo in the ignored photos/ folder (SEC1).
  */
 
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, extname, join, resolve } from 'node:path';
 import { GRID_RESIDUAL_MAX_MM, K_PLAUSIBLE, measurePhoto, offsetAlong, REFERENCE_MM, type GridPoint, type PhotoInput, type Pt } from './photo.js';
 import { CODES, refusal, type Code, type Refusal } from './photoCodes.js';
 import { CROP, fromCrop, ZOOM } from './photoCrop.js';
-import { facesAway, refineEnd, type RefinedEnd } from './photoEdges.js';
+import { centreAcross, facesAway, refineEnd, type RefinedEnd } from './photoEdges.js';
 import { findGrid, pixelToPaper, WOOD_GREEN_OVER_BLUE, type FoundGrid } from './photoGrid.js';
 import { findGridAuto } from './photoGridSeed.js';
-import { loadUpright, PhotoError, type RgbImage } from './photoImage.js';
+import { loadUpright, PhotoError, writePng, type RgbImage } from './photoImage.js';
+import { drawOverlay, type KeyRow } from './photoOverlay.js';
 import { AUTO_GRID_RMS_MAX_MM, findWood, gridAndPlanks, namePlanks, paperWarmth, type Plank } from './photoStraights.js';
 
 // ── The points file ──────────────────────────────────────────────────────────
@@ -206,12 +207,16 @@ export function needsPhoto(file: PointsFile): string | null {
 // ── The result ───────────────────────────────────────────────────────────────
 
 /** One end: its point as given (`seed`) and as used (`at`), refined or kept by hand. */
-export type End =
+export type End = (
   | { readonly seed: Pt; readonly at: Pt; readonly refined: true; readonly samples: number; readonly spreadMm: number }
-  | { readonly seed: Pt; readonly at: Pt; readonly refined: false; readonly reason: string };
+  | { readonly seed: Pt; readonly at: Pt; readonly refined: false; readonly reason: string }
+) & {
+  /** A road's end moved across to the middle of its side edges, mm (centreAcross); absent where it couldn't be. */
+  readonly acrossMm?: number;
+};
 
 export interface Why {
-  readonly code: 'end-hand-read' | 'facing-not-checked' | 'reference-hand-read';
+  readonly code: 'end-hand-read' | 'end-not-centred' | 'facing-not-checked' | 'reference-hand-read';
   readonly end?: string;
   readonly text: string;
 }
@@ -225,6 +230,8 @@ export interface GridUsed {
   readonly points: number;
   readonly rmsMm: number;
   readonly scale?: number;
+  /** The crossings used, photo px: drawn on the overlay, left out of --json. */
+  readonly crossings: readonly Pt[];
 }
 
 export type MeasureResult =
@@ -235,7 +242,14 @@ export type MeasureResult =
       readonly reference: { readonly source: 'given' | 'found'; readonly k: number; readonly ends: readonly [End, End] };
       readonly figures: Readonly<Record<string, FigureResult>>;
     }
-  | { readonly kind: 'refused'; readonly refused: Refusal; readonly photo: { readonly width: number; readonly height: number }; readonly grid?: GridUsed };
+  | {
+      readonly kind: 'refused';
+      readonly refused: Refusal;
+      readonly photo: { readonly width: number; readonly height: number };
+      readonly grid?: GridUsed;
+      /** The reference's ends, when the run got that far: drawn on a refused run's overlay. */
+      readonly referenceEnds?: readonly [End, End];
+    };
 
 // ── The core ─────────────────────────────────────────────────────────────────
 
@@ -254,7 +268,10 @@ export function measure(points: Points, img: RgbImage): MeasureResult {
   const photo = { width: img.width, height: img.height };
   const centre: Pt = [img.width / 2, img.height / 2];
   const inPhoto = ([x, y]: Pt) => x >= 0 && y >= 0 && x <= img.width - 1 && y <= img.height - 1;
-  const refuse = (code: Code, reason: string, grid?: GridUsed): MeasureResult => ({ kind: 'refused', refused: refusal(code, reason), photo, ...(grid ? { grid } : {}) });
+  const refuse = (code: Code, reason: string, grid?: GridUsed, referenceEnds?: readonly [End, End]): MeasureResult =>
+    ({ kind: 'refused', refused: refusal(code, reason), photo, ...(grid ? { grid } : {}), ...(referenceEnds ? { referenceEnds } : {}) });
+  const used = (g: FoundGrid, source: GridUsed['source'], scale?: number): GridUsed =>
+    ({ source, points: g.points.length, rmsMm: g.rmsMm, ...(scale !== undefined ? { scale } : {}), crossings: g.points.map((p) => p.px) });
   const outside = (field: string, p: Pt) => `${field} ${fmt(p)} is outside the photo, which is ${img.width}×${img.height} px upright`;
 
   for (const [i, g] of (points.grid ?? []).entries()) if (!inPhoto(g.px)) return refuse('point-outside', outside(`grid[${i}]`, g.px));
@@ -272,14 +289,14 @@ export function measure(points: Points, img: RgbImage): MeasureResult {
   const kOf = (map: FoundGrid['map'], ends: readonly [End, End]) => REFERENCE_MM / paperDist(map, ends[0].at, ends[1].at);
   /** The medium straight found, or why not; a found one must have both ends read (as photoCheck asks). */
   const namedRef = (g: FoundGrid, tooWide: number, ref: Plank | undefined): MeasureResult | readonly [End, End] => {
-    const used: GridUsed = { source: points.grid ? 'seeded' : 'found', points: g.points.length, rmsMm: g.rmsMm };
+    const at = used(g, points.grid ? 'seeded' : 'found');
     if (!ref) {
       return refuse('reference-unread', tooWide > 0
         ? 'no medium straight found: two pieces seem to touch, or something lies against it'
-        : 'no medium straight (144mm) found', used);
+        : 'no medium straight (144mm) found', at);
     }
     const which = ref.refined[0] ? (ref.refined[1] ? null : 'second') : 'first';
-    if (which) return refuse('reference-unread', `the medium straight's ${which} end couldn't be read: no shadow across it, nothing touching it`, used);
+    if (which) return refuse('reference-unread', `the medium straight's ${which} end couldn't be read: no shadow across it, nothing touching it`, at);
     return [endOf(ref.ends[0], ref.evidence[0]), endOf(ref.ends[1], ref.evidence[1])];
   };
 
@@ -293,7 +310,7 @@ export function measure(points: Points, img: RgbImage): MeasureResult {
     }
     if (!seeded || !Number.isFinite(seeded.rmsMm)) return refuse('points-invalid', 'grid: the seeds give no usable map; check each seed\'s px and mm');
     grid = seeded;
-    gridUsed = { source: 'seeded', points: grid.points.length, rmsMm: grid.rmsMm };
+    gridUsed = used(grid, 'seeded');
     if (points.reference) {
       refEnds = refineRef(grid.map, points.reference);
       refSource = 'given';
@@ -327,14 +344,14 @@ export function measure(points: Points, img: RgbImage): MeasureResult {
       return refuse('k-implausible', `the reference reads ${tried.join(', ')}; a medium straight lying flat reads ${K_PLAUSIBLE.min} to ${K_PLAUSIBLE.max}`);
     }
     grid = chosen.grid;
-    gridUsed = { source: 'found', points: grid.points.length, rmsMm: grid.rmsMm, scale: chosen.scale };
+    gridUsed = used(grid, 'found', chosen.scale);
     refEnds = chosen.ends;
     refSource = 'given';
   } else {
     const found = gridAndPlanks(img);
     if ('reason' in found) return refuse('grid-not-found', `no grid found at any scale: ${found.reason}`);
     grid = found.grid;
-    gridUsed = { source: 'found', points: grid.points.length, rmsMm: grid.rmsMm };
+    gridUsed = used(grid, 'found');
     const r = namedRef(grid, found.tooWide, found.planks.reference);
     if ('kind' in r) return r;
     refEnds = r;
@@ -346,12 +363,12 @@ export function measure(points: Points, img: RgbImage): MeasureResult {
   if (grid.rmsMm > rmsMax) return refuse('grid-rms', `the grid's ${grid.points.length} crossings disagree by ${grid.rmsMm.toFixed(2)}mm rms (limit ${rmsMax}mm): two sheets, or one not flat`, gridUsed);
   for (const [i, j] of [[0, 1], [1, 0]] as const) {
     if (!facesAway(img, refEnds[i].at, refEnds[j].at)) {
-      return refuse('reference-faces-camera', `the medium straight's ${i === 0 ? 'first' : 'second'} end ${fmt(refEnds[i].at)} faces the camera (the photo's centre is ${fmt(centre)}), so it shows its end face and reads long`, gridUsed);
+      return refuse('reference-faces-camera', `the medium straight's ${i === 0 ? 'first' : 'second'} end ${fmt(refEnds[i].at)} faces the camera (the photo's centre is ${fmt(centre)}), so it shows its end face and reads long`, gridUsed, refEnds);
     }
   }
   const k = kOf(grid.map, refEnds);
   if (!(k >= K_PLAUSIBLE.min && k <= K_PLAUSIBLE.max)) {
-    return refuse('k-implausible', `the reference reads ${(REFERENCE_MM / k).toFixed(1)}mm on the paper (k ${Number.isFinite(k) ? k.toFixed(3) : 'not finite'}; a medium straight lying flat reads ${K_PLAUSIBLE.min} to ${K_PLAUSIBLE.max})`, gridUsed);
+    return refuse('k-implausible', `the reference reads ${(REFERENCE_MM / k).toFixed(1)}mm on the paper (k ${Number.isFinite(k) ? k.toFixed(3) : 'not finite'}; a medium straight lying flat reads ${K_PLAUSIBLE.min} to ${K_PLAUSIBLE.max})`, gridUsed, refEnds);
   }
   const refWhy: Why[] = refEnds.flatMap((e, i) => (e.refined ? [] : [{ code: 'reference-hand-read' as const, end: i === 0 ? 'first' : 'second', text: `the reference's ${i === 0 ? 'first' : 'second'} end is a hand reading, so the scale is too` }]));
 
@@ -381,10 +398,17 @@ export function measure(points: Points, img: RgbImage): MeasureResult {
     if (!apart(line[0], line[1])) return refused('geometry', `the ${f.kind === 'distance' ? 'figure' : 'line'}'s two ends are under 1mm apart on the paper`, notRead, 'not checked');
     if (f.kind !== 'distance' && f.toward && !apart(f.point, f.toward)) return refused('geometry', '"point" and "toward" are under 1mm apart on the paper', notRead, 'not checked');
 
-    const a = endOf(line[0], refineEnd(img, grid.map, line[0], line[1]));
-    const b = endOf(line[1], refineEnd(img, grid.map, line[1], line[0]));
+    // A road's ends: centred across the road first (a pick a few px off-centre moves offset and along), then refined along it.
+    const across = [centreAcross(img, grid.map, line[0], line[1]), centreAcross(img, grid.map, line[1], line[0])] as const;
+    const placed = [across[0]?.px ?? line[0], across[1]?.px ?? line[1]] as const;
+    const withAcross = (e: End, c: (typeof across)[number]): End => (c ? { ...e, seed: e.seed, acrossMm: c.shiftMm } : e);
+    const a = withAcross({ ...endOf(placed[0], refineEnd(img, grid.map, placed[0], placed[1])), seed: line[0] }, across[0]);
+    const b = withAcross({ ...endOf(placed[1], refineEnd(img, grid.map, placed[1], placed[0])), seed: line[1] }, across[1]);
     const ends: End[] = [a, b];
     const why: Why[] = [...refWhy];
+    across.forEach((c, i) => {
+      if (!c) why.push({ code: 'end-not-centred', end: labels[i], text: `the ${labels[i]} could not be centred across its road (its side edges not found 4-10mm in), so it is where it was picked` });
+    });
     const faceFix = (what: string) => `${what}; the photo is uncropped, taken from above the middle of the sheet`;
     for (const [e, other, label] of [[a, b, labels[0]], [b, a, labels[1]]] as const) {
       if (!facesAway(img, e.at, other.at)) {
@@ -421,10 +445,13 @@ export function measure(points: Points, img: RgbImage): MeasureResult {
 
 // ── The command line ─────────────────────────────────────────────────────────
 
-export const HELP = `usage: bun engine/tools/photoMeasure.ts <points.json> --photo <photo>
+export const HELP = `usage: bun engine/tools/photoMeasure.ts <points.json> --photo <photo> [--json] [--overlay <path>]
        bun engine/tools/photoMeasure.ts <points.json>          (only plain [a, b] figures, with "grid" and "reference" given)
 
   --photo <photo>   the photo the points were read on (--auto is the same)
+  --json            one JSON object on stdout instead of text (progress stays on stderr)
+  --overlay <path>  a picture of the points used: a folder (it writes <points>.overlay.png
+                    there) or a path ending .overlay.png
   --help            this text
 
 points.json: points are photo pixels [x, y] of the photo as a phone shows it
@@ -484,26 +511,63 @@ function render(r: Extract<MeasureResult, { kind: 'measured' }>, out: (l: string
   return refused > 0 ? 3 : 0;
 }
 
+/** --json's object (item 10): one per run, on stdout. The grid's crossings stay out; their count is in. */
+export function toJson(r: MeasureResult, overlay?: { path: string; key: readonly KeyRow[] }): object {
+  const grid = r.grid && { source: r.grid.source, points: r.grid.points, rmsMm: r.grid.rmsMm, ...(r.grid.scale !== undefined ? { scale: r.grid.scale } : {}) };
+  const tail = overlay ? { overlay } : {};
+  if (r.kind === 'refused') return { schema: 1, refused: r.refused, photo: r.photo, ...(grid ? { grid } : {}), ...tail };
+  return { schema: 1, photo: r.photo, grid, reference: r.reference, figures: r.figures, ...tail };
+}
+
+/** Where --overlay writes: a folder (then <points>.overlay.png in it) or a path ending .overlay.png (DX D13). */
+export function overlayPath(arg: string, pointsFile: string): string | Refusal {
+  const stem = basename(pointsFile, extname(pointsFile));
+  const isDir = (p: string) => { try { return statSync(p).isDirectory(); } catch { return false; } };
+  if (isDir(arg)) return join(arg, `${stem}.overlay.png`);
+  if (arg.endsWith('.overlay.png') && isDir(dirname(resolve(arg)))) return arg;
+  return refusal('overlay-path', `--overlay ${arg} is neither a folder nor a path ending .overlay.png in an existing folder`, `use --overlay ${join(dirname(pointsFile), `${stem}.overlay.png`)} (or any folder)`);
+}
+
+/** Written whole or not at all: a temp file beside the target, then renamed (eng G8b). */
+export function writeWhole(path: string, bytes: Uint8Array): void {
+  const tmp = `${path}.tmp-${process.pid}`;
+  try {
+    writeFileSync(tmp, bytes);
+    renameSync(tmp, path);
+  } catch (e) {
+    rmSync(tmp, { force: true });
+    throw e;
+  }
+}
+
 /** The command line: parse, load, measure, print, and the exit code. */
 export function main(argv: readonly string[], io: Io = IO): number {
+  // --json first, so even a usage error is one JSON object (DX D10).
+  const json = argv.includes('--json');
+  const emitRefusal = (head: 'REFUSED' | 'USAGE', r: Refusal) =>
+    json ? io.out(JSON.stringify(head === 'USAGE' ? { schema: 1, usage: { code: r.code, message: r.reason, fix: r.fix } } : { schema: 1, refused: r }))
+      : say(io.err, head, r);
   try {
     if (argv.includes('--help') || argv.includes('-h')) {
       io.out(HELP);
       return 0;
     }
-    const usage = (code: Code, reason: string, fix?: string) => (say(io.err, 'USAGE', refusal(code, reason, fix)), 2);
-    let file: string | undefined, photo: string | undefined;
+    const usage = (code: Code, reason: string, fix?: string) => (emitRefusal('USAGE', refusal(code, reason, fix)), 2);
+    let file: string | undefined, photo: string | undefined, overlayArg: string | undefined;
     for (let i = 0; i < argv.length; i++) {
       const a = argv[i]!;
-      if (a === '--photo' || a === '--auto') {
+      if (a === '--photo' || a === '--auto' || a === '--overlay') {
         const v = argv[++i];
-        if (v === undefined || v.startsWith('--')) return usage('usage', `${a} needs the photo after it`);
-        photo = v;
-      } else if (a.startsWith('-')) return usage('usage', `unknown flag ${a}`);
+        if (v === undefined || v.startsWith('--')) return usage('usage', `${a} needs a ${a === '--overlay' ? 'path' : 'photo'} after it`);
+        if (a === '--overlay') overlayArg = v;
+        else photo = v;
+      } else if (a === '--json') continue;
+      else if (a.startsWith('-')) return usage('usage', `unknown flag ${a}`);
       else if (file === undefined) file = a;
       else return usage('usage', `one points file only, got ${file} and ${a}`);
     }
     if (!file) return usage('usage', 'no points file given');
+    if (overlayArg !== undefined && !photo) return usage('needs-photo', '--overlay draws on the photo');
     let text: string;
     try {
       text = io.read(file);
@@ -511,7 +575,7 @@ export function main(argv: readonly string[], io: Io = IO): number {
       return usage('points-invalid', `can't read the points file ${file}: ${(e as NodeJS.ErrnoException).code ?? (e as Error).message}`, 'check the path to the points file');
     }
     const parsed = parsePoints(text);
-    if ('code' in parsed) return (say(io.err, 'USAGE', parsed), 2);
+    if ('code' in parsed) return (emitRefusal('USAGE', parsed), 2);
     if (!photo) {
       const why = needsPhoto(parsed);
       if (why) return usage('needs-photo', why);
@@ -519,31 +583,55 @@ export function main(argv: readonly string[], io: Io = IO): number {
       const r = measurePhoto(parsed as PhotoInput);
       if (r.kind === 'refused') {
         const code: Code = /grid points disagree/.test(r.reason) ? 'grid-rms' : /reference reads/.test(r.reason) ? 'k-implausible' : 'points-invalid';
-        return (say(io.err, 'REFUSED', refusal(code, r.reason)), 1);
+        return (emitRefusal('REFUSED', refusal(code, r.reason)), 1);
       }
-      io.out(`scale k = ${r.k.toFixed(4)}, grid agrees to ${r.gridResidualMm.toFixed(2)}mm`);
-      for (const [name, mm] of Object.entries(r.figures)) io.out(`${name}: ${mm.toFixed(2)}mm`);
+      if (json) io.out(JSON.stringify({ schema: 1, k: r.k, gridResidualMm: r.gridResidualMm, figures: r.figures }));
+      else {
+        io.out(`scale k = ${r.k.toFixed(4)}, grid agrees to ${r.gridResidualMm.toFixed(2)}mm`);
+        for (const [name, mm] of Object.entries(r.figures)) io.out(`${name}: ${mm.toFixed(2)}mm`);
+      }
       return 0;
     }
+    const overlayAt = overlayArg === undefined ? undefined : overlayPath(overlayArg, file);
+    if (overlayAt !== undefined && typeof overlayAt !== 'string') return (emitRefusal('USAGE', overlayAt), 2);
     const points = resolvePoints(parsed, dirname(resolve(file)), photo);
-    if ('code' in points) return (say(io.err, 'USAGE', points), 2);
+    if ('code' in points) return (emitRefusal('USAGE', points), 2);
     let img: RgbImage;
     try {
       img = io.load(photo);
     } catch (e) {
       if (!(e instanceof PhotoError)) throw e;
-      return (say(io.err, 'REFUSED', refusal(e.code, e.message, e.fix)), 1);
+      return (emitRefusal('REFUSED', refusal(e.code, e.message, e.fix)), 1);
     }
     const t0 = Date.now();
     const r = measure(points, img);
     io.err(`measured in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
-    if (r.kind === 'refused') return (say(io.err, 'REFUSED', r.refused), r.refused.code === 'points-invalid' ? 2 : 1);
-    return render(r, io.out);
+    // The overlay is drawn for a refused run too: that is when it helps most.
+    let overlay: { path: string; key: KeyRow[] } | undefined;
+    if (overlayAt !== undefined) {
+      const { image, key } = drawOverlay(img, points, r);
+      writeWhole(overlayAt, writePng(image));
+      overlay = { path: overlayAt, key };
+    }
+    const code = r.kind === 'refused' ? (r.refused.code === 'points-invalid' ? 2 : 1)
+      : Object.values(r.figures).some((f) => 'refused' in f) ? 3 : 0;
+    if (json) {
+      io.out(JSON.stringify(toJson(r, overlay)));
+      return code;
+    }
+    if (r.kind === 'refused') say(io.err, 'REFUSED', r.refused);
+    else render(r, io.out);
+    if (overlay) {
+      io.out(`overlay: ${overlay.path}`);
+      for (const k of overlay.key) io.out(`  ${k.colour} ring: ${k.figure}, ${k.end}`);
+      io.out('  red dots: grid crossings used; black squares: the reference\'s ends');
+    }
+    return code;
   } catch (e) {
-    // Anything unexpected: a code, a trace on disk, never a bare stack (DX D11).
+    // Anything unexpected: a code, a trace on disk, never a bare stack (DX D11); the trace stays out of --json (eng G13).
     const trace = join(mkdtempSync(join(tmpdir(), 'photoMeasure-')), 'trace.txt');
     writeFileSync(trace, (e as Error).stack ?? String(e));
-    say(io.err, 'REFUSED', refusal('internal', `${(e as Error).message} (trace: ${trace})`));
+    emitRefusal('REFUSED', refusal('internal', `${(e as Error).message} (trace: ${trace})`));
     return 1;
   }
 }

@@ -26,7 +26,7 @@ import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { agreedFigure, TOLERANCE_MM, TRIAL } from '../data/photoReadings.js';
 import { GRID_RESIDUAL_MAX_MM, scaleAndMeasure } from './photo.js';
-import { CROP } from './photoCrop.js';
+import { CROP, OVERLAY } from './photoCrop.js';
 import { straddlesCentre } from './photoEdges.js';
 import { hasLocation, stripMetadata } from './photoExif.js';
 import { pixelToPaper } from './photoGrid.js';
@@ -87,8 +87,8 @@ const PHOTO = /\.(jpe?g|png|heic|heif|bmp)$/i;
  * report; returns the exit code.
  */
 export function checkFolder(dir: string, print: (line: string) => void = console.log, { locationOnly = false } = {}): number {
-  // A crop (photoCrop.ts) left beside a photo is a piece of one, not a photo.
-  const files = readdirSync(dir).filter((f) => PHOTO.test(f) && !CROP.test(f)).sort();
+  // A crop (photoCrop.ts) or an overlay (photoMeasure --overlay) left beside a photo is not a photo.
+  const files = readdirSync(dir).filter((f) => PHOTO.test(f) && !CROP.test(f) && !OVERLAY.test(f)).sort();
   if (files.length === 0) {
     print(`No photos in ${dir}.`);
     return 1;

@@ -158,24 +158,98 @@ post **Can't hold it yet** naming it and the reason, set `piece: unsupported`
 
 ## 7. Measure
 
-- Read figures with the photo tools only (AGENTS.md: no second pipeline):
-  - `bun engine/tools/photoMeasure.ts photos/issue-N/<k>.json --auto photos/issue-N/<k>.jpg`
-    reads every figure in one photo from a points file beside it (its format
-    is in the script's header);
-  - `bun engine/tools/photoCrop.ts <photo> <x> <y>` enlarges a point to read it
-    to a fraction of a pixel, on any system (`sips` on macOS; ImageMagick or
-    ffmpeg elsewhere, to read the photo). A portrait phone photo is turned
-    upright first, as are `photoMeasure`'s, so a point read off a crop is the
-    same pixel there. The photo check skips its crops.
-  - `--auto` finds each end from your hand-read seed, on wood or grey
-    plastic. A grey end is kept only when it reads the same from seeds either
-    side of yours; otherwise it prints `NOT FOUND, hand reading kept`, and that
-    end is your seed: say so beside the figure.
+- Read figures with the photo tools only (AGENTS.md: no second pipeline). They
+  run on macOS and Linux (Windows: use WSL). They need Bun and, to read a JPEG,
+  one image converter: macOS has `sips`; elsewhere `magick`, `convert` or
+  `ffmpeg` (`no-converter` says so when none is there). A claude.ai chat's
+  sandbox already had all three (2026-11-09: nothing to install; the first
+  figure about 1.5 minutes after unzipping). A photo attached to a chat
+  arrives smaller than the original (a 3072×4096 photo came as 1932×2576)
+  and without EXIF: measure it as it is, in its own pixels; the scale comes
+  from the medium straight, not the pixel count.
+- **What a measurement assumes**, and the refusals say again: the medium
+  straight (144mm) lies flat beside the piece, top faces level; the photo is
+  uncropped, taken from roughly above the middle of the sheet, every piece
+  across the middle.
+- **From photo to figure:**
+  1. `bun engine/tools/photoCrop.ts <photo> <x> <y> [half]` enlarges the
+     square round a point 4x, so an end can be read to a quarter pixel
+     (`half` 200 shows a road's full width; `--help` says more). A
+     portrait phone photo is turned upright first, as the phone shows it. The
+     crop is written beside the photo (the photo check skips it), and stderr
+     says how its pixels map back.
+  2. Read each end's centre off its crop: on the end face, near the middle of
+     the road. A road's end (a distance's, a line's) is moved across to the
+     middle of its road's side edges by the tool, so a few pixels off doesn't
+     matter; where it can't find them the figure says `end-not-centred`. A
+     `point` is not moved across: put a switch's curved end at its socket's
+     middle (a peg can sit a little off the road's middle; then read the end
+     face's width instead). Give each as `{ "crop": "<crop file>", "at": [cx, cy] }`;
+     the tool maps it back, so there is no arithmetic.
+  3. Write the points file beside the photo and run
+     `bun engine/tools/photoMeasure.ts photos/issue-N/<k>.json --photo photos/issue-N/<k>.jpg`
+     (`--auto` is the same flag). Leave out `grid` and `reference`: they are
+     found. Give the reference only where the photo check can't find it
+     (pieces touching it): its two end centres.
+  4. Add `--overlay photos/issue-N` and look at `<k>.overlay.png`: each
+     figure end is a ring in the colour the key names, the reference's ends are
+     black squares, the grid crossings used are red dots. A ring off the end it
+     was meant for is a bad pick: pick it again. Figures that share an end draw
+     their rings on top of each other; only the last colour shows, and the key
+     lists them all.
+- **A figure** is `[a, b]`, the distance between two ends, or
+  `{ "point", "toward", "line": [a, b], "read": "offset" | "along" }`: how far the
+  point is from the line through a and b (never negative), or how far along it
+  from a its foot lies (negative before a). `toward` is a point on the same
+  road's centreline at least 20mm back from the end, so the end face is square
+  to the line between them; for a switch's curved end, back along the curve,
+  not along the straight road. Without `toward` the point is not refined and
+  its facing is not checked.
+- **The smallest file**, one distance, and what it prints (84405):
+
+  ```json
+  { "figures": { "through": [{ "crop": "84405.crop-2232-432-200.png", "at": [408, 392] }, [2327, 3538]] } }
+  ```
+
+  ```
+  photo: 3072×4096 px, upright
+  grid: found, 221 crossings, rms 0.096mm
+  reference: found, k = 0.9726
+    first end: 26 edge samples, spread 0.142mm
+    second end: 26 edge samples, spread 0.102mm
+  through: 216.55mm checked
+    first end: 26 edge samples, spread 0.095mm
+    second end: 26 edge samples, spread 0.191mm
+  ```
+
+  With `--json`, stdout is one object instead (progress stays on stderr):
+  `{ "schema": 1, "photo": {…}, "grid": { "source": "found", "points": 221, "rmsMm": 0.096 }, "reference": { "source": "found", "k": 0.9726, "ends": [End, End] }, "figures": { "through": { "kind": "distance", "facing": "checked", "valueMm": 216.55, "status": "checked", "why": [], "ends": [End, End] } } }`,
+  each End `{ "seed", "at", "refined", "samples", "spreadMm" }` (or a `"reason"`
+  where a hand reading was kept), with `"acrossMm"` where a road's end was
+  moved across to its middle. A refused run is
+  `{ "schema": 1, "refused": { code, reason, fix, recovery } }`, bad usage
+  `{ "schema": 1, "usage": { code, message, fix } }`.
+- **The T switch**, all three figures (S the socket end, P the peg end, C the
+  curved end's centre, its toward 20mm back along the curve):
+
+  ```json
+  { "figures": {
+      "through": [[2334, 530], [2327, 3538]],
+      "along": { "point": [857.5, 2056], "toward": [1135, 2056], "line": [[2334, 530], [2327, 3538]], "read": "along" },
+      "out":   { "point": [857.5, 2056], "toward": [1135, 2056], "line": [[2334, 530], [2327, 3538]], "read": "offset" } } }
+  ```
+
+  reads through 216.55, along 108.04, out 105.26, each `checked` (84405's
+  recorded readings: 216.49, 108.49, 105.34). These pixels are the 3072×4096
+  original's: a smaller copy of the photo has its own.
+- `bun run photos:measure-score` measures the known pieces again (four, on the
+  owner's photos); run it after any change to the photo tools.
 - **Measure codes.** `photoMeasure.ts` and `photoCrop.ts` refuse with a code
   first, what happened with the values that caused it, and the fix on the last
   line (`--help` prints the same table). Exit 1: the run refused; 2: bad usage;
   3: a figure refused, the others read. A figure read with an end kept as a hand
-  reading, or a point with no `toward`, is `provisional`: say so beside it.
+  reading, or a point with no `toward`, is `provisional`: say so beside it. A
+  grey end is kept only when it reads the same from seeds either side of yours.
 
   | Code | Recovery | Fix |
   |---|---|---|
@@ -198,6 +272,7 @@ post **Can't hold it yet** naming it and the reason, set `piece: unsupported`
   | `points-invalid` | edit-points | fix the field named, as --help shows |
   | `no-figures` | edit-points | add at least one figure under "figures" |
   | `needs-photo` | edit-points | add --photo <photo> |
+  | `overlay-path` | edit-points | give --overlay a folder, or a path ending .overlay.png |
   | `internal` | human | re-run with the same input; if it happens again, report it with the trace file named above |
 - Each figure is read on both top views; the two must agree within 0.5 mm
   (`agreedFigure` in `engine/data/photoReadings.ts`).

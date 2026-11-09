@@ -12,6 +12,7 @@
     "calibration": "bun engine/tools/calibration.ts",
     "photos": "bun engine/tools/photoCheck.ts",
     "photos:score": "bun engine/tools/photoScoreboard.ts",
+    "photos:measure-score": "bun engine/tools/photoMeasureScoreboard.ts",
     "checkup": "bun engine/tools/checkup.ts"
   },
   "dependencies": {

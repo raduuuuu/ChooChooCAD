@@ -11,7 +11,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { CROP, cropPath, enlarge, fromCrop, parseArgs, windowAround, ZOOM } from './photoCrop.js';
+import { CROP, cropPath, enlarge, fromCrop, HELP, parseArgs, windowAround, ZOOM } from './photoCrop.js';
 
 describe('crop windows', () => {
   it('centres on the point, and a point read in the crop comes back to it', () => {
@@ -64,6 +64,17 @@ describe('the crop file', () => {
 });
 
 describe('the command line', () => {
+  /*
+   * MUTATION PROOF, run (2026-11-09): --help not looked for: `expected
+   * { Object (error) } to deeply equal { help: true }` (the Linux sandbox run
+   * found --help missing).
+   */
+  it('--help is asked for, and says how to use the crop', () => {
+    expect(parseArgs(['--help'])).toEqual({ help: true });
+    expect(parseArgs(['p.jpg', '-h'])).toEqual({ help: true });
+    for (const s of ['usage:', '{ "crop":', 'half', 'photo-missing', 'orientation']) expect(HELP).toContain(s);
+  });
+
   it('takes a photo, two numbers and an optional half size', () => {
     expect(parseArgs(['p.jpg', '63', '17.5'])).toEqual({ photo: 'p.jpg', x: 63, y: 17.5, half: 60 });
     expect(parseArgs(['p.jpg', '63', '17', '40'])).toEqual({ photo: 'p.jpg', x: 63, y: 17, half: 40 });

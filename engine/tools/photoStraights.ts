@@ -21,13 +21,13 @@
  */
 
 import { K_PLAUSIBLE, REFERENCE_MM, type Pt } from './photo.js';
-import { refineEnd, type RefinedEnd } from './photoEdges.js';
+import { PLANK_WIDTH_MM, refineEnd, type RefinedEnd } from './photoEdges.js';
+
+export { PLANK_WIDTH_MM };
 import { paperToPixel, pixelToPaper, WOOD_GREEN_OVER_BLUE, type FoundGrid } from './photoGrid.js';
 import { findGridAuto } from './photoGridSeed.js';
 import type { RgbImage } from './photoImage.js';
 
-/** A plank's top: 40mm wide, read up to a few percent long, and a little lost at the edges. */
-export const PLANK_WIDTH_MM = { min: 32, max: 50 } as const;
 /**
  * A slice spanning at least this share of the plank's width is body. A peg's
  * slices span under 45% (its neck and head); a socket's still span nearly all
