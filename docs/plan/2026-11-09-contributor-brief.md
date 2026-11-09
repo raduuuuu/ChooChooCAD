@@ -1013,6 +1013,28 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
     - Found in the drawing: the half arches at each end of each side not drawn, the
       truss shape drawing only whole arches: the shape is to stop at the piece's ends
       (owner, 2026-11-09).
+    - The chat's own findings (its end-of-run list, 2026-11-09):
+      - Done in draft-4: question 1 also asks what the piece does on a layout ("an
+        unsupported bridge" collided with `piece: unsupported`); tall widths read
+        on both sides, half their sum (one side swung 15.9 to 42.0 between photos);
+        a side face nearer the camera than the scale's edge reads a few percent
+        large; the issue lists each brief version and commit followed when the
+        clone was pulled mid-run. The truss shape can be cut (#233), and its
+        hangers' `0` is documented there.
+      - Article numbers (103.200.63): kept under Markings in the issue (S3-1:
+        numbers stay); AGENTS.md's names rule keeps them out of the part's data,
+        and #231's `source` has none.
+      - Follow-ups, not built: a road end whose side edges are hidden (side walls)
+        could be centred from its socket notch or its end face's width, not left
+        `end-not-centred`; a `photoTrace.ts` drawing a profile in millimetres onto
+        the side photo, so the trace overlay that caught the missing half arches
+        needs no hand-written ImageMagick; an elliptical chord for tall toy arches
+        (a circular one can't rise past a semicircle, so #231 used parabolic);
+        `--location-only` doesn't look in sub-folders (the skill's order keeps it
+        safe; draft-2 dropped the step).
+      - For the owner: drawn-only arches don't collide, so a raised track through
+        #231's arches isn't flagged, only its cross bars; and the app records no
+        train width, so step 7's clear-width check is judgement.
     - Not yet run: an outsider's pilot, the phone path, a Free plan.
 - [ ] **T3 (P1, human: ~3 days / CC: ~1h)** — engine — export the share-link codec; the untrusted-part validator; `engine/tools/briefLink.ts`
   - Surfaced by: Section 1 (DRY codec), Section 3 (validator), spec review 2 (links by script), Codex 2 (geometry)

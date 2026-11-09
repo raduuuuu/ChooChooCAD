@@ -84,7 +84,9 @@ command -v convert || command -v magick || command -v ffmpeg
 
 Ask, one at a time:
 
-1. What is the piece, in their words: what it is and what it does.
+1. What is the piece, in their words, and what does it do on a layout? (Ask
+   both: "an unsupported bridge" meant a span that needs separate pillars, not
+   a piece the app can't hold.)
 2. The markings on its underside (printed or moulded), and roughly where and
    when they bought it. Write any maker's name as "the maker".
 3. Which pieces it joins (optional).
@@ -179,10 +181,14 @@ outer widths, where a structure starts and ends along the piece.
   by the piece's own length along its bottom edge in the same photo (the top
   views gave that length): a ratio, no script of your own. A grid behind or under the piece doesn't help: it
   stands at another distance from the camera than the piece's near face, so
-  it gives the wrong scale. Round to the millimetre.
+  it gives the wrong scale. Round to the millimetre. A face nearer the camera
+  than the edge you scaled by (a side wall standing outside the road) reads a
+  few percent large: say so beside it.
 - **Widths seen from above come from the top views,** by `photoMeasure.ts`
-  like any figure; a face higher or lower than the track's top reads a little
-  long or short, which is fine for these.
+  like any figure. A face well above the track's top swings with the camera's
+  lean: in the first pilot, sides 120 mm up read 36.4 and 20.3 mm from the
+  road's middle on one photo, 15.9 and 42.0 on the other. Read both sides and
+  use half their sum (56.7 and 57.9 there), never one side alone.
 - **Show the drawing beside the side photo** and ask the sender: does it
   match the shape? Redraw what they say is wrong before step 8.
 - In the piece's `source`, say which figures were inferred and from which
@@ -232,6 +238,7 @@ pilot's issue). Give the title in the chat, in one short code block.
 **Medium and long straight:** <their answer>
 
 Drawn with the contributor brief <version>, repository <commit from step 1>.
+<if the clone was pulled during the run: each later version and commit, and the step it took over from>
 Measured from <n> photos that stay with the sender.
 
 | Figure | Value | Source |
