@@ -206,6 +206,9 @@ function drawTruss(t: DecorTruss, f: ShapeFrame, pen: Pen): void {
   // An even count, so a step lands on the crown.
   const steps = 2 * Math.max(1, Math.ceil((toMm - fromMm) / TRUSS_STEP_MM / 2));
   const along = (i: number) => fromMm + ((toMm - fromMm) * i) / steps;
+  // A band keeps its depth at the crown all the way down, as a flat-cut toy arch does; it never dips below the springing.
+  const deep = crownMm - innerCrownMm, underside = (a: number) => Math.max(floor + t.springMm, outer(a) - deep);
+  if (t.band) return drawBand(t, pen, { at, outer, inner: underside, steps, lo, hi });
   for (const side of [1, -1] as const) {
     for (const top of [outer, inner]) {
       for (let i = 0; i < steps; i++) {
@@ -252,6 +255,48 @@ function drawTruss(t: DecorTruss, f: ShapeFrame, pen: Pen): void {
         pen.edge(p, s);
         pen.edge(q, r);
       }
+    }
+  }
+}
+
+/**
+ * A TRUSS ARCH AS ONE SOLID BAND (the double-arch bridge, 2026-11-09): each
+ * rib a flat strip from the outer chord down by the crown's depth (outer
+ * crown less inner) all along, not to the inner chord, which meets the outer
+ * at the springings; its two faces in
+ * the rib's plane, its top and underside along the chords, edged along both
+ * chords and across each cut. Twice as many steps as a truss, for a smooth
+ * curve; no verticals, hangers or braces.
+ */
+function drawBand(
+  t: DecorTruss, pen: Pen,
+  g: { at: (a: number, across: number, z: number) => P3; outer: (a: number) => number; inner: (a: number) => number; steps: number; lo: number; hi: number },
+): void {
+  const { at, outer, inner, lo, hi } = g;
+  const steps = 2 * g.steps, along = (i: number) => t.fromMm + ((t.toMm - t.fromMm) * i) / steps;
+  for (const side of [1, -1] as const) {
+    const y = (d: number) => side * t.sideMm + d * TRUSS_HALF_MM;
+    for (let i = 0; i < steps; i++) {
+      const a0 = Math.max(lo, along(i)), a1 = Math.min(hi, along(i + 1));
+      if (a0 >= a1) continue;
+      // Corners: [outer top, inner bottom] on each face, at each end of the step.
+      const [p0, p1, p2, p3] = [at(a0, y(1), outer(a0)), at(a0, y(1), inner(a0)), at(a0, y(-1), outer(a0)), at(a0, y(-1), inner(a0))];
+      const [q0, q1, q2, q3] = [at(a1, y(1), outer(a1)), at(a1, y(1), inner(a1)), at(a1, y(-1), outer(a1)), at(a1, y(-1), inner(a1))];
+      pen.quad(p0, p1, q1, q0);
+      pen.quad(p2, q2, q3, p3);
+      pen.quad(p0, q0, q2, p2);
+      pen.quad(p1, p3, q3, q1);
+      for (const p of [p0, p1, p2, p3]) pen.grow(p);
+      for (const d of [1, -1]) {
+        pen.edge(at(a0, y(d), outer(a0)), at(a1, y(d), outer(a1)));
+        pen.edge(at(a0, y(d), inner(a0)), at(a1, y(d), inner(a1)));
+      }
+    }
+    for (const a of [lo, hi]) {
+      if (!(a > t.fromMm && a < t.toMm)) continue;
+      // A cut end: closed, and edged across.
+      pen.quad(at(a, y(1), outer(a)), at(a, y(-1), outer(a)), at(a, y(-1), inner(a)), at(a, y(1), inner(a)));
+      for (const d of [1, -1]) pen.edge(at(a, y(d), outer(a)), at(a, y(d), inner(a)));
     }
   }
 }

@@ -414,6 +414,12 @@ export interface DecorTruss {
    */
   readonly drawnFromMm?: number;
   readonly drawnToMm?: number;
+  /**
+   * One solid band under the outer chord, as deep all along as at the crown
+   * (`crownMm` less `innerCrownMm`) and as thick as a chord across, in place of two chords with verticals and hangers between
+   * (the double-arch bridge's flat orange arches, 2026-11-09).
+   */
+  readonly band?: true;
   readonly noun?: string;
   readonly paint?: Paint;
 }
