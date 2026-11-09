@@ -7,7 +7,7 @@
 
 # Draw a missing track piece with your Claude
 
-Brief version: **draft-1, 2026-11-09**
+Brief version: **draft-2, 2026-11-09**
 
 ## For the person reading this
 
