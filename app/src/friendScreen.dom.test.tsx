@@ -23,6 +23,7 @@ import { StrictMode, useEffect } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { watchReloads } from '../test/reloads.js';
 import { startReadOnlySession } from '../../engine/data/storage.js';
 import { LinkRoute } from './LinkRoute.js';
 import { BUILD_LINK_STORAGE_KEY, GRAPH_STORAGE_KEY } from './storageKeys.js';
@@ -116,13 +117,14 @@ describe('a shared link', () => {
    * '#v1.hcy5DcAwDEPRXVy78H30yRSC9l8j3-xSB…' to be '' // Object.is equality`.
    */
   it('leaving takes the link off the address and reloads into the editor (D28)', async () => {
-    const reloads = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const reloaded = watchReloads();
     history.replaceState(null, '', `/${STADIUM}`);
     const user = userEvent.setup();
     open(STADIUM);
     await user.click(await screen.findByRole('button', { name: 'Start your own' }));
     expect(location.hash).toBe('');
-    expect(reloads.mock.calls.some((c) => String(c[0]).includes('Not implemented: navigation'))).toBe(true);
-    reloads.mockRestore();
+    expect(reloaded()).toBe(true);
+    quiet.mockRestore();
   });
 });

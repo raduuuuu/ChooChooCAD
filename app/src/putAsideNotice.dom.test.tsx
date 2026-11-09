@@ -22,6 +22,7 @@ import { StrictMode } from 'react';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { watchReloads } from '../test/reloads.js';
 import { place } from '../test/place.js';
 import { App } from './App.js';
 import { GRAPH_PREVIOUS_KEY, GRAPH_STORAGE_KEY } from './storageKeys.js';
@@ -36,7 +37,6 @@ const EARLIER = JSON.stringify({
   anchors: [],
 });
 
-const reloaded = (calls: unknown[][]) => calls.some((c) => String(c[0]).includes('Not implemented: navigation'));
 const realSet = Storage.prototype.setItem;
 /** Writes to `keys` throw from now on, as a full storage would; `after` lets that many through first. */
 function fill(keys: Record<string, number>) {
@@ -58,7 +58,8 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('the put-aside notice (22A)', () => {
   it('names the earlier layout, and Restore swaps the two and reloads (D24)', async () => {
-    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const reloaded = watchReloads();
     localStorage.setItem(GRAPH_STORAGE_KEY, OWN);
     localStorage.setItem(GRAPH_PREVIOUS_KEY, EARLIER);
     const user = userEvent.setup();
@@ -68,7 +69,7 @@ describe('the put-aside notice (22A)', () => {
     await user.click(screen.getByRole('button', { name: 'Restore it' }));
     expect(localStorage.getItem(GRAPH_STORAGE_KEY)).toBe(EARLIER);
     expect(localStorage.getItem(GRAPH_PREVIOUS_KEY)).toBe(current);
-    expect(reloaded(errors.mock.calls)).toBe(true);
+    expect(reloaded()).toBe(true);
   });
 
   it('nothing put aside: no notice', () => {

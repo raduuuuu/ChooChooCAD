@@ -22,6 +22,7 @@ import { StrictMode, useEffect } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { watchReloads } from '../test/reloads.js';
 import { startReadOnlySession } from '../../engine/data/storage.js';
 import { LinkRoute } from './LinkRoute.js';
 import { BUILD_LINK_STORAGE_KEY, GRAPH_PREVIOUS_KEY, GRAPH_STORAGE_KEY } from './storageKeys.js';
@@ -48,7 +49,6 @@ const EARLIER = JSON.stringify({
 });
 
 const everything = () => Object.fromEntries(Object.keys(localStorage).sort().map((k) => [k, localStorage.getItem(k)]));
-const reloaded = (calls: unknown[][]) => calls.some((c) => String(c[0]).includes('Not implemented: navigation'));
 
 // What main.tsx does before it mounts a link.
 beforeAll(() => startReadOnlySession([BUILD_LINK_STORAGE_KEY]));
@@ -69,7 +69,8 @@ async function openLink() {
 
 describe('Open in editor', () => {
   it("puts the friend's layout aside, takes the link's, and reloads off the link (D23, D28)", async () => {
-    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const reloaded = watchReloads();
     localStorage.setItem(GRAPH_STORAGE_KEY, OWN);
     const user = userEvent.setup();
     await openLink();
@@ -77,7 +78,7 @@ describe('Open in editor', () => {
     expect(localStorage.getItem(GRAPH_PREVIOUS_KEY)).toBe(OWN);
     expect(JSON.parse(localStorage.getItem(GRAPH_STORAGE_KEY)!).pieces).toHaveLength(10);
     expect(location.hash).toBe('');
-    expect(reloaded(errors.mock.calls)).toBe(true);
+    expect(reloaded()).toBe(true);
   });
 
   /*
