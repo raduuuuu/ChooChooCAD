@@ -1454,6 +1454,7 @@ Effort assumption: features ~30x, tests ~50x, verification ~3x.
   - Surfaced by: CEO D19
   - Files: none
   - Verify: a merged outside piece with the contributor's notes
+  - Dry run 1, 2026-11-09, on #204 (the station a train drives through): location pass, sorting, trial (216.71 mm) and the can-the-app-hold-it gate worked; it stopped where a real run would, asking for a second top view. One of the two "top views" sent was the piece on its side, which the photo check passed: it finds the grid and the medium straight, not which way the piece lies. The one top view read the track at 285.96 mm against the library's 288 mm (ends hand-read), not settled by one photo. Skill fixed: Claude looks at each photo before sorting, trial photos go in `top/`, crops come from `work/`. Open: the automatic end reading finds no edge on grey plastic; a second top view and the typed markings, then dry run 2.
 - [ ] **T7 (P2, human: ~3h / CC: ~20min)** — app — palette link after T6
   - Surfaced by: CEO X2, D19
   - Files: app/src/App.tsx
