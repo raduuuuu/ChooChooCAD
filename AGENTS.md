@@ -91,3 +91,6 @@ the design rules are in [DESIGN.md](DESIGN.md); how people contribute is in
 - Don't commit `tsconfig.tsbuildinfo`.
 - Every test pin records the change that makes it fail, and that change is
   actually run (CLAUDE.md).
+- Maintainer only: when the Repo checkup issue says a deep checkup is due,
+  run [/checkup](.claude/skills/checkup/SKILL.md) before starting the next
+  plan's work.

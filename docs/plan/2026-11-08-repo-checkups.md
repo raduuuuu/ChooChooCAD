@@ -578,6 +578,7 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
   - Surfaced by: C1, C3 (generic-first), Section 8 runbook
   - Files: .claude/skills/checkup/SKILL.md, AGENTS.md
   - Verify: a docs test pins the AGENTS.md line and the skill's link (mutation run); one /checkup run posts `/checkup done at <sha>`
+  - Built 2026-11-09: the skill (Part 1 generic, Part 2 this repo's rules), the AGENTS.md line; three docs tests in app/test/contributing.test.ts, mutations run (the link, the closing line read by `DONE` from checkup.ts, Part 1 free of this repo). Every command in Part 1 was run once against this repo. Left: the first /checkup run and its done comment on #209.
 - [x] **T5 (P2, human: ~30min / CC: ~10min)** — github — delete the 186 merged branches (C4)
   - Surfaced by: C4 (D4)
   - Files: none

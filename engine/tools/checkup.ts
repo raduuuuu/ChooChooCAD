@@ -281,7 +281,8 @@ export interface IssueComment {
   readonly createdAt: string;
 }
 
-const DONE = /^\/checkup done at ([0-9a-f]{7,40})\b/;
+/** The owner's closing comment (the checkup skill's last step): its first line. */
+export const DONE = /^\/checkup done at ([0-9a-f]{7,40})\b/;
 const short = (sha: string) => sha.slice(0, 7);
 
 /**

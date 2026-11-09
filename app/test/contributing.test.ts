@@ -20,6 +20,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { DONE } from '../../engine/tools/checkup.js';
 
 const read = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const form = read('.github/ISSUE_TEMPLATE/new-piece.yml');
@@ -110,6 +111,41 @@ describe("the maintainer's rules", () => {
       /Don't stack pull requests/,
       /List every input/,
     ]) expect(agents).toMatch(rule);
+  });
+});
+
+describe('the deep checkup (repo-checkups plan, T4)', () => {
+  const CHECKUP = '.claude/skills/checkup/SKILL.md';
+  const skill = read(CHECKUP);
+
+  /*
+   * MUTATION PROOF, run (2026-11-09): the link's path misspelt `checkups`:
+   * `expected false to be true`.
+   */
+  it("is the maintainer's to run when the issue says it's due, by a link to the skill, which exists", () => {
+    const agents = read('AGENTS.md').replace(/\s+/g, ' ');
+    const link = agents.match(/Maintainer only: when the Repo checkup issue says a deep checkup is due, run \[\/checkup\]\(([^)]+)\)/)?.[1] ?? '';
+    expect(link === CHECKUP && existsSync(new URL(`../../${link}`, import.meta.url))).toBe(true);
+  });
+
+  /*
+   * MUTATION PROOF, run (2026-11-09): the example's first line written
+   * `/checkup finished at 0123abcd`: `expected '/checkup finished at 0123abcd' to match /^\/checkup done at ([0-9a-f]{7,40})\b/`.
+   */
+  it('closes with the comment the workflow reads to clear "due"', () => {
+    const example = skill.slice(skill.indexOf('### 8. Close it')).match(/```\n([^\n]+)\n/)?.[1] ?? '';
+    expect(example).toMatch(DONE);
+  });
+
+  /*
+   * Part 1 may move to gstack (plan C3) as a cut, not a rewrite.
+   * MUTATION PROOF, run (2026-11-09): "Read `AGENTS.md` first." added to
+   * step 1: `expected [ 'AGENTS.md' ] to deeply equal []`.
+   */
+  it('keeps its generic steps free of this repository', () => {
+    const part1 = skill.slice(skill.indexOf('## Part 1'), skill.indexOf('## Part 2'));
+    expect(part1.length).toBeGreaterThan(1000);
+    expect(part1.match(/raduuuuu|ChooChooCAD|AGENTS\.md|CLAUDE\.md|photo|piece/gi) ?? []).toEqual([]);
   });
 });
 
