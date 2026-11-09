@@ -98,10 +98,13 @@ on these copies.
     and the photo, and to draw nothing until the maintainer has dealt with it.
 - **Exit 0.** Go on.
 
-**Then sort them.** Open each photo and move the top views (the piece and the
-medium straight lying flat on the grid, seen from straight above) into
-`photos/issue-N/top/`. Any underside, side or end photo stays
-where they are: they show shape and markings, not sizes.
+**Then sort them.** Open each photo and look at it yourself. Move the top
+views (the piece and the medium straight lying flat on the grid, seen from
+straight above) and the long-straight trial photos into `photos/issue-N/top/`.
+Any underside, side or end photo stays where it is: it shows shape and
+markings, not sizes. The check below cannot tell a top view from a piece lying
+on its side on the grid (it only finds the grid and the medium straight), so a
+side photo it passes is still a side photo.
 
 **Then the full check, on the top views only:**
 
@@ -160,7 +163,11 @@ post **Can't hold it yet** naming it and the reason, set `piece: unsupported`
     reads every figure in one photo from a points file beside it (its format
     is in the script's header);
   - `bun engine/tools/photoCrop.ts <photo> <x> <y>` enlarges a point to read it
-    to a fraction of a pixel (macOS, `sips`).
+    to a fraction of a pixel (macOS, `sips`). It saves the crop beside the
+    photo, so crop from a copy in `photos/issue-N/work/`, never from `top/`:
+    a crop left in `top/` is checked as a photo on the next run.
+  - The ends of grey plastic track give no edge to the automatic reading;
+    read those ends by hand on a crop, and say so.
 - Each figure is read on both top views; the two must agree within 0.5 mm
   (`agreedFigure` in `engine/data/photoReadings.ts`), or ask for a third photo.
 - Say which line and which scale each figure used, and keep them fixed if you
