@@ -8,6 +8,12 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    # TypeScript 7 offers its compiler API only as "unstable" (typescript/unstable/*),
+    # and five tests read source with that API (storage.guard, sources, levelAccess,
+    # view3dImports, copyPosition). Stay on 5.x until it is stable (owner, 2026-11-09).
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     groups:
       dependencies:
         patterns: ["*"]
