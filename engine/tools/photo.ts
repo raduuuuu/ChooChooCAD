@@ -113,6 +113,19 @@ export type PhotoResult =
 /** Above this, the grid points disagree with each other: a misread point or a bent sheet. */
 export const GRID_RESIDUAL_MAX_MM = 0.5;
 
+/**
+ * Where `p` sits against the line through `a` and `b`, all on the paper (mm):
+ * how far out from it (never negative) and how far along it from `a` towards
+ * `b` its foot lies (negative when the foot falls before `a`). Times the
+ * scale, as any length: a top face 12mm up is the paper scaled about the
+ * camera's nadir, so across and along scale alike.
+ */
+export function offsetAlong(p: Pt, a: Pt, b: Pt): { offset: number; along: number } {
+  const len = dist(a, b);
+  const ux = (b[0] - a[0]) / len, uy = (b[1] - a[1]) / len, dx = p[0] - a[0], dy = p[1] - a[1];
+  return { offset: Math.abs(dx * uy - dy * ux), along: dx * ux + dy * uy };
+}
+
 /** Every figure in one photo, or why the photo is refused. */
 export function measurePhoto(input: PhotoInput): PhotoResult {
   let h: Homography;

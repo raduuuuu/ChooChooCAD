@@ -171,6 +171,34 @@ post **Can't hold it yet** naming it and the reason, set `piece: unsupported`
     plastic. A grey end is kept only when it reads the same from seeds either
     side of yours; otherwise it prints `NOT FOUND, hand reading kept`, and that
     end is your seed: say so beside the figure.
+- **Measure codes.** `photoMeasure.ts` and `photoCrop.ts` refuse with a code
+  first, what happened with the values that caused it, and the fix on the last
+  line (`--help` prints the same table). Exit 1: the run refused; 2: bad usage;
+  3: a figure refused, the others read. A figure read with an end kept as a hand
+  reading, or a point with no `toward`, is `provisional`: say so beside it.
+
+  | Code | Recovery | Fix |
+  |---|---|---|
+  | `photo-missing` | edit-points | check the path: it is the photo file itself, relative to where you run the command |
+  | `no-converter` | install | on macOS `sips` is built in; elsewhere install ImageMagick (`magick`) or ffmpeg, or save the photo as a BMP |
+  | `photo-unreadable` | retake | open the photo and save it again as a JPEG; if that fails, retake it |
+  | `heic` | retake | set the camera to "Most Compatible" (JPEG), or export the photo as JPEG |
+  | `orientation` | retake | open the photo, save it again upright (or rotate and export it), and use that copy |
+  | `grid-not-found` | retake | retake with the millimetre paper filling most of the photo, flat and evenly lit |
+  | `grid-rms` | retake | use one sheet, lying flat, and retake |
+  | `paper-warm` | retake | use white, blue or pink millimetre paper, in daylight, and retake |
+  | `reference-unread` | retake | lay the medium straight flat, top face up, fully on the grid, about 2cm from every other piece, and retake |
+  | `reference-faces-camera` | retake | lay the medium straight across the middle of the photo and retake |
+  | `k-implausible` | edit-points | check the reference points are the medium straight's two end centres; if they are, it is not lying flat: retake |
+  | `point-outside` | edit-points | points are in the photo's full pixels; a point read off a smaller preview must be scaled up to them |
+  | `faces-camera` | retake | lay the piece across the middle of the photo and retake |
+  | `geometry` | edit-points | pick the figure's points again: its ends are on top of each other or off the paper |
+  | `usage` | edit-points | run with --help for the usage |
+  | `points-not-json` | edit-points | make the points file valid JSON (--help shows an example) |
+  | `points-invalid` | edit-points | fix the field named, as --help shows |
+  | `no-figures` | edit-points | add at least one figure under "figures" |
+  | `needs-photo` | edit-points | add --photo <photo> |
+  | `internal` | human | re-run with the same input; if it happens again, report it with the trace file named above |
 - Each figure is read on both top views; the two must agree within 0.5 mm
   (`agreedFigure` in `engine/data/photoReadings.ts`).
 - When they don't, look at the heights first. The medium straight sets the

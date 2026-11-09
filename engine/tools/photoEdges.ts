@@ -154,6 +154,18 @@ function fit(found: readonly [number, number][]): Fit | null {
   return { a, b, n, spread };
 }
 
+/**
+ * True when an end faces away from the camera: its outward direction (from
+ * `other` to `end`) points away from the photo's centre, on both axes
+ * (measuring-tools plan, eng G2): (end − other) · (end − centre) > 0. A
+ * curved end whose face turns partly to the camera fails it even where a
+ * one-axis test passes. Exactly square to the centre (0) does not count.
+ */
+export function facesAway(img: Pick<RgbImage, 'width' | 'height'>, end: Pt, other: Pt): boolean {
+  const cx = img.width / 2, cy = img.height / 2;
+  return (end[0] - other[0]) * (end[0] - cx) + (end[1] - other[1]) * (end[1] - cy) > 0;
+}
+
 /** True when a piece's two ends lie either side of the photo's centre row or column, so both face away from the camera. */
 export function straddlesCentre(img: Pick<RgbImage, 'width' | 'height'>, a: Pt, b: Pt): boolean {
   const vertical = Math.abs(a[1] - b[1]) >= Math.abs(a[0] - b[0]);
