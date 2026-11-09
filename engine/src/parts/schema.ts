@@ -399,7 +399,7 @@ export interface DecorTruss {
   readonly crownMm: number;
   readonly innerCrownMm: number;
   readonly sideMm: number;
-  /** This many hangers down to the road, evenly spaced, in place of one at every step (the bowstring bridge's five). */
+  /** This many hangers down to the road, evenly spaced, in place of one at every step (the bowstring bridge's five); 0 for none. */
   readonly hangers?: number;
   /** The hangers as flat bars this wide along the road, not lines. */
   readonly hangerMm?: number;
@@ -407,6 +407,13 @@ export interface DecorTruss {
   readonly parabolic?: true;
   /** False for an arch with no bracing across its top. */
   readonly braced?: false;
+  /**
+   * Only this stretch along the piece is drawn, the arch cut square at either
+   * end of it: half an arch centred on a piece's end shows only its inner half
+   * (the double-arch bridge, 2026-11-09). Both within `fromMm` to `toMm`.
+   */
+  readonly drawnFromMm?: number;
+  readonly drawnToMm?: number;
   readonly noun?: string;
   readonly paint?: Paint;
 }

@@ -187,13 +187,17 @@ function drawStones(v: DecorVault, f: ShapeFrame, pen: Pen): void {
  * chords either side of the road, outer and inner, meeting where the arch
  * springs low on the portals; verticals between them, hangers from the
  * inner chord down to the road, and braces across between the two outer
- * chords. Chords in the house matte, the rest as lines.
+ * chords. Chords in the house matte, the rest as lines. A cut arch is drawn
+ * only from `drawnFromMm` to `drawnToMm`, closed by a line across its chords
+ * at each cut.
  */
 function drawTruss(t: DecorTruss, f: ShapeFrame, pen: Pen): void {
   const { fromMm, toMm, springMm, crownMm, innerCrownMm, sideMm } = t;
   const floor = f.floorMm;
-  // Along the piece, from its start: the box starts where the arch springs.
-  const at = (a: number, across: number, z: number) => f.at(a - fromMm, across, z);
+  const lo = t.drawnFromMm ?? fromMm, hi = t.drawnToMm ?? toMm;
+  // Along the piece, from its start: the box starts where the drawn stretch does.
+  const at = (a: number, across: number, z: number) => f.at(a - lo, across, z);
+  const shown = (a: number) => a > lo && a < hi;
   /** A circular chord through both springings and its crown, as height above the table. */
   const chord = (crown: number) => {
     const half = (toMm - fromMm) / 2, rise = crown - springMm;
@@ -208,7 +212,8 @@ function drawTruss(t: DecorTruss, f: ShapeFrame, pen: Pen): void {
   for (const side of [1, -1] as const) {
     for (const top of [outer, inner]) {
       for (let i = 0; i < steps; i++) {
-        const a0 = along(i), a1 = along(i + 1);
+        const a0 = Math.max(lo, along(i)), a1 = Math.min(hi, along(i + 1));
+        if (a0 >= a1) continue;
         // Corners: [in-top, in-bottom, out-top, out-bottom] at each end of the step.
         const ring = (a: number) => [-1, 1].flatMap((d) => [[a, top(a)], [a, top(a) - TRUSS_CHORD_MM]].map(([aa, z]) => at(aa!, side * sideMm + d * TRUSS_HALF_MM, z!)));
         const [p0, p1, p2, p3] = ring(a0) as [P3, P3, P3, P3];
@@ -221,8 +226,11 @@ function drawTruss(t: DecorTruss, f: ShapeFrame, pen: Pen): void {
         for (const d of [1, -1]) pen.edge(at(a0, side * sideMm + d * TRUSS_HALF_MM, top(a0)), at(a1, side * sideMm + d * TRUSS_HALF_MM, top(a1)));
       }
     }
+    // A cut end closed by a line across the chords.
+    for (const a of [lo, hi]) if (a > fromMm && a < toMm) pen.edge(at(a, side * sideMm, outer(a) - TRUSS_CHORD_MM), at(a, side * sideMm, inner(a)));
     for (let i = 1; i < steps; i++) {
       const a = along(i), c = side * sideMm;
+      if (!shown(a)) continue;
       const roadTop = f.roadTop(a);
       pen.edge(at(a, c, outer(a) - TRUSS_CHORD_MM), at(a, c, inner(a)));
       if (t.hangers === undefined && inner(a) - TRUSS_CHORD_MM > roadTop) pen.edge(at(a, c, inner(a) - TRUSS_CHORD_MM), at(a, c, roadTop));
@@ -232,7 +240,7 @@ function drawTruss(t: DecorTruss, f: ShapeFrame, pen: Pen): void {
     for (let i = 1; i <= (t.hangers ?? 0); i++) {
       const a = fromMm + ((toMm - fromMm) * i) / (t.hangers! + 1), c = side * sideMm;
       const top = inner(a) - TRUSS_CHORD_MM, bottom = f.roadTop(a);
-      if (top <= bottom) continue;
+      if (top <= bottom || !shown(a)) continue;
       if (t.hangerMm === undefined) {
         pen.edge(at(a, c, top), at(a, c, bottom));
         continue;
