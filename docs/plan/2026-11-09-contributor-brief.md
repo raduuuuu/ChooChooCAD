@@ -989,9 +989,53 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
   - Files: a draft of the brief (not linked anywhere): `docs/brief/draft.md`, draft-1 (2026-11-09).
     Built on the measuring tools (docs/plan/2026-11-09-measuring-tools.md, merged), with the
     ruler route for straights and plain curves the owner chose there (UC1 b). Draft-2: photos
-    stay in the chat, the issue is a blank one (C8). Draft-3: the bare minimum measured (C9). Before the pilot, from the spike: the phone
+    stay in the chat, the issue is a blank one (C8). Draft-3: the bare minimum measured (C9).
+    Draft-4: the issue body handed over as a file, the licence box ticked before posting. Before the pilot, from the spike: the phone
     path and a Free plan (still open); the re-measure after a GitHub upload is dropped (C8).
   - Verify: the outsider's issue reviewed; findings written into this plan before T3
+  - **Owner's own pilot run (2026-11-09, issue #231, a double-arch bridge).** Run in a
+    claude.ai chat, desktop, started on draft-1 and pulled to draft-3 on the way. Results:
+    - Reached a drawn piece and an issue with no ruler reading: length 240.01 and 240.22
+      (agreed 240.11), the side view traced off the side photo, the clearance over the
+      road (about 106) above the 70 mm bar, so inferred. The diff applies to the commit
+      the issue names (7acc164); typecheck and the 757 engine tests pass, re-run by the
+      maintainer.
+    - 48 minutes from start to the first figure, with a reshoot and two brief updates in
+      between.
+    - Found and fixed during the run: evening-lamp photos refused as warm paper (#229,
+      photos balanced on the paper); photos kept off GitHub (C8, #228); nine ruler
+      readings asked for a bridge and a side drawing that didn't match its photo (C9,
+      #230); the 2x zoom advice tried and dropped (#227 closed: not needed).
+    - Found in the issue: the body pasted as HTML (text copied from the chat's reply),
+      its folded sections shown as raw text: draft-4 hands the body over as a file. The
+      licence box left empty: draft-4 says to tick it before posting. No label (a blank
+      issue gets none): the maintainer adds `piece: waiting` until T4's forms.
+    - Found in the drawing: the half arches at each end of each side not drawn, the
+      truss shape drawing only whole arches: the shape is to stop at the piece's ends
+      (owner, 2026-11-09).
+    - The chat's own findings (its end-of-run list, 2026-11-09):
+      - Done in draft-4: question 1 also asks what the piece does on a layout ("an
+        unsupported bridge" collided with `piece: unsupported`); tall widths read
+        on both sides, half their sum (one side swung 15.9 to 42.0 between photos);
+        a side face nearer the camera than the scale's edge reads a few percent
+        large; the issue lists each brief version and commit followed when the
+        clone was pulled mid-run. The truss shape can be cut (#233), and its
+        hangers' `0` is documented there.
+      - Article numbers (103.200.63): kept under Markings in the issue (S3-1:
+        numbers stay); AGENTS.md's names rule keeps them out of the part's data,
+        and #231's `source` has none.
+      - Follow-ups, not built: a road end whose side edges are hidden (side walls)
+        could be centred from its socket notch or its end face's width, not left
+        `end-not-centred`; a `photoTrace.ts` drawing a profile in millimetres onto
+        the side photo, so the trace overlay that caught the missing half arches
+        needs no hand-written ImageMagick; an elliptical chord for tall toy arches
+        (a circular one can't rise past a semicircle, so #231 used parabolic);
+        `--location-only` doesn't look in sub-folders (the skill's order keeps it
+        safe; draft-2 dropped the step).
+      - For the owner: drawn-only arches don't collide, so a raised track through
+        #231's arches isn't flagged, only its cross bars; and the app records no
+        train width, so step 7's clear-width check is judgement.
+    - Not yet run: an outsider's pilot, the phone path, a Free plan.
 - [ ] **T3 (P1, human: ~3 days / CC: ~1h)** — engine — export the share-link codec; the untrusted-part validator; `engine/tools/briefLink.ts`
   - Surfaced by: Section 1 (DRY codec), Section 3 (validator), spec review 2 (links by script), Codex 2 (geometry)
   - Files: app/src/shareLink.ts, engine/data/library.ts (or a new validator module beside it), engine/tools/briefLink.ts, their tests
