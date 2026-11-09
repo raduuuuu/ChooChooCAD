@@ -984,7 +984,10 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
   - Verify: every blocking item passes within its tolerance; results and "skills to install" recorded
 - [ ] **T2 (P1, human: ~3 days / CC: ~2h)** — brief — a draft brief, tried by one outsider on the existing form
   - Surfaced by: OV-2 (D12)
-  - Files: a draft of the brief (not linked anywhere)
+  - Files: a draft of the brief (not linked anywhere): `docs/brief/draft.md`, draft-1 (2026-11-09).
+    Built on the measuring tools (docs/plan/2026-11-09-measuring-tools.md, merged), with the
+    ruler route for straights and plain curves the owner chose there (UC1 b). Before the pilot,
+    from the spike: the phone path, a re-measure after a GitHub upload, a Free plan (still open).
   - Verify: the outsider's issue reviewed; findings written into this plan before T3
 - [ ] **T3 (P1, human: ~3 days / CC: ~1h)** — engine — export the share-link codec; the untrusted-part validator; `engine/tools/briefLink.ts`
   - Surfaced by: Section 1 (DRY codec), Section 3 (validator), spec review 2 (links by script), Codex 2 (geometry)
