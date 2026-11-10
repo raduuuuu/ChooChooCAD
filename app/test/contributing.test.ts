@@ -46,14 +46,18 @@ const VERSION_LINE = /^Brief version: \*\*(\d+), (\d{4}-\d{2}-\d{2})\*\*$/m;
  * EVERY VERSION OF THE BRIEF (E2), oldest first, with the hash of its text
  * less the version line. Changing the brief's text: bump its version line and
  * add the next entry here, in the same commit. Version 1 is draft-7 published
- * with the T5 steps (2026-11-10).
+ * with the T5 steps (2026-11-10); version 2 drops the maintainers' comment
+ * from its top, the rule now in AGENTS.md (2026-11-10).
  */
-const BRIEF_VERSIONS = [{ version: 1, date: '2026-11-10', hash: 'cfac5aa7c277e40b' }];
+const BRIEF_VERSIONS = [
+  { version: 1, date: '2026-11-10', hash: 'cfac5aa7c277e40b' },
+  { version: 2, date: '2026-11-10', hash: '45a3747087d71def' },
+];
 const hashOf = (text: string) => createHash('sha256').update(text.replace(VERSION_LINE, '')).digest('hex').slice(0, 16);
 
 describe('the contributor brief (contributor-brief plan, step 1, E2)', () => {
   /*
-   * MUTATION PROOFS, run (2026-11-10):
+   * MUTATION PROOFS, run (2026-11-10; the first rerun on version 2):
    * - a word of the brief's text changed ("one sitting" to "a sitting"), the
    *   version left alone: `expected 'c333a69bcbf3e7f9' to be 'cfac5aa7c277e40b'`.
    * - the brief's version line bumped to 2, nothing recorded: `expected { version: 2, date: '2026-11-10' } to deeply equal { version: 1, date: '2026-11-10' }`.
@@ -75,8 +79,8 @@ describe('the contributor brief (contributor-brief plan, step 1, E2)', () => {
   });
 
   /*
-   * MUTATION PROOFS, run (2026-11-10):
-   * - step 10's `bun run brief:link encode` taken out: `expected '<!-- The contributor brief (docs/plan…' to match /bun run brief:link encode/` (and the hash test).
+   * MUTATION PROOFS, run (2026-11-10; the first rerun on version 2):
+   * - step 10's `bun run brief:link encode` taken out: `expected '# Draw a missing track piece with you…' to match /bun run brief:link encode/` (and the hash test).
    * - step 1's old-copy check pointed back at docs/brief/draft.md: `expected 'docs/brief/draft.md' to be 'app/public/contributor-brief.md'` (and the hash test).
    */
   it('names its required steps: the preview link checked, colours needed, the forms, photos kept in the chat', () => {
@@ -134,7 +138,7 @@ describe('the issue forms', () => {
   });
 
   /*
-   * MUTATION PROOFS, run (2026-11-10):
+   * MUTATION PROOFS, run (2026-11-10; the first rerun on version 2):
    * - drawn-piece.yml's label renamed `piece: new`: `expected [ 'piece: new' ] to deeply equal [ 'piece: waiting' ]`.
    * - unsupported-piece.yml labelled `piece: waiting`: `expected [ 'piece: waiting' ] to deeply equal [ 'piece: unsupported' ]`.
    */
@@ -145,7 +149,7 @@ describe('the issue forms', () => {
   });
 
   /*
-   * MUTATION PROOFS, run (2026-11-10):
+   * MUTATION PROOFS, run (2026-11-10; the first rerun on version 2):
    * - the drawn form's colours field's id spelt `colors`: `expected [ 'what', 'joins', 'markings', …(6) ] to deeply equal [ 'what', 'joins', 'markings', …(6) ]`.
    * - the no-photo box no longer required: `expected 1 to be 2`.
    */
@@ -188,7 +192,7 @@ describe('the piece labels', () => {
 
 describe('the review path (/draw-piece) reads the drawn-piece form', () => {
   /*
-   * MUTATION PROOFS, run (2026-11-10):
+   * MUTATION PROOFS, run (2026-11-10; the first rerun on version 2):
    * - the skill's **Colours needed** line taken out of its intake: `expected [ 'Colours needed' ] to deeply equal []`.
    * - the pull request's **Colours added** taken out: `expected '---\nname: draw-piece\ndescription: R…' to match /- \*\*Colours added\*\*: each new pai…/`.
    */
