@@ -7,7 +7,7 @@
 
 # Draw a missing track piece with your Claude
 
-Brief version: **draft-6, 2026-11-10**
+Brief version: **draft-7, 2026-11-10**
 
 ## For the person reading this
 
@@ -20,7 +20,8 @@ hour:
 - one **medium straight** (144 mm), and if this is your first piece, a **long
   straight** (216 mm);
 - a sheet of white, blue or pink millimetre or graph paper (not cream or
-  yellow), and a phone;
+  yellow), and a phone: take the photos with its own camera app, then attach
+  them here;
 - perhaps a ruler: only for a tight height where a train passes under something.
 
 Your Claude measures the piece with this project's own tools, draws it, and
@@ -76,8 +77,8 @@ command -v convert || command -v magick || command -v ffmpeg
   `docs/brief/draft.md` in the clone. If the clone's is newer, tell the sender
   and follow the clone's copy from here; record the version you follow.
 - Read, in the clone: `AGENTS.md` in full; `.claude/skills/draw-piece/SKILL.md`
-  steps 4 to 8 and its "Measure codes"; `CONTRIBUTING.md`, "Send photos of a
-  piece". This brief follows those; where they speak of an issue, comments and
+  steps 4 to 8 and its "Measure codes"; `CONTRIBUTING.md`, "Send a piece".
+  This brief follows those; where they speak of an issue, comments and
   labels, you are working with the sender in this chat instead.
 
 ### 2. Ask about the piece
@@ -97,7 +98,9 @@ Ask, one at a time:
 
 ### 3. The photos
 
-Ask for (the photo guide, `app/photo-guide.html` in the clone, has the steps):
+Ask for these, taken with the phone's own camera app at its normal lens (1x),
+not from inside a chat app, then attached here as they are (the photo guide,
+`app/photo-guide.html` in the clone, has the steps):
 
 - **The top view, twice:** the piece and the medium straight lying flat on the
   paper, about 2 cm apart, every piece across the middle of the photo, the

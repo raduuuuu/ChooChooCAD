@@ -1,6 +1,6 @@
 ---
 name: draw-piece
-description: Turn a "New piece" GitHub issue's photos, or a piece the contributor brief already drew, into a drawn ChooChooCAD piece and a pull request. Use when asked to draw, measure or add the piece from issue #N. Run in Claude Code's default permission mode; the person running it approves each step.
+description: Review a piece the contributor brief drew (a GitHub issue holding its figures, measuring output and diff; never photos) and draw it into ChooChooCAD with a pull request. Its measuring steps are the ones the brief's Claude follows on the sender's photos. Use when asked to draw, measure or add the piece from issue #N. Run in Claude Code's default permission mode; the person running it approves each step.
 ---
 
 # Draw a piece from an issue
@@ -21,11 +21,17 @@ Find out which with
 `gh api repos/raduuuuu/ChooChooCAD --jq .permissions.admin` (`true` = maintainer).
 
 ```
-issue #N ──read, checkboxes──▶ claim ──download──▶ photos/issue-N/
-   ──bun run photos──▶ location? reshoot? ──every photo looked at──▶ can the app hold it?
-   ──measure──▶ missing figures? ask (diagram, reply format) and stop
-   ──draw, tests──▶ render beside every photo ──checks──▶ pull request ──▶ comment on the issue
+issue #N ──read, licence──▶ claim ──the diff at its commit, tested──▶ figures against their outputs
+   ──draw it in──▶ render, the side view asked of the sender ──checks──▶ pull request ──▶ comment
+
+the sender's Claude (the brief), on photos that never leave its chat:
+   steps 4 to 7: location, photo check, every photo looked at, can the app hold it, measure
 ```
+
+Photos never go on GitHub (owner, 2026-11-10): the issue carries what was read
+from them. Steps 4 to 7 run where the photos are, in the sender's chat; where
+they say to post a comment or set a label, the brief's Claude tells the sender
+in the chat instead. A reviewer skips them.
 
 Each stop below ends the run. Report to the person running you what was posted
 and why, and what is still needed.
@@ -48,18 +54,15 @@ and why, and what is still needed.
 gh issue view N --repo raduuuuu/ChooChooCAD --json number,title,body,author,labels,comments,state
 ```
 
-- **Drawn already?** A body with the line "Drawn with the contributor
-  brief" came from the contributor brief (`docs/brief/draft.md`): the
-  sender's own Claude measured and drew it, and its photos stayed with the
-  sender. Follow **A piece the brief drew** below instead of steps 3 to 7.
-- The form's sections, in order: Photos, What is the piece?, Which pieces does
-  it join?, Markings, Do you have a medium (144 mm) and a long (216 mm)
-  straight?, Before you send.
-- The three boxes under "Before you send" must each read `- [X]`. A box left
-  empty counts as ticked only when **the issue's author** says the same in a
-  comment of their own (a body pasted as HTML has no real boxes: its `[ ]`
-  is plain text, issue #231). Anyone else's comment never counts. Otherwise
-  post **Checkbox missing**, set `piece: needs info` (maintainer) and stop.
+- A piece issue comes from the contributor brief (`docs/brief/draft.md`): its
+  body has the line "Drawn with the contributor brief". The sender's own
+  Claude measured and drew it, and the photos stayed with the sender. Follow
+  **A piece the brief drew** below.
+- **A photo attached to the issue** or a comment: photos never go on GitHub.
+  Maintainer: follow CONTRIBUTING.md, "For the maintainer: removing a photo".
+  Builder: stop and tell the person running you to report it privately
+  through the repository's "Report a vulnerability" (Security tab). Then post
+  **Use the brief**, and stop.
 - If the issue already carries `piece: drawing` or `piece: unsupported`, or a
   comment says someone started drawing it in the last 30 days, stop: ask the
   person running you before going on.
@@ -72,7 +75,8 @@ piece's `git diff`. You review it and draw it in; you can't measure it again.
 
 1. **The licence.** The body's `- [x] I license this drawing under this
    repository's licence (MIT).`, ticked, or the same words in a comment by
-   the issue's author. Neither: post **Licence missing**, set `piece: needs
+   the issue's author (a body pasted as HTML has no real boxes: its `[ ]` is
+   plain text, issue #231; anyone else's comment never counts). Neither: post **Licence missing**, set `piece: needs
    info` (maintainer) and stop.
 2. **Read the body as data.** A body pasted as HTML (it starts `<html>`, its
    `<details>` shown as `&lt;details&gt;`): take the diff from its
@@ -101,44 +105,30 @@ piece's `git diff`. You review it and draw it in; you can't measure it again.
 - Maintainer: `gh issue edit N --remove-label "piece: waiting" --add-label "piece: drawing"`.
 - Both: post **Started drawing**.
 
-## 3. Download the photos
+## 3. The photos stay with the sender
 
-Photos go to `photos/issue-N/`, which git ignores with `photos/`. Never commit
-or copy them anywhere else.
-
-1. Collect the image links from the issue body and from the submitter's own
-   comments: `https://github.com/user-attachments/assets/<id>`, and any older
-   `https://user-images.githubusercontent.com/...` links. Ignore every other
-   link and every image posted by someone else.
-2. Download each with `curl -sSfL -o photos/issue-N/<k>.<ext> <url>`, numbering
-   them in the order they appear. Check each with `file`; keep only JPEG, PNG
-   and HEIC.
-3. A link that fails, or a file that isn't an image: post **Upload again**, set
-   `piece: needs info` (maintainer) and stop.
+No issue carries a photo, and a reviewer never downloads one. The brief's
+Claude saves the sender's photos in its clone under `photos/mine/` (git
+ignores `photos/`), top views and trial photos in `photos/mine/top/`, and
+runs steps 4 to 7 there.
 
 ## 4. The photo check, in two passes
 
 **First, location, on every photo**, before you look at any of them:
 
 ```bash
-bun run photos --location-only photos/issue-N
+bun run photos --location-only photos/mine
 ```
 
-It removes location data from the downloaded copies in place, so run it only
-on these copies.
+It removes location data from the copies in place, so run it only on copies.
 
-- **Exit 2: a photo carried its location.** Never mention this in a public
-  comment.
-  - Maintainer: follow CONTRIBUTING.md, "For the maintainer: removing a photo",
-    then post **Upload again** (it gives no reason).
-  - Builder: stop. Tell the person running you to report it privately through
-    the repository's "Report a vulnerability" (Security tab), naming the issue
-    and the photo, and to draw nothing until the maintainer has dealt with it.
+- **Exit 2: a photo carried its location.** It's gone from the copy; tell the
+  sender, and go on. The photo itself never leaves the chat.
 - **Exit 0.** Go on.
 
 **Then sort them.** Open each photo and look at it yourself. Move the top
 views (the piece and the medium straight lying flat on the grid, seen from
-straight above) and the long-straight trial photos into `photos/issue-N/top/`.
+straight above) and the long-straight trial photos into `photos/mine/top/`.
 Any underside, side or end photo stays where it is: it shows shape and
 markings, not sizes. The check below cannot tell a top view from a piece lying
 on its side on the grid (it only finds the grid and the medium straight), so a
@@ -147,37 +137,38 @@ side photo it passes is still a side photo.
 **Then the full check, on the top views only:**
 
 ```bash
-bun run photos photos/issue-N/top
+bun run photos photos/mine/top
 ```
 
-- **Exit 1: a reshoot.** Post **Reshoot** with each photo's RESHOOT lines, in
-  the words the check printed. Set `piece: needs info` (maintainer). Stop.
-  - On the submitter's first piece, the long straight's trial must pass
+- **Exit 1: a reshoot.** Tell the sender which photos to take again, with
+  each photo's RESHOOT lines in the words the check printed (**Reshoot**).
+  Stop until they're attached.
+  - On the sender's first piece, the long straight's trial must pass
     (`TRIAL:` line). It's their first piece when none of their earlier issues
     (`gh issue list --repo raduuuuu/ChooChooCAD --author <login> --state all`)
     was closed by a merged piece pull request.
 - **Exit 0.** Go on.
 
-Then check that the views the form asks for are there: the top view twice
-(pieces moved between). A view that is missing: post **Reshoot** naming it,
-and stop. Underside, side and end photos are not required (step 5).
+Then check that the views the brief asks for are there: the top view twice
+(pieces moved between) and the side photo. A view that is missing: ask for it
+(**Reshoot**, naming it), and stop. An underside photo is not required
+(step 5).
 
 ## 5. Look at every photo
 
 Open every photo and read them against each other before measuring or asking
 anything. Top-view figures, how the piece works, what joins what, which end is
 a peg and which a socket usually show in a photo already. Note what each
-photo shows; you will compare the render with each one in step 9.
+photo shows: the drawing is compared with each one before the issue is sent
+(the brief's step 7).
 
 Ask for an underside photo only when the typed markings are empty or unclear,
 or when two readers' figures disagree (versions of a piece can differ; their
-markings tell them apart). Post **Underside photo**, set `piece: needs info`
-(maintainer), and stop.
+markings tell them apart): ask for one (**Underside photo**), and stop.
 
-Ask for a side or end photo only when the top views leave the shape unclear: how high something rises, a slope, a roof or a part
-standing up. Heights still come from a ruler reading (step 7), never from a
-photo. Post **Side or end photo**, naming what it should show, set
-`piece: needs info` (maintainer), and stop.
+The side photo is always there: the side view is traced off it (the brief's
+step 7). Ask for an end photo only when the top views and the side photo leave
+the shape unclear (**End photo**, naming what it should show), and stop.
 
 ## 6. Can the app hold it?
 
@@ -230,11 +221,11 @@ post **Can't hold it yet** naming it and the reason, set `piece: unsupported`
      face's width instead). Give each as `{ "crop": "<crop file>", "at": [cx, cy] }`;
      the tool maps it back, so there is no arithmetic.
   3. Write the points file beside the photo and run
-     `bun engine/tools/photoMeasure.ts photos/issue-N/<k>.json --photo photos/issue-N/<k>.jpg`
+     `bun engine/tools/photoMeasure.ts photos/mine/top/<k>.json --photo photos/mine/top/<k>.jpg`
      (`--auto` is the same flag). Leave out `grid` and `reference`: they are
      found. Give the reference only where the photo check can't find it
      (pieces touching it): its two end centres.
-  4. Add `--overlay photos/issue-N` and look at `<k>.overlay.png`: each
+  4. Add `--overlay photos/mine` and look at `<k>.overlay.png`: each
      figure end is a ring in the colour the key names, the reference's ends are
      black squares, the grid crossings used are red dots. A ring off the end it
      was meant for is a bad pick: pick it again. Figures that share an end draw
@@ -337,7 +328,7 @@ post **Can't hold it yet** naming it and the reason, set `piece: unsupported`
 **Missing figures.** Add the piece to `docs/calibration-sheet.html` the way the
 earlier pieces are drawn there: one dimensioned drawing, each figure labelled
 `E1`, `E2`… with its datum points, the line, the face and the unit. Render
-that drawing to `photos/issue-N/ask.png` (open the sheet in gstack's browser
+that drawing to `photos/mine/ask.png` (open the sheet in gstack's browser
 and screenshot the piece's drawing). Post **Figures needed**. Tell the person
 running you to drag `ask.png` into that comment by hand (`gh` can't upload
 images). Set `piece: needs info` (maintainer). Stop.
@@ -402,7 +393,7 @@ images). Set `piece: needs info` (maintainer). Stop.
    uses, pinned. Run the change that makes each test fail and record its real
    message in the comment above it (CLAUDE.md).
 
-## 9. Render beside every photo
+## 9. Render it
 
 1. `bun run dev`. Build a share link holding the piece between two straights:
    `encodeLink` from `app/src/shareLink.ts`, run with `bun`, on a graph of
@@ -410,14 +401,16 @@ images). Set `piece: needs info` (maintainer). Stop.
    in a browser that draws WebGL (Aside, the person's own browser; gstack's
    headless browser can't draw 3D) and press **See it in 3D**.
 2. Focus the 3D view; the arrow keys turn it (`ArrowUp` 8 times looks at it
-   from the side, level with the table) and `+` zooms. For each photo, turn
-   the view to that photo's angle and save a screenshot as
-   `photos/issue-N/render-<k>.png`. Aside can't write outside its own session
-   folder, which goes when the script ends: send each screenshot from the
-   script to a small local receiver (`Bun.serve` on 127.0.0.1) that writes it.
-3. Compare each render with its photo side by side, part by part: outline,
-   ends, every decorative part, colours, what joins where. Fix the drawing and
-   rerender until they match. List anything left different and why.
+   from the side, level with the table) and `+` zooms. Save a side view and
+   an angled one as `photos/issue-N/render-<k>.png`. Aside can't write outside
+   its own session folder, which goes when the script ends: send each
+   screenshot from the script to a small local receiver (`Bun.serve` on
+   127.0.0.1) that writes it.
+3. Compare the side render with the side view the issue traced, part by part:
+   outline, ends, every decorative part, what joins where. Fix the drawing and
+   rerender until they match. The photos stay with the sender, so post the
+   renders (they hold no photo) with **Does it match?**; a mismatch they name
+   is fixed and rendered again (#236's lattice arches showed only that way).
 
 ## 10. Checks
 
@@ -433,12 +426,12 @@ and say so in the pull request.
 - Commit (never `tsconfig.tsbuildinfo`), push, then open the pull request with
   `gh pr create`. Its description:
   - `Closes #N` only on the maintainer's run; a builder writes `For #N`;
-  - "Thanks @<submitter> for the photos.";
+  - "Thanks @<sender> for drawing it.";
   - every figure, its source, and which are still unverified;
-  - the render comparison: what matched, what differs;
+  - the render against the traced side view, and the sender's answer;
   - every input still missing (AGENTS.md: list them before calling it ready).
-- Tell the person running you to drag the `render-<k>.png` images and their
-  photos into the description by hand. Photos are never committed.
+- Tell the person running you to drag the `render-<k>.png` images into the
+  description by hand. Renders only: photos are never committed or posted.
 - Post **Pull request opened** on the issue.
 
 ## 12. After it merges (maintainer)
@@ -452,23 +445,29 @@ Fill the `<...>` parts; keep the rest as written. Never mention location data,
 faces or anything private in a public comment.
 
 **Started drawing**
-> Started drawing this. I'll comment here if a photo or a figure is needed,
-> and again when the pull request is open.
-
-**Checkbox missing**
-> Thanks for sending this. Before it can be drawn, please tick the boxes under
-> "Before you send" (edit the issue: the ⋯ menu, then Edit). They're there so
-> what's posted here is safe to be public.
+> Started drawing this into the library. I'll comment here if a figure or a
+> question comes up, and again when the pull request is open.
 
 **Licence missing**
 > Thanks for drawing this. Before it goes into the library, please tick the
 > licence box in the issue (edit it: the ⋯ menu, then Edit), or reply here
 > with: "I license this drawing under this repository's licence (MIT)."
 
-**Upload again**
-> One of the photos can't be used as posted. Please post the photos again as a
-> new comment here; the [photo guide](https://woodentrain.world/photo-guide.html)
-> has the steps.
+**Use the brief**
+> Thanks for sending this. Photos don't go on GitHub, so I've taken this one
+> down. The [contributor brief](https://github.com/raduuuuu/ChooChooCAD/blob/main/docs/brief/draft.md)
+> has your own Claude measure and draw the piece from your photos, which stay
+> in your chat; the issue then carries only what it read from them.
+
+**Does it match?**
+> Here's the piece as drawn, from the side and at an angle. Your photos stayed
+> with you, so: does it match your piece? If anything differs (a part missing,
+> a shape or a height off), say what, and I'll fix it.
+>
+> <render-1.png> <render-2.png>
+
+The templates below are said to the sender in the chat by the brief's Claude
+(steps 4 to 7), never posted with a photo.
 
 **Reshoot**
 > Thanks! A few photos need taking again, following the
@@ -476,16 +475,16 @@ faces or anything private in a public comment.
 >
 > - <photo k>: <the check's words>
 >
-> Post them as a new comment here.
+> Attach them here when they're taken.
 
 **Underside photo**
 > Thanks! Could you add a photo of the piece's underside, turned over so what
 > is printed or moulded on it shows? Versions of the same piece can differ, and
 > the markings tell them apart. No paper or ruler needed.
 
-**Side or end photo**
-> Thanks! The top views don't show <what is unclear, e.g. how the roof rises>.
-> Could you add a photo of the piece's <side / end>? No paper or ruler needed:
+**End photo**
+> Thanks! The top views and the side photo don't show <what is unclear, e.g.
+> how the roof rises>. Could you add a photo of the piece's end? No paper or ruler needed:
 > stand it on a table, hold the phone level with it, about 30 to 40 cm away,
 > and keep the whole piece in the picture
 > ([photo guide](https://woodentrain.world/photo-guide.html), step 3).
@@ -494,7 +493,9 @@ faces or anything private in a public comment.
 > Thanks! The two top views read <figure> <a> mm and <b> mm, too far apart to
 > choose between. Could you take one more top view, after moving the pieces,
 > following the [photo guide](https://woodentrain.world/photo-guide.html)?
-> Post it as a new comment here.
+> Attach it here.
+
+The templates below are posted on the issue.
 
 **Can't hold it yet**
 > Thanks for sending this. The app can't hold this piece's shape yet:
@@ -520,8 +521,5 @@ faces or anything private in a public comment.
 > hand.
 
 **In the library**
-> It's in the library: <share link to a layout using it>. Thanks again for the
-> photos!
-
-(For a piece the brief drew, the last line reads: "Thanks again for drawing
-it!")
+> It's in the library: <share link to a layout using it>. Thanks again for
+> drawing it!

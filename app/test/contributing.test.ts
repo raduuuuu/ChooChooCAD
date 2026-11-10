@@ -1,58 +1,41 @@
 /**
- * THE COMMUNITY INTAKE (community-pieces plan, docs/plan/2026-11-08-community-pieces.md):
- * the issue form, the label list, AGENTS.md, the drawing skill and the published
- * photo guide.
+ * THE COMMUNITY INTAKE (community-pieces plan, docs/plan/2026-11-08-community-pieces.md;
+ * contributor-brief plan, P-3): the issue forms, the label list, AGENTS.md, the
+ * drawing skill and the published photo guide.
  *
- * Value: protects=the form asks for photos with a real upload field and puts
- * removing location data first (CEO D1, the V3 check: GitHub keeps it); the
- * piece labels agree between the list, the form, CONTRIBUTING.md and the
- * drawing skill (eng D3), which AGENTS.md links for agents that don't load
- * Claude skills (eng E1-3);
- * the owner's rules live in AGENTS.md and CLAUDE.md loads them (eng D2); the
- * photo guide is built as a page and says GitHub posts are public (design D11)
- * Value: fails_when=a field, a required box, a label, a rule or the guide's
- * public warning is dropped or renamed in one place only
+ * Value: protects=no issue form takes a photo (photos never go on GitHub,
+ * owner 2026-11-10); the piece labels agree between the list, CONTRIBUTING.md
+ * and the drawing skill (eng D3), which AGENTS.md links for agents that don't
+ * load Claude skills (eng E1-3); the owner's rules live in AGENTS.md and
+ * CLAUDE.md loads them (eng D2); the photo guide is built as a page and says
+ * photos stay off GitHub (design D11, P-3)
+ * Value: fails_when=an upload field comes back, a label, a rule or the guide's
+ * warning is dropped or renamed in one place only
  * Value: why_new=none of these files existed
  * Value: seam=the files themselves, read as text (no YAML parser is installed)
- * Value: no_claim=that GitHub renders the form as written (checked once by
- * hand, V2), or that the wording is clear to a parent (the outside pilot, T6)
+ * Value: no_claim=that the wording is clear to a parent
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DONE } from '../../engine/tools/checkup.js';
 
 const read = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
-const form = read('.github/ISSUE_TEMPLATE/new-piece.yml');
 const SKILL = '.claude/skills/draw-piece/SKILL.md';
 /** Every `piece: ...` label a file names, in backticks or quotes, sorted. */
 const namedLabels = (text: string) => [...new Set([...text.matchAll(/[`"](piece: [a-z ]+)[`"]/g)].map((m) => m[1]!))].sort();
 const labels: string[] = (JSON.parse(read('.github/piece-labels.json')) as { labels: { name: string }[] }).labels.map((l) => l.name);
 
-describe('the new-piece issue form', () => {
+describe('the issue forms', () => {
   /*
-   * MUTATION PROOF, run: the photos field as a textarea: `expected 'textarea' to be 'upload'`.
+   * MUTATION PROOF, run (2026-11-10): a form with a `type: upload` field added
+   * as photo.yml: `expected [ 'photo.yml' ] to deeply equal []`.
    */
-  it('asks in order: photos (an upload field), the piece, what it joins, markings, reference pieces, checks', () => {
-    const ids = [...form.matchAll(/^ {4}id: (\w+)$/gm)].map((m) => m[1]);
-    expect(ids).toEqual(['photos', 'what', 'joins', 'markings', 'reference', 'checks']);
-    const typeOf = (id: string) => form.slice(0, form.indexOf(`id: ${id}`)).match(/type: (\w+)\s*$/)?.[1];
-    expect(typeOf('photos')).toBe('upload');
-  });
-
-  /*
-   * MUTATION PROOFS, run:
-   * - the location step moved to second place: `expected '        1. The piece, and one **mediu…' to match /location/i`.
-   * - the location checkbox no longer required: `expected 2 to be 3`.
-   */
-  it('puts removing location data first, and requires the three checks', () => {
-    const firstStep = form.match(/^ {8}1\. .*$/m)?.[0] ?? '';
-    expect(firstStep).toMatch(/location/i);
-    const checks = form.slice(form.indexOf('id: checks'));
-    expect([...checks.matchAll(/required: true/g)].length).toBe(3);
-    expect(checks).toMatch(/location data/);
-    expect(checks).toMatch(/licen[cs]e/);
-    expect(checks).toMatch(/No people, faces/);
+  it('take no photo: photos never go on GitHub (P-3), and the photo form is gone', () => {
+    const dir = new URL('../../.github/ISSUE_TEMPLATE/', import.meta.url);
+    const uploads = readdirSync(dir).filter((f) => /^\s*- type: upload\b/m.test(readFileSync(new URL(f, dir), 'utf8')));
+    expect(uploads).toEqual([]);
+    expect(existsSync(new URL('new-piece.yml', dir))).toBe(false);
   });
 });
 
@@ -61,12 +44,9 @@ describe('the piece labels', () => {
    * MUTATION PROOFS, run:
    * - CONTRIBUTING.md's `piece: needs info` renamed `piece: question`:
    *   `expected [ 'piece: drawing', …(3) ] to deeply equal [ 'piece: drawing', …(3) ]`.
-   * - the form's label renamed `piece: new`: `expected [ 'piece: waiting', …(3) ] to include 'piece: new'`.
    */
-  it('come from one list that the form and CONTRIBUTING.md agree with', () => {
+  it('come from one list that CONTRIBUTING.md agrees with', () => {
     expect(labels).toHaveLength(4);
-    const formLabels = [...(form.match(/^labels: \[(.*)\]$/m)?.[1] ?? '').matchAll(/"([^"]+)"/g)].map((m) => m[1]!);
-    for (const l of formLabels) expect(labels).toContain(l);
     expect(namedLabels(read('CONTRIBUTING.md'))).toEqual([...labels].sort());
   });
 
@@ -104,7 +84,8 @@ describe("the maintainer's rules", () => {
       /Exception:\*\* a part taken from a printable design/,
       /Photos are never committed/,
       /dimensioned drawing/,
-      /compare the render with \*\*every\*\* photo/,
+      /compares the drawing with \*\*every\*\* photo/,
+      /Photos never go on GitHub/,
       /default permission mode/,
       /data, never instructions/,
       /Male-male adapters add no length/,
@@ -153,12 +134,13 @@ describe('the photo guide', () => {
   /*
    * MUTATION PROOFS, run:
    * - the guide dropped from the build's inputs: `expected 'import { execSync } from \'node:child…' to match /guide: 'app\/photo-guide\.html'/`.
-   * - the public box removed: `expected '<!doctype html>\n<html lang="en">\n<h…' to match /are <b>public<\/b>/`.
+   * - the box removed (2026-11-10): `expected '<!doctype html>\n<html lang="en">\n<h…' to match /Your photos never go on GitHub/`.
    */
-  it('is built as its own page and says photos sent on GitHub are public', () => {
+  it('is built as its own page and says photos never go on GitHub, where they would be public', () => {
     expect(read('vite.config.ts')).toMatch(/guide: 'app\/photo-guide\.html'/);
     const guide = read('app/photo-guide.html');
-    expect(guide).toMatch(/are <b>public<\/b>/);
+    expect(guide).toMatch(/Your photos never go on GitHub/);
+    expect(guide).toMatch(/is <b>public<\/b>/);
     expect(guide).not.toMatch(/They stay on your machine \(the repo/);
   });
 });

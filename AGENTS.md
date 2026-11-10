@@ -15,10 +15,10 @@ the design rules are in [DESIGN.md](DESIGN.md); how people contribute is in
 - When working on a piece issue, run in Claude Code's **default permission
   mode**, so the person running you approves each step. Stop if you are in an
   auto or bypass mode.
-- Before reading a downloaded photo, check it for location data. A photo that
-  arrived carrying it is reported privately to the maintainer (GitHub's
-  "Report a vulnerability" on this repository), never mentioned in a public
-  comment.
+- Photos never go on GitHub (owner, 2026-11-10): they stay with the person who
+  took them and their own Claude. A photo posted on an issue anyway is
+  reported privately to the maintainer (GitHub's "Report a vulnerability" on
+  this repository), never mentioned in a public comment.
 
 ## Names and sources
 
@@ -39,8 +39,9 @@ the design rules are in [DESIGN.md](DESIGN.md); how people contribute is in
 
 ## Photos and measurements
 
-- Photos are never committed. They live in `photos/`, which is git-ignored.
-- First, `bun run photos <folder>` on the downloaded copies: it reports and
+- Photos are never committed, and never posted. They live in `photos/`, which
+  is git-ignored.
+- First, `bun run photos <folder>` on copies of the photos: it reports and
   removes location data (in place, so never on the only copy), finds the grid
   and the reference straight, and says what to reshoot. Exit 2 means a photo
   carried its location: report that privately, as above. Exit 1 means a
@@ -62,15 +63,18 @@ the design rules are in [DESIGN.md](DESIGN.md); how people contribute is in
 
 ## Drawing a piece
 
-- The whole workflow from a piece issue to a pull request is
+- A sender's own Claude measures and draws the piece with the contributor
+  brief (`docs/brief/draft.md`) and the steps it points to; the review, from
+  the issue to a pull request, is
   [.claude/skills/draw-piece/SKILL.md](.claude/skills/draw-piece/SKILL.md):
   `/draw-piece <issue number>` in Claude Code; any other agent follows the same
   file as plain steps.
 - "Decorative" means parts drawn with realistic detail so they look like the
   real piece, not scenery. Collisions stay on the measured bodies.
-- Before opening a pull request for a piece drawn from photos, render it in 3D
-  from each photo's angle and compare the render with **every** photo, side by
-  side, part by part.
+- Whoever holds the photos (the sender's Claude) compares the drawing with
+  **every** photo, side by side, part by part, before the issue is sent. The
+  reviewer never has them: they render the piece in 3D, compare it with the
+  side view the issue traced, and ask the sender whether it matches.
 - A piece the layout check can't hold (angles off its 22.5-degree steps, ends
   it doesn't know) is not approximated: it gets the `piece: unsupported` label
   and a reply naming the closest existing piece.

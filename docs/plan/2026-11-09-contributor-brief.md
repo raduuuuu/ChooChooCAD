@@ -117,6 +117,10 @@ REALITY: pr-count pass no ship policy: one PR per step, never stacked (AGENTS.md
 | S3-1 markings in public (Section 3) | AGENTS.md no-brand rule; pooling by variant | A: the brief's Claude copies markings into the issue with any maker's name replaced by "the maker"; numbers, years, "Made in", moulding stay | B, C declined | approved | Owner, 2026-11-09, D10: "Leave makers' names out (recommended)". |
 | OV-1 when the form retires (outside review) | C7 (D6) timing; D19 | A: the brief, forms and preview ship with the brief unlinked; the photo form and CONTRIBUTING's photo path stay until one outside sender finishes the brief; then one PR retires the form and points CONTRIBUTING at the brief | B declined | approved | Owner, 2026-11-09, D11: "Retire after the pilot (recommended)". C7's retirement stands; only its timing moved. |
 | OV-2 draft-brief pilot first (outside review) | E1 (D4) timing; fallback finding 4 | A: after the spike, one outsider runs a draft brief and posts the part data as plain text on the existing form; the preview, validator, codec and briefLink are built after, shaped by it; the gating pilot (C5, OV-1) still runs after the build | B declined | approved | Owner, 2026-11-09, D12: "Draft-brief pilot first (recommended)". E1 stays in scope; only its timing moved. |
+| P-1 the gating pilot (owner) | D19, C5, OV-1: the link and the photo form's retirement waited on one outside sender finishing the brief | an outside pilot | the owner's own dry run (#231, bridge, 2026-11-09) counts as the pilot | approved | Owner, 2026-11-10: "we can consider this done via my own dry run." T6's gate is cleared; the link still waits on T3 to T5 being built. |
+| P-2 the phone path (owner) | Spike item "photos uploaded from the Claude phone app", never run | to be tested before the pilot | not tested: the brief tells senders to take the photos with their phone's own camera app, then attach them in the chat | approved | Owner, 2026-11-10: "let's bypass this completely and instruct users to take the photos with their main camera app." |
+| P-3 photos never on GitHub (owner) | C8 kept the brief's photos in the chat; the photo form, CONTRIBUTING, the photo guide and /draw-piece's download path still posted them | the photo form open until T6 | no photo goes on GitHub, from anyone: the photo form retires now, the review works from the issue's figures, points files, tool outputs and diff, and asks the sender whether the render matches | approved | Owner, 2026-11-10: "photos stay outside of github, reword everything needed." |
+| P-4 Free plans (owner) | Spike item "whether a Free account can enable code execution …", never run | to be tested | assumed to work; not tested | approved | Owner, 2026-11-10: "let's not worry about this for now. a free plan should be able to handle this" |
 
 ## Answered: C1 (D1)
 The record below is the question as asked. The answer changed it: the spike's
@@ -270,6 +274,13 @@ The brief is the only way to contribute; the photo form and /draw-piece's drawin
 
 ## Working plan (accepted scope)
 
+2026-11-10 (P-1 to P-4): the owner's dry run counts as the pilot; senders take
+photos with the phone's own camera app (the phone path isn't tested); no photo
+goes on GitHub, so the review never re-measures and the photo form retires
+now; Free plans are assumed to work. Where the steps and review sections below
+speak of re-measuring from issue attachments, the phone path, or the pilot
+still to come, these decisions replace them.
+
 ```
   site link (C5, on after a pilot) ─┐
   CONTRIBUTING.md ──────────────────┼──▶ the brief (one .md, versioned, E2)
@@ -409,12 +420,11 @@ The brief is the only way to contribute; the photo form and /draw-piece's drawin
      bump without a text change also fails.
 2. **The issue** (C4): a new form for a drawn piece: the drawing (the part
    data the preview reads), the preview link, every figure with its source
-   (photo and line, or ruler), the brief's version, the photos (two top
-   views, the side photo, the trial pair when it's a first), the markings,
-   the existing three checkboxes. The brief's Claude prepares the text and a
-   prefilled `issues/new` link under 8,192 bytes; photos can't go through a
-   link, so the sender drags in the clean copies. The photo-only form is
-   retired (C7), after the pilot (OV-1).
+   (photo and line, or ruler), the brief's version, the markings, the
+   checkboxes; no photos (C8, P-3: they stay in the sender's chat). The
+   brief's Claude prepares the text and a prefilled `issues/new` link under
+   8,192 bytes. The photo-only form is retired (C7; done 2026-11-10, P-1 and
+   P-3).
    - **Forms and labels.** Two forms: `drawn-piece.yml` (label
      `piece: waiting`, reworded "a drawn piece sent; nobody is reviewing it
      yet") and `unsupported-piece.yml` (U1; label `piece: unsupported`); a
@@ -466,14 +476,15 @@ The brief is the only way to contribute; the photo form and /draw-piece's drawin
    than the owner, invited by the owner; "finishes" means their issue passes
    the maintainer's review (step 4). **The switch**: one constant in the app,
    flipped by its own pull request after the pilot; no build flag.
-4. **The maintainer** (C7): `/draw-piece` keeps only a review path: re-run the
-   measuring tools on the issue's photos, compare each figure with the
-   submitted one within 0.5 mm, check the app can hold it, render beside
-   every photo, open the pull request. Its drawing-from-photos path goes.
-   When a figure differs by more than 0.5 mm, a ruler photo doesn't show the
-   figure claimed, or the render disagrees with a photo: a comment names the
-   brief step to redo and the label becomes `piece: needs info` (kept, with
-   its 30-day close).
+4. **The maintainer** (C7, P-3): `/draw-piece` keeps only a review path,
+   without the photos: each figure against its `--json` output, the two top
+   views within 0.5 mm, the diff applied and tested at the commit named,
+   the app able to hold it, a render against the issue's traced side view
+   that the sender is asked to confirm, the pull request. Its drawing-from-
+   photos path goes (done 2026-11-10). When a figure doesn't match its
+   output, the views disagree, or the sender says the render is wrong: a
+   comment names the brief step to redo and the label becomes `piece: needs
+   info` (kept, with its 30-day close).
 5. **The side photo** (C2): required in the brief, CONTRIBUTING.md, the photo
    guide's section 3 (`app/photo-guide.html:113`) and the form; still without
    grid paper.
