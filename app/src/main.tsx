@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { startReadOnlySession } from '../../engine/data/storage.js';
 import { App } from './App.js';
 import { ErrorBoundary } from './ErrorBoundary.js';
-import { counterPath, counterTag, GOATCOUNTER_CODE, LINK_FRAGMENT } from './linkFragment.js';
+import { counterPath, counterTag, GOATCOUNTER_CODE, routeOf } from './linkFragment.js';
 import { moveOldNames } from './oldNames.js';
 import { BUILD_LINK_STORAGE_KEY } from './storageKeys.js';
 
@@ -14,14 +14,30 @@ import { BUILD_LINK_STORAGE_KEY } from './storageKeys.js';
  * and its decoder are their own chunk: the editor never downloads them.
  * Everything else is the editor, which opens on the first-visit example when
  * this browser has no layout of its own (design 3A).
+ *
+ * A PIECE PREVIEW (`#p<digits>.`, contributor-brief plan T4) is decided the
+ * same way, in its own lazy chunk with the validator, and its session allows
+ * no key at all: a preview writes nothing, not even build progress (it has
+ * no Build it).
  */
 const LinkRoute = lazy(() => import('./LinkRoute.js').then((m) => ({ default: m.LinkRoute })));
+const PreviewRoute = lazy(() => import('./PreviewRoute.js').then((m) => ({ default: m.PreviewRoute })));
 
 // Saved data under the old key names moves first, before anything reads it.
 moveOldNames();
 
 const root = createRoot(document.getElementById('root')!);
-if (LINK_FRAGMENT.test(location.hash)) {
+const route = routeOf(location.hash);
+if (route === 'piece') {
+  startReadOnlySession([]);
+  root.render(
+    <StrictMode>
+      <Suspense fallback={null}>
+        <PreviewRoute fragment={location.hash} />
+      </Suspense>
+    </StrictMode>,
+  );
+} else if (route === 'layout') {
   startReadOnlySession([BUILD_LINK_STORAGE_KEY]);
   root.render(
     <StrictMode>
@@ -41,7 +57,7 @@ if (LINK_FRAGMENT.test(location.hash)) {
 }
 
 // Visits only, counted after the page is up, in production builds with a site
-// code (linkFragment.ts). The path is ours, so a shared layout is never sent.
+// code (linkFragment.ts). The path is ours, so a shared layout or piece is never sent.
 const counter = counterTag(GOATCOUNTER_CODE, import.meta.env.PROD);
 if (counter) {
   window.goatcounter = { path: counterPath };

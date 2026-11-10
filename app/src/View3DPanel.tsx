@@ -70,6 +70,8 @@ export interface View3DPanelProps {
   readonly tableNote: { readonly text: string; readonly fits: boolean } | null;
   readonly label: string;
   readonly resetSignal: number;
+  /** A piece preview's From the side, passed to the viewer (contributor-brief D13). */
+  readonly sideSignal?: number;
   /** The 2D/3D switch, drawn in the frame's corner (design 1A). */
   readonly corner: ReactNode;
   /**
@@ -182,6 +184,7 @@ export function View3DPanel(props: View3DPanelProps) {
       input,
       label,
       resetSignal,
+      ...(props.sideSignal !== undefined ? { sideSignal: props.sideSignal } : {}),
       onContextLost,
       paintTokens: PAINT_TOKENS,
       ...(live ? { describedBy: howToId } : {}),
@@ -204,8 +207,9 @@ export function View3DPanel(props: View3DPanelProps) {
         {body}
         {live && (
           <p className="viewer3d-howto" id={howToId}>
-            3D view: drag to turn, scroll or pinch to zoom. Keys: arrows turn, + and &minus; zoom, 0 resets. Pick a part
-            to place it in 2D.
+            3D view: drag to turn, scroll or pinch to zoom. Keys: arrows turn, + and &minus; zoom, 0 resets.
+            {/* Only where a pick does something: the friend's screen and a piece preview pick nothing. */}
+            {props.onPick && ' Pick a part to place it in 2D.'}
           </p>
         )}
         {tableNote && <p className={`table-caption${tableNote.fits ? '' : ' is-over'}`}>{tableNote.text}</p>}

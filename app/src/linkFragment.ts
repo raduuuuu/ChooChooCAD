@@ -4,6 +4,19 @@
  * which arrives only when a link is opened (LinkRoute is a lazy chunk).
  */
 export const LINK_FRAGMENT = /^#v(\d+)\./;
+/**
+ * Any version of a piece preview's fragment (contributor-brief plan, T4): the
+ * same pattern as `PREVIEW_FRAGMENT` in `engine/data/previewLink.ts`, spelled
+ * again here because that module brings the validator and the library's
+ * derive code with it, which belong in the preview's own chunk, not the
+ * editor's. `linkFragment.test.ts` holds the two equal.
+ */
+export const PIECE_FRAGMENT = /^#p(\d+)\./;
+
+/** What an address opens: a shared layout, a piece preview, or the editor. Decided in main.tsx before anything mounts. */
+export function routeOf(hash: string): 'layout' | 'piece' | 'editor' {
+  return LINK_FRAGMENT.test(hash) ? 'layout' : PIECE_FRAGMENT.test(hash) ? 'piece' : 'editor';
+}
 
 /*
  * VISITS ONLY, AND A SHARED LAYOUT NEVER LEAVES THE BROWSER (plan
@@ -15,15 +28,18 @@ export const LINK_FRAGMENT = /^#v(\d+)\./;
  *
  * The path is set here, never read by the counter: a layout lives in the
  * address's fragment (`#v1.…`), so every address the link route takes is
- * counted as `/shared-link` and the fragment itself is never sent.
+ * counted as `/shared-link` and the fragment itself is never sent. A piece
+ * preview (`#p1.…`) carries a sender's drawing the same way, so it is counted
+ * as `/piece-preview`, its fragment never sent either.
  */
 
 /** The GoatCounter site code, public (the NAME in NAME.goatcounter.com). Empty: no counter. */
 export const GOATCOUNTER_CODE = 'raduuuuu';
 
-/** The path a visit is counted under: `/shared-link` for any shared layout, else the page's path. */
+/** The path a visit is counted under: `/shared-link` for any shared layout, `/piece-preview` for any piece preview, else the page's path. */
 export function countedPath(hash: string, pathname: string): string {
-  return LINK_FRAGMENT.test(hash) ? '/shared-link' : pathname || '/';
+  const route = routeOf(hash);
+  return route === 'layout' ? '/shared-link' : route === 'piece' ? '/piece-preview' : pathname || '/';
 }
 
 /** The callback count.js asks for its path: this page's counted path, whatever it is handed. */

@@ -1228,6 +1228,28 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
     D4 to D7 states and their words in `linkWords.ts`; Copy for your chat; details with checks, data and Copy;
     **From the side**; the D14 accessibility; DESIGN.md rule 11's one line (D11); the contribute link beside
     **Add a part**, off (D15). Run /design-review on the built screen.
+  - **Built (2026-11-10).**
+    - `#p<n>.` is routed in `main.tsx` before the editor mounts (`routeOf`, `linkFragment.ts`), to a lazy
+      `PreviewRoute`, under a read-only session that allows no key; the counter counts it as `/piece-preview`.
+      A `#p1.` pasted into an open editor reloads into it, as a layout link does.
+    - `PreviewScreen.tsx` on the friend screen's column: medium straight (A) · piece · medium straight, each
+      welded to an end by its opposite polarity, so placement gives each its end's level; a multi-road piece's
+      straights join its entry and the end its first road reaches; a buffer stop gets one. The piece resolves
+      against BUILT_IN plus itself for this screen only. 2D first, the 3D view after it with **From the side**
+      (`sideSignal`: elevation 0 along +y, the tilt floor opened to level until Reset or 0).
+    - States: D4 for any refusal that decoded (the validator's, the caps, a newer version), D5 for
+      `bad-encoding`, `corrupt` and `not-json`, its own sentence for a browser without deflate; the crash path
+      is the shared link's `LinkBoundary`, moved with `LinkMessage` to `LinkMessage.tsx` for both routes.
+    - D7 "matches": the same system and kind, the same ends (position, heading, level, peg or socket, in
+      order) and the same roads; a decorated spec is not compared with its own base.
+    - D12 "a paint the app has": `PAINT_TOKENS`, the set the 3D view resolves; a paint with either token
+      outside it comes off whole.
+    - The 3D how-to's "Pick a part to place it in 2D." now shows only where picking does something (it was
+      also wrong on the friend screen).
+    - Words in `previewWords.ts`; the contribute link's in `linkWords.ts` (the editor shows it, and a word from
+      the preview's table pulled the whole table into the editor's chunk: 154.43 kB, over budget).
+    - The contribute link points at `docs/brief/draft.md` on GitHub until T5 serves the brief from the site.
+    - Still to do: /design-review on the built screen, and a worst-case link opened on the live site.
 - [ ] **T5 (P1, human: ~2 days / CC: ~1h)** — docs and intake — brief (unlinked), two forms, labels, photo guide side photo, AGENTS.md, `/draw-piece` review path and shared section, link constant off, generic-TODOS entry
   - Surfaced by: C2, C4, C6, E2, U1, S1-1, S3-1, OV-1; spec reviews 1-3
   - Files: app/public/<brief>.md, .github/ISSUE_TEMPLATE/drawn-piece.yml, .github/ISSUE_TEMPLATE/unsupported-piece.yml, .github/piece-labels.json, app/photo-guide.html, AGENTS.md, .claude/skills/draw-piece/SKILL.md, app/src/ (link constant), docs/plan/generic-TODOS.md, app/test/contributing.test.ts

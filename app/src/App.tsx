@@ -96,12 +96,13 @@ import { SubmitPart } from './SubmitPart.js';
 import { View3DPanel } from './View3DPanel.js';
 import { BuildModeLoader } from './BuildModeLoader.js';
 import { loadView, openingView, saveView, type View } from './viewChoice.js';
-import { countAction, LINK_FRAGMENT } from './linkFragment.js';
+import { countAction, routeOf } from './linkFragment.js';
 import { EXAMPLE_PRESET, exampleTitle, exitLabel, LINK_HELD, ownTitle, STALE_TAB } from './linkWords.js';
 import { screenMode } from './screenMode.js';
 import { NARROW_QUERY, useMatchMedia } from './useMatchMedia.js';
 import { HINT_MOUSE, HINT_TOUCH, hintSeen, rememberHintSeen } from './selectHint.js';
 import { FriendScreen } from './FriendScreen.js';
+import { ContributeLink } from './ContributeLink.js';
 import { leaveLink } from './leaveLink.js';
 import { BUILD_LINK_STORAGE_KEY, GRAPH_STORAGE_KEY } from './storageKeys.js';
 import { clearance } from '../../engine/data/calibration.js';
@@ -559,12 +560,13 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
    * A LINK PASTED INTO THIS TAB (share plan D8, D15, D34). The browser does
    * not reload for a new `#…`, so this does, and the link route at the top of
    * main.tsx handles it exactly as a fresh visit. Only when everything is
-   * saved: otherwise the address goes back and the work stays on screen.
+   * saved: otherwise the address goes back and the work stays on screen. A
+   * piece preview's `#p1.…` is a link too (contributor-brief T4).
    */
   const [linkHeld, setLinkHeld] = useState(false);
   useEffect(() => {
     const onHash = (e: HashChangeEvent) => {
-      if (!LINK_FRAGMENT.test(location.hash)) return;
+      if (routeOf(location.hash) === 'editor') return;
       if (allSavedNow.current) {
         location.reload();
         return;
@@ -2275,6 +2277,8 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             </button>
             {graph.pieces.length > 0 && !tableOpen && <button onClick={() => setTableOpen(true)}>Your table</button>}
             {graph.pieces.length > 0 && <button onClick={() => setSubmitOpen(true)}>Add a part</button>}
+            {/* Beside Add a part, off until the pilot (contributor-brief D15). */}
+            {graph.pieces.length > 0 && <ContributeLink />}
             {graph.pieces.length > 0 && inventory === null && (
               <span className="inventory-hint">
                 Nothing is checked against your box yet.

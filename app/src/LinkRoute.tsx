@@ -17,48 +17,14 @@
  * friend's own work and land on the same link again (D7).
  */
 
-import { Component, useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import type { Graph } from '../../engine/src/graph/model.js';
 import { App } from './App.js';
 import { AppName } from './AppName.js';
-import { holdsOwnLayout } from './layoutStore.js';
-import { leaveLink } from './leaveLink.js';
-import { exitLabel, LINK_CRASHED, LINK_LOADING, LINK_REFUSED } from './linkWords.js';
+import { LinkBoundary, LinkMessage } from './LinkMessage.js';
+import { LINK_LOADING, LINK_REFUSED } from './linkWords.js';
 import { decodeLink, type LinkRefusal } from './shareLink.js';
 import { LOADING_DELAY_MS } from './View3DPanel.js';
-
-/** A sentence and the way out. Focus lands on the sentence (design 20A). */
-function LinkMessage({ sentence, role }: { sentence: string; role: 'alert' | 'status' }) {
-  const [own] = useState(holdsOwnLayout);
-  return (
-    <div className="friend friend-message">
-      <header className="friend-head">
-        <AppName />
-      </header>
-      <main className="friend-main">
-        <p className="friend-message-line" role={role} tabIndex={-1} ref={(el) => el?.focus()}>
-          {sentence}
-        </p>
-        <button className="friend-build" onClick={leaveLink}>
-          {exitLabel(own)}
-        </button>
-      </main>
-    </div>
-  );
-}
-
-class LinkBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
-  override state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  override componentDidCatch(error: unknown) {
-    console.error('A shared link crashed:', error);
-  }
-  override render() {
-    return this.state.failed ? <LinkMessage sentence={LINK_CRASHED} role="alert" /> : this.props.children;
-  }
-}
 
 type State = { kind: 'decoding' } | { kind: 'refused'; reason: LinkRefusal } | { kind: 'ok'; graph: Graph };
 

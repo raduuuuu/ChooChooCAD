@@ -510,6 +510,12 @@ export interface Viewer3DProps {
   readonly label: string;
   /** Bumped by the Reset view button (design 2A). */
   readonly resetSignal: number;
+  /**
+   * Bumped by a piece preview's From the side (contributor-brief D13): the
+   * view turns level and side-on, the way a person holds the piece against
+   * its side photo. Absent everywhere else.
+   */
+  readonly sideSignal?: number;
   /** The graphics context was lost (eng D9, design 7A). */
   readonly onContextLost: () => void;
   /** The id of the text that says how to turn the view, keys included (design review FINDING-006). */
@@ -557,7 +563,7 @@ export function boxOf(arrays: SceneArrays, ids: readonly string[]): Box {
   return min[0] === Infinity ? arrays.bounds : { min: [min[0]!, min[1]!, min[2]!], max: [max[0]!, max[1]!, max[2]!] };
 }
 
-export default function Viewer3D({ input, label, resetSignal, onContextLost, describedBy, build = null, onDrawn, onPick, paintTokens = [] }: Viewer3DProps) {
+export default function Viewer3D({ input, label, resetSignal, sideSignal = 0, onContextLost, describedBy, build = null, onDrawn, onPick, paintTokens = [] }: Viewer3DProps) {
   const drawnRef = useRef(onDrawn);
   drawnRef.current = onDrawn;
   const pickRef = useRef(onPick);
@@ -575,6 +581,7 @@ export default function Viewer3D({ input, label, resetSignal, onContextLost, des
     colors: SceneColors;
     render: () => void;
     reset: () => void;
+    side: () => void;
   } | null>(null);
   const lostRef = useRef(onContextLost);
   lostRef.current = onContextLost;
@@ -613,7 +620,8 @@ export default function Viewer3D({ input, label, resetSignal, onContextLost, des
     overlay.setAttribute('aria-hidden', 'true');
     el.appendChild(overlay);
     controls.minPolarAngle = ((90 - MAX_ELEVATION_DEG) * Math.PI) / 180;
-    controls.maxPolarAngle = ((90 - MIN_ELEVATION_DEG) * Math.PI) / 180;
+    const lowestPolar = ((90 - MIN_ELEVATION_DEG) * Math.PI) / 180;
+    controls.maxPolarAngle = lowestPolar;
     const render = () => {
       const w = el.clientWidth || 1;
       const h = el.clientHeight || 1;
@@ -677,7 +685,23 @@ export default function Viewer3D({ input, label, resetSignal, onContextLost, des
     const reset = () => {
       if (!current) return;
       const b = buildRef.current;
-      const pose = b ? framePose(boxOf(current, b.focus), camera.aspect, startElevationDeg(current)) : startPose(current, camera.aspect);
+      // Back to the usual tilt limits, which From the side widened to level.
+      controls.maxPolarAngle = lowestPolar;
+      look(b ? framePose(boxOf(current, b.focus), camera.aspect, startElevationDeg(current)) : startPose(current, camera.aspect));
+    };
+    /*
+     * FROM THE SIDE (contributor-brief D13): the whole scene framed at
+     * elevation 0, looking along the plan's +y, which is across a preview's
+     * row (the piece is placed heading along +x). Level is past the usual
+     * 10-degree floor, so the limit opens to level, never under the table;
+     * Reset and 0 put it back.
+     */
+    const side = () => {
+      if (!current) return;
+      controls.maxPolarAngle = Math.PI / 2;
+      look(framePose(current.bounds, camera.aspect, 0));
+    };
+    const look = (pose: { position: Vector3; target: Vector3; radius: number }) => {
       camera.position.copy(pose.position);
       controls.target.copy(pose.target);
       controls.minDistance = pose.radius * 0.15;
@@ -688,7 +712,7 @@ export default function Viewer3D({ input, label, resetSignal, onContextLost, des
       controls.update();
       render();
     };
-    world.current = { renderer, scene, group, camera, controls, colors, render, reset };
+    world.current = { renderer, scene, group, camera, controls, colors, render, reset, side };
     (world.current as unknown as { setArrays: (a: SceneArrays) => void }).setArrays = (a) => {
       const first = current === null;
       current = a;
@@ -824,6 +848,15 @@ export default function Viewer3D({ input, label, resetSignal, onContextLost, des
     }
     world.current?.reset();
   }, [resetSignal]);
+
+  const firstSide = useRef(true);
+  useEffect(() => {
+    if (firstSide.current) {
+      firstSide.current = false;
+      return;
+    }
+    world.current?.side();
+  }, [sideSignal]);
 
   return <div ref={host} className="viewer3d" />;
 }
