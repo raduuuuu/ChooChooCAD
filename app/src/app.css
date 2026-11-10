@@ -2148,6 +2148,13 @@
 .friend-message .friend-main { justify-content: center; align-items: flex-start; max-width: 36rem; }
 .friend-message-line { margin: 0; font-size: 17px; line-height: 1.5; outline: none; }
 /*
+ * The sentence or title a screen focuses on arrival is not a control: no ring.
+ * Each says `outline: none` above, but the global `:focus-visible` ring in
+ * tokens.css has the same specificity and lands later in the built CSS, so on
+ * the live site the title wore a 2px box (design review, 2026-11-10).
+ */
+.friend-title:focus-visible, .friend-message-line:focus-visible, .friend-ask-question:focus-visible { outline: none; }
+/*
  * A PIECE PREVIEW (contributor-brief plan, T4, D3, D13, D14): the friend
  * screen's column, the 2D picture as its anchor and the 3D view after it at
  * full width, then sizes in the mono face, the next step, the folded details
