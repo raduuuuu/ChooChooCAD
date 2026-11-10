@@ -1037,6 +1037,10 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
         height"): a truss arch's ribs are solid from one level up wherever its
         chord passes it. No train width ("train width is not needed"): draft-5
         drops step 7's clear-width check.
+    - Draft-6 (2026-11-10): the scale comes from the camera (photo.ts, chooseScale), so
+      the brief asks for each top view's 35mm-equivalent focal length from the phone's
+      photo details (a chat attachment loses its Exif) and puts it in the points file.
+      The phone path now also checks that number can be found on a phone.
     - Not yet run: an outsider's pilot, the phone path, a Free plan.
 - [ ] **T3 (P1, human: ~3 days / CC: ~1h)** — engine — export the share-link codec; the untrusted-part validator; `engine/tools/briefLink.ts`
   - Surfaced by: Section 1 (DRY codec), Section 3 (validator), spec review 2 (links by script), Codex 2 (geometry)

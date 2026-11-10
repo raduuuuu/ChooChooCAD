@@ -20,6 +20,17 @@
  * off size, and the photo is refused. Whether the whole chain measures right
  * is the 216mm trial's job (EO7), not this file's.
  *
+ * A real medium straight is not exactly 144: the owner's is 143.6 (2026-11-10),
+ * and every figure read against it came out 0.3% long. So when the photo
+ * carries its 35mm-equivalent focal length, the scale comes from the camera
+ * instead (chooseScale): the grid's homography and the focal length give the
+ * camera's height above the paper, and that height and the top faces' height
+ * (TOP_FACE_MM) give k. The medium straight is then read like any figure, and
+ * a reading more than REFERENCE_OFF_MM off 144 refuses the photo (a cropped
+ * photo, a sheet printed far off size, a piece not lying flat). The scale now
+ * leans on the paper being printed true: the owner's two sheets differ by
+ * about 0.2%.
+ *
  * No image library: the pixel coordinates come in as numbers, read off
  * enlarged crops (`photoCrop.ts`, E2).
  */
@@ -83,6 +94,14 @@ function solve(a: number[][], b: number[]): number[] | null {
     }
   }
   return m.map((row, i) => row[n]! / row[i]!);
+}
+
+/** The inverse homography: paper millimetres to photo pixels. */
+export function invert3(h: Homography): Homography {
+  const [a, b, c, d, e, f, g, i, j] = h as [number, number, number, number, number, number, number, number, number];
+  const A = e * j - f * i, B = -(d * j - f * g), C = d * i - e * g;
+  const det = a * A + b * B + c * C;
+  return [A / det, -(b * j - c * i) / det, (b * f - c * e) / det, B / det, (a * j - c * g) / det, -(a * f - c * d) / det, C / det, -(a * i - b * g) / det, (a * e - b * d) / det];
 }
 
 /** A photo pixel on the paper, in millimetres. */
@@ -159,4 +178,82 @@ export function scaleAndMeasure(
   const figures: Record<string, number> = {};
   for (const [name, [a, b]] of Object.entries(input.figures)) figures[name] = k * dist(onPaper(a), onPaper(b));
   return { kind: 'measured', k, gridResidualMm, figures };
+}
+
+// ── The scale from the camera ────────────────────────────────────────────────
+
+/** How high the top faces stand above the paper: a wooden track's thickness, mm. Half a millimetre either way moves a 144mm reading about 0.12mm. */
+export const TOP_FACE_MM = 12;
+/** How far off 144 a medium straight may read when the camera sets the scale: its own variance and the method's together, mm. */
+export const REFERENCE_OFF_MM = 1;
+
+/** What the photo says about its camera: the focal length as a 35mm camera's (EXIF FocalLengthIn35mmFilm). */
+export interface Camera {
+  readonly focal35mm: number;
+}
+
+/** Where the camera was, from the grid: its height above the paper, its tilt from straight down, and the scale k it gives the top faces. */
+export interface CameraPose {
+  readonly heightMm: number;
+  readonly tiltDeg: number;
+  readonly k: number;
+}
+
+type V3 = readonly [number, number, number];
+const norm3 = (v: V3) => Math.hypot(v[0], v[1], v[2]);
+const dot3 = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+/** A focal length that doesn't fit the grid (a cropped photo) bends the two paper axes apart: past this, the pose isn't used. */
+const POSE_FIT = 0.03;
+
+/**
+ * The camera's pose from the homography `h` (photo pixels, lens bowing removed,
+ * to paper mm) and the focal length, the principal point at the photo's
+ * centre. The paper's two axes, seen through the lens, must come out square
+ * and equally long (to POSE_FIT); null when they don't, or the camera isn't
+ * above the top faces.
+ *
+ *   paper (u, v, 1) ──h⁻¹──▶ pixel ──K⁻¹──▶ λ [r1 r2 t]    camera centre C = −Rᵀt
+ *   k = (height − TOP_FACE_MM) / height       a top face is the paper scaled about the nadir
+ */
+export function cameraScale(h: Homography, size: { readonly width: number; readonly height: number }, focal35mm: number, topMm = TOP_FACE_MM): CameraPose | null {
+  const f = (focal35mm / Math.hypot(36, 24)) * Math.hypot(size.width, size.height);
+  const cx = size.width / 2, cy = size.height / 2;
+  const g = invert3(h);
+  const ray = (k: number): V3 => [(g[k]! - cx * g[6 + k]!) / f, (g[3 + k]! - cy * g[6 + k]!) / f, g[6 + k]!];
+  const a1 = ray(0), a2 = ray(1), a3 = ray(2);
+  const l1 = norm3(a1), l2 = norm3(a2);
+  if (!(f > 0) || !(l1 > 0) || !(l2 > 0)) return null;
+  const r1: V3 = [a1[0] / l1, a1[1] / l1, a1[2] / l1], r2: V3 = [a2[0] / l2, a2[1] / l2, a2[2] / l2];
+  if (Math.abs(l1 / l2 - 1) > POSE_FIT || Math.abs(dot3(r1, r2)) > POSE_FIT) return null;
+  const lam = (l1 + l2) / 2, t: V3 = [a3[0] / lam, a3[1] / lam, a3[2] / lam];
+  const r3: V3 = [r1[1] * r2[2] - r1[2] * r2[1], r1[2] * r2[0] - r1[0] * r2[2], r1[0] * r2[1] - r1[1] * r2[0]];
+  const heightMm = Math.abs(dot3(r3, t));
+  if (!Number.isFinite(heightMm) || heightMm <= 2 * topMm) return null;
+  return { heightMm, tiltDeg: (Math.acos(Math.min(1, Math.abs(r3[2]))) * 180) / Math.PI, k: (heightMm - topMm) / heightMm };
+}
+
+export type Scale =
+  | { readonly kind: 'camera'; readonly k: number; readonly pose: CameraPose; readonly focal35mm: number; readonly referenceMm: number }
+  | { readonly kind: 'medium'; readonly k: number; readonly why: string };
+
+/**
+ * The scale for one photo, given the medium straight's length on the paper:
+ * from the camera when the photo carries a focal length that fits the grid,
+ * the medium straight then read and held to 144 ± REFERENCE_OFF_MM; else from
+ * the medium straight taken as 144, as before, held to K_PLAUSIBLE.
+ */
+export function chooseScale(referenceOnPaperMm: number, h: Homography, size: { readonly width: number; readonly height: number }, camera?: Camera): Scale | { readonly refused: 'reference-off-size' | 'k-implausible'; readonly reason: string } {
+  const pose = camera ? cameraScale(h, size, camera.focal35mm) : null;
+  if (pose) {
+    const referenceMm = pose.k * referenceOnPaperMm;
+    if (!(Math.abs(referenceMm - REFERENCE_MM) <= REFERENCE_OFF_MM)) {
+      return { refused: 'reference-off-size', reason: `with the camera ${pose.heightMm.toFixed(0)}mm above the paper (${camera!.focal35mm}mm equivalent), the medium straight reads ${referenceMm.toFixed(2)}mm, over ${REFERENCE_OFF_MM}mm off ${REFERENCE_MM}` };
+    }
+    return { kind: 'camera', k: pose.k, pose, focal35mm: camera!.focal35mm, referenceMm };
+  }
+  const k = REFERENCE_MM / referenceOnPaperMm;
+  if (!(k >= K_PLAUSIBLE.min && k <= K_PLAUSIBLE.max)) {
+    return { refused: 'k-implausible', reason: `the reference reads ${referenceOnPaperMm.toFixed(1)}mm on the paper (k ${Number.isFinite(k) ? k.toFixed(3) : 'not finite'}; a medium straight lying flat reads ${K_PLAUSIBLE.min} to ${K_PLAUSIBLE.max})` };
+  }
+  return { kind: 'medium', k, why: camera ? 'the camera\'s focal length doesn\'t fit the grid (a cropped photo?)' : 'the photo carries no 35mm focal length' };
 }

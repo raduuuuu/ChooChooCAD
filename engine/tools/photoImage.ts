@@ -24,7 +24,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { crc32, deflateSync } from 'node:zlib';
 import { CODES } from './photoCodes.js';
-import { jpegSize, orientationOf } from './photoExif.js';
+import type { Camera } from './photo.js';
+import { focal35Of, jpegSize, orientationOf } from './photoExif.js';
 
 export interface RgbImage {
   readonly width: number;
@@ -267,4 +268,14 @@ export function writePng(img: RgbImage): Uint8Array {
     at += p.length;
   }
   return out;
+}
+
+/** The camera a photo file names: its 35mm focal length from the Exif, when it is a JPEG that has one (photo.ts, chooseScale). */
+export function cameraOf(path: string): Camera | undefined {
+  try {
+    const f = focal35Of(new Uint8Array(readFileSync(path)));
+    return f === undefined ? undefined : { focal35mm: f };
+  } catch {
+    return undefined; // not a JPEG, or unreadable: the medium straight sets the scale
+  }
 }

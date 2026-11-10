@@ -9,6 +9,8 @@
  *        ▼
  *   grid:      seeded from points.json, or found (scales 1, 2, 0.5)  ── rms > 0.3mm, warm paper: refused
  *   reference: given, or the medium straight found                   ── an end facing the camera, k off: refused
+ *   scale:     the camera (focal length in the photo), the medium straight read ── over 1mm off 144: refused
+ *              else the medium straight taken as 144 (photo.ts, chooseScale)
  *        │
  *        ▼   for each figure: ends refined (refineEnd), facing checked (facesAway)
  *   distance [a, b] │ offset / along { point, toward?, line: [a, b] }  ── one figure refused, not the run
@@ -16,7 +18,7 @@
  *        ▼
  *   one result object ──▶ text (stdout; refusals on stderr)
  *
- * Which scale is used (eng G6b):
+ * Which grid scale is used (eng G6b; the 1mm lines or the 10mm ones, not the photo's scale):
  *
  *                 reference given                  reference found
  *   grid seeded   the seeds' millimetres;          the seeds' millimetres; the medium
@@ -33,13 +35,13 @@
 import { mkdtempSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, extname, join, resolve } from 'node:path';
-import { GRID_RESIDUAL_MAX_MM, K_PLAUSIBLE, measurePhoto, offsetAlong, REFERENCE_MM, type GridPoint, type PhotoInput, type Pt } from './photo.js';
+import { chooseScale, GRID_RESIDUAL_MAX_MM, K_PLAUSIBLE, measurePhoto, offsetAlong, REFERENCE_MM, type Camera, type GridPoint, type PhotoInput, type Pt, type Scale } from './photo.js';
 import { CODES, refusal, type Code, type Refusal } from './photoCodes.js';
 import { CROP, fromCrop, ZOOM } from './photoCrop.js';
 import { centreAcross, facesAway, refineEnd, type RefinedEnd } from './photoEdges.js';
 import { findGrid, pixelToPaper, WOOD_GREEN_OVER_BLUE, type FoundGrid } from './photoGrid.js';
 import { findGridAuto } from './photoGridSeed.js';
-import { loadUpright, PhotoError, writePng, type RgbImage } from './photoImage.js';
+import { cameraOf, loadUpright, PhotoError, writePng, type RgbImage } from './photoImage.js';
 import { drawOverlay, type KeyRow } from './photoOverlay.js';
 import { AUTO_GRID_RMS_MAX_MM, BALANCE_ABOVE, balanced, findWood, gridAndPlanks, namePlanks, paperWarmth, type Plank } from './photoStraights.js';
 
@@ -55,6 +57,8 @@ export interface PointsFile {
   readonly reference?: readonly [PointIn, PointIn];
   readonly figures: Readonly<Record<string, FigureIn>>;
   readonly paper?: { readonly cols: readonly [number, number]; readonly rows: readonly [number, number] };
+  /** The focal length as a 35mm camera's, for a photo that lost its Exif (a chat attachment): read off the photo's details on the phone. */
+  readonly camera?: Camera;
 }
 
 /** The same, every point in photo pixels. */
@@ -66,6 +70,7 @@ export interface Points {
   readonly reference?: readonly [Pt, Pt];
   readonly figures: Readonly<Record<string, Figure>>;
   readonly paper?: PointsFile['paper'];
+  readonly camera?: Camera;
 }
 
 const isPt = (v: unknown): v is Pt => Array.isArray(v) && v.length === 2 && v.every((n) => typeof n === 'number' && Number.isFinite(n));
@@ -98,6 +103,10 @@ export function parsePoints(text: string): PointsFile | Refusal {
       const r = point(raw.reference[i], `reference[${i}]`);
       if (r) return r;
     }
+  }
+  if (raw.camera !== undefined) {
+    const f = isObj(raw.camera) ? raw.camera.focal35mm : undefined;
+    if (typeof f !== 'number' || !(f >= 10 && f <= 300)) return bad('camera', '{ "focal35mm": n }, the focal length as a 35mm camera\'s, 10 to 300');
   }
   if (raw.figures === undefined || (isObj(raw.figures) && Object.keys(raw.figures).length === 0)) {
     return refusal('no-figures', 'the points file has no figures');
@@ -189,7 +198,7 @@ export function resolvePoints(file: PointsFile, pointsDir: string, photo: string
     }
     figures[name] = { kind: g.read, point, ...(toward ? { toward } : {}), line };
   }
-  return { ...(file.grid ? { grid: file.grid } : {}), ...(reference ? { reference } : {}), figures, ...(file.paper ? { paper: file.paper } : {}) };
+  return { ...(file.grid ? { grid: file.grid } : {}), ...(reference ? { reference } : {}), figures, ...(file.paper ? { paper: file.paper } : {}), ...(file.camera ? { camera: file.camera } : {}) };
 }
 
 /** What needs the photo: a figure beyond two points, a crop point, a missing grid or reference (item 5). */
@@ -240,6 +249,8 @@ export type MeasureResult =
       readonly photo: { readonly width: number; readonly height: number };
       readonly grid: GridUsed;
       readonly reference: { readonly source: 'given' | 'found'; readonly k: number; readonly ends: readonly [End, End] };
+      /** Where k came from: the camera (the medium straight then read, `referenceMm`), or the medium straight taken as 144. */
+      readonly scale: Scale;
       readonly figures: Readonly<Record<string, FigureResult>>;
     }
   | {
@@ -266,18 +277,19 @@ const kept = (seed: Pt, why: string): End => ({ seed, at: seed, refined: false, 
 /**
  * Every figure in one photo, or why the photo is refused. Pure: the points and the pixels in, one result out.
  * A warm paper (a warm lamp) is read balanced on itself; one as warm as wood is named only when the grid or the
- * reference still can't be read. Any other photo is read as loaded.
+ * reference still can't be read. Any other photo is read as loaded. `camera`: what the photo's Exif says
+ * (cameraOf); the points file's own `camera` comes first.
  */
-export function measure(points: Points, img: RgbImage): MeasureResult {
+export function measure(points: Points, img: RgbImage, camera?: Camera): MeasureResult {
   const warmth = paperWarmth(img), warm = warmth > WOOD_GREEN_OVER_BLUE;
-  const r = measurePixels(points, warmth > BALANCE_ABOVE ? balanced(img) : img);
+  const r = measurePixels(points, warmth > BALANCE_ABOVE ? balanced(img) : img, points.camera ?? camera);
   if (r.kind === 'refused' && warm && (r.refused.code === 'grid-not-found' || r.refused.code === 'reference-unread')) {
     return { ...r, refused: refusal('paper-warm', `the paper reads ${warmth} green over blue, as warm as wood (over ${WOOD_GREEN_OVER_BLUE}), and ${r.refused.reason}: cream or yellow paper, or a very warm lamp`) };
   }
   return r;
 }
 
-function measurePixels(points: Points, img: RgbImage): MeasureResult {
+function measurePixels(points: Points, img: RgbImage, camera: Camera | undefined): MeasureResult {
   const photo = { width: img.width, height: img.height };
   const centre: Pt = [img.width / 2, img.height / 2];
   const inPhoto = ([x, y]: Pt) => x >= 0 && y >= 0 && x <= img.width - 1 && y <= img.height - 1;
@@ -374,15 +386,14 @@ function measurePixels(points: Points, img: RgbImage): MeasureResult {
       return refuse('reference-faces-camera', `the medium straight's ${i === 0 ? 'first' : 'second'} end ${fmt(refEnds[i].at)} faces the camera (the photo's centre is ${fmt(centre)}), so it shows its end face and reads long`, gridUsed, refEnds);
     }
   }
-  const k = kOf(grid.map, refEnds);
-  if (!(k >= K_PLAUSIBLE.min && k <= K_PLAUSIBLE.max)) {
-    return refuse('k-implausible', `the reference reads ${(REFERENCE_MM / k).toFixed(1)}mm on the paper (k ${Number.isFinite(k) ? k.toFixed(3) : 'not finite'}; a medium straight lying flat reads ${K_PLAUSIBLE.min} to ${K_PLAUSIBLE.max})`, gridUsed, refEnds);
-  }
+  const scale = chooseScale(paperDist(grid.map, refEnds[0].at, refEnds[1].at), grid.map.h, photo, camera);
+  if ('refused' in scale) return refuse(scale.refused, scale.reason, gridUsed, refEnds);
+  const k = scale.k;
   const refWhy: Why[] = refEnds.flatMap((e, i) => (e.refined ? [] : [{ code: 'reference-hand-read' as const, end: i === 0 ? 'first' : 'second', text: `the reference's ${i === 0 ? 'first' : 'second'} end is a hand reading, so the scale is too` }]));
 
   const figures: Record<string, FigureResult> = {};
   for (const [name, f] of Object.entries(points.figures)) figures[name] = figure(f);
-  return { kind: 'measured', photo, grid: gridUsed, reference: { source: refSource, k, ends: [refEnds[0], refEnds[1]] }, figures };
+  return { kind: 'measured', photo, grid: gridUsed, reference: { source: refSource, k, ends: [refEnds[0], refEnds[1]] }, scale, figures };
 
   function figure(f: Figure): FigureResult {
     const toPaper = (p: Pt) => pixelToPaper(grid.map, p);
@@ -476,7 +487,11 @@ far along it from a towards b its foot lies (negative before a). "toward" is a
 point on the same road's centreline at least 20mm back from the end; without
 it the point is not refined and its facing is not checked.
 Optional: "grid": [{ "px": [x, y], "mm": [u, v] }, ...] seeds, "reference":
-[a, b] the medium straight's end centres, "paper": { "cols": [0, 180], "rows": [0, 280] }.
+[a, b] the medium straight's end centres, "paper": { "cols": [0, 180], "rows": [0, 280] },
+"camera": { "focal35mm": 48 } (the focal length as a 35mm camera's, from the photo's
+details on the phone; needed when the photo lost its Exif, as a chat attachment does).
+With a focal length the camera sets the scale and the medium straight is read and
+held to 144 ± 1mm; without one the medium straight is taken as 144mm.
 
 exit: 0 every figure read · 1 the run refused · 2 bad usage · 3 a figure refused
 
@@ -488,12 +503,19 @@ Every code and its fix: .claude/skills/draw-piece/SKILL.md, "Measure codes".`;
 
 export interface Io {
   readonly load: (photo: string) => RgbImage;
+  /** What the photo's Exif says about its camera; undefined when nothing usable. */
+  readonly camera: (photo: string) => Camera | undefined;
   readonly read: (file: string) => string;
   readonly out: (line: string) => void;
   readonly err: (line: string) => void;
 }
 
-const IO: Io = { load: (p) => loadUpright(p), read: (f) => readFileSync(f, 'utf8'), out: (l) => console.log(l), err: (l) => console.error(l) };
+const IO: Io = { load: (p) => loadUpright(p), camera: (p) => cameraOf(p), read: (f) => readFileSync(f, 'utf8'), out: (l) => console.log(l), err: (l) => console.error(l) };
+
+/** One line on where the scale came from. */
+export const scaleText = (s: Scale) => s.kind === 'camera'
+  ? `scale: the camera (${s.focal35mm}mm equivalent, ${s.pose.heightMm.toFixed(0)}mm above the paper, tilted ${s.pose.tiltDeg.toFixed(1)}°), k = ${s.k.toFixed(4)}; the medium straight reads ${s.referenceMm.toFixed(2)}mm`
+  : `scale: the medium straight taken as ${REFERENCE_MM}mm, k = ${s.k.toFixed(4)} (${s.why}): one a few tenths off ${REFERENCE_MM} moves every figure by the same share`;
 
 /** Prints a refusal: code first, what happened with its values, the fix last. */
 const say = (print: (l: string) => void, head: 'REFUSED' | 'USAGE', r: Refusal) => print(`${head} ${r.code}: ${r.reason}\n${r.fix}`);
@@ -502,7 +524,8 @@ function render(r: Extract<MeasureResult, { kind: 'measured' }>, out: (l: string
   const endText = (label: string, e: End) => `  ${label}: ${e.refined ? `${e.samples} edge samples, spread ${e.spreadMm.toFixed(3)}mm` : `hand reading kept (${e.reason})`}`;
   out(`photo: ${r.photo.width}×${r.photo.height} px, upright`);
   out(`grid: ${r.grid.source}${r.grid.scale !== undefined ? ` (scale ${r.grid.scale})` : ''}, ${r.grid.points} crossings, rms ${r.grid.rmsMm.toFixed(3)}mm`);
-  out(`reference: ${r.reference.source}, k = ${r.reference.k.toFixed(4)}`);
+  out(`reference: ${r.reference.source}`);
+  out(scaleText(r.scale));
   r.reference.ends.forEach((e, i) => out(endText(i === 0 ? 'first end' : 'second end', e)));
   let refused = 0;
   for (const [name, f] of Object.entries(r.figures)) {
@@ -524,7 +547,7 @@ export function toJson(r: MeasureResult, overlay?: { path: string; key: readonly
   const grid = r.grid && { source: r.grid.source, points: r.grid.points, rmsMm: r.grid.rmsMm, ...(r.grid.scale !== undefined ? { scale: r.grid.scale } : {}) };
   const tail = overlay ? { overlay } : {};
   if (r.kind === 'refused') return { schema: 1, refused: r.refused, photo: r.photo, ...(grid ? { grid } : {}), ...tail };
-  return { schema: 1, photo: r.photo, grid, reference: r.reference, figures: r.figures, ...tail };
+  return { schema: 1, photo: r.photo, grid, reference: r.reference, scale: r.scale, figures: r.figures, ...tail };
 }
 
 /** Where --overlay writes: a folder (then <points>.overlay.png in it) or a path ending .overlay.png (DX D13). */
@@ -612,7 +635,7 @@ export function main(argv: readonly string[], io: Io = IO): number {
       return (emitRefusal('REFUSED', refusal(e.code, e.message, e.fix)), 1);
     }
     const t0 = Date.now();
-    const r = measure(points, img);
+    const r = measure(points, img, io.camera(photo));
     io.err(`measured in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
     // The overlay is drawn for a refused run too: that is when it helps most.
     let overlay: { path: string; key: KeyRow[] } | undefined;

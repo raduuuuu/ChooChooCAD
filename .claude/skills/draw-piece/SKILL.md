@@ -203,11 +203,16 @@ post **Can't hold it yet** naming it and the reason, set `piece: unsupported`
   sandbox already had all three (2026-11-09: nothing to install; the first
   figure about 1.5 minutes after unzipping). A photo attached to a chat
   arrives smaller than the original (a 3072×4096 photo came as 1932×2576)
-  and without EXIF: measure it as it is, in its own pixels; the scale comes
-  from the medium straight, not the pixel count.
+  and without EXIF: measure it as it is, in its own pixels. The scale comes
+  from the camera when the photo carries its 35mm-equivalent focal length
+  (or the points file gives it: `"camera": { "focal35mm": 48 }`, read off the
+  phone's photo details); the medium straight is then read and must come
+  within 1mm of 144 (`reference-off-size`). Without one, the medium straight
+  is taken as 144 (the owner's is 143.6: figures 0.3% long), and the output
+  says so on its `scale:` line.
 - **What a measurement assumes**, and the refusals say again: the medium
-  straight (144mm) lies flat beside the piece, top faces level; the photo is
-  uncropped, taken from roughly above the middle of the sheet, every piece
+  straight (144mm) lies flat beside the piece, top faces level and 12mm above
+  the paper (`TOP_FACE_MM`); the photo is uncropped, taken from roughly above the middle of the sheet, every piece
   across the middle.
 - **From photo to figure:**
   1. `bun engine/tools/photoCrop.ts <photo> <x> <y> [half]` enlarges the
@@ -301,6 +306,7 @@ post **Can't hold it yet** naming it and the reason, set `piece: unsupported`
   | `paper-warm` | retake | use white, blue or pink millimetre paper, in daylight, and retake |
   | `reference-unread` | retake | lay the medium straight flat, top face up, fully on the grid, about 2cm from every other piece, and retake |
   | `reference-faces-camera` | retake | lay the medium straight across the middle of the photo and retake |
+  | `reference-off-size` | retake | use the whole photo as the camera took it (not cropped), the medium straight flat on one sheet of millimetre paper, and retake |
   | `k-implausible` | edit-points | check the reference points are the medium straight's two end centres; if they are, it is not lying flat: retake |
   | `point-outside` | edit-points | points are in the photo's full pixels; a point read off a smaller preview must be scaled up to them |
   | `faces-camera` | retake | lay the piece across the middle of the photo and retake |

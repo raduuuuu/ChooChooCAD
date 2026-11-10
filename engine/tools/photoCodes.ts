@@ -23,6 +23,7 @@ export const CODES = {
   'paper-warm': { recovery: 'retake', fix: 'use white, blue or pink millimetre paper, in daylight, and retake' },
   'reference-unread': { recovery: 'retake', fix: 'lay the medium straight flat, top face up, fully on the grid, about 2cm from every other piece, and retake' },
   'reference-faces-camera': { recovery: 'retake', fix: 'lay the medium straight across the middle of the photo and retake' },
+  'reference-off-size': { recovery: 'retake', fix: 'use the whole photo as the camera took it (not cropped), the medium straight flat on one sheet of millimetre paper, and retake' },
   'k-implausible': { recovery: 'edit-points', fix: 'check the reference points are the medium straight\'s two end centres; if they are, it is not lying flat: retake' },
   'point-outside': { recovery: 'edit-points', fix: 'points are in the photo\'s full pixels; a point read off a smaller preview must be scaled up to them' },
   'faces-camera': { recovery: 'retake', fix: 'lay the piece across the middle of the photo and retake' },

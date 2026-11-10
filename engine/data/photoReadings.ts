@@ -56,12 +56,10 @@ export const PHOTO_READINGS: readonly PhotoReading[] = T_PHOTOS.flatMap((p) => [
  * figure is good to. A fitted shape must match this closely (OV7), a
  * published figure is overruled only by more than this (C1), and the trial
  * had to read its known piece this closely (EO7). The trial's two photos both
- * read about 0.7mm long. Looked into 2026-11-10: not the end-finding (edges
- * step from wood to paper within 0.4mm; moving the threshold from 25% to 75%
- * moves a reading about 0.2mm), and paper size and parallax cancel in the
- * long-to-medium ratio. Most likely the owner's medium straight is about
- * 143.6mm, which would also explain the T switch reading 216.5. Open until
- * the medium straight is measured with a ruler or calipers.
+ * read about 0.7mm long: the owner's medium straight is 143.6mm (by ruler,
+ * 2026-11-10), not the 144 the scale took it for. Since then the camera sets
+ * the scale (photo.ts, chooseScale) and the trial photos read 215.85 and
+ * 216.28. The readings below were recorded on the old scale.
  */
 export const TOLERANCE_MM = 1;
 

@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { homography, measurePhoto, REFERENCE_MM, toPaper, type GridPoint, type Pt } from './photo.js';
+import { chooseScale, homography, measurePhoto, REFERENCE_MM, toPaper, type GridPoint, type Pt } from './photo.js';
 
 type P3 = readonly [number, number, number];
 
@@ -114,4 +114,44 @@ it('the homography maps the grid points onto their millimetres', () => {
     expect(u).toBeCloseTo(p.mm[0], 6);
     expect(v).toBeCloseTo(p.mm[1], 6);
   }
+});
+
+describe('the scale from the camera, for a medium straight that is not 144', () => {
+  // camera() puts the principal point at (2000, 1500): a 4000 × 3000 photo. Its focal length as a 35mm camera's:
+  const SIZE = { width: 4000, height: 3000 }, F = 3000, FOCAL_35 = (F / Math.hypot(4000, 3000)) * Math.hypot(36, 24);
+  /** The owner's medium straight, 143.6mm (2026-11-10), at y = 20; a 216mm piece at y = 80; top faces 12mm up. */
+  const owner = (shot: (p: P3) => Pt) => {
+    const g = grid(shot);
+    const h = homography(g);
+    const onPaper = (a: P3, b: P3) => { const [pa, pb] = [toPaper(h, shot(a)), toPaper(h, shot(b))]; return Math.hypot(pa[0] - pb[0], pa[1] - pb[1]); };
+    return { h, medium: onPaper([20, 20, PLANK], [163.6, 20, PLANK]), long: onPaper([10, 80, PLANK], [226, 80, PLANK]) };
+  };
+
+  /*
+   * MUTATION PROOF, run (2026-11-10): cameraScale's k as 1 (the top faces' height
+   * dropped) fails with `{"refused":"reference-off-size","reason":"with the camera
+   * 300mm above the paper (25.959969183340725mm equivalent), the medium straight
+   * reads 149.58mm, over 1mm off 144"}`.
+   */
+  it('reads the piece true and the medium straight as it is; taken as 144, the medium straight reads the piece 0.6mm long', () => {
+    const { h, medium, long } = owner(camera([100, 60, 300], F, 3));
+    const s = chooseScale(medium, h, SIZE, { focal35mm: FOCAL_35 });
+    if ('refused' in s || s.kind !== 'camera') throw new Error(JSON.stringify(s));
+    expect(s.k * long).toBeCloseTo(216, 1);
+    expect(s.referenceMm).toBeCloseTo(143.6, 1);
+    expect(s.pose.heightMm).toBeCloseTo(300, 0);
+    const old = chooseScale(medium, h, SIZE);
+    if ('refused' in old) throw new Error(old.reason);
+    expect(old).toMatchObject({ kind: 'medium', why: 'the photo carries no 35mm focal length' });
+    expect(old.k * long).toBeCloseTo(216.6, 1);
+  });
+
+  /*
+   * MUTATION PROOF, run (2026-11-10): the REFERENCE_OFF_MM check removed fails
+   * with `expected { kind: 'camera', k: 0.98, …(3) } to have property "refused"`.
+   */
+  it('a focal length that does not fit the photo (cropped to half) reads the medium straight far off 144: refused', () => {
+    const { h, medium } = owner(camera([100, 60, 300], F));
+    expect(chooseScale(medium, h, SIZE, { focal35mm: FOCAL_35 * 2 })).toHaveProperty('refused', 'reference-off-size');
+  });
 });

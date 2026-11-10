@@ -9,8 +9,9 @@
  *   pixels ──findGridAuto──▶ the grid ──findPlanks──▶ medium and long straights
  *        │
  *        ▼
- *   per photo: what to reshoot, if anything; the long straight read against
- *   the medium one (the first session's 216mm trial, agreedFigure)
+ *   per photo: what to reshoot, if anything; the long straight read with the
+ *   camera's scale when the photo has a focal length, else against the medium
+ *   one (photo.ts, chooseScale; the first session's 216mm trial, agreedFigure)
  *
  * Exit: 2 when any photo carried location data (the drawing skill reports it
  * privately: a copy already posted keeps it), else 1 when any photo needs a
@@ -25,12 +26,12 @@
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { agreedFigure, TOLERANCE_MM, TRIAL } from '../data/photoReadings.js';
-import { GRID_RESIDUAL_MAX_MM, scaleAndMeasure } from './photo.js';
+import { chooseScale, GRID_RESIDUAL_MAX_MM, type Camera } from './photo.js';
 import { CROP, OVERLAY } from './photoCrop.js';
 import { straddlesCentre } from './photoEdges.js';
 import { hasLocation, stripMetadata } from './photoExif.js';
 import { pixelToPaper, WOOD_GREEN_OVER_BLUE } from './photoGrid.js';
-import { loadPhoto, type RgbImage } from './photoImage.js';
+import { cameraOf, loadPhoto, type RgbImage } from './photoImage.js';
 import { AUTO_GRID_RMS_MAX_MM, BALANCE_ABOVE, balanced, gridAndPlanks, paperWarmth } from './photoStraights.js';
 
 export interface ImageCheck {
@@ -38,14 +39,16 @@ export interface ImageCheck {
   readonly problems: readonly string[];
   readonly gridPoints?: number;
   readonly gridRmsMm?: number;
-  /** The long straight read against the medium one, mm, when both are in the photo. */
+  /** The long straight, mm, when both straights are in the photo. */
   readonly longMm?: number;
+  /** The medium straight, mm, when the camera set the scale (else it is 144 by construction). */
+  readonly mediumMm?: number;
 }
 
 const WARM = 'the paper is as warm a colour as the wood, and they can\'t be told apart (cream or yellow paper, or a very warm lamp): use white, blue or pink millimetre paper, in daylight';
 
-/** One photo's pixels: grid, reference straight, and the long straight when present. */
-export function checkImage(photo: RgbImage): ImageCheck {
+/** One photo's pixels: grid, reference straight, and the long straight when present. `camera`: what its Exif says. */
+export function checkImage(photo: RgbImage, camera?: Camera): ImageCheck {
   // A warm paper (a warm lamp) is read balanced on itself; one as warm as wood is named only when that still fails.
   const warmth = paperWarmth(photo), warm = warmth > WOOD_GREEN_OVER_BLUE, img = warmth > BALANCE_ABOVE ? balanced(photo) : photo;
   const found = gridAndPlanks(img);
@@ -67,9 +70,13 @@ export function checkImage(photo: RgbImage): ImageCheck {
     if (!straddlesCentre(img, plank.ends[0], plank.ends[1])) problems.push(`the ${name} doesn't cross the middle of the photo: one end shows its end face and reads long`);
   }
   if (!long) return { ...base, problems };
-  const r = scaleAndMeasure((p) => pixelToPaper(grid.map, p), grid.rmsMm, { reference: reference.ends, figures: { long: long.ends } });
-  if (r.kind === 'refused') return { ...base, problems: [...problems, r.reason] };
-  return { ...base, problems, longMm: r.figures.long };
+  const onPaper = ([a, b]: readonly [readonly [number, number], readonly [number, number]]) => {
+    const [pa, pb] = [pixelToPaper(grid.map, a), pixelToPaper(grid.map, b)];
+    return Math.hypot(pa[0] - pb[0], pa[1] - pb[1]);
+  };
+  const scale = chooseScale(onPaper(reference.ends), grid.map.h, img, camera);
+  if ('refused' in scale) return { ...base, problems: [...problems, scale.reason] };
+  return { ...base, problems, longMm: scale.k * onPaper(long.ends), ...(scale.kind === 'camera' ? { mediumMm: scale.referenceMm } : {}) };
 }
 
 /** The first session's trial over a folder's long-straight readings: null when none were taken. */
@@ -121,7 +128,7 @@ export function checkFolder(dir: string, print: (line: string) => void = console
     }
     let check: ImageCheck;
     try {
-      check = checkImage(loadPhoto(path));
+      check = checkImage(loadPhoto(path), cameraOf(path));
     } catch (e) {
       check = { problems: [(e as Error).message] };
     }
@@ -129,7 +136,7 @@ export function checkFolder(dir: string, print: (line: string) => void = console
     for (const p of check.problems) lines.push(`RESHOOT: ${p}`);
     if (check.longMm !== undefined) {
       longReadings.push({ photo: f, valueMm: check.longMm });
-      lines.push(`long straight: ${check.longMm.toFixed(2)}mm`);
+      lines.push(`long straight: ${check.longMm.toFixed(2)}mm${check.mediumMm !== undefined ? ` (scale from the camera; the medium straight reads ${check.mediumMm.toFixed(2)}mm)` : ' (scale from the medium straight, taken as 144mm)'}`);
     }
     const head = check.problems.length === 0 && !lines.some((l) => l.startsWith('FORMAT')) ? 'OK' : 'NEEDS WORK';
     print(`${f}: ${head}${check.gridPoints !== undefined ? ` (grid ${check.gridPoints} crossings, ${check.gridRmsMm!.toFixed(2)}mm)` : ''}`);
