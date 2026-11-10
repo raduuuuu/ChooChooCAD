@@ -27,4 +27,13 @@ describe('the duplicate line (D7)', () => {
     const decorated = { ...part('A'), id: 'new-bridge', decor: bridge.decor };
     expect(trackMatch(decorated)).toBe(null);
   });
+
+  /*
+   * MUTATION PROOF, run (2026-11-10): the figures compared exactly (no rounding): `expected undefined to be 'MS' // Object.is equality`.
+   */
+  it('matches when a computed figure differs only in its last digit, as between the sandbox that made the link and a browser', () => {
+    const station = part('MS');
+    const nudged = JSON.parse(JSON.stringify(station.decor), (_k, v: unknown) => (typeof v === 'number' && !Number.isInteger(v) ? v * (1 + 1e-15) : v));
+    expect(trackMatch({ ...station, id: 'MS-mine', decor: nudged })?.id).toBe('MS');
+  });
 });
