@@ -26,15 +26,11 @@
 
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, readFileSync } from 'node:fs';
+import { brandWords, SPLIT, TERMS } from '../data/brandWords.js';
 import { hasLocation } from './photoExif.js';
 
-/** The brand words, base64 so no file names one in plain text (AGENTS.md); the test builds its fixtures from them. */
-const TERMS_B64 = 'YnJpbyxpa2VhLGxpbGxhYm8scGxheXRpdmUsaGFwZSx0aG9tYXMsbWVsaXNzYSxsaWRsLGJpZ2ppZ3MsdGVzY28sbWF4aW0samVzc2UsbHVwaWx1';
-export const TERMS: readonly string[] = atob(TERMS_B64).split(',');
-const TERM_SET = new Set(TERMS);
-
-/** Words: split on non-letters and at case changes, so `fooBar`, `FOOBar`, `FOO_BAR` and `foo2` each yield `foo`. */
-export const SPLIT = /[^A-Za-z]+|(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])/;
+/** The brand words and how text is split into words: shared with the untrusted-part validator (engine/data/brandWords.ts). */
+export { SPLIT, TERMS };
 
 /** More files than this changed since the last run make a deep checkup due [estimated; tune after four runs]. */
 export const BIG_PUSH = 15;
@@ -97,8 +93,6 @@ export function parseAllowlist(json: string | null): Allowlist {
   });
   return { allow, images } as Allowlist;
 }
-
-const brandWords = (line: string) => line.split(SPLIT).filter((w) => TERM_SET.has(w.toLowerCase()));
 
 /**
  * Lines naming a brand outside `docs/plan/` (dated records) and the
