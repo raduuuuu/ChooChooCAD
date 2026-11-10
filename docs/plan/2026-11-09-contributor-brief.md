@@ -1263,8 +1263,9 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
     `tokens.css`; `/draw-piece` adds each with its measured contrast and lists them as **Colours added** in the PR.
   - **Built (2026-11-10).**
     - The brief moved to `app/public/contributor-brief.md` (served as woodentrain.world/contributor-brief.md),
-      version **1, 2026-11-10** (draft-7 plus the steps below). `docs/brief/draft.md` is a stub pointing there, for
-      a draft copy whose old-copy check (S1-1) still looks at that path. ContributeLink's `BRIEF_URL`,
+      version **1, 2026-11-10** (draft-7 plus the steps below). `docs/brief/draft.md` was a stub pointing there, for
+      a draft copy whose old-copy check (S1-1) still looked at that path; removed 2026-11-10 (owner: no draft copies
+      in use). ContributeLink's `BRIEF_URL`,
       CONTRIBUTING.md, AGENTS.md and the skill point at the new file; the constant stays off.
     - E2: `app/test/contributing.test.ts` holds every version with a hash of the brief's text less its version
       line; the text changed without a new entry, a version line ahead of the list, and a new entry with the last
