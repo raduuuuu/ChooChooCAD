@@ -174,6 +174,9 @@ nothing else uses:
 - **A preview is translucent wood with a SOLID edge** (`--ghost-opacity`).
   Only its wood is translucent; its edge, glyph and words stay opaque, so no
   contrast depends on the opacity.
+  A piece preview (a sent piece opened from its `#p1.` link) draws solid
+  wood, as placed track; the ghost stays the placement cursor's
+  (contributor-brief plan, D11).
 - **An offset shadow means raised.** Track on the raised level casts a
   shadow onto the floor (`--track-shadow`, 3.03:1 on `--floor`), a ramp's
   tapering from its low end to its high end; floor track casts none. Depth,

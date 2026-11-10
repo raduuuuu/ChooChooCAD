@@ -17,7 +17,8 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { counterTag, countedPath } from './linkFragment.js';
+import { PREVIEW_FRAGMENT } from '../../engine/data/previewLink.js';
+import { counterTag, countedPath, PIECE_FRAGMENT, routeOf } from './linkFragment.js';
 
 describe('the counted path', () => {
   /*
@@ -31,6 +32,40 @@ describe('the counted path', () => {
     expect(countedPath('#v9.xyz', '/')).toBe('/shared-link');
     // Not a link (no dot): the editor opens, and its path is the page's.
     expect(countedPath('#v1', '/')).toBe('/');
+  });
+
+  /*
+   * MUTATION PROOF, run: `countedPath` without its piece branch (a preview
+   * counted under the page's path): `expected '/' to be '/piece-preview'`.
+   */
+  it('is /piece-preview for every piece preview, so a sent piece is never sent on (contributor-brief T4)', () => {
+    expect(countedPath('#p1.abcDEF', '/')).toBe('/piece-preview');
+    expect(countedPath('#p2.xyz', '/')).toBe('/piece-preview');
+    expect(countedPath('#p1', '/')).toBe('/');
+  });
+});
+
+describe('which screen an address opens (main.tsx)', () => {
+  /*
+   * MUTATION PROOF, run: `routeOf` testing only LINK_FRAGMENT (`'piece'`
+   * branch dropped, so a preview opens the editor): `expected 'editor' to be
+   * 'piece'`.
+   */
+  it('a #p<n>. address opens the piece preview, #v<n>. the shared layout, anything else the editor', () => {
+    expect(routeOf('#p1.abc')).toBe('piece');
+    expect(routeOf('#p9.abc')).toBe('piece');
+    expect(routeOf('#v1.abc')).toBe('layout');
+    expect(routeOf('')).toBe('editor');
+    expect(routeOf('#p1')).toBe('editor');
+  });
+
+  /*
+   * The app's copy of the pattern (kept out of the validator's chunk) is the
+   * engine's. MUTATION PROOF, run: PIECE_FRAGMENT written `/^#p(\d+)/`
+   * (no dot): `expected '^#p(\d+)' to be '^#p(\d+)\.'`.
+   */
+  it('recognises a preview exactly as the engine decodes one', () => {
+    expect(PIECE_FRAGMENT.source).toBe(PREVIEW_FRAGMENT.source);
   });
 });
 

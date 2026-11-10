@@ -37,6 +37,12 @@ export const CATALOGUE_SIZES = 'Checked with catalogue sizes.';
 /** The exit, worded for where it goes: D23's empty check picks one (design 10A). */
 export const exitLabel = (holdsOwn: boolean) => (holdsOwn ? 'Back to my layout' : 'Start your own');
 
+/**
+ * The contribute link beside Add a part (contributor-brief D15; ContributeLink.tsx).
+ * Here, not in previewWords.ts, because the editor shows it: a word from that
+ * module would pull the whole preview's table into the editor's chunk.
+ */
+export const CONTRIBUTE_WORDS = 'Missing a piece? Have your Claude draw it for the library';
 /** Opening a link in the editor (design doc step 3; eng D23, D29, D72; design 11A, 18A). */
 export const OPEN_IN_EDITOR = 'Open in editor';
 export const PHONE_CANNOT_EDIT = 'Open this link on a tablet or computer to change it.';

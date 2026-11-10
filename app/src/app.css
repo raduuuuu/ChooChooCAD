@@ -2147,6 +2147,36 @@
 .put-aside-button:disabled { color: var(--ink-soft); text-decoration: none; cursor: default; }
 .friend-message .friend-main { justify-content: center; align-items: flex-start; max-width: 36rem; }
 .friend-message-line { margin: 0; font-size: 17px; line-height: 1.5; outline: none; }
+/*
+ * A PIECE PREVIEW (contributor-brief plan, T4, D3, D13, D14): the friend
+ * screen's column, the 2D picture as its anchor and the 3D view after it at
+ * full width, then sizes in the mono face, the next step, the folded details
+ * and the way out. Ink and paper only: no verdict on this screen (D10), so no
+ * colour either (DESIGN.md rule 1). Every control 44px (rule 10, D14).
+ */
+.preview-standing { margin: 0; color: var(--ink); }
+.preview-3d { height: min(50vh, 32rem); min-height: 14rem; display: flex; border: 1px solid var(--rule); }
+.preview-3d > .canvas-frame { flex: 1; min-width: 0; }
+.preview-side { min-height: 44px; min-width: 44px; padding: 0 var(--s3); background: var(--paper); border: 1px solid var(--rule); border-radius: 3px; color: var(--ink); font: inherit; font-size: 14px; cursor: pointer; }
+.preview-side:hover { border-color: var(--ink-soft); }
+.preview-sizes { margin: 0; display: flex; flex-direction: column; gap: var(--s2); }
+.preview-sizes > div { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); }
+.preview-sizes dt { font-weight: 600; min-width: 8rem; }
+.preview-sizes dd { margin: 0; }
+.preview-sizes ul { margin: 0; padding: 0; list-style: none; }
+.preview-duplicate, .preview-next p { margin: 0; }
+.preview-next { display: flex; flex-direction: column; gap: var(--s1); }
+.preview-details h2 { margin: var(--s3) 0 var(--s1); font-size: 15px; font-weight: 600; }
+.preview-details ul, .preview-reasons { margin: 0; padding-inline-start: var(--s5); }
+.preview-paint { margin: var(--s2) 0 0; }
+.preview-data { margin: 0 0 var(--s2); padding: var(--s3); max-height: 20rem; overflow: auto; background: var(--paper-sunk); border: 1px solid var(--rule); font-family: var(--font-data); font-size: 13px; white-space: pre; }
+.preview-reasons { font-family: var(--font-data); font-size: 14px; overflow-wrap: anywhere; }
+.preview-copy { display: inline-flex; align-items: center; gap: var(--s3); }
+.preview-copy button { min-height: 44px; padding: 0 var(--s4); background: var(--paper); border: 1px solid var(--rule); border-radius: 3px; color: var(--ink); font: inherit; cursor: pointer; }
+.preview-copy button:hover { border-color: var(--ink-soft); }
+/* The contribute link beside Add a part (D15): the rail's quiet link, 44px on a finger. */
+.contribute-link { display: inline-flex; align-items: center; min-height: 36px; font-size: 14px; color: var(--ink); text-underline-offset: 3px; }
+@media (pointer: coarse) { .contribute-link { min-height: 44px; } }
 @media (max-width: 620px) {
   .friend-head { padding: var(--s3) var(--s4); }
   .friend-main { padding: var(--s3) var(--s4) var(--s4); gap: var(--s3); }
