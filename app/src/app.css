@@ -2194,6 +2194,8 @@
   .friend-build { width: 100%; }
   .friend-open, .friend-ask { display: none; }
   .friend-phone-note { display: block; }
+  /* A piece preview on a phone: the 2D plan at 40% of the screen, so the 3D view and the sizes come sooner (owner, 2026-11-10). */
+  .preview .friend-picture { height: 40vh; }
 }
 
 /* The model link in build mode's pull list: the library's button, standing alone in its cell (printable-mark plan, 13B). */
