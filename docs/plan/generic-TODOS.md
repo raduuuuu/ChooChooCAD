@@ -1051,10 +1051,31 @@ IP questions below should be settled before anything is published publicly
 ## Repo checkups: decide after four weekly runs (2026-11-08, repo-checkups plan)
 
 - **Propose `/checkup` to gstack (C3, deferred).** After four weekly runs of
-  the checkup, open a gstack issue with what each check caught and its false
-  alarms; the skill's generic steps are kept apart from this repo's rules so
-  moving them is a cut. Why deferred: gstack is consolidating skills; evidence
-  makes the proposal land. **Effort:** S to M. **Priority:** P2.
+  the checkup **and** at least one deep `/checkup` run, open a gstack issue
+  with what each check caught and its false alarms. Propose only the steps
+  that work in any repository: 3 (settings and alerts), 5 (gstack's audits),
+  6 (docs against the code) and 7 (one fix pull request per kind of finding).
+  Steps 1, 2, 4 and 8 depend on this repo's `checkup.yml`, its checker and the
+  `/checkup done at <sha>` protocol, so they stay here. Lead with findings
+  that `/health`, `/cso` and `/test-audit` alone would have missed. Why
+  deferred: gstack now cuts skills that show no measured gain over a plain
+  model (its 1.98 changelog retired `/investigate` and `/plan-eng-review` on
+  eval results), so a proposal needs run evidence. Re-checked 2026-11-09
+  (plan-ceo-review D1): 0 weekly runs, 0 deep runs; deferral kept.
+  **Effort:** S to M. **Priority:** P2.
 - **OpenSSF Scorecard (C5, deferred).** Weekly, its score copied into the
   tracking issue, if the first month shows a second report earns attention.
   **Effort:** S. **Priority:** P3.
+
+## Contributor brief: other LLMs (2026-11-10, contributor-brief plan, C3)
+
+- **The brief for other LLMs (C3, deferred).** The contributor brief
+  (`app/public/contributor-brief.md`) is written for a Claude chat with code
+  execution. Other assistants could follow it once they can clone the
+  repository, run Bun and an image converter in a sandbox, and hand a file
+  back to the sender; `briefLink.ts`, the untrusted-part validator and the
+  preview link already work for any of them. Before widening it: run the
+  brief end to end in one other assistant, note each step it couldn't do, and
+  decide whether one brief can cover both or a second one is needed. Why
+  deferred: the owner, 2026-11-09, "Only Claude in the beginning but we can do
+  it for others afterwards". **Effort:** M. **Priority:** P3.
