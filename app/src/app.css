@@ -2178,7 +2178,8 @@
 .preview-details ul, .preview-reasons { margin: 0; padding-inline-start: var(--s5); }
 .preview-paint { margin: var(--s2) 0 0; }
 .preview-data { margin: 0 0 var(--s2); padding: var(--s3); max-height: 20rem; overflow: auto; background: var(--paper-sunk); border: 1px solid var(--rule); font-family: var(--font-data); font-size: 13px; white-space: pre; }
-.preview-reasons { font-family: var(--font-data); font-size: 14px; overflow-wrap: anywhere; }
+/* Sentences, so the UI face: the mono face is for measurements (DESIGN.md rule 4). */
+.preview-reasons { overflow-wrap: anywhere; }
 .preview-copy { display: inline-flex; align-items: center; gap: var(--s3); }
 .preview-copy button { min-height: 44px; padding: 0 var(--s4); background: var(--paper); border: 1px solid var(--rule); border-radius: 3px; color: var(--ink); font: inherit; cursor: pointer; }
 .preview-copy button:hover { border-color: var(--ink-soft); }
