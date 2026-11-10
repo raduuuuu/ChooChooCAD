@@ -278,6 +278,7 @@ describe('the photo guide', () => {
    * MUTATION PROOFS, run:
    * - the guide dropped from the build's inputs: `expected 'import { execSync } from \'node:child…' to match /guide: 'app\/photo-guide\.html'/`.
    * - the box removed (2026-11-10): `expected '<!doctype html>\n<html lang="en">\n<h…' to match /Your photos never go on GitHub/`.
+   * - the contribute link removed (2026-11-10): `expected '<!doctype html>\n<html lang="en">\n<h…' to contain '<a href="https://woodentrain.world/co…'`.
    */
   it('is built as its own page and says photos never go on GitHub, where they would be public', () => {
     expect(read('vite.config.ts')).toMatch(/guide: 'app\/photo-guide\.html'/);
@@ -285,5 +286,7 @@ describe('the photo guide', () => {
     expect(guide).toMatch(/Your photos never go on GitHub/);
     expect(guide).toMatch(/is <b>public<\/b>/);
     expect(guide).not.toMatch(/They stay on your machine \(the repo/);
+    // The contribute link, in the app's words and to the app's address (ContributeLink.tsx): a phone reaches the brief here.
+    expect(guide).toContain(`<a href="${BRIEF_URL}">Missing a piece? Have your Claude draw it for the library</a>`);
   });
 });
