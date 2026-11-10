@@ -85,8 +85,11 @@ export function PreviewRoute({ fragment }: { fragment: string }) {
       <header className="friend-head">
         <AppName />
       </header>
-      <main className="friend-main" role="status" aria-live="polite">
-        {slow && <p className="friend-message-line">{PREVIEW_LOADING}</p>}
+      <main className="friend-main">
+        {/* The status is the line, not the page: `role` on <main> would take its landmark away while loading. */}
+        <p className="friend-message-line" role="status" aria-live="polite">
+          {slow && PREVIEW_LOADING}
+        </p>
       </main>
     </div>
   );
