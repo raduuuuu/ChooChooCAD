@@ -33,7 +33,7 @@
 import type { Segment } from '../geom/fk.js';
 import { bodyCorners, type RenderedPort } from '../graph/render.js';
 import { decorSpan, drawShape, profileAt, roadTopAbove, type P3, type Pen } from './decor.js';
-import type { Part } from '../parts/schema.js';
+import type { DecorTruss, Part } from '../parts/schema.js';
 
 /** Triangles: xyz per vertex, three indices per triangle. */
 export interface Mesh {
@@ -601,6 +601,7 @@ export function buildScene(input: SceneInput): SceneArrays {
         floorMm,
         roadTop: (a) => floorMm + (part ? roadTopAbove(part, a, riseMm, plankMm) : plankMm),
         plankMm,
+        siblings: part?.decor?.filter((s): s is DecorTruss => s.kind === 'truss'),
       }, pen);
       continue;
     }

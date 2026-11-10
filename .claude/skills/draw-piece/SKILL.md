@@ -366,7 +366,10 @@ images). Set `piece: needs info` (maintainer). Stop.
    - **Arches beside or over the road** are a `truss` shape (schema.ts,
      `DecorTruss`), whatever the piece calls them. Its options, from the
      double-arch bridge (#231, #236, #237):
-     - `parabolic: true` for a tall toy arch: a circular chord can't rise
+     - The chord's shape, against the side photo: `elliptical: true` for
+       an arch whose legs stand upright on what it springs from (a toy arch
+       taller than half its span); `parabolic: true` for one whose legs lean
+       out; circular (neither) for a low arch. A circular chord can't rise
        past a semicircle.
      - `band: true` for a flat, solid arch cut from one board (the side photo
        shows no openings between its edges): one strip as deep all along as
@@ -374,7 +377,16 @@ images). Set `piece: needs info` (maintainer). Stop.
        steel truss.
      - `drawnFromMm` / `drawnToMm` for an arch the piece's end cuts through:
        define the whole arch, centred where the photo shows it, and draw only
-       the part on the piece. Never leave a half arch out.
+       the part the photo shows. Never leave a half arch out, and never draw
+       it past the outline the photo shows: a half arch inside its neighbour
+       is cut where the two meet (equal arches meet halfway between their
+       middles), or its crown stands out as a horn (#231, 2026-11-10).
+     - Arches that overlap in one plate draw as one: a band hides its edges
+       inside another band on its side (decor.ts), so trace the outline the
+       photo shows, not each arch's own.
+     - Read an arch's inner crown at the opening's edge, not at a groove
+       moulded along the band: on the bridge the groove gave 116, the
+       opening 110.
      - `hangers: 0` and `braced: false` for an arch with nothing hanging from
        it or crossing over the road; a cross bar is a `slab` of its own.
      - Where an arch rises past one level (61 mm) it blocks raised track by
