@@ -89,8 +89,12 @@ piece's `git diff`. You review it and draw it in; you can't measure it again.
    for a clear height over the road under 70 mm (brief step 7); everything
    else is inferred, and the `source` says so.
 5. Claim it (step 2), then draw it in (step 8) from the diff, on `main`, fixing
-   anything the review found. Step 9 renders it on its own, against the
-   drawing in the issue (there are no photos); then steps 10 to 12.
+   anything the review found: a part the issue says it left out (the double-
+   arch bridge's half arches) is drawn in, if the shapes allow it. Step 9
+   renders it against the side view the issue traced; the photos stay with the
+   sender, so post the side render on the issue and ask the sender whether it
+   matches their piece (#236's lattice arches showed only against the photo); then
+   steps 10 to 12. Step 12's comment thanks them for drawing it.
 
 ## 2. Claim it
 
@@ -359,16 +363,40 @@ images). Set `piece: needs info` (maintainer). Stop.
      it does (DESIGN.md).
    - "Decorative" means the real piece's look in realistic detail; collisions
      stay on the measured bodies.
+   - **Arches beside or over the road** are a `truss` shape (schema.ts,
+     `DecorTruss`), whatever the piece calls them. Its options, from the
+     double-arch bridge (#231, #236, #237):
+     - `parabolic: true` for a tall toy arch: a circular chord can't rise
+       past a semicircle.
+     - `band: true` for a flat, solid arch cut from one board (the side photo
+       shows no openings between its edges): one strip as deep all along as
+       at the crown. Without it the arch is two thin rails with verticals, a
+       steel truss.
+     - `drawnFromMm` / `drawnToMm` for an arch the piece's end cuts through:
+       define the whole arch, centred where the photo shows it, and draw only
+       the part on the piece. Never leave a half arch out.
+     - `hangers: 0` and `braced: false` for an arch with nothing hanging from
+       it or crossing over the road; a cross bar is a `slab` of its own.
+     - Where an arch rises past one level (61 mm) it blocks raised track by
+       itself (library.ts); test a raised crossing through it, and one high
+       enough to clear its crown.
 3. Tests beside the seeds' tests (`engine/test/`): each figure the layout check
    uses, pinned. Run the change that makes each test fail and record its real
    message in the comment above it (CLAUDE.md).
 
 ## 9. Render beside every photo
 
-1. `bun run dev`; open it in gstack's browser; place the piece; open the 3D
-   view.
-2. For each photo, turn the view to that photo's angle and save a screenshot
-   as `photos/issue-N/render-<k>.png`.
+1. `bun run dev`. Build a share link holding the piece between two straights:
+   `encodeLink` from `app/src/shareLink.ts`, run with `bun`, on a graph of
+   `A`, the piece, `A`, welded end to end. Open `http://localhost:<port>/<link>`
+   in a browser that draws WebGL (Aside, the person's own browser; gstack's
+   headless browser can't draw 3D) and press **See it in 3D**.
+2. Focus the 3D view; the arrow keys turn it (`ArrowUp` 8 times looks at it
+   from the side, level with the table) and `+` zooms. For each photo, turn
+   the view to that photo's angle and save a screenshot as
+   `photos/issue-N/render-<k>.png`. Aside can't write outside its own session
+   folder, which goes when the script ends: send each screenshot from the
+   script to a small local receiver (`Bun.serve` on 127.0.0.1) that writes it.
 3. Compare each render with its photo side by side, part by part: outline,
    ends, every decorative part, colours, what joins where. Fix the drawing and
    rerender until they match. List anything left different and why.
@@ -476,3 +504,6 @@ faces or anything private in a public comment.
 **In the library**
 > It's in the library: <share link to a layout using it>. Thanks again for the
 > photos!
+
+(For a piece the brief drew, the last line reads: "Thanks again for drawing
+it!")
