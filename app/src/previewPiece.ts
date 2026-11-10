@@ -173,7 +173,10 @@ export function trackKey(part: Part): string | null {
   if (part.kind === 'block') return null;
   const ends = portsOf(part, 'left').map((p) => ({ pos: p.at.pos, heading: p.at.heading, level: levelOf(p.at), polarity: p.polarity, kind: p.kind }));
   // The decoration is part of what a piece IS: a bridge on a plain straight's track is not that straight, nor another bridge on it.
-  return JSON.stringify({ brand: part.brand, kind: part.kind, ends, roads: roadsOf(part, 'left'), decor: part.decor ?? null });
+  // Its figures are compared to 0.01mm: a curved roof's are computed with sines, and the sandbox that made the link (Bun) and
+  // the browser reading it round the last digit differently (98.7553983959017 against 98.75539839590168, the metro station's).
+  const hundredths = (_k: string, v: unknown) => (typeof v === 'number' ? Math.round(v * 100) / 100 : v);
+  return JSON.stringify({ brand: part.brand, kind: part.kind, ends, roads: roadsOf(part, 'left'), decor: part.decor ?? null }, hundredths);
 }
 
 /**

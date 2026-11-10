@@ -1249,7 +1249,12 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
     - Words in `previewWords.ts`; the contribute link's in `linkWords.ts` (the editor shows it, and a word from
       the preview's table pulled the whole table into the editor's chunk: 154.43 kB, over budget).
     - The contribute link points at `docs/brief/draft.md` on GitHub until T5 serves the brief from the site.
-    - Still to do: /design-review on the built screen, and a worst-case link opened on the live site.
+    - Worst-case link on the live site (2026-11-10, after #246): the metro station sent as a new piece
+      (`brief:link encode`, 3,861 characters) opened at 390×844 and 1440×900, in 2D and 3D, its sizes and next
+      steps shown; a copy cut 120 characters short gave the cut-short sentence. It found one bug: the duplicate
+      line never showed for a piece with computed decoration (the roof's sines differ in the last digit between
+      the sandbox and a browser); figures are now compared to 0.01 mm.
+    - Still to do: /design-review on the built screen.
 - [ ] **T5 (P1, human: ~2 days / CC: ~1h)** — docs and intake — brief (unlinked), two forms, labels, photo guide side photo, AGENTS.md, `/draw-piece` review path and shared section, link constant off, generic-TODOS entry
   - Surfaced by: C2, C4, C6, E2, U1, S1-1, S3-1, OV-1; spec reviews 1-3
   - Files: app/public/<brief>.md, .github/ISSUE_TEMPLATE/drawn-piece.yml, .github/ISSUE_TEMPLATE/unsupported-piece.yml, .github/piece-labels.json, app/photo-guide.html, AGENTS.md, .claude/skills/draw-piece/SKILL.md, app/src/ (link constant), docs/plan/generic-TODOS.md, app/test/contributing.test.ts
