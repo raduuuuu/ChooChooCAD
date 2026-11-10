@@ -1066,3 +1066,16 @@ IP questions below should be settled before anything is published publicly
 - **OpenSSF Scorecard (C5, deferred).** Weekly, its score copied into the
   tracking issue, if the first month shows a second report earns attention.
   **Effort:** S. **Priority:** P3.
+
+## Contributor brief: other LLMs (2026-11-10, contributor-brief plan, C3)
+
+- **The brief for other LLMs (C3, deferred).** The contributor brief
+  (`app/public/contributor-brief.md`) is written for a Claude chat with code
+  execution. Other assistants could follow it once they can clone the
+  repository, run Bun and an image converter in a sandbox, and hand a file
+  back to the sender; `briefLink.ts`, the untrusted-part validator and the
+  preview link already work for any of them. Before widening it: run the
+  brief end to end in one other assistant, note each step it couldn't do, and
+  decide whether one brief can cover both or a second one is needed. Why
+  deferred: the owner, 2026-11-09, "Only Claude in the beginning but we can do
+  it for others afterwards". **Effort:** M. **Priority:** P3.
