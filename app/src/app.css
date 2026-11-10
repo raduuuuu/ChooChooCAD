@@ -2166,9 +2166,10 @@
 .preview-3d > .canvas-frame { flex: 1; min-width: 0; }
 .preview-side { min-height: 44px; min-width: 44px; padding: 0 var(--s3); background: var(--paper); border: 1px solid var(--rule); border-radius: 3px; color: var(--ink); font: inherit; font-size: 14px; cursor: pointer; }
 .preview-side:hover { border-color: var(--ink-soft); }
-.preview-sizes { margin: 0; display: flex; flex-direction: column; gap: var(--s2); }
-.preview-sizes > div { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); }
-.preview-sizes dt { font-weight: 600; min-width: 8rem; }
+/* One value column for every row: a long term wraps inside its own column rather than pushing its value out of line. */
+.preview-sizes { margin: 0; display: grid; grid-template-columns: minmax(8rem, 14rem) 1fr; gap: var(--s2) var(--s3); }
+.preview-sizes > div { display: contents; }
+.preview-sizes dt { font-weight: 600; }
 .preview-sizes dd { margin: 0; }
 .preview-sizes ul { margin: 0; padding: 0; list-style: none; }
 .preview-duplicate, .preview-next p { margin: 0; }
