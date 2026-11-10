@@ -71,6 +71,11 @@ the design rules are in [DESIGN.md](DESIGN.md); how people contribute is in
   [.claude/skills/draw-piece/SKILL.md](.claude/skills/draw-piece/SKILL.md):
   `/draw-piece <issue number>` in Claude Code; any other agent follows the same
   file as plain steps.
+- The brief is one file: the site serves the repository's copy as the
+  download. Any change to its text bumps its version line, and
+  app/test/contributing.test.ts records the new version and hash in the same
+  commit. Notes for maintainers go here, not in the brief: every sender's
+  Claude reads all of it.
 - "Decorative" means parts drawn with realistic detail so they look like the
   real piece, not scenery. Collisions stay on the measured bodies.
 - Whoever holds the photos (the sender's Claude) compares the drawing with

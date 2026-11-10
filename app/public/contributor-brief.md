@@ -1,14 +1,6 @@
-<!--
-  The contributor brief (docs/plan/2026-11-09-contributor-brief.md, T5), served
-  by the site as woodentrain.world/contributor-brief.md: the download and the
-  repository's copy are this one file. Any change to its text bumps the version
-  line, and app/test/contributing.test.ts records the new version and hash in
-  the same commit (E2).
--->
-
 # Draw a missing track piece with your Claude
 
-Brief version: **1, 2026-11-10**
+Brief version: **2, 2026-11-10**
 
 ## For the person reading this
 
