@@ -72,7 +72,7 @@ export const ENTRIES: readonly Entry[] = [
   {
     photo: '84401.jpg',
     what: 'the long straight of the 216mm trial',
-    basis: 'its known 216mm, within TOLERANCE_MM (the trial\'s bound); these photos read about 0.7mm long, not yet explained',
+    basis: 'its known 216mm, within TOLERANCE_MM (the trial\'s bound); these photos read about 0.7mm long, most likely the owner\'s medium straight being about 143.6mm (photoReadings.ts, TOLERANCE_MM)',
     points: { figures: { long: [[703, 1802], [782, 3756]] } },
     expect: { long: { mm: 216, tolMm: TOLERANCE_MM } },
   },

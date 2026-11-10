@@ -1095,6 +1095,22 @@ changed; switches, crossings and ramps (now from printed copies) can become
 measured at ±1mm. Open, not blocking: a caliper reading of the two trial
 pieces would say whether the 0.7mm is the method.
 
+Looked into, 2026-11-10, on the four photos that read the long straight
+(84401, 84402, 85844, 85845: 216.60, 216.95, 216.43, 216.58):
+- A reading is 144 × long ÷ medium on one photo, so the paper's print size
+  and the parallax cancel; only the ends or the pieces can move it.
+- The ends are not it. Each end steps from wood to paper within about 0.4mm,
+  with no strip of wood fading early. Moving the crossing from 25% to 75% of
+  the step moves a reading about 0.2mm, either way.
+- One cause fits every reading: a medium straight about 143.6mm long. The
+  trials average 216.64 (a medium of 143.57), and the T switch's through road
+  reads 216.50 (143.67 if that road is 216).
+- The camera data (48mm equivalent) puts the top faces 10 to 12mm above the
+  paper. That is not precise enough to rule out the two pieces differing in
+  height by 1 to 2mm, which would also skew the ratio.
+Still open: measure the medium straight from end to end, with a ruler or
+calipers, between the faces beside the peg and the socket.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
