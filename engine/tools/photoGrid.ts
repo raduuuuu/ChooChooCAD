@@ -19,7 +19,7 @@
  * The perspective is then a homography from undistorted pixels to paper mm.
  */
 
-import { homography, toPaper, type GridPoint, type Homography, type Pt } from './photo.js';
+import { homography, invert3, toPaper, type GridPoint, type Homography, type Pt } from './photo.js';
 import type { RgbImage } from './photoImage.js';
 
 export interface PaperMap {
@@ -37,13 +37,6 @@ export const undistort = (m: Pick<PaperMap, 'k1' | 'centre' | 'norm'>, [x, y]: P
 
 /** A photo pixel on the paper, in millimetres. */
 export const pixelToPaper = (m: PaperMap, p: Pt): Pt => toPaper(m.h, undistort(m, p));
-
-function invert3(h: Homography): Homography {
-  const [a, b, c, d, e, f, g, i, j] = h as [number, number, number, number, number, number, number, number, number];
-  const A = e * j - f * i, B = -(d * j - f * g), C = d * i - e * g;
-  const det = a * A + b * B + c * C;
-  return [A / det, -(b * j - c * i) / det, (b * f - c * e) / det, B / det, (a * j - c * g) / det, -(a * f - c * d) / det, C / det, -(a * i - b * g) / det, (a * e - b * d) / det];
-}
 
 /** Where a paper point appears in the photo (inverse of pixelToPaper). */
 export function paperToPixel(m: PaperMap, mm: Pt): Pt {

@@ -264,7 +264,23 @@ describe('the points file', () => {
     expect(parsePoints('{"figures":{"a":[[1,2,3],[4,5]]}}')).toMatchObject({ code: 'points-invalid', reason: expect.stringContaining('figures.a[0]') });
     expect(parsePoints('{"figures":{"out":{"point":[1,2],"line":[[0,0],[9,9]],"read":"across"}}}')).toMatchObject({ code: 'points-invalid', reason: expect.stringContaining('figures.out.read') });
     expect(parsePoints('{"figures":{"a":[[1,2],{"crop":"p.crop-1-2-30.png","at":[4,5]}]}}')).not.toHaveProperty('code');
+    expect(parsePoints('{"camera":{"focal35mm":0},"figures":{"a":[[1,2],[4,5]]}}')).toMatchObject({ code: 'points-invalid', reason: expect.stringContaining('camera') });
   });
+
+  /*
+   * MUTATION PROOF, run (2026-11-10): the points file's camera not carried
+   * through resolvePoints fails with `expected { kind: 'measured', …(5) } to
+   * match object { kind: 'refused', …(1) }`.
+   */
+  it('a focal length given in the points file is used when the photo has none (a chat attachment)', () => {
+    const file = parsePoints(JSON.stringify({ camera: { focal35mm: 48 }, figures: { long: LONG_ENDS } }));
+    if ('code' in file) throw new Error(file.reason);
+    const points = resolvePoints(file, '.', null);
+    if ('code' in points) throw new Error(points.reason);
+    // The synthetic photo was drawn by no 48mm camera: with that focal length its medium straight reads far off 144, and the photo is refused.
+    expect(measure(points, plain)).toMatchObject({ kind: 'refused', refused: { code: 'reference-off-size' } });
+    expect(measured(measure({ figures: points.figures }, plain)).scale).toMatchObject({ kind: 'medium', why: 'the photo carries no 35mm focal length' });
+  }, 60_000);
 
   /*
    * MUTATION PROOF, run (2026-11-09): the stem compared as a prefix
@@ -295,6 +311,7 @@ describe('the command line', () => {
     const loaded: string[] = [];
     const io: Io = {
       load: (p) => (loaded.push(p), load(p)),
+      camera: () => undefined,
       read: (f) => {
         if (!(f in files)) throw Object.assign(new Error('no such file'), { code: 'ENOENT' });
         return typeof files[f] === 'string' ? (files[f] as string) : JSON.stringify(files[f]);

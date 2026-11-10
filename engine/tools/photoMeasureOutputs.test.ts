@@ -51,6 +51,7 @@ const io = (files: Record<string, unknown>, load: (p: string) => RgbImage = () =
   const out: string[] = [], err: string[] = [];
   const io: Io = {
     load,
+    camera: () => undefined,
     read: (f) => {
       if (!(f in files)) throw Object.assign(new Error('no such file'), { code: 'ENOENT' });
       return JSON.stringify(files[f]);
@@ -114,6 +115,7 @@ describe('the overlay', () => {
       kind: 'measured' as const, photo: { width: 4000, height: 3000 },
       grid: { source: 'found' as const, points: 1, rmsMm: 0.1, crossings: [[2000, 1500]] as Pt[] },
       reference: { source: 'found' as const, k: 1, ends: [end([500, 500]), end([500, 2500])] as const },
+      scale: { kind: 'medium' as const, k: 1, why: 'none' },
       figures: { long: { kind: 'distance' as const, facing: 'checked' as const, valueMm: 1, status: 'checked' as const, why: [], ends: [end([1000, 500]), end([3000, 2500])] } },
     };
     const { image, key } = drawOverlay(big, points, result);

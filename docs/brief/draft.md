@@ -7,7 +7,7 @@
 
 # Draw a missing track piece with your Claude
 
-Brief version: **draft-5, 2026-11-09**
+Brief version: **draft-6, 2026-11-10**
 
 ## For the person reading this
 
@@ -113,6 +113,13 @@ and trial photos in `photos/mine/top/`. Photos attached to a chat may arrive
 smaller than the camera's (a 3072 × 4096 photo came as 1932 × 2576) and
 without their EXIF data: measure them as they are, in their own pixels.
 
+The scale comes from the camera, so ask for the top views' focal length as a
+35 mm camera's: in the phone's photo details (on an iPhone, swipe up on the
+photo: "48 mm" beside the lens; on Android, the photo's info, "35mm
+equivalent" or the lens's focal length). One number per photo; zoomed or
+cropped photos won't do. Without it, the medium straight is taken as 144 mm,
+and one a few tenths off moves every figure by the same share.
+
 ### 4. The photo check
 
 ```bash
@@ -136,7 +143,8 @@ issue saying so (the piece, the reason). Nothing is drawn.
 Follow the skill's step 7 ("From photo to figure"). For each top view:
 
 - crop each end (`photoCrop.ts`, `half` 200 to see a road's width), read the
-  points off the crops, write `photos/mine/<photo>.json`;
+  points off the crops, write `photos/mine/<photo>.json`, with
+  `"camera": { "focal35mm": <the number> }` when the sender gave one;
 - run `photoMeasure.ts` with `--photo`, `--json` and
   `--overlay photos/mine`; show the sender each overlay here in the chat and
   ask them to confirm the rings sit on the ends;

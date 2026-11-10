@@ -28,7 +28,7 @@ import { describe, expect, it } from 'vitest';
 import type { Pt } from './photo.js';
 import { checkFolder, checkImage, trialVerdict } from './photoCheck.js';
 import { cropPath } from './photoCrop.js';
-import { hasLocation, orientationOf, stripMetadata } from './photoExif.js';
+import { focal35Of, hasLocation, orientationOf, stripMetadata } from './photoExif.js';
 import { findGridAuto } from './photoGridSeed.js';
 import { bmpConverters, type RgbImage } from './photoImage.js';
 import { paperTooWarm } from './photoStraights.js';
@@ -46,6 +46,16 @@ function exifApp1(orientation: number, gps: boolean): number[] {
   if (gps) tiff.push(0x88, 0x25, 0, 4, 0, 0, 0, 1, 0, 0, 0, gpsAt);
   tiff.push(0, 0, 0, 0);
   if (gps) tiff.push(0, 1, 0, 1, 0, 2, 0, 0, 0, 2, 0x4e, 0, 0, 0, 0, 0, 0, 0); // GPSLatitudeRef 'N'
+  return seg(0xe1, [...text('Exif\0\0'), ...tiff]);
+}
+/** An Exif APP1, little-endian as phones write it: IFD0 with an Orientation, a GPS IFD and an Exif IFD holding the 35mm focal length. */
+function phoneExif(orientation: number, focal35: number): number[] {
+  const le = (n: number, bytes: number) => Array.from({ length: bytes }, (_, i) => (n >> (8 * i)) & 0xff);
+  const entry = (tag: number, type: number, value: number) => [...le(tag, 2), ...le(type, 2), ...le(1, 4), ...le(value, 4)];
+  const ifd0 = 8, gpsAt = ifd0 + 2 + 12 * 3 + 4, exifAt = gpsAt + 2 + 12 + 4;
+  const tiff = [0x49, 0x49, 0x2a, 0, ...le(ifd0, 4), ...le(3, 2), ...entry(0x0112, 3, orientation), ...entry(0x8825, 4, gpsAt), ...entry(0x8769, 4, exifAt), 0, 0, 0, 0,
+    ...le(1, 2), ...entry(0x0001, 2, 0x4e), 0, 0, 0, 0, // GPSLatitudeRef 'N'
+    ...le(1, 2), ...entry(0xa405, 3, focal35), 0, 0, 0, 0];
   return seg(0xe1, [...text('Exif\0\0'), ...tiff]);
 }
 const APP0 = seg(0xe0, [...text('JFIF\0'), 1, 1, 0, 0, 1, 0, 1, 0, 0]);
@@ -76,6 +86,19 @@ describe('location in a JPEG', () => {
     expect(Array.from(after.slice(2, 2 + APP0.length))).toEqual(APP0);
     expect(Array.from(after.slice(after.length - DATA.length))).toEqual(DATA);
     expect(() => stripMetadata(Uint8Array.of(0x42, 0x4d, 0, 0))).toThrow(/not a JPEG/);
+  });
+
+  /*
+   * MUTATION PROOFS, run (2026-11-10):
+   * - the focal length not written back: `expected [ false, 6, undefined ] to deeply equal [ false, 6, 48 ]`.
+   * - the Exif IFD pointer read as 0x8768: `expected [ true, 6, undefined ] to deeply equal [ true, 6, 48 ]`.
+   */
+  it('keeps the 35mm focal length, which sets the scale (photo.ts, chooseScale)', () => {
+    const before = jpeg(APP0, phoneExif(6, 48));
+    expect([hasLocation(before), orientationOf(before), focal35Of(before)]).toEqual([true, 6, 48]);
+    const after = stripMetadata(before);
+    expect([hasLocation(after), orientationOf(after), focal35Of(after)]).toEqual([false, 6, 48]);
+    expect(focal35Of(jpeg(APP0, exifApp1(1, false)))).toBe(undefined);
   });
 });
 

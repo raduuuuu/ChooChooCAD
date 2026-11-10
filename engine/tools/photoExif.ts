@@ -10,12 +10,13 @@
  * Location is reported when the GPS IFD holds any entry, or XMP names a GPS
  * field. Stripping drops every APP1 (Exif and XMP) and APP13 segment, then
  * writes back a minimal Exif holding only the Orientation, so a phone photo
- * taken sideways still shows the right way up. Everything from SOS on is
- * copied byte for byte.
+ * taken sideways still shows the right way up, and the 35mm-equivalent focal
+ * length (Exif IFD 0xA405), which sets the scale (photo.ts, chooseScale).
+ * Everything from SOS on is copied byte for byte.
  */
 
 const SOI = 0xd8, SOS = 0xda, EOI = 0xd9, APP1 = 0xe1, APP13 = 0xed;
-const TAG_ORIENTATION = 0x0112, TAG_GPS = 0x8825;
+const TAG_ORIENTATION = 0x0112, TAG_GPS = 0x8825, TAG_EXIF = 0x8769, TAG_FOCAL_35 = 0xa405;
 
 interface Segment {
   readonly marker: number;
@@ -98,6 +99,20 @@ export function orientationOf(bytes: Uint8Array): number | undefined {
   return undefined;
 }
 
+/** The focal length as a 35mm camera's, mm (Exif IFD FocalLengthIn35mmFilm), or undefined when the photo has none. */
+export function focal35Of(bytes: Uint8Array): number | undefined {
+  for (const s of segments(bytes).list) {
+    if (!isExif(bytes, s)) continue;
+    const tiff = tiffOf(bytes, s);
+    const read = readTiff(tiff);
+    const exif = read?.entries.get(TAG_EXIF);
+    if (!read || !exif) continue;
+    const f = readIfd(tiff, exif.value, read.little).get(TAG_FOCAL_35);
+    if (f && f.type === 3 && f.value > 0) return f.value;
+  }
+  return undefined;
+}
+
 /**
  * The JPEG's stored size, from its frame header (SOF0 to SOF15; C4, C8 and CC
  * are other markers). Phones often write progressive SOF2. An EXIF thumbnail's
@@ -112,9 +127,15 @@ export function jpegSize(bytes: Uint8Array): { width: number; height: number } {
   throw new Error('not a JPEG: no frame header');
 }
 
-/** A minimal Exif APP1 holding only an Orientation, big-endian. */
-function orientationSegment(orientation: number): Uint8Array {
-  const tiff = [0x4d, 0x4d, 0x00, 0x2a, 0, 0, 0, 8, 0, 1, 0x01, 0x12, 0, 3, 0, 0, 0, 1, 0, orientation, 0, 0, 0, 0, 0, 0, 0, 0];
+/** A minimal Exif APP1, big-endian: IFD0 with the Orientation and, when given, an Exif IFD with the 35mm focal length. */
+function minimalExif(orientation: number | undefined, focal35: number | undefined): Uint8Array {
+  const short = (tag: number, v: number) => [tag >> 8, tag & 0xff, 0, 3, 0, 0, 0, 1, v >> 8, v & 0xff, 0, 0];
+  const n0 = (orientation !== undefined ? 1 : 0) + (focal35 !== undefined ? 1 : 0), exifAt = 8 + 2 + 12 * n0 + 4;
+  const tiff = [0x4d, 0x4d, 0x00, 0x2a, 0, 0, 0, 8, 0, n0];
+  if (orientation !== undefined) tiff.push(...short(TAG_ORIENTATION, orientation));
+  if (focal35 !== undefined) tiff.push(TAG_EXIF >> 8, TAG_EXIF & 0xff, 0, 4, 0, 0, 0, 1, 0, 0, exifAt >> 8, exifAt & 0xff);
+  tiff.push(0, 0, 0, 0);
+  if (focal35 !== undefined) tiff.push(0, 1, ...short(TAG_FOCAL_35, focal35), 0, 0, 0, 0);
   const body = [...'Exif\0\0'].map((c) => c.charCodeAt(0)).concat(tiff);
   const len = body.length + 2;
   return Uint8Array.from([0xff, APP1, len >> 8, len & 0xff, ...body]);
@@ -122,17 +143,17 @@ function orientationSegment(orientation: number): Uint8Array {
 
 /**
  * The same photo with its Exif, XMP and IPTC removed, keeping only its
- * Orientation; the image data is untouched.
+ * Orientation and 35mm focal length; the image data is untouched.
  */
 export function stripMetadata(bytes: Uint8Array): Uint8Array {
   const { list, dataStart } = segments(bytes);
-  const orientation = orientationOf(bytes);
+  const orientation = orientationOf(bytes), focal35 = focal35Of(bytes);
   const kept = list.filter((s) => s.marker !== APP1 && s.marker !== APP13);
   // The Orientation goes right after JFIF's APP0 when there is one, else first.
   const head: Uint8Array[] = [Uint8Array.of(0xff, SOI)];
   const app0 = kept.length > 0 && kept[0]!.marker === 0xe0 ? [kept[0]!] : [];
   for (const s of app0) head.push(bytes.subarray(s.start, s.end));
-  if (orientation !== undefined) head.push(orientationSegment(orientation));
+  if (orientation !== undefined || focal35 !== undefined) head.push(minimalExif(orientation, focal35));
   for (const s of kept.slice(app0.length)) head.push(bytes.subarray(s.start, s.end));
   head.push(bytes.subarray(dataStart));
   const out = new Uint8Array(head.reduce((n, p) => n + p.length, 0));

@@ -1108,8 +1108,15 @@ Looked into, 2026-11-10, on the four photos that read the long straight
 - The camera data (48mm equivalent) puts the top faces 10 to 12mm above the
   paper. That is not precise enough to rule out the two pieces differing in
   height by 1 to 2mm, which would also skew the ratio.
-Still open: measure the medium straight from end to end, with a ruler or
-calipers, between the faces beside the peg and the socket.
+Settled the same day: the owner's medium straight is 143.6mm by ruler. Since
+a contributor's may be off too, the camera now sets the scale (photo.ts,
+`chooseScale`): the grid's homography and the photo's 35mm-equivalent focal
+length give the camera's height, and that with the top faces' 12mm gives the
+parallax. The medium straight is read like any figure and held to 144 ± 1mm.
+The four trial photos then read 215.85 to 216.30 (mean 216.16), and the
+medium straight 143.50 to 143.84. What it leans on now: the paper printed true
+(the owner's two sheets differ by about 0.2%) and the focal length surviving
+(a chat attachment loses it, so the brief asks for it, draft-6).
 
 ## GSTACK REVIEW REPORT
 

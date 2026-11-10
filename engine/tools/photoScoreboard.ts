@@ -14,7 +14,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { checkImage } from './photoCheck.js';
-import { loadPhoto } from './photoImage.js';
+import { cameraOf, loadPhoto } from './photoImage.js';
 
 /** 'ok': grid and medium straight, no problem; 'ok-long': also the long straight within 1mm of 216; else a pattern the reshoot reason must match. */
 type Want = 'ok' | 'ok-long' | RegExp;
@@ -43,7 +43,7 @@ export function score(dir: string, print: (line: string) => void = console.log):
     const path = join(dir, `${name}.jpg`);
     if (!existsSync(path)) continue;
     ran++;
-    const c = checkImage(loadPhoto(path));
+    const c = checkImage(loadPhoto(path), cameraOf(path));
     const ok = c.problems.length === 0;
     const good = want === 'ok' ? ok
       : want === 'ok-long' ? ok && c.longMm !== undefined && Math.abs(c.longMm - 216) <= 1
