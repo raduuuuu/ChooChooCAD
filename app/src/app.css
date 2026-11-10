@@ -2183,8 +2183,8 @@
 .preview-copy { display: inline-flex; align-items: center; gap: var(--s3); }
 .preview-copy button { min-height: 44px; padding: 0 var(--s4); background: var(--paper); border: 1px solid var(--rule); border-radius: 3px; color: var(--ink); font: inherit; cursor: pointer; }
 .preview-copy button:hover { border-color: var(--ink-soft); }
-/* The contribute link beside Add a part (D15): the rail's quiet link, 44px on a finger. */
-.contribute-link { display: inline-flex; align-items: center; min-height: 36px; font-size: 14px; color: var(--ink); text-underline-offset: 3px; }
+/* The contribute link beside Add a part (D15): the rail's quiet link, 44px on a finger, across the whole row of the button grid it sits in (one cell wrapped it a word per line). */
+.contribute-link { grid-column: 1 / -1; display: inline-flex; align-items: center; min-height: 36px; font-size: 14px; color: var(--ink); text-underline-offset: 3px; }
 @media (pointer: coarse) { .contribute-link { min-height: 44px; } }
 @media (max-width: 620px) {
   .friend-head { padding: var(--s3) var(--s4); }

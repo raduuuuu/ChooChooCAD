@@ -1287,10 +1287,13 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
     - `/draw-piece` reads the form's sections, opens the preview link (its data must be the diff's piece), adds
       each needed colour to `tokens.css` with its ΔE2000 and line contrast, and lists **Colours added** in the PR.
     - Not done here: the generic-TODOS entry "the brief for other LLMs" (another session holds that file).
-- [ ] **T6 (P1, human: ~2h / CC: ~15min)** — rollout — after the gating pilot: retire the photo form and the drawing path, point CONTRIBUTING.md at the brief, flip the link constant
+- [x] **T6 (P1, human: ~2h / CC: ~15min)** — rollout — after the gating pilot: retire the photo form and the drawing path, point CONTRIBUTING.md at the brief, flip the link constant
   - Surfaced by: C5 (D2), C7 (D6), OV-1 (D11)
   - Files: .github/ISSUE_TEMPLATE/new-piece.yml (removed), CONTRIBUTING.md, .claude/skills/draw-piece/SKILL.md, app/src/ (constant), tests
   - Verify: the pilot's issue passed review; docs tests; the link visible on the live site
+  - Done (2026-11-10): the photo form and the drawing path retired in #243 (P-1, P-3); CONTRIBUTING.md points
+    at the brief since #250; `CONTRIBUTE_LINK_ON` flipped to true, the link beside Add a part opening
+    woodentrain.world/contributor-brief.md. The pilot: the owner's dry run (#231), P-1.
 
 ## Completion Summary
 
