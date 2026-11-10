@@ -225,20 +225,22 @@ describe('From the side (D13)', () => {
 
 describe('the contribute link (D15)', () => {
   /*
-   * MUTATION PROOF, run: CONTRIBUTE_LINK_ON set to true: `expected <a
-   * class="contribute-link" …(3)></a> to be null // Object.is equality`.
+   * MUTATION PROOF, run (2026-11-10, T6): CONTRIBUTE_LINK_ON set back to false:
+   * `TestingLibraryElementError: Unable to find an accessible element with the
+   * role "link" and name "Missing a piece? Have your Claude draw it for the library"`.
    */
-  it('is absent from the editor while its switch is off, and present when turned on', async () => {
+  it('shows in the editor beside Add a part, opening the brief, and renders nothing when switched off', async () => {
     localStorage.setItem(GRAPH_STORAGE_KEY, OWN);
-    render(
+    const { unmount } = render(
       <StrictMode>
         <App />
       </StrictMode>,
     );
     expect(screen.getAllByRole('button', { name: 'Add a part' }).length).toBeGreaterThan(0);
-    expect(screen.queryByRole('link', { name: /Missing a piece/ })).toBe(null);
-    render(<ContributeLink on />);
     const link = screen.getByRole('link', { name: 'Missing a piece? Have your Claude draw it for the library' });
     expect(link.getAttribute('href')).toBe(BRIEF_URL);
+    unmount();
+    const { container } = render(<ContributeLink on={false} />);
+    expect(container.innerHTML).toBe('');
   });
 });

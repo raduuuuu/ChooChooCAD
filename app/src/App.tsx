@@ -2277,7 +2277,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             </button>
             {graph.pieces.length > 0 && !tableOpen && <button onClick={() => setTableOpen(true)}>Your table</button>}
             {graph.pieces.length > 0 && <button onClick={() => setSubmitOpen(true)}>Add a part</button>}
-            {/* Beside Add a part, off until the pilot (contributor-brief D15). */}
+            {/* Beside Add a part (contributor-brief D15; on since T6). */}
             {graph.pieces.length > 0 && <ContributeLink />}
             {graph.pieces.length > 0 && inventory === null && (
               <span className="inventory-hint">

@@ -1,17 +1,17 @@
 /**
- * THE CONTRIBUTE LINK, OFF UNTIL THE PILOT (contributor-brief plan, C5, D15;
- * T4 builds it, T6 turns it on). Beside the editor's Add a part: someone
- * missing a piece is pointed at the brief their own Claude follows to draw it.
+ * THE CONTRIBUTE LINK (contributor-brief plan, C5, D15; T4 built it, T6 turned
+ * it on, 2026-11-10, the owner's dry run counting as the pilot, P-1). Beside
+ * the editor's Add a part: someone missing a piece is pointed at the brief
+ * their own Claude follows to draw it.
  *
- * ONE SWITCH, no build flag: `CONTRIBUTE_LINK_ON`, flipped by its own pull
- * request once one outside sender has finished the brief (plan step 3, "The
- * switch"). While it is false nothing renders, not even an empty element.
+ * ONE SWITCH, no build flag: `CONTRIBUTE_LINK_ON`. Set it false to take the
+ * link down again; while it is false nothing renders, not even an empty element.
  */
 
 import { CONTRIBUTE_WORDS } from './linkWords.js';
 
-/** The switch (T6 flips it). */
-export const CONTRIBUTE_LINK_ON = false;
+/** The switch: on since T6 (2026-11-10). */
+export const CONTRIBUTE_LINK_ON = true;
 
 /**
  * Where the link opens: the brief, served by the site from
