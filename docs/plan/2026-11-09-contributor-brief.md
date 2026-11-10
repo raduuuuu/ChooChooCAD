@@ -802,9 +802,10 @@ steps 2-3 are inert alone. Post-deploy check: open a worst-case preview link on 
 ### Section 11: Design and UX
 
 ```
-  site ─▶ contribute link (after the pilot) ─▶ download the brief ─▶ Claude chat
-       ─▶ questions, photos, ruler ─▶ preview link ─▶ woodentrain.world/#piece…
-       ─▶ "looks right" ─▶ prefilled issue ─▶ drag the photos ─▶ submit
+  site ─▶ contribute link ─▶ download the brief ─▶ Claude chat
+       ─▶ questions, photos (they stay in the chat), ruler ─▶ preview link
+       ─▶ woodentrain.world/#p1.… ─▶ "looks like my piece", told to the chat
+       ─▶ the issue file ─▶ posted as a new issue (no photos)
 ```
 
 | Feature | Loading | Empty | Error | Success | Partial |
@@ -817,6 +818,135 @@ steps 2-3 are inert alone. Post-deploy check: open a worst-case preview link on 
 - Phone: the brief runs in the Claude phone app; the preview must work on a
   phone. Recommendation: run /plan-design-review on the preview screen before
   building it, and /design-review after.
+
+### The preview screen, designed (T4; /plan-design-review, 2026-11-10)
+
+Each line is the owner's decision (D1 to D<n>); the review report at the end
+counts them. Where Section 11 above differs, these replace it.
+
+- **D1 Base: the shared-layout screen, no library.** The preview is built on
+  the friend screen (`FriendScreen.tsx`, DESIGN.md rule 13), which already works
+  on a phone; the library rail ("needs a larger screen" there) is not on it.
+- **D2 The picture: the piece between two medium straights**, each straight at
+  the height of the end it joins (floor or raised): the straights give the
+  scale and show the joins; a ramp shows floor to raised; a mismatch between
+  the drawing and its declared heights shows the existing level-mismatch mark.
+- **D3 Order, top to bottom, phone and desktop alike:**
+
+```
+  ┌──────────────────────────────────────────────┐
+  │ (1) identity line                            │
+  │ (2) Piece preview · <name>                   │
+  │ (3) standing line, never folded: not in the  │
+  │     library, drawn by your chat, nothing     │
+  │     here is saved                            │
+  │ (4) the picture: straight · piece · straight │
+  │     2D first                                 │
+  │ (5) its sizes, .num mm: length or radius,    │
+  │     ends, heights                            │
+  │ (6) the next step                            │
+  │ (7) details for review, folded               │
+  │ (8) the way out                              │
+  └──────────────────────────────────────────────┘
+```
+
+- **D4 A refused piece:** one sentence, "Your chat's drawing can't be shown
+  yet.", then the validator's reasons (each names its field, in plain words,
+  at most 20 listed), and a **Copy for your chat** button that copies them for
+  the person to paste back. The way out as on the shared-layout screen.
+- **D5 A cut-short link** (it fails to decode or inflate, rather than failing a
+  check) gets its own sentence: "This link looks cut short. Ask your chat for it
+  again, as a file or in one piece."
+- **D6 Loading:** nothing for 300ms, then "Opening a piece preview…", as shared
+  links do. The 2D picture shows as soon as it is ready; if 3D fails, one line
+  says so and 2D stays usable.
+- **D7 A possible duplicate:** when the piece's track matches a library
+  piece's, one plain line: "Its track matches <code> <name>, already in the
+  library. Is it the same piece?" No other heuristics.
+
+| State | What the person sees |
+|---|---|
+| Loading | nothing for 300ms, then "Opening a piece preview…" (D6) |
+| No fragment | the normal app (unchanged) |
+| Refused by a check | the D4 sentence, the reasons, Copy for your chat, the way out |
+| Cut short | the D5 sentence, the way out |
+| Success | the D3 screen |
+| Partial: 3D failed | the D3 screen, 2D only, one line saying 3D couldn't open (D6) |
+| Valid, possible duplicate | the D3 screen with the D7 line under the sizes |
+| Crash while drawing | the shared-link crash sentence and way out (`LinkBoundary`) |
+
+- **D8 The next step is back in the chat.** Nothing on the screen submits or
+  records an approval. Item 6 is two plain lines: "Looks like your piece? Tell
+  your chat, and it gives you the issue to post." and "Something's wrong? Tell
+  your chat what." The issue stays one file the chat writes (draft-7); the same
+  screen serves the review with nothing to click.
+- **D9 Details for review** (item 7, closed by default, the same for everyone):
+  the checks the piece passed, in words; the piece's data as sent, read-only,
+  monospace; a **Copy** button. The maintainer compares it with the issue
+  without running `brief:link decode`.
+- The way out is the shared-layout screen's (D1): "Back to my layout" or
+  "Start your own" (`exitLabel`).
+
+| Step | The person does | Feels | What the screen gives |
+|---|---|---|---|
+| 1 | taps the link in their chat | unsure what opens | the identity line and "Piece preview · <name>" (D3) |
+| 2 | reads the standing line | wary: is this in the app now? | "not in the library, drawn by your chat, nothing saved" (D3) |
+| 3 | looks at the picture | "is that my piece?" | the piece between two straights, at its heights (D2) |
+| 4 | compares sizes with the piece | careful | its sizes in mm (D3); a possible duplicate said (D7) |
+| 5 | decides | relieved, or annoyed | back to the chat, either way (D8) |
+| 6 | (the maintainer) opens it from the issue | checking | the same screen; details folded (D9) |
+| 7 | (refused) reads why | stuck | the reasons and Copy for your chat (D4); a cut link said apart (D5) |
+
+- **D10 No verdict on this screen.** The straight · piece · straight row gets
+  no verdict strip, no glyph and no "Checked with catalogue sizes.": colour and
+  glyphs stay spent on whether a layout can be built (DESIGN.md rules 1, 3),
+  and a pass beside an unverified drawing would read as approval.
+- **D11 Ordinary wood.** The piece is drawn exactly as a placed piece, not as
+  the translucent placement ghost; its paint shows in 3D. DESIGN.md rule 11
+  gains one line: a piece preview draws solid wood; the ghost stays the
+  placement cursor's.
+
+- **D12 Paint: the app's colours only, and new ones asked for.** A paint
+  already in `tokens.css` shows in 3D (DESIGN.md rule 1); one the app doesn't
+  have draws plain beech, and the details say "Paint <name> isn't one the app
+  has yet; drawn as wood." The brief's Claude names every colour the piece
+  needs that the app lacks, in the issue under **Colours needed**: a plain
+  name ("bridge orange"), a hex value sampled from the photo, and which parts
+  wear it. The reviewer adds each to `tokens.css` with its measured contrast
+  (rule 5: ΔE2000 20 from `--fail`, its line colour 3:1 on it), and the pull
+  request lists them under **Colours added**. (Owner, 2026-11-10: "it needs to
+  be marked in the PR that additional colors are needed and the chat should
+  name what colors should be added".)
+
+- **D13 3D on a phone:** the existing 3D view as it is (drag, pinch, arrows,
+  + and –, 0 resets), plus one 44px button, **From the side**, that turns it
+  level and side-on: the view the person holds against their side photo.
+- **D14 Keyboard and screen readers:** focus lands on the heading on load; a
+  polite announcement, "Piece preview, <name>."; the 2D picture's label reads
+  its sizes ("Double-arch bridge, 240 mm long, socket and peg, between two
+  medium straights"); the Copy buttons announce "Copied."; the details fold is a
+  native disclosure; every control at least 44px (rule 10); a refusal's
+  sentence takes focus as `role="alert"`, as shared links' do (design 20A).
+  On a phone the column is the shared-layout screen's, the picture full width.
+
+- **D15 The contribute link** sits beside the editor's **Add a part**
+  button: "Missing a piece? Have your Claude draw it for the library", opening
+  the brief's download. Built now, off by its constant until T6.
+
+**Not in scope (considered, deferred):** the library beside the preview (D1:
+it doesn't help judge one drawing, and doesn't fit a phone); a GitHub button on
+the preview (D8: the issue is one file the chat writes); heuristics beyond the
+duplicate line (D7: "unusual" needs thresholds and may alarm a genuine new
+piece); named 3D views beyond **From the side** (D13); showing a colour the app
+doesn't have (D12: unmeasured against rule 1).
+
+**What already exists, reused:** `LinkRoute.tsx` (a lazy route before the
+editor mounts, the read-only session, 300ms loading, `LinkMessage`,
+`LinkBoundary`); `FriendScreen.tsx` (its column, identity line, the picture as
+anchor, the 3D panel, `exitLabel`); `linkWords.ts` (every string in one place);
+`engine/data/previewLink.ts` and `untrustedPart.ts` (#244: decode, check,
+reasons); the 3D view's keys and gestures; the level-mismatch mark; the paint
+tokens.
 
 ## Outside voice
 
@@ -1093,10 +1223,17 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
   - Surfaced by: E1 (D4), Section 11
   - Files: app/src/ (preview route and view), its dom tests
   - Verify: dom tests (read-only, stores nothing, refusal and derive notices); a worst-case link opened on the live site
+  - Design (2026-11-10, "The preview screen, designed", D1 to D15): the shared-layout screen's column, not the editor;
+    straight · piece · straight at matched heights; the D3 order; no verdict; ordinary wood; known paints only; the
+    D4 to D7 states and their words in `linkWords.ts`; Copy for your chat; details with checks, data and Copy;
+    **From the side**; the D14 accessibility; DESIGN.md rule 11's one line (D11); the contribute link beside
+    **Add a part**, off (D15). Run /design-review on the built screen.
 - [ ] **T5 (P1, human: ~2 days / CC: ~1h)** — docs and intake — brief (unlinked), two forms, labels, photo guide side photo, AGENTS.md, `/draw-piece` review path and shared section, link constant off, generic-TODOS entry
   - Surfaced by: C2, C4, C6, E2, U1, S1-1, S3-1, OV-1; spec reviews 1-3
   - Files: app/public/<brief>.md, .github/ISSUE_TEMPLATE/drawn-piece.yml, .github/ISSUE_TEMPLATE/unsupported-piece.yml, .github/piece-labels.json, app/photo-guide.html, AGENTS.md, .claude/skills/draw-piece/SKILL.md, app/src/ (link constant), docs/plan/generic-TODOS.md, app/test/contributing.test.ts
   - Verify: docs tests (version + hash, required steps and views, forms and labels), mutations run; `bun run checkup --content` clean; labels renamed by hand after merge
+  - Design (D12): the brief asks for **Colours needed** (name, hex from the photo, parts) when a paint isn't in
+    `tokens.css`; `/draw-piece` adds each with its measured contrast and lists them as **Colours added** in the PR.
 - [ ] **T6 (P1, human: ~2h / CC: ~15min)** — rollout — after the gating pilot: retire the photo form and the drawing path, point CONTRIBUTING.md at the brief, flip the link constant
   - Surfaced by: C5 (D2), C7 (D6), OV-1 (D11)
   - Files: .github/ISSUE_TEMPLATE/new-piece.yml (removed), CONTRIBUTING.md, .claude/skills/draw-piece/SKILL.md, app/src/ (constant), tests
@@ -1148,17 +1285,57 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
 ### Unresolved Decisions
 None.
 
+## Design Review Completion Summary
+
+The preview screen (T4) and the contribute link, `/plan-design-review`,
+2026-11-10. Outside voices: codex (completed, findings) and an independent
+Claude subagent (completed, 16 findings). No mockups: the designer has no image
+API key.
+
+```
+  +====================================================================+
+  |         DESIGN PLAN REVIEW — COMPLETION SUMMARY                    |
+  +====================================================================+
+  | System Audit         | DESIGN.md present (13 rules); UI: one screen|
+  |                      | + one link                                  |
+  | Step 0               | 3/10; all 7 passes                          |
+  | Pass 1  (Info Arch)  | 2/10 → 8/10 after fixes (D1, D2, D3)       |
+  | Pass 2  (States)     | 3/10 → 8/10 after fixes (D4 to D7)         |
+  | Pass 3  (Journey)    | 2/10 → 8/10 after fixes (D8, D9)           |
+  | Pass 4  (AI Slop)    | 6/10 → 8/10 after fixes (D10, D11)         |
+  | Pass 5  (Design Sys) | 6/10 → 8/10 after fixes (D12)              |
+  | Pass 6  (Responsive) | 3/10 → 8/10 after fixes (D13, D14)         |
+  | Pass 7  (Decisions)  | 1 resolved (D15), 0 deferred               |
+  +--------------------------------------------------------------------+
+  | NOT in scope         | written (5 items)                           |
+  | What already exists  | written                                     |
+  | TODOS.md updates     | 0 items proposed                            |
+  | Approved Mockups     | 0 generated, 0 approved (no image API key)  |
+  | Decisions made       | 15 added to plan                            |
+  | Decisions deferred   | 0                                           |
+  | Overall design score | 2/10 → 8/10                                 |
+  +====================================================================+
+```
+
+Each pass stops at 8 for want of a picture: with no mockups, the composition
+is fixed in words and an ASCII frame, and /design-review on the built screen
+finishes it.
+
+### Unresolved Decisions
+None.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
-| CEO Review | `/plan-ceo-review` | Scope & strategy | 1 | CLEAR (not yet logged at report time) | 2 proposals, 2 accepted, 0 deferred |
-| Outside Review | codex (plan review, automatic); native fallback | Independent 2nd opinion | 2 | unavailable (codex: missing markers); native fallback completed | native: 10 findings; 10 resolved (5 applied, 3 decided at D11/D12, 2 recorded); 0 unresolved. Codex: no completed external review (4 claims verified and applied) |
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 1 | CLEAR | 2 proposals, 2 accepted, 0 deferred |
+| Outside Review | codex (design phase, `/plan-design-review`); earlier codex plan review | Independent 2nd opinion | 3 | design: completed (findings); plan review: unavailable (missing markers) | design: 7 findings, all addressed by D1 to D15; plan review: native fallback, 10 findings resolved |
 | Eng Review | `/autoplan` | Architecture & tests (required) | 0 | — | — |
-| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
+| Design Review | `/plan-design-review` | UI/UX gaps | 1 | CLEAR | score: 2/10 → 8/10, 15 decisions |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
 
-- **OUTSIDE COVERAGE:** codex (gpt-6-astra), plan-review phase: unavailable, the response lacked the gate's markers (missing coverage, not a pass). Native fallback (Claude subagent, in-host): completed within the limit, 10 findings; native, so no outside coverage.
-- **VERDICT:** CEO CLEARED; eng review required.
+- **OUTSIDE COVERAGE:** codex (gpt-6-astra), design phase: completed, 7 findings (3 High in the plan, 4 Medium), all addressed. Native Claude subagent, design: completed, 16 findings, all addressed or out of scope. Codex plan-review phase, earlier: unavailable (missing markers), native fallback only.
+- **CROSS-MODEL:** codex and the Claude subagent agree on dropping the library, building on the shared-layout screen, a defined next step, not implying verification, and spelling out states; codex alone raised 3D view controls, the ghost-wood meaning of "preview" and the stale journey diagram; the subagent alone raised scale, the maintainer's details, paint and the verdict channel.
+- **VERDICT:** CEO + DESIGN CLEARED; eng review required.
 
 NO UNRESOLVED DECISIONS
