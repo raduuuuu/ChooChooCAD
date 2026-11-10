@@ -261,7 +261,10 @@ export function bridgeNotesOf(
 
 /**
  * The room over the train in each tunnel piece (decorated-pieces eng D7):
- * floor to the underside of its vault, in the bridges' sentence. Its
+ * floor to the underside of its LOWEST vault, said as the train going
+ * through. A tunnel can be several vaults (the metro tunnel's two portals
+ * and the tube between them, 71 and 69): the first one found overstated the
+ * room by 2mm. An opening read off photos, not a ruler, is an estimate. Its
  * inside width is stored on the shape, not said: no train width exists yet.
  */
 export function tunnelNotesOf(
@@ -271,10 +274,15 @@ export function tunnelNotesOf(
 ): BridgeNote[] {
   return pieces.flatMap((p) => {
     const part = resolve(p.partId);
-    const vault = part.decor?.find((d) => d.kind === 'vault');
-    return vault?.kind === 'vault'
-      ? [{ name: part.name.toLowerCase(), piece: numberOf(p.pieceId), clearanceMm: vault.topMm - vault.wallMm }]
-      : [];
+    const openings = (part.decor ?? []).flatMap((d) => (d.kind === 'vault' ? [d.topMm - d.wallMm] : []));
+    if (openings.length === 0) return [];
+    return [{
+      name: part.name.toLowerCase(),
+      piece: numberOf(p.pieceId),
+      clearanceMm: Math.min(...openings),
+      through: true as const,
+      ...(part.dimensions.status === 'unverified' ? { estimated: true } : {}),
+    }];
   });
 }
 

@@ -328,6 +328,8 @@ export interface BridgeNote {
   readonly clearanceMm: number;
   /** True when that opening is an estimate, not read off the piece. */
   readonly estimated?: boolean;
+  /** True for a tunnel: the train goes through it, not under it. */
+  readonly through?: boolean;
 }
 
 /**
@@ -342,10 +344,25 @@ export interface BridgeNote {
  * unchanged, since the layout can be built and only the train cannot pass.
  * Every number in the number face (rule 4).
  */
-function TrainFit({ under, openingMm, estimate }: { under: ReactNode; openingMm: number; estimate: string }) {
+function TrainFit({ under, through, openingMm, estimate }: { under: ReactNode; through?: boolean; openingMm: number; estimate: string }) {
   const { plankMm, trainMm } = CLEARANCE;
   const opening = Math.round(openingMm);
   const margin = openingMm - plankMm - trainMm;
+  // A tunnel is said as the train going through it (owner, 2026-11-10).
+  if (through) {
+    return margin <= 0 ? (
+      <p className="verdict-raised verdict-fail">
+        <span aria-hidden="true">X </span>Your <span className="num">{trainMm}</span>mm train may not fit through {under}:{' '}
+        <span className="num">{opening}</span>mm opening.{estimate}
+      </p>
+    ) : (
+      <p className="verdict-raised">
+        Your <span className="num">{trainMm}</span>mm train fits through {under} with about{' '}
+        <span className="num">{Math.round(margin)}</span>mm to spare over its roof (<span className="num">{opening}</span>mm
+        opening, <span className="num">{plankMm}</span>mm track).{estimate}
+      </p>
+    );
+  }
   if (margin <= 0) {
     return (
       <p className="verdict-raised verdict-fail">
@@ -368,6 +385,7 @@ function BridgeClearance({ note }: { note: BridgeNote }) {
   return (
     <TrainFit
       under={<>the {note.name} (piece <span className="num">{note.piece}</span>)</>}
+      through={note.through}
       openingMm={note.clearanceMm}
       estimate={(note.estimated ? ' The opening is an estimate.' : '') + trainEstimate()}
     />

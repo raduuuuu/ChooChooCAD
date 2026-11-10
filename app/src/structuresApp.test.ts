@@ -352,16 +352,25 @@ describe('the tunnel straight in words, flat and in 3D (plan T5, eng D7, D10)', 
   it('states the room over the train like a bridge, from the vault\'s opening', () => {
     const g: Graph = { pieces: [{ pieceId: 'a', partId: 'A', turn: 'left' }, { pieceId: 't', partId: 'TT', turn: 'left' }], welds: [] };
     const notes = tunnelNotesOf(g.pieces, resolve, (id) => (id === 'a' ? 1 : 2));
-    expect(notes).toEqual([{ name: 'tunnel straight', piece: 2, clearanceMm: 79.5 }]);
+    expect(notes).toEqual([{ name: 'tunnel straight', piece: 2, clearanceMm: 79.5, through: true, estimated: true }]);
     const placement = placeAll(g, ports);
     const r = renderGraph(g, ports, resolve, placement);
     const html = renderToStaticMarkup(createElement(VerdictLine, { view: viewOf(solveGraph(g, ports, resolve, () => 0, placement, undefined, r.segments, r.bodies)), bridgeNotes: notes }))
       .replace(/<[^>]+>/g, '').replace(/&#x27;|&rsquo;|’/g, "'");
-    expect(html).toContain('Under the tunnel straight (piece 2): about 13mm to spare (80mm opening, 12mm track, 55mm train).');
-    // A lower vault says it the bridges' way, in the fail register (eng D1).
+    expect(html).toContain('Your 55mm train fits through the tunnel straight (piece 2) with about 13mm to spare over its roof (80mm opening, 12mm track). The opening is an estimate.');
+    // A lower vault says it in the fail register (eng D1), still as going through.
     const low = renderToStaticMarkup(createElement(VerdictLine, { view: viewOf(solveGraph(g, ports, resolve, () => 0, placement, undefined, r.segments, r.bodies)), bridgeNotes: [{ ...notes[0]!, clearanceMm: 60 }] }))
       .replace(/<[^>]+>/g, '').replace(/&#x27;|&rsquo;|’/g, "'");
-    expect(low).toContain('Your 55mm train may not pass under the tunnel straight (piece 2): 60mm opening.');
+    expect(low).toContain('Your 55mm train may not fit through the tunnel straight (piece 2): 60mm opening.');
+  });
+
+  /*
+   * MUTATION PROOF, run: the first vault found again (a portal) fails with
+   * `expected [ { name: 'metro tunnel', …(4) } ] to deeply equal [ { name: 'metro tunnel', …(4) } ]`.
+   */
+  it('takes the lowest of a tunnel\'s vaults: the metro tunnel\'s tube, not its portal', () => {
+    const notes = tunnelNotesOf([{ pieceId: 'm', partId: 'MT' }], resolve, () => 4);
+    expect(notes).toEqual([{ name: 'metro tunnel', piece: 4, clearanceMm: 69, through: true, estimated: true }]);
   });
 
   it('its card draws the two walls as slabs and the roof as a roof', () => {
