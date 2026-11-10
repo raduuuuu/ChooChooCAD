@@ -205,10 +205,13 @@ describe('the double-arch bridge\'s arches (issue #231)', () => {
   /*
    * MUTATION PROOF, run (2026-11-09): the half arches left out (as the issue
    * drew it): `expected [ [ 15, 158 ], [ 85, 228 ] ] to deeply equal [ [ 15, 158 ], [ 85, 228 ], …(2) ]`.
+   * And run (2026-11-10): cut at the band's ends again, their crowns standing
+   * past the big arches as horns: `expected [ [ 15, 158 ], [ 85, 228 ], …(2) ] to deeply equal [ [ 15, 158 ], [ 85, 228 ], …(2) ]`
+   * (and the plate test in decorated.test.ts: `expected 16 to be +0`).
    */
-  it('draws two whole arches and a half arch at each end, cut at the band\'s ends', () => {
+  it('draws two whole arches and a half arch at each end, cut where it meets its big arch', () => {
     const drawn = trusses.map((t) => [t.drawnFromMm ?? t.fromMm, t.drawnToMm ?? t.toMm]);
-    expect(drawn).toEqual([[15, 158], [85, 228], [15, 86.5], [156.5, 228]]);
+    expect(drawn).toEqual([[15, 158], [85, 228], [50.75, 86.5], [156.5, 192.25]]);
   });
 
   /*
@@ -216,7 +219,7 @@ describe('the double-arch bridge\'s arches (issue #231)', () => {
    * in library.ts): `expected [] to deeply equal [ 'over p' ]`.
    */
   it('track one level up across it runs into its arches, even near an end; three levels up clears them', () => {
-    // A half arch's crown, 126, stands at the band's end, 15 along; level 3 starts at 183.
+    // The big arches stand upright from the band's ends, 15 and 228 along; level 3 starts at 183.
     expect(clashes('DA', [], [['over', 'A', { ...at(120, -72, 4), level: 1 }]])).toEqual(['over p']);
     expect(clashes('DA', [], [['end', 'A', { ...at(6, -72, 4), level: 1 }]])).toEqual(['end p']);
     expect(clashes('DA', [], [['high', 'A', { ...at(120, -72, 4), level: 3 }]])).toEqual([]);

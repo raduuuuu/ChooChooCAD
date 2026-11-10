@@ -17,6 +17,8 @@ import { renderGraph } from '../src/graph/render.js';
 import { drawShape, type P3, type Pen } from '../src/view3d/decor.js';
 import { buildScene } from '../src/view3d/mesh.js';
 import type { DecorTruss, DimensionSource, Part } from '../src/parts/schema.js';
+import { trussBandUnderside, trussChord } from '../src/parts/truss.js';
+import { DOUBLE_ARCH_BRIDGE } from '../data/trackDecorSeeds.js';
 
 const RISE = 61;
 const FIXTURE_SOURCE: DimensionSource = { status: 'unverified', source: 'a test fixture', note: 'Not a real piece.' };
@@ -617,5 +619,78 @@ describe('a truss arch drawn as one solid band (the double-arch bridge, 2026-11-
     const atCrown = (q: P3[]) => q.some((p) => Math.abs(p[0] - 71.5) < 1e-9);
     const face = drawn(band).quads.some((q) => atCrown(q) && q.some((p) => Math.abs(p[2] - 126) < 1e-9) && q.some((p) => Math.abs(p[2] - 116) < 1e-9) && new Set(q.map((p) => p[1])).size === 1);
     expect(face).toBe(true);
+  });
+});
+
+describe('an elliptical arch (the double-arch bridge, 2026-11-10)', () => {
+  const ell: DecorTruss = { kind: 'truss', fromMm: 15, toMm: 158, springMm: 23, crownMm: 126, innerCrownMm: 110, sideMm: 28.6, hangers: 0, elliptical: true, braced: false, band: true };
+
+  /*
+   * MUTATION PROOF, run (2026-11-10): `elliptical` ignored (circular):
+   * `expected 76.36650485436893 to be close to 23`, the circle's formula
+   * failing when the arch is taller than half its span.
+   */
+  it('stands upright at its springings and reaches its crown at the middle', () => {
+    const outer = trussChord(ell, ell.crownMm);
+    expect(outer(15)).toBeCloseTo(23, 9);
+    expect(outer(86.5)).toBeCloseTo(126, 9);
+    // 1mm in from a springing it is already 17 up; a parabola would be 3.
+    expect(outer(16)).toBeGreaterThan(40);
+  });
+
+  /*
+   * MUTATION PROOF, run (2026-11-10): the band as deep all along as at the
+   * crown (its legs meet the outer chord at the springing):
+   * `expected 62.0223767647162 to be close to 23`.
+   */
+  it('keeps a band\'s legs as thick across as the arch shrunk to its inner crown leaves them', () => {
+    const under = trussBandUnderside(ell);
+    expect(under(86.5)).toBeCloseTo(110, 9);
+    // Shrunk by 87/103 about the middle, the opening springs 71.5 x 16/103 = 11.1 in from each springing.
+    const leg = (71.5 * 16) / 103;
+    expect(under(15 + leg - 0.05)).toBeCloseTo(23, 9);
+    expect(under(15 + leg + 0.5)).toBeGreaterThan(23 + 5);
+    expect(under(158 - leg + 0.05)).toBeCloseTo(23, 9);
+  });
+});
+
+describe('overlapping band arches draw as one plate (the double-arch bridge, 2026-11-10)', () => {
+  const trusses = DOUBLE_ARCH_BRIDGE.decor!.filter((d): d is DecorTruss => d.kind === 'truss');
+  const drawn = (t: DecorTruss, siblings?: readonly DecorTruss[]) => {
+    const edges: [P3, P3][] = [];
+    const pen: Pen = { quad: () => {}, edge: (a, b) => edges.push([a, b]), detail: () => {}, grow: () => {} };
+    // Points come back along the piece, not the box: the box starts at the drawn stretch's start.
+    const lo = t.drawnFromMm ?? t.fromMm;
+    drawShape(t, { at: (a, y, z) => [a + lo, y, z], lengthMm: 0, floorMm: 0, roadTop: () => 12, plankMm: 12, ...(siblings ? { siblings } : {}) }, pen);
+    return edges;
+  };
+  const inside = (o: DecorTruss) => ([p, q]: [P3, P3]) => {
+    const a = (p[0] + q[0]) / 2, z = (p[2] + q[2]) / 2;
+    return a > (o.drawnFromMm ?? o.fromMm) + 0.1 && a < (o.drawnToMm ?? o.toMm) - 0.1 && z > trussBandUnderside(o)(a) + 0.1 && z < trussChord(o, o.crownMm)(a) - 0.1;
+  };
+
+  /*
+   * MUTATION PROOF, run (2026-11-10): nothing ever covered (every edge
+   * drawn): `expected 52 to be +0 // Object.is equality`.
+   */
+  it('draws no edge of one arch inside the other, and none across a half arch\'s cut', () => {
+    const [left, right, half] = trusses as [DecorTruss, DecorTruss, DecorTruss];
+    expect(drawn(left).filter(inside(right)).length).toBeGreaterThan(0);
+    expect(drawn(left, trusses).filter(inside(right)).length).toBe(0);
+    const cut = (e: [P3, P3]) => Math.abs(e[0][0] - half.drawnFromMm!) < 1e-9 && Math.abs(e[1][0] - half.drawnFromMm!) < 1e-9;
+    expect(drawn(half).filter(cut).length).toBeGreaterThan(0);
+    expect(drawn(half, trusses).filter(cut).length).toBe(0);
+  });
+
+  /*
+   * MUTATION PROOF, run (2026-11-10): an arch not left out of its own check
+   * (its curved edges, drawn in straight pieces, dip inside it):
+   * `expected 76 to be 184 // Object.is equality`.
+   */
+  it('still draws each arch\'s own outline where nothing covers it', () => {
+    const [left] = trusses as [DecorTruss];
+    // Short of 50.75, where the half arch's rib joins it and covers its inner edge.
+    const top = (e: [P3, P3]) => (e[0][0] + e[1][0]) / 2 < 50;
+    expect(drawn(left, trusses).filter(top).length).toBe(drawn(left).filter(top).length);
   });
 });

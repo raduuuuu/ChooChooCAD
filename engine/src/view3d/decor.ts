@@ -13,7 +13,7 @@
 
 import type { Segment } from '../geom/fk.js';
 import { domeHalfWidth, domeTop } from '../parts/dome.js';
-import { TRUSS_CHORD_MM, TRUSS_HALF_MM, trussChord } from '../parts/truss.js';
+import { TRUSS_CHORD_MM, TRUSS_HALF_MM, trussBandUnderside, trussChord } from '../parts/truss.js';
 import type { DecorArch, DecorBarrier, DecorCanopy, DecorDome, DecorPrism, DecorStation, DecorTowers, DecorTruss, DecorVault, DecorWheel, DrawnShape, Part } from '../parts/schema.js';
 
 export { TRUSS_CHORD_MM, TRUSS_HALF_MM } from '../parts/truss.js';
@@ -47,6 +47,8 @@ export interface ShapeFrame {
   /** The top of the piece's road `a` along the piece from its start, above the table. */
   readonly roadTop: (a: number) => number;
   readonly plankMm: number;
+  /** The piece's other drawn shapes: a band arch hides its edges where another band on its side covers them. */
+  readonly siblings?: readonly DrawnShape[];
 }
 
 /** A height profile's value at `a` along it, by straight lines between its points. */
@@ -206,9 +208,9 @@ function drawTruss(t: DecorTruss, f: ShapeFrame, pen: Pen): void {
   // An even count, so a step lands on the crown.
   const steps = 2 * Math.max(1, Math.ceil((toMm - fromMm) / TRUSS_STEP_MM / 2));
   const along = (i: number) => fromMm + ((toMm - fromMm) * i) / steps;
-  // A band keeps its depth at the crown all the way down, as a flat-cut toy arch does; it never dips below the springing.
-  const deep = crownMm - innerCrownMm, underside = (a: number) => Math.max(floor + t.springMm, outer(a) - deep);
-  if (t.band) return drawBand(t, pen, { at, outer, inner: underside, steps, lo, hi });
+  // A band keeps its depth at the crown all the way down, as a flat-cut toy arch does (trussBandUnderside).
+  const below = trussBandUnderside(t), underside = (a: number) => floor + below(a);
+  if (t.band) return drawBand(t, pen, { at, outer, inner: underside, steps, lo, hi, covered: coveredByBands(t, f.siblings ?? []) });
   for (const side of [1, -1] as const) {
     for (const top of [outer, inner]) {
       for (let i = 0; i < steps; i++) {
@@ -260,6 +262,21 @@ function drawTruss(t: DecorTruss, f: ShapeFrame, pen: Pen): void {
 }
 
 /**
+ * Whether a point `a` along the piece, `z` above its floor, lies inside another
+ * band arch on `t`'s side (the double-arch bridge's overlapping arches,
+ * 2026-11-10): one moulded plate shows no edge there. `t` itself, or its
+ * twin, is left out: an edge drawn in straight pieces dips inside its own curve.
+ */
+function coveredByBands(t: DecorTruss, siblings: readonly DrawnShape[]): (a: number, z: number) => boolean {
+  const same = (s: DecorTruss) => s.fromMm === t.fromMm && s.toMm === t.toMm && s.drawnFromMm === t.drawnFromMm && s.drawnToMm === t.drawnToMm;
+  const others = siblings.flatMap((s) => (s.kind === 'truss' && s.band && s.sideMm === t.sideMm && !same(s) ? [{
+    lo: s.drawnFromMm ?? s.fromMm, hi: s.drawnToMm ?? s.toMm, outer: trussChord(s, s.crownMm), under: trussBandUnderside(s),
+  }] : []));
+  const EPS = 0.05;
+  return (a, z) => others.some((o) => a > o.lo + EPS && a < o.hi - EPS && z > o.under(a) + EPS && z < o.outer(a) - EPS);
+}
+
+/**
  * A TRUSS ARCH AS ONE SOLID BAND (the double-arch bridge, 2026-11-09): each
  * rib a flat strip from the outer chord down by the crown's depth (outer
  * crown less inner) all along, not to the inner chord, which meets the outer
@@ -270,9 +287,22 @@ function drawTruss(t: DecorTruss, f: ShapeFrame, pen: Pen): void {
  */
 function drawBand(
   t: DecorTruss, pen: Pen,
-  g: { at: (a: number, across: number, z: number) => P3; outer: (a: number) => number; inner: (a: number) => number; steps: number; lo: number; hi: number },
+  g: {
+    at: (a: number, across: number, z: number) => P3; outer: (a: number) => number; inner: (a: number) => number; steps: number; lo: number; hi: number;
+    covered: (a: number, z: number) => boolean;
+  },
 ): void {
-  const { at, outer, inner, lo, hi } = g;
+  const { at, outer, inner, lo, hi, covered } = g;
+  const floor = outer(t.fromMm) - t.springMm;
+  /** An edge from (a0, z0) to (a1, z1) on the face at `y`, in short pieces, leaving out those inside another band. */
+  const edge = (y: number, a0: number, z0: number, a1: number, z1: number) => {
+    const n = 4;
+    for (let k = 0; k < n; k++) {
+      const [b0, b1] = [a0 + ((a1 - a0) * k) / n, a0 + ((a1 - a0) * (k + 1)) / n];
+      const [w0, w1] = [z0 + ((z1 - z0) * k) / n, z0 + ((z1 - z0) * (k + 1)) / n];
+      if (!covered((b0 + b1) / 2, (w0 + w1) / 2 - floor)) pen.edge(at(b0, y, w0), at(b1, y, w1));
+    }
+  };
   const steps = 2 * g.steps, along = (i: number) => t.fromMm + ((t.toMm - t.fromMm) * i) / steps;
   for (const side of [1, -1] as const) {
     const y = (d: number) => side * t.sideMm + d * TRUSS_HALF_MM;
@@ -288,15 +318,15 @@ function drawBand(
       pen.quad(p1, p3, q3, q1);
       for (const p of [p0, p1, p2, p3]) pen.grow(p);
       for (const d of [1, -1]) {
-        pen.edge(at(a0, y(d), outer(a0)), at(a1, y(d), outer(a1)));
-        pen.edge(at(a0, y(d), inner(a0)), at(a1, y(d), inner(a1)));
+        edge(y(d), a0, outer(a0), a1, outer(a1));
+        edge(y(d), a0, inner(a0), a1, inner(a1));
       }
     }
     for (const a of [lo, hi]) {
       if (!(a > t.fromMm && a < t.toMm)) continue;
       // A cut end: closed, and edged across.
       pen.quad(at(a, y(1), outer(a)), at(a, y(-1), outer(a)), at(a, y(-1), inner(a)), at(a, y(1), inner(a)));
-      for (const d of [1, -1]) pen.edge(at(a, y(d), outer(a)), at(a, y(d), inner(a)));
+      for (const d of [1, -1]) edge(y(d), a, outer(a), a, inner(a));
     }
   }
 }

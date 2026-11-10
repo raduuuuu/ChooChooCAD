@@ -405,6 +405,14 @@ export interface DecorTruss {
   readonly hangerMm?: number;
   /** Parabolic chords, rising steeply from the springings, in place of circular ones. */
   readonly parabolic?: true;
+  /**
+   * Half-ellipse chords, standing upright at the springings, in place of
+   * circular ones: a toy arch taller than half its span (the double-arch
+   * bridge, 2026-11-10). A band's underside is then the outer chord shrunk
+   * about the springings' middle to the inner crown, so its legs keep a
+   * thickness across.
+   */
+  readonly elliptical?: true;
   /** False for an arch with no bracing across its top. */
   readonly braced?: false;
   /**
@@ -416,7 +424,7 @@ export interface DecorTruss {
   readonly drawnToMm?: number;
   /**
    * One solid band under the outer chord, as deep all along as at the crown
-   * (`crownMm` less `innerCrownMm`) and as thick as a chord across, in place of two chords with verticals and hangers between
+   * (`crownMm` less `innerCrownMm`; an elliptical one, see `elliptical`) and as thick as a chord across, in place of two chords with verticals and hangers between
    * (the double-arch bridge's flat orange arches, 2026-11-09).
    */
   readonly band?: true;

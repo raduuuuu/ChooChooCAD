@@ -19,6 +19,21 @@ export function trussChord(t: DecorTruss, crownMm: number): (a: number) => numbe
   const { fromMm, toMm, springMm } = t;
   const half = (toMm - fromMm) / 2, rise = crownMm - springMm;
   if (t.parabolic) return (a) => springMm + rise * (1 - ((a - fromMm - half) / half) ** 2);
+  if (t.elliptical) return (a) => springMm + rise * Math.sqrt(Math.max(0, 1 - ((a - fromMm - half) / half) ** 2));
   const r = (half * half + rise * rise) / (2 * rise);
   return (a) => crownMm - (r - Math.sqrt(Math.max(0, r * r - (a - fromMm - half) ** 2)));
+}
+
+/**
+ * A band's underside, as height above the floor `a` along the piece: the
+ * outer chord less the crown's depth all along, or for an elliptical arch the
+ * outer chord shrunk about the springings' middle to the inner crown, its
+ * legs as thick across as the band is deep at the crown, nearly. Never below
+ * the springing.
+ */
+export function trussBandUnderside(t: DecorTruss): (a: number) => number {
+  const outer = trussChord(t, t.crownMm), spring = t.springMm;
+  if (!t.elliptical) return (a) => Math.max(spring, outer(a) - (t.crownMm - t.innerCrownMm));
+  const mid = (t.fromMm + t.toMm) / 2, shrink = (t.innerCrownMm - spring) / (t.crownMm - spring);
+  return (a) => spring + shrink * (outer(mid + (a - mid) / shrink) - spring);
 }
