@@ -15,6 +15,8 @@
  * A missing photo is skipped and counted. Exit 1 on any miss, or when none ran.
  * The T switch's points were picked off crops by eye, as a contributor's
  * agent would (2026-11-09); the long straight's are the photo check's own.
+ * The bridge's four (2026-11-10) are the warm-lamp ones: with measure() reading
+ * the photo unbalanced, all four fail (no grid found) and the first four pass.
  */
 
 import { existsSync } from 'node:fs';
@@ -79,6 +81,34 @@ export const ENTRIES: readonly Entry[] = [
     what: 'the long straight of the 216mm trial, second photo',
     basis: 'its known 216mm, within TOLERANCE_MM (the trial\'s bound)',
     points: { figures: { long: [[905, 3675], [908, 1270]] } },
+    expect: { long: { mm: 216, tolMm: TOLERANCE_MM } },
+  },
+  {
+    photo: '85841 (1).jpg',
+    what: 'the double-arch bridge (issue #231) under a warm lamp, its length',
+    basis: "the contributor's chat read 240.01 off this photo shrunk to 1,932 × 2,576 (the picks here are its picks, scaled by 3072/1932), within AGREE_MM: repeatability at full size",
+    points: { figures: { length: [[1008, 869], [1054, 3714]] } },
+    expect: { length: { mm: 240.01, tolMm: AGREE_MM } },
+  },
+  {
+    photo: '85846.jpg',
+    what: 'the double-arch bridge, second top view',
+    basis: "the chat's 240.22 off this photo shrunk, its picks scaled the same way, within AGREE_MM",
+    points: { figures: { length: [[2003, 516], [1958, 3514]] } },
+    expect: { length: { mm: 240.22, tolMm: AGREE_MM } },
+  },
+  {
+    photo: '85844.jpg',
+    what: 'the long straight of the bridge\'s 216mm trial, the paper 19 green over blue (balanced before reading)',
+    basis: "its known 216mm, within TOLERANCE_MM; the ends are the photo check's own",
+    points: { figures: { long: [[1060, 3591], [1078, 898]] } },
+    expect: { long: { mm: 216, tolMm: TOLERANCE_MM } },
+  },
+  {
+    photo: '85845.jpg',
+    what: 'the long straight of the bridge\'s 216mm trial, second photo',
+    basis: 'its known 216mm, within TOLERANCE_MM',
+    points: { figures: { long: [[1095, 931], [1155, 3556]] } },
     expect: { long: { mm: 216, tolMm: TOLERANCE_MM } },
   },
 ];
