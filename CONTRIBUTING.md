@@ -17,11 +17,21 @@ change to this project follows.
 
 ## Send a piece
 
-Download [the contributor brief](docs/brief/draft.md), upload it into a new
-chat on claude.ai with **code execution** turned on (in Claude's settings),
-and say "follow this brief". Its first section says what to have ready: the
-piece, one medium straight (144 mm), white, blue or pink millimetre or graph
-paper, and about an hour. To post the result you need a free GitHub account.
+Download [the contributor brief](https://woodentrain.world/contributor-brief.md)
+(the same file as [app/public/contributor-brief.md](app/public/contributor-brief.md)
+here), upload it into a new chat on claude.ai with **code execution** turned
+on (in Claude's settings), and say "follow this brief". Its first section says
+what to have ready: the piece, one medium straight (144 mm), white, blue or
+pink millimetre or graph paper, and about an hour. To post the result you need
+a free GitHub account.
+
+- **You check the drawing before sending it.** Your Claude gives you a
+  preview link that opens your piece in the app, on your phone or computer;
+  tell it "looks right" or what's wrong.
+- **The issue is a form your Claude fills in.** It gives you a link that opens
+  the **Drawn piece** form with most of it filled in, and a file to paste into
+  its last box. A colour the app doesn't have yet is listed in it, and added
+  when the piece is drawn into the library.
 
 - **Take the photos with your phone's own camera app**, at its normal lens
   (1x), then attach them in the chat. Your Claude asks which focal length the
@@ -41,7 +51,7 @@ paper, and about an hour. To post the result you need a free GitHub account.
 Each piece issue carries one label:
 
 - `piece: waiting`: a drawn piece sent; nobody is reviewing it yet.
-- `piece: drawing`: someone is reviewing it and drawing it into the library.
+- `piece: reviewing`: someone is reviewing it and drawing it into the library.
   You'll get a comment saying so.
 - `piece: needs info`: a question is waiting for you, usually whether a render
   matches your piece, or a figure to read with a ruler. With no reply in 30
@@ -81,9 +91,10 @@ library. You need Claude Code, [bun](https://bun.sh) and a browser that draws
 2. In Claude Code, in its default permission mode (you approve each step), run
    `/draw-piece <issue number>`. Other agents can follow
    [the same steps](.claude/skills/draw-piece/SKILL.md).
-3. It checks the figures against the tool outputs and the diff against the
-   tests, draws the piece in, renders it, asks the sender whether the render
-   matches their piece, and opens a pull request from your fork. Builders
+3. It opens the issue's preview link, checks the figures against the tool
+   outputs and the diff against the tests, draws the piece in with any colours
+   it needs, renders it, asks the sender whether the render matches their
+   piece, and opens a pull request from your fork. Builders
    can't set labels, so it comments on the issue instead.
 
 ## For the maintainer: removing a photo

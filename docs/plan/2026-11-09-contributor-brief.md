@@ -1257,10 +1257,36 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
     - Still to do: /design-review on the built screen.
 - [ ] **T5 (P1, human: ~2 days / CC: ~1h)** — docs and intake — brief (unlinked), two forms, labels, photo guide side photo, AGENTS.md, `/draw-piece` review path and shared section, link constant off, generic-TODOS entry
   - Surfaced by: C2, C4, C6, E2, U1, S1-1, S3-1, OV-1; spec reviews 1-3
-  - Files: app/public/<brief>.md, .github/ISSUE_TEMPLATE/drawn-piece.yml, .github/ISSUE_TEMPLATE/unsupported-piece.yml, .github/piece-labels.json, app/photo-guide.html, AGENTS.md, .claude/skills/draw-piece/SKILL.md, app/src/ (link constant), docs/plan/generic-TODOS.md, app/test/contributing.test.ts
+  - Files: app/public/contributor-brief.md, .github/ISSUE_TEMPLATE/drawn-piece.yml, .github/ISSUE_TEMPLATE/unsupported-piece.yml, .github/piece-labels.json, app/photo-guide.html, AGENTS.md, .claude/skills/draw-piece/SKILL.md, app/src/ (link constant), docs/plan/generic-TODOS.md, app/test/contributing.test.ts
   - Verify: docs tests (version + hash, required steps and views, forms and labels), mutations run; `bun run checkup --content` clean; labels renamed by hand after merge
   - Design (D12): the brief asks for **Colours needed** (name, hex from the photo, parts) when a paint isn't in
     `tokens.css`; `/draw-piece` adds each with its measured contrast and lists them as **Colours added** in the PR.
+  - **Built (2026-11-10).**
+    - The brief moved to `app/public/contributor-brief.md` (served as woodentrain.world/contributor-brief.md),
+      version **1, 2026-11-10** (draft-7 plus the steps below). `docs/brief/draft.md` is a stub pointing there, for
+      a draft copy whose old-copy check (S1-1) still looks at that path. ContributeLink's `BRIEF_URL`,
+      CONTRIBUTING.md, AGENTS.md and the skill point at the new file; the constant stays off.
+    - E2: `app/test/contributing.test.ts` holds every version with a hash of the brief's text less its version
+      line; the text changed without a new entry, a version line ahead of the list, and a new entry with the last
+      one's hash (a bump without a change) each fail.
+    - The brief's new steps: 8 its colours (`PAINT_TOKENS` and `tokens.css`; a colour the app lacks gets a
+      `--paint-<name>` token and a line under **Colours needed**: name, hex sampled from a crop, parts); 9 draw
+      it; 10 the preview link (`brief:link encode` in a worktree at the cloned commit, since in the sender's
+      branch the piece's id is already a built-in's; the sender says "looks right" or what's wrong, D8); 11 the
+      issue, on a form.
+    - Two forms, no upload field: `drawn-piece.yml` (`piece: waiting`: what, joins, markings, preview, brief,
+      figures, colours, details; the licence and no-photo boxes) and `unsupported-piece.yml`
+      (`piece: unsupported`: what, reason, brief; no-photo and "the maker" boxes).
+    - GitHub fills a form from a link by field id and ignores `body`, so `brief:link issue --template` now reads
+      the form from `.github/ISSUE_TEMPLATE/` and fills each field from the body file's `### <label>` section
+      (the way GitHub shows a sent form); a heading the form lacks is refused (`form-section`), an unknown form
+      too (`template`). The points files, outputs and diff go in `details.md`, pasted into **Details for review**.
+      The worst case through the form (largest preview, 30 figures) still fits under 8,192 bytes.
+    - `piece: drawing` is `piece: reviewing` in the label list, CONTRIBUTING.md and the skill; the GitHub label
+      itself is renamed by hand after merge.
+    - `/draw-piece` reads the form's sections, opens the preview link (its data must be the diff's piece), adds
+      each needed colour to `tokens.css` with its ΔE2000 and line contrast, and lists **Colours added** in the PR.
+    - Not done here: the generic-TODOS entry "the brief for other LLMs" (another session holds that file).
 - [ ] **T6 (P1, human: ~2h / CC: ~15min)** — rollout — after the gating pilot: retire the photo form and the drawing path, point CONTRIBUTING.md at the brief, flip the link constant
   - Surfaced by: C5 (D2), C7 (D6), OV-1 (D11)
   - Files: .github/ISSUE_TEMPLATE/new-piece.yml (removed), CONTRIBUTING.md, .claude/skills/draw-piece/SKILL.md, app/src/ (constant), tests

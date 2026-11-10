@@ -7,6 +7,7 @@
  *   encode <piece.json> ──checkUntrustedPart──▶ #p1.<deflate + base64url> ≤ 4,096 chars
  *                       ──▶ https://woodentrain.world/#p1.…            (the preview link)
  *   issue --title <t> --body-file <f> ──▶ https://github.com/…/issues/new?title=…&body=…  ≤ 8,192 bytes
+ *   issue … --template <form.yml>     ──▶ …/issues/new?title=…&template=…&<field id>=…  (each `### <label>` section)
  *   decode <link or #p1.…> ──▶ the piece's JSON, checked as the preview checks it
  *
  * The codec and the validator are the app's own (engine/src/io/linkCodec.ts,
@@ -20,6 +21,7 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { brandWords } from '../data/brandWords.js';
 import { decodePreview, encodePreview, PREVIEW_MAX_CHARS, type PreviewRefusal } from '../data/previewLink.js';
 
@@ -27,6 +29,8 @@ import { decodePreview, encodePreview, PREVIEW_MAX_CHARS, type PreviewRefusal } 
 export const SITE = 'https://woodentrain.world/';
 /** Where an issue opens. */
 export const NEW_ISSUE = 'https://github.com/raduuuuu/ChooChooCAD/issues/new';
+/** The issue forms `--template` names, in this repository (T5). */
+export const FORMS_DIR = fileURLToPath(new URL('../../.github/ISSUE_TEMPLATE/', import.meta.url));
 /**
  * A prefilled issue link's cap, bytes: the share-link cap (LINK_MAX_CHARS,
  * app/src/shareLink.ts), which browsers and GitHub keep whole. Over it, a
@@ -40,7 +44,9 @@ const CODES = {
   'not-json': 'make the file valid JSON: one piece, as the library writes one (engine/src/parts/schema.ts)',
   invalid: 'fix each field named above in the piece file and run encode again',
   'too-long': 'the piece is too big for a preview link: stop here and say so in the chat (the brief\'s size budget)',
-  'issue-too-long': 'shorten the body file: the figures table and the preview link go in the link; the points files, outputs and diff go in the body pasted from the file',
+  'issue-too-long': 'shorten the body file: the figures table and the preview link go in the link; the points files, outputs and diff go in Details for review, pasted from their own file',
+  template: 'name one of the forms in .github/ISSUE_TEMPLATE/: drawn-piece.yml, or unsupported-piece.yml',
+  'form-section': 'give the body file one `### <label>` heading per field, with the form\'s own labels (named above), and nothing before the first',
   brand: 'write "the maker" (or a trait, "small-peg") in place of the name, and run again',
   version: 'ask for the link again, copied whole; a newer link needs the newer app',
   'bad-encoding': 'ask for the link again, copied whole',
@@ -78,16 +84,62 @@ export async function previewLink(json: string): Promise<{ ok: true; link: strin
   return r.ok ? { ok: true, link: `${SITE}${r.fragment}` } : { ok: false, refused: fromPreview(r.code, r.reasons) };
 }
 
+/** A form field a link can fill: an input, a textarea or a dropdown (checkboxes are ticked by hand). */
+export interface FormField {
+  readonly id: string;
+  readonly label: string;
+}
+
+/**
+ * The fields of an issue form a link can fill, read as text (no YAML parser
+ * is installed): each `- type:` with its `id` and `label` on the lines after,
+ * as the repository's forms are written.
+ */
+export function formFields(yaml: string): FormField[] {
+  return [...yaml.matchAll(/^ {2}- type: (input|textarea|dropdown)\n {4}id: ([\w-]+)\n {4}attributes:\n {6}label: (.+)$/gm)].map(([, , id, label]) => ({
+    id: id!,
+    label: label!.trim().replace(/^"(.*)"$/, '$1'),
+  }));
+}
+
+/**
+ * A body file's `### <label>` sections as the form's field values, by id: the
+ * way GitHub fills a form from a link (a form ignores `body`). GitHub shows a
+ * sent form the same way, one `### <label>` heading per field, so the file
+ * reads as the issue will.
+ */
+export function formParams(body: string, fields: readonly FormField[]): { ok: true; params: [string, string][] } | { ok: false; refused: BriefRefusal } {
+  const parts = body.split(/^### +(.+?)\s*$/m);
+  const labels = fields.map((f) => `"${f.label}"`).join(', ');
+  if (parts[0]!.trim() !== '') return { ok: false, refused: refusal('form-section', `the body has text before its first ### heading; the form's sections are ${labels}`) };
+  const params: [string, string][] = [];
+  for (let i = 1; i < parts.length; i += 2) {
+    const field = fields.find((f) => f.label === parts[i]);
+    if (!field) return { ok: false, refused: refusal('form-section', `"### ${parts[i]}" is not a section of this form; its sections are ${labels}`) };
+    if (params.some(([id]) => id === field.id)) return { ok: false, refused: refusal('form-section', `"### ${parts[i]}" is given twice`) };
+    params.push([field.id, parts[i + 1]!.trim()]);
+  }
+  return { ok: true, params };
+}
+
 /**
  * A prefilled new-issue link, or why not: over ISSUE_MAX_BYTES, or naming a
- * brand (the issue is public: AGENTS.md, plan S3-1). `template` is for the
- * issue forms (T5); without it the issue is a blank one.
+ * brand (the issue is public: AGENTS.md, plan S3-1). `template` names an issue
+ * form; with the form's fields (`formFields`), the body's `### <label>`
+ * sections fill them by id instead of the body. Without a template the issue
+ * is a blank one.
  */
-export function issueLink(title: string, body: string, template?: string): { ok: true; link: string } | { ok: false; refused: BriefRefusal } {
+export function issueLink(title: string, body: string, template?: string, fields?: readonly FormField[]): { ok: true; link: string } | { ok: false; refused: BriefRefusal } {
   for (const [what, text] of [['the title', title], ['the body', body]] as const) {
     if (brandWords(text).length > 0) return { ok: false, refused: refusal('brand', `${what} names a brand`) };
   }
-  const params = [['title', title], ['body', body], ...(template ? [['template', template]] : [])];
+  let filled: [string, string][] = [['body', body]];
+  if (fields && fields.length > 0) {
+    const r = formParams(body, fields);
+    if (!r.ok) return r;
+    filled = r.params;
+  }
+  const params = [['title', title], ...filled, ...(template ? [['template', template]] : [])];
   const link = `${NEW_ISSUE}?${params.map(([k, v]) => `${k}=${encodeURIComponent(v!)}`).join('&')}`;
   const bytes = new TextEncoder().encode(link).byteLength;
   if (bytes > ISSUE_MAX_BYTES) return { ok: false, refused: refusal('issue-too-long', `the issue link is ${bytes} bytes, over the ${ISSUE_MAX_BYTES} cap`) };
@@ -113,7 +165,10 @@ export const HELP = `usage: bun engine/tools/briefLink.ts encode <piece.json>
            calibrationStatus is "estimated"; no field the schema doesn't have.
   issue    prints a link that opens a new issue with the title and body filled
            in (at most ${ISSUE_MAX_BYTES} bytes). Put the preview link in the body.
-           --template names an issue form, when the repository has them.
+           --template names an issue form in .github/ISSUE_TEMPLATE/
+           (drawn-piece.yml, unsupported-piece.yml): the body file is then
+           one "### <label>" section per field, with the form's own labels,
+           and each section fills its field. Checkboxes are ticked by hand.
   decode   prints the piece's JSON back, checked as the preview checks it
            (for the maintainer's review).
   --help   this text
@@ -181,7 +236,16 @@ export async function main(argv: readonly string[], io: Io = IO): Promise<number
       if (!flags['--title'] || !flags['--body-file']) return usage('issue needs --title and --body-file');
       const body = read(flags['--body-file']);
       if (typeof body !== 'string') return refused(body);
-      const r = issueLink(flags['--title'], body, flags['--template']);
+      const template = flags['--template'];
+      let fields: FormField[] | undefined;
+      if (template !== undefined) {
+        const bad = refusal('template', `no issue form named ${template}`);
+        if (!/^[\w-]+\.ya?ml$/.test(template)) return refused(bad);
+        const yaml = read(`${FORMS_DIR}${template}`);
+        if (typeof yaml !== 'string') return refused(bad);
+        fields = formFields(yaml);
+      }
+      const r = issueLink(flags['--title'], body, template, fields);
       if (!r.ok) return refused(r.refused);
       io.out(r.link);
       return 0;

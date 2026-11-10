@@ -64,7 +64,9 @@ the design rules are in [DESIGN.md](DESIGN.md); how people contribute is in
 ## Drawing a piece
 
 - A sender's own Claude measures and draws the piece with the contributor
-  brief (`docs/brief/draft.md`) and the steps it points to; the review, from
+  brief ([app/public/contributor-brief.md](app/public/contributor-brief.md),
+  served as woodentrain.world/contributor-brief.md) and the steps it points
+  to, and the sender posts it on the **Drawn piece** issue form; the review, from
   the issue to a pull request, is
   [.claude/skills/draw-piece/SKILL.md](.claude/skills/draw-piece/SKILL.md):
   `/draw-piece <issue number>` in Claude Code; any other agent follows the same
