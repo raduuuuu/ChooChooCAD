@@ -56,6 +56,8 @@ const open = (fragment: string) =>
     </StrictMode>,
   );
 const lastScene = () => seen[seen.length - 1]!.input;
+/** The 3D view is a lazy chunk: under a loaded run it mounts after the heading, so wait for its first scene. */
+const sceneDrawn = () => waitFor(() => expect(seen.length).toBeGreaterThan(0));
 const everything = () => Object.fromEntries(Object.keys(localStorage).sort().map((k) => [k, localStorage.getItem(k)]));
 const OWN = JSON.stringify({ pieces: [{ pieceId: 'mine', partId: 'A', turn: 'left' }], welds: [], anchors: [] });
 
@@ -120,6 +122,7 @@ describe('the picture: medium straight, the piece, medium straight (D2)', () => 
   it("a ramp's straights sit at its ends' heights: one on the floor, one raised", async () => {
     open(await fragmentOf(asSubmission(builtIn('N'), 'N9')));
     await screen.findByRole('heading', { name: 'Piece preview · Ramp' });
+    await sceneDrawn();
     const levels = ['before', 'after'].map((id) => lastScene().segments.find((s) => s.pieceId === id)!.level ?? 0);
     expect(levels).toEqual([0, 1]);
     // The piece itself climbs from its floor end.
@@ -179,6 +182,7 @@ describe('paint and duplicates', () => {
     open(await fragmentOf(da));
     await screen.findByRole('heading', { name: 'Piece preview · Double-arch bridge' });
     expect(screen.getByText("Paint --paint-teal isn't one the app has yet; drawn as wood.")).toBeTruthy();
+    await sceneDrawn();
     const fills = lastScene().bodies!.flatMap((b) => (b.decor?.paint ? [b.decor.paint.fill] : []));
     expect(fills.filter((f) => f === '--paint-teal')).toEqual([]);
     expect(fills).toContain('--paint-orange');

@@ -172,7 +172,8 @@ export const heightWords = (e: PreviewEnd): string => (e.heightMm === 0 ? ON_FLO
 export function trackKey(part: Part): string | null {
   if (part.kind === 'block') return null;
   const ends = portsOf(part, 'left').map((p) => ({ pos: p.at.pos, heading: p.at.heading, level: levelOf(p.at), polarity: p.polarity, kind: p.kind }));
-  return JSON.stringify({ brand: part.brand, kind: part.kind, ends, roads: roadsOf(part, 'left') });
+  // The decoration is part of what a piece IS: a bridge on a plain straight's track is not that straight, nor another bridge on it.
+  return JSON.stringify({ brand: part.brand, kind: part.kind, ends, roads: roadsOf(part, 'left'), decor: part.decor ?? null });
 }
 
 /**
