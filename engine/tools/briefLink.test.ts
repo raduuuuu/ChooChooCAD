@@ -12,12 +12,13 @@
  * Value: no_claim=that GitHub keeps a prefilled link through sign-in (spike)
  */
 
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DECORATED_SEEDS } from '../data/decoratedSeeds.js';
 import { BUILT_IN, makeResolver } from '../data/library.js';
 import { decodePreview, encodePreview, PREVIEW_MAX_CHARS, PREVIEW_PREFIX } from '../data/previewLink.js';
 import { asSubmission, specAs } from '../test/submissions.js';
-import { ISSUE_MAX_BYTES, issueLink, main, NEW_ISSUE, previewLink, SITE, type Io } from './briefLink.js';
+import { FORMS_DIR, formFields, ISSUE_MAX_BYTES, issueLink, main, NEW_ISSUE, previewLink, SITE, type Io } from './briefLink.js';
 
 const builtIn = makeResolver(BUILT_IN);
 
@@ -123,7 +124,7 @@ async function largestPreview(): Promise<string> {
   return best;
 }
 
-/** The draft brief's issue body (docs/brief/draft.md, step 9) with `figures` rows and the preview link, minus what goes in by file. */
+/** A blank issue's body as draft-7 of the brief wrote it (its step 9, before the forms) with `figures` rows and the preview link, minus what goes in by file. */
 const issueBody = (link: string, figures: number) => `**What is the piece?** A double-arch bridge over a straight, two orange arches each side
 
 **Which pieces does it join?** Any straight, both ends
@@ -229,5 +230,96 @@ describe('the command line', () => {
     expect(notJson.err[0]!.split('\n').at(-1)).toBe('make the file valid JSON: one piece, as the library writes one (engine/src/parts/schema.ts)');
     const issue = await run(['issue', '--title', 'Piece: x', '--body-file', 'b.md'], () => 'body');
     expect(issue).toMatchObject({ code: 0, out: [`${NEW_ISSUE}?title=Piece%3A%20x&body=body`] });
+  });
+});
+
+describe('an issue form, filled from the body file (T5)', () => {
+  const DRAWN = readFileSync(`${FORMS_DIR}drawn-piece.yml`, 'utf8');
+  const fields = formFields(DRAWN);
+  /** The brief's issue.md (its step 11), with `figures` rows. */
+  const formBody = (link: string, figures: number) => `### What is the piece?
+
+A double-arch bridge over a straight, two orange arches each side
+
+### Which pieces does it join?
+
+Any straight, both ends
+
+### Markings
+
+"Made in" and a six-digit number, the maker's name left out
+
+### Preview link
+
+${link}
+
+### Brief version and commit
+
+Drawn with the contributor brief 1, repository 7f2f516.
+Measured from 3 photos that stay with the sender. Medium and long straight: yes, both. First piece: yes, the trial read 216.6 mm.
+
+### Figures
+
+| Figure | Value | Source |
+|---|---|---|
+${Array.from({ length: figures }, (_, i) => `| figure ${i + 1}, end to end | ${(200 + i * 1.37).toFixed(2)} mm | photo ${(i % 3) + 1}, line ${i + 1} |`).join('\n')}
+
+Started 14:02, first figure 14:50.
+
+### Colours needed
+
+bridge orange, #e8762c, the four arches
+`;
+
+  /*
+   * MUTATION PROOF, run (2026-11-10): issueLink ignoring the form's fields
+   * (`if (false && fields ...)`): `expected [ 'title', 'body', 'template' ] to deeply equal [ 'title', 'what', 'joins', …(6) ]`.
+   */
+  it("fills each field by its id from its ### section, sends no body, and names the template", () => {
+    expect(fields.map((f) => f.id)).toEqual(['what', 'joins', 'markings', 'preview', 'brief', 'figures', 'colours', 'details']);
+    const r = issueLink('Piece: a bridge', formBody(`${SITE}#p1.abc`, 2), 'drawn-piece.yml', fields);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const q = new URL(r.link).searchParams;
+    expect([...q.keys()]).toEqual(['title', 'what', 'joins', 'markings', 'preview', 'brief', 'figures', 'colours', 'template']);
+    expect(q.get('preview')).toBe(`${SITE}#p1.abc`);
+    expect(q.get('colours')).toBe('bridge orange, #e8762c, the four arches');
+    expect(q.get('template')).toBe('drawn-piece.yml');
+  });
+
+  /*
+   * MUTATION PROOF, run (2026-11-10): formParams's label check made to accept
+   * any heading (`const field = fields.find(...) ?? fields[0]`): `expected { ok: true, …(1) } to match object { ok: false, refused: { …(2) } }`.
+   */
+  it('refuses a section the form lacks, one given twice, or text before the first', () => {
+    const one = (body: string) => issueLink('Piece: x', body, 'drawn-piece.yml', fields);
+    expect(one('### Measurements\n\n1 mm')).toMatchObject({ ok: false, refused: { code: 'form-section', reasons: [expect.stringMatching(/^"### Measurements" is not a section of this form; its sections are "What is the piece\?"/)] } });
+    expect(one('### Markings\n\na\n\n### Markings\n\nb')).toMatchObject({ ok: false, refused: { code: 'form-section' } });
+    expect(one('Hello\n\n### Markings\n\na')).toMatchObject({ ok: false, refused: { code: 'form-section' } });
+  });
+
+  /*
+   * MUTATION PROOF, run (2026-11-10): each field encoded twice
+   * (`encodeURIComponent(encodeURIComponent(v!))`): `expected false to be true` (the blank-issue worst case above fails the same way).
+   */
+  it('the worst case through the form, the largest preview and 30 figures, fits under 8,192 bytes', async () => {
+    const fragment = await largestPreview();
+    const r = issueLink('Piece: a double-arch bridge over a straight', formBody(`${SITE}${fragment}`, 30), 'drawn-piece.yml', fields);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(new TextEncoder().encode(r.link).byteLength).toBeLessThanOrEqual(ISSUE_MAX_BYTES);
+  });
+
+  /*
+   * MUTATION PROOF, run (2026-11-10): main reading the form from the wrong
+   * folder (`${FORMS_DIR}../${template}`): `expected 1 to be +0`.
+   */
+  it("the command line reads the form from the repository's issue templates, and refuses one it lacks", async () => {
+    const out: string[] = [], err: string[] = [];
+    const io: Io = { read: (f) => (f.endsWith('.yml') ? readFileSync(f, 'utf8') : '### Markings\n\nnone'), out: (l) => out.push(l), err: (l) => err.push(l) };
+    expect(await main(['issue', '--title', 'Piece: x', '--body-file', 'b.md', '--template', 'drawn-piece.yml'], io)).toBe(0);
+    expect(out).toEqual([`${NEW_ISSUE}?title=Piece%3A%20x&markings=none&template=drawn-piece.yml`]);
+    expect(await main(['issue', '--title', 'Piece: x', '--body-file', 'b.md', '--template', 'new-piece.yml'], io)).toBe(1);
+    expect(await main(['issue', '--title', 'Piece: x', '--body-file', 'b.md', '--template', '../x.yml'], io)).toBe(1);
+    expect(err.at(-1)!.split('\n').at(-1)).toBe('name one of the forms in .github/ISSUE_TEMPLATE/: drawn-piece.yml, or unsupported-piece.yml');
   });
 });

@@ -14,11 +14,11 @@ import { CONTRIBUTE_WORDS } from './linkWords.js';
 export const CONTRIBUTE_LINK_ON = false;
 
 /**
- * Where the link opens: the brief's draft on GitHub, for now. The plan has the
- * brief served by the site (`app/public/`, step 1) so the download and the
- * repository copy are one file; when T5 moves it there, this follows.
+ * Where the link opens: the brief, served by the site from
+ * `app/public/contributor-brief.md` (plan step 1, T5), so the download and the
+ * repository copy are one file.
  */
-export const BRIEF_URL = 'https://github.com/raduuuuu/ChooChooCAD/blob/main/docs/brief/draft.md';
+export const BRIEF_URL = 'https://woodentrain.world/contributor-brief.md';
 
 /** `on` is the switch, a parameter so a test can turn it without editing the constant. */
 export function ContributeLink({ on = CONTRIBUTE_LINK_ON }: { readonly on?: boolean }) {

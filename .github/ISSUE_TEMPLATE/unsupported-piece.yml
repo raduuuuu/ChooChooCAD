@@ -1,0 +1,44 @@
+# A piece the app can't hold yet (contributor-brief plan, U1; T5): the brief's
+# step 5 stopped, nothing was drawn. Filled by `bun run brief:link issue
+# --template unsupported-piece.yml` from `### <label>` sections, as drawn-piece.yml.
+# No upload field, ever: photos never go on GitHub (P-3).
+# The label names come from .github/piece-labels.json (eng D3); a test keeps them in step.
+name: Piece the app can't hold
+description: A track piece the contributor brief found the app can't hold yet (an angle or an end it doesn't know). No photos.
+title: "Piece: "
+labels: ["piece: unsupported"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Your Claude prepared this issue with the [contributor brief](https://woodentrain.world/contributor-brief.md). **Don't attach a photo** here or in a comment: your photos stay in your chat.
+  - type: textarea
+    id: what
+    attributes:
+      label: What is the piece?
+      description: In your own words, what it is and what it does on a layout.
+    validations:
+      required: true
+  - type: textarea
+    id: reason
+    attributes:
+      label: Why the app can't hold it
+      description: The reason, in plain words, and the closest piece the app has.
+    validations:
+      required: true
+  - type: textarea
+    id: brief
+    attributes:
+      label: Brief version and commit
+      description: The brief's version and the repository commit your Claude used.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you send
+      options:
+        - label: No photo is attached to this issue; my photos stay in my chat.
+          required: true
+        - label: Any maker's name is written as "the maker".
+          required: true

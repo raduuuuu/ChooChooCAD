@@ -1,0 +1,80 @@
+# A piece the contributor brief drew (contributor-brief plan, step 2; T5).
+# The sender's own Claude fills it: `bun run brief:link issue --template drawn-piece.yml`
+# turns its body file's `### <label>` sections into this form's fields, by id,
+# so a label changed here is changed in the brief (app/public/contributor-brief.md) too.
+# No upload field, ever: photos never go on GitHub (P-3).
+# The label names come from .github/piece-labels.json (eng D3); a test keeps them in step.
+name: Drawn piece
+description: A track piece your own Claude measured and drew with the contributor brief. No photos.
+title: "Piece: "
+labels: ["piece: waiting"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Your Claude prepared this issue with the [contributor brief](https://woodentrain.world/contributor-brief.md): open the link it gave you and most of it is filled in. **Don't attach a photo** here or in a comment: your photos stay in your chat, and anything posted on GitHub is public for good.
+  - type: textarea
+    id: what
+    attributes:
+      label: What is the piece?
+      description: In your own words, what it is and what it does on a layout.
+    validations:
+      required: true
+  - type: textarea
+    id: joins
+    attributes:
+      label: Which pieces does it join?
+      description: Optional. For example, "any straight, both ends".
+    validations:
+      required: false
+  - type: textarea
+    id: markings
+    attributes:
+      label: Markings
+      description: What is printed or moulded on the underside, with any maker's name written as "the maker", and roughly where and when it was bought.
+    validations:
+      required: true
+  - type: input
+    id: preview
+    attributes:
+      label: Preview link
+      description: The piece in the app, the link you checked before posting.
+    validations:
+      required: true
+  - type: textarea
+    id: brief
+    attributes:
+      label: Brief version and commit
+      description: The brief's version and the repository commit your Claude used, and how many photos it measured.
+    validations:
+      required: true
+  - type: textarea
+    id: figures
+    attributes:
+      label: Figures
+      description: Every figure, its value and where it came from (a photo and its line, a suggestion you confirmed, or a ruler).
+    validations:
+      required: true
+  - type: textarea
+    id: colours
+    attributes:
+      label: Colours needed
+      description: Paints the app doesn't have yet, one a line - a plain name, the hex value sampled from the photo, which parts wear it. "none" if every colour is one the app has.
+    validations:
+      required: false
+  - type: textarea
+    id: details
+    attributes:
+      label: Details for review
+      description: Paste in all of details.md, the file your Claude gave you - the points files, the measuring output and the piece's diff.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you send
+      options:
+        - label: I license this drawing under this repository's licence (MIT).
+          required: true
+        - label: No photo is attached to this issue; my photos stay in my chat.
+          required: true
