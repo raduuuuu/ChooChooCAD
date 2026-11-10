@@ -215,6 +215,18 @@ describe('the double-arch bridge\'s arches (issue #231)', () => {
   });
 
   /*
+   * MUTATION PROOF, run (2026-11-10): the cross bars drawn square again (their
+   * slabs drawn): `expected [ true, true ] to deeply equal [ false, false ]`.
+   */
+  it('draws its cross bars round, over the boxes that collide', () => {
+    const decor = DOUBLE_ARCH_BRIDGE.decor!;
+    const bars = decor.filter((d): d is DecorSlab => d.kind === 'slab' && d.noun === 'cross bar');
+    expect(bars.map((b) => b.drawn !== false)).toEqual([false, false]);
+    const round = decor.filter((d) => d.kind === 'wheel' && d.noun === 'cross bar');
+    expect(round.map((w) => w.kind === 'wheel' && [w.atMm[0], w.centreMm, w.diameterMm])).toEqual([[86.5, 121, 6], [156.5, 121, 6]]);
+  });
+
+  /*
    * MUTATION PROOF, run (2026-11-09): the arches drawing only (no solid ribs
    * in library.ts): `expected [] to deeply equal [ 'over p' ]`.
    */

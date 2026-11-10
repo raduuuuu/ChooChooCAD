@@ -272,8 +272,12 @@ export const DOUBLE_ARCH_BRIDGE: StraightPart = {
     // meets its big arch, halfway between their middles (equal arches, so there both edges coincide).
     daArch(DA_BAND.from - DA_ARCH.span / 2, { drawnFromMm: DA_BAND.from + DA_ARCH.span / 4 }),
     daArch(DA_BAND.to - DA_ARCH.span / 2, { drawnToMm: DA_BAND.to - DA_ARCH.span / 4 }),
-    // The cross bars over the road, about 6 round, at the big arches' tops.
-    ...DA_BARS.map((x) => slab(x, 0, 6, 2 * DA_SIDE, 118, 124, 'cross bar', ORANGE)),
+    // The cross bars over the road, about 6 round, at the big arches' tops: they collide as boxes and draw round
+    // (the contributor's chat, 2026-11-10).
+    ...DA_BARS.flatMap((x): DecorShape[] => [
+      { ...slab(x, 0, 6, 2 * DA_SIDE, 118, 124, 'cross bar', ORANGE), drawn: false },
+      { kind: 'wheel', atMm: [x, 0], centreMm: 121, diameterMm: 6, thickMm: 2 * DA_SIDE, ringsMm: [], noun: 'cross bar', paint: ORANGE },
+    ]),
   ],
   dimensions: {
     status: 'unverified',
@@ -281,7 +285,7 @@ export const DOUBLE_ARCH_BRIDGE: StraightPart = {
       "a contributor's photos of a real one, 2026-11-09 (issue #231): the length read off two top views beside a medium straight (240.01 and 240.22, agreed 240.11); " +
       'the side view (the band, the arches, the cross bars) traced off a side photo and scaled by that length, the arches\' shape and the opening\'s crown checked against the full-size photo (2026-11-10); ' +
       "the sides' place across read off both top views at the cross bars; nothing from a ruler",
-    note: 'A 240 straight between two orange sides 28.6 either side of it: a band 23 tall from 15 to 228 along, two overlapping upright arches each side (15 to 158 and 85 to 228, crowns 126 outer and 110 inner), two cross bars 118 to 124 up at 86.5 and 156.5, and the inner leg of a half arch at each end of each side. Within about 5mm.',
+    note: 'A 240 straight between two orange sides 28.6 either side of it: a band 23 tall from 15 to 228 along, two overlapping upright arches each side (15 to 158 and 85 to 228, crowns 126 outer and 110 inner), two round cross bars 118 to 124 up at 86.5 and 156.5, and the inner leg of a half arch at each end of each side. Within about 5mm.',
   },
   slop: ESTIMATED_SLOP, ...PROFILE,
 };
