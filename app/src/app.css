@@ -2167,7 +2167,7 @@
 .preview-side { min-height: 44px; min-width: 44px; padding: 0 var(--s3); background: var(--paper); border: 1px solid var(--rule); border-radius: 3px; color: var(--ink); font: inherit; font-size: 14px; cursor: pointer; }
 .preview-side:hover { border-color: var(--ink-soft); }
 /* One value column for every row: a long term wraps inside its own column rather than pushing its value out of line. */
-.preview-sizes { margin: 0; display: grid; grid-template-columns: minmax(8rem, 14rem) 1fr; gap: var(--s2) var(--s3); }
+.preview-sizes { margin: 0; display: grid; grid-template-columns: fit-content(40%) 1fr; gap: var(--s2) var(--s3); }
 .preview-sizes > div { display: contents; }
 .preview-sizes dt { font-weight: 600; }
 .preview-sizes dd { margin: 0; }
