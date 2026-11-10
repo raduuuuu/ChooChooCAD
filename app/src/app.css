@@ -2148,6 +2148,13 @@
 .friend-message .friend-main { justify-content: center; align-items: flex-start; max-width: 36rem; }
 .friend-message-line { margin: 0; font-size: 17px; line-height: 1.5; outline: none; }
 /*
+ * The sentence or title a screen focuses on arrival is not a control: no ring.
+ * Each says `outline: none` above, but the global `:focus-visible` ring in
+ * tokens.css has the same specificity and lands later in the built CSS, so on
+ * the live site the title wore a 2px box (design review, 2026-11-10).
+ */
+.friend-title:focus-visible, .friend-message-line:focus-visible, .friend-ask-question:focus-visible { outline: none; }
+/*
  * A PIECE PREVIEW (contributor-brief plan, T4, D3, D13, D14): the friend
  * screen's column, the 2D picture as its anchor and the 3D view after it at
  * full width, then sizes in the mono face, the next step, the folded details
@@ -2159,9 +2166,10 @@
 .preview-3d > .canvas-frame { flex: 1; min-width: 0; }
 .preview-side { min-height: 44px; min-width: 44px; padding: 0 var(--s3); background: var(--paper); border: 1px solid var(--rule); border-radius: 3px; color: var(--ink); font: inherit; font-size: 14px; cursor: pointer; }
 .preview-side:hover { border-color: var(--ink-soft); }
-.preview-sizes { margin: 0; display: flex; flex-direction: column; gap: var(--s2); }
-.preview-sizes > div { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); }
-.preview-sizes dt { font-weight: 600; min-width: 8rem; }
+/* One value column for every row: a long term wraps inside its own column rather than pushing its value out of line. */
+.preview-sizes { margin: 0; display: grid; grid-template-columns: fit-content(40%) 1fr; gap: var(--s2) var(--s3); }
+.preview-sizes > div { display: contents; }
+.preview-sizes dt { font-weight: 600; }
 .preview-sizes dd { margin: 0; }
 .preview-sizes ul { margin: 0; padding: 0; list-style: none; }
 .preview-duplicate, .preview-next p { margin: 0; }
@@ -2170,7 +2178,8 @@
 .preview-details ul, .preview-reasons { margin: 0; padding-inline-start: var(--s5); }
 .preview-paint { margin: var(--s2) 0 0; }
 .preview-data { margin: 0 0 var(--s2); padding: var(--s3); max-height: 20rem; overflow: auto; background: var(--paper-sunk); border: 1px solid var(--rule); font-family: var(--font-data); font-size: 13px; white-space: pre; }
-.preview-reasons { font-family: var(--font-data); font-size: 14px; overflow-wrap: anywhere; }
+/* Sentences, so the UI face: the mono face is for measurements (DESIGN.md rule 4). */
+.preview-reasons { overflow-wrap: anywhere; }
 .preview-copy { display: inline-flex; align-items: center; gap: var(--s3); }
 .preview-copy button { min-height: 44px; padding: 0 var(--s4); background: var(--paper); border: 1px solid var(--rule); border-radius: 3px; color: var(--ink); font: inherit; cursor: pointer; }
 .preview-copy button:hover { border-color: var(--ink-soft); }

@@ -200,7 +200,7 @@ export function PreviewScreen({ part: sent, data }: { readonly part: Part; reado
             ))}
           </ul>
           <h2>{DETAILS_DATA}</h2>
-          <pre className="preview-data" tabIndex={0}>
+          <pre className="preview-data" tabIndex={0} aria-label={DETAILS_DATA}>
             {json}
           </pre>
           <CopyButton text={json} label={COPY} />
