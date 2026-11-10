@@ -26,6 +26,7 @@
 
 import { BUILT_IN, makeResolver } from '../../engine/data/library.js';
 import { portsOf, type Graph, type Piece } from '../../engine/src/graph/model.js';
+import { canCompress, deflate, fromBase64Url, inflate, toBase64Url } from '../../engine/src/io/linkCodec.js';
 import { checkStored, storedGraphOf } from './layoutStore.js';
 
 /** The caps (eng D22), enforced before anything is solved. */
@@ -66,9 +67,8 @@ const catalogue = makeResolver(BUILT_IN);
 const catalogueIds: ReadonlySet<string> = new Set(BUILT_IN.map((p) => p.id));
 const cataloguePorts = (piece: Piece) => portsOf(catalogue(piece.partId), piece.turn);
 
-/** Whether this browser has what links need (D9). Checked once per call. */
-export const canCompress = (): boolean =>
-  typeof CompressionStream !== 'undefined' && typeof DecompressionStream !== 'undefined';
+/** Whether this browser has what links need (D9). The codec is shared with the engine (contributor-brief T3). */
+export { canCompress };
 
 function compactOf(graph: Graph): Compact {
   const stored = storedGraphOf(graph);
@@ -80,60 +80,6 @@ function compactOf(graph: Graph): Compact {
       f.level === undefined ? [index.get(id)!, f.pos, f.heading] : [index.get(id)!, f.pos, f.heading, f.level],
     ),
   ];
-}
-
-function toBase64Url(bytes: Uint8Array): string {
-  let bin = '';
-  for (const b of bytes) bin += String.fromCharCode(b);
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function fromBase64Url(text: string): Uint8Array<ArrayBuffer> | null {
-  if (!/^[A-Za-z0-9_-]*$/.test(text)) return null;
-  try {
-    const bin = atob(text.replace(/-/g, '+').replace(/_/g, '/'));
-    return Uint8Array.from(bin, (c) => c.charCodeAt(0));
-  } catch {
-    return null;
-  }
-}
-
-async function deflate(text: string): Promise<Uint8Array> {
-  const stream = new Response(text).body!.pipeThrough(new CompressionStream('deflate-raw'));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
-}
-
-/** Inflate, reading chunk by chunk and stopping as soon as `cap` is passed (D22). */
-async function inflate(bytes: Uint8Array<ArrayBuffer>, cap: number): Promise<{ ok: true; text: string } | { ok: false; reason: 'corrupt' | 'too-large' }> {
-  // `Response`, not `Blob.stream()`: every target has it, jsdom included.
-  const reader = new Response(bytes).body!.pipeThrough(new DecompressionStream('deflate-raw')).getReader();
-  const parts: Uint8Array[] = [];
-  let size = 0;
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      if (size > cap) {
-        await reader.cancel().catch(() => undefined);
-        return { ok: false, reason: 'too-large' };
-      }
-      parts.push(value);
-    }
-  } catch {
-    return { ok: false, reason: 'corrupt' };
-  }
-  const all = new Uint8Array(size);
-  let at = 0;
-  for (const p of parts) {
-    all.set(p, at);
-    at += p.byteLength;
-  }
-  try {
-    return { ok: true, text: new TextDecoder('utf-8', { fatal: true }).decode(all) };
-  } catch {
-    return { ok: false, reason: 'corrupt' };
-  }
 }
 
 /** The fragment for `graph`, `#v1.<data>`. Needs `canCompress()`. */

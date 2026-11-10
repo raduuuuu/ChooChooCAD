@@ -1057,6 +1057,38 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
   - Surfaced by: Section 1 (DRY codec), Section 3 (validator), spec review 2 (links by script), Codex 2 (geometry)
   - Files: app/src/shareLink.ts, engine/data/library.ts (or a new validator module beside it), engine/tools/briefLink.ts, their tests
   - Verify: unit tests incl. the worst-case link under 8,192 bytes and contradictory multi-road payloads refused; mutations run
+  - **Built (2026-11-10).**
+    - The codec moved once: `engine/src/io/linkCodec.ts` (base64url, deflate-raw, capped
+      inflate); `app/src/shareLink.ts` imports it, its tests unchanged. The brand words moved
+      to `engine/data/brandWords.ts` (free of Node, so the app can load the validator);
+      `checkup.ts` re-exports them.
+    - The validator: `engine/data/untrustedPart.ts`, `checkUntrustedPart(unknown)` →
+      `{ ok, part }` or `{ ok: false, reasons }`, each reason naming its field. A `Part`
+      ("kind": straight, curve, multi-road, buffer, its own `decor` allowed, boxes derived) or
+      a `DecoratedSpec` ("base", derived with `deriveDecorated`; its throws become reasons).
+      Bounds: 1,000mm for any length, position or height (the longest built-in is 527); port
+      coefficients whole and within 4,000; slop 5mm / 5° and arcSteps 1..15 (looksLikePart's);
+      up to 16 ends, 32 roads, 128 shapes, 64 items in any other list; strings at least twice
+      the longest built-in's (id 24, name 60, source and note 1,000, nouns 40), no control or
+      text-direction characters, no brand word. Every built-in piece but a structure passes
+      as a submission (a test). Ids: letters, digits, dashes; not `__`; not a built-in's.
+      `dimensions.status` must be 'unverified' and `slop.calibrationStatus` 'estimated'.
+      Multi-road geometry with the engine's `portsOf`, `roadsOf`, `roadEnd`, both ways up.
+      Unknown fields are **refused, not stripped**: an unbounded field could reach the
+      renderer, and stripping would make the preview differ from what the maintainer
+      decodes. Built-in-only fields (`partNumber`, `body`, `deck`, `hump`, `decoratedFrom`,
+      `decorBody`) and blocks are refused with why; `rise: 1` is allowed. Reasons never
+      repeat a brand word (the preview shows them).
+    - The preview link: `engine/data/previewLink.ts`, `#p1.<deflate + base64url of the
+      piece's JSON>` (`p` for piece, apart from layouts' `#v1.`), capped at 4,096 characters
+      and 64 KB inflated; decode runs the same validator. The largest built-in, the metro
+      station's spec, packs to 3,839.
+    - `engine/tools/briefLink.ts` (`bun run brief:link`): `encode`, `issue --title
+      --body-file [--template]` (refuses over 8,192 bytes, and a brand word in the title or
+      body), `decode`. Exit 0 / 1 refused / 2 usage. The worst case (a 4,096-character
+      preview, a 30-row figures table, the draft's step 9 body) is 7,983 bytes.
+    - For the owner: the prefilled link carries the short body only; the points files,
+      outputs and diff still go in by the body file (draft-4).
 - [ ] **T4 (P1, human: ~1 week / CC: ~2h)** — app — the preview route (E1), after /plan-design-review on its screen
   - Surfaced by: E1 (D4), Section 11
   - Files: app/src/ (preview route and view), its dom tests

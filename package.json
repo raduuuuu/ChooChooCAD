@@ -13,7 +13,8 @@
     "photos": "bun engine/tools/photoCheck.ts",
     "photos:score": "bun engine/tools/photoScoreboard.ts",
     "photos:measure-score": "bun engine/tools/photoMeasureScoreboard.ts",
-    "checkup": "bun engine/tools/checkup.ts"
+    "checkup": "bun engine/tools/checkup.ts",
+    "brief:link": "bun engine/tools/briefLink.ts"
   },
   "dependencies": {
     "react": "^19.3.1",
