@@ -10,6 +10,8 @@
  *     ─▶ derive: its decoration's boxes (decorBoxesOf), or the spec against
  *        BUILT_IN (deriveDecorated); a throw is a refusal, never a crash
  *     ─▶ a multi-road piece: every road walked lands on its end, both ways up
+ *     ─▶ drawn once, alone, as the 3D view draws it: under MAX_DRAWING_NUMBERS,
+ *        every number finite (eng review R6, R9)
  *     ─▶ { ok: true, part } | { ok: false, reasons }
  *
  * Today only typed straights and curves are checked (`looksLikePart` in
@@ -28,10 +30,13 @@
 
 import { SYSTEM_NAME, type Brand, type Part } from '../src/parts/schema.js';
 import { equals, ZERO } from '../src/geom/cyclotomic.js';
-import { portsOf, roadEnd, roadsOf } from '../src/graph/model.js';
+import { placeAll } from '../src/graph/frames.js';
+import { portsOf, roadEnd, roadsOf, type Graph, type Piece } from '../src/graph/model.js';
+import { renderGraph } from '../src/graph/render.js';
+import { buildScene } from '../src/view3d/mesh.js';
 import { brandWords } from './brandWords.js';
 import type { DecoratedSpec } from './decoratedSeeds.js';
-import { BUILT_IN, decorBoxesOf, deriveDecorated, RESERVED_ID_PREFIX } from './library.js';
+import { BUILT_IN, decorBoxesOf, deriveDecorated, makeResolver, RESERVED_ID_PREFIX } from './library.js';
 import { CLEARANCE } from './rampSeeds.js';
 
 // ── The bounds, each with why ────────────────────────────────────────────────
@@ -69,6 +74,14 @@ export const MAX_TEXT = {
   /** An ISO date. */
   date: 40,
 } as const;
+/**
+ * The most 3D a sent piece may draw, as numbers (three per corner) in its
+ * scene drawn alone (`drawingReasons`): four times the largest built-in's,
+ * the metro station's 26,220 (measured 2026-11-11). Room for a busier piece
+ * than any yet; a long way under the crafted 128-truss straight the eng
+ * review's outside voice built (R6).
+ */
+export const MAX_DRAWING_NUMBERS = 4 * 26_220;
 /** Reasons listed at most; the rest are counted. A crafted payload could otherwise fill a screen. */
 export const MAX_REASONS = 20;
 
@@ -78,6 +91,10 @@ const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9-]*$/;
 const TOKEN_PATTERN = /^--[a-z][a-z0-9-]{0,38}$/;
 /** Control characters (a terminal escape in the maintainer's decode) and bidirectional overrides (text that reads differently than it is). */
 const UNSAFE_CHARS = /[\u0000-\u001f\u007f‪-‮⁦-⁩]/;
+/** The same, every one: `show` replaces them all (eng review R7). Its own pattern, because a global one used with `.test` keeps its place between calls. */
+const EVERY_UNSAFE_CHAR = new RegExp(UNSAFE_CHARS.source, 'g');
+/** A field name said as it is in a reason: letters, digits, `_` and `-`, as every schema field is. */
+const PLAIN_NAME = /^[\w-]{1,40}$/;
 
 const BRANDS = Object.keys(SYSTEM_NAME) as Brand[];
 const BUILT_IN_IDS: ReadonlySet<string> = new Set(BUILT_IN.map((p) => p.id));
@@ -134,15 +151,22 @@ const PAIR = tuple(MM, MM);
 const obj = (required: Record<string, Check>, optional: Record<string, Check> = {}, refused: Record<string, string> = {}): Check => (v, at, out) => {
   if (!isObj(v)) return void out.push(`${at || 'the piece'}: must be an object, not ${show(v)}`);
   const field = (k: string) => (at ? `${at}.${k}` : k);
+  /*
+   * OWN NAMES ONLY (eng review R3, D5). `k in list` is also true for the
+   * names every object inherits, so a piece carrying "toString",
+   * "constructor" or "__proto__" passed as if the schema had them.
+   */
+  const has = Object.hasOwn;
   for (const [k, c] of Object.entries(required)) {
-    if (!(k in v)) out.push(`${field(k)}: missing`);
+    if (!has(v, k)) out.push(`${field(k)}: missing`);
     else c(v[k], field(k), out);
   }
   for (const k of Object.keys(v)) {
-    if (k in required) continue;
-    if (k in optional) optional[k]!(v[k], field(k), out);
-    else if (k in refused) out.push(`${field(k)}: ${refused[k]}`);
-    else out.push(`${field(k)}: not a field this piece can have (unknown fields are refused, not dropped)`);
+    if (has(required, k)) continue;
+    if (has(optional, k)) optional[k]!(v[k], field(k), out);
+    else if (has(refused, k)) out.push(`${field(k)}: ${refused[k]}`);
+    // The name is the sender's (eng review R7, D9): a plain one as it is, anything else as a value is shown, quoted, cut short, no control character.
+    else out.push(`${at ? `${at}.` : ''}${PLAIN_NAME.test(k) ? k : show(k)}: not a field this piece can have (unknown fields are refused, not dropped)`);
   }
 };
 
@@ -157,7 +181,7 @@ const byKind = (shapes: Record<string, Check>, what: string): Check => (v, at, o
 /** A short, safe rendering of a bad value for a reason: never a brand name, nor a control character. */
 function show(v: unknown): string {
   if (typeof v === 'string' && brandWords(v).length > 0) return 'a brand name';
-  if (typeof v === 'string') return JSON.stringify(v.length > 24 ? `${v.slice(0, 24)}...` : v).replace(UNSAFE_CHARS, '?');
+  if (typeof v === 'string') return JSON.stringify(v.length > 24 ? `${v.slice(0, 24)}...` : v).replace(EVERY_UNSAFE_CHAR, '?');
   if (typeof v === 'number') return String(v);
   if (v === null || v === undefined || typeof v === 'boolean') return String(v);
   return Array.isArray(v) ? 'a list' : 'an object';
@@ -417,19 +441,61 @@ export function checkUntrustedPart(data: unknown): UntrustedResult {
   (isSpec ? SPEC : partCheck(brandPrefix))(data, '', reasons);
   reasons.push(...idReasons(data.id, 'id'));
   if (reasons.length > 0) return refuse(reasons);
+  let part: Part;
   try {
     if (isSpec) {
       // Derived as the library derives its own seeds; a missing base or a bad shape throws, and is said.
-      return { ok: true, part: deriveDecorated([data as unknown as DecoratedSpec], BUILT_IN, CLEARANCE.riseMm)[0]! };
+      part = deriveDecorated([data as unknown as DecoratedSpec], BUILT_IN, CLEARANCE.riseMm)[0]!;
+    } else {
+      const sent = data as unknown as Part;
+      if (sent.kind === 'multi-road') {
+        const geometry = multiRoadReasons(sent);
+        if (geometry.length > 0) return refuse(geometry);
+      }
+      part = sent.decor ? { ...sent, decorBody: decorBoxesOf(`Piece ${sent.id}`, sent.decor, CLEARANCE.riseMm) } : sent;
     }
-    const part = data as unknown as Part;
-    if (part.kind === 'multi-road') {
-      const geometry = multiRoadReasons(part);
-      if (geometry.length > 0) return refuse(geometry);
-    }
-    if (!part.decor) return { ok: true, part };
-    return { ok: true, part: { ...part, decorBody: decorBoxesOf(`Piece ${part.id}`, part.decor, CLEARANCE.riseMm) } };
   } catch (e) {
     return refuse([`${isSpec ? 'the decorated piece' : 'decor'}: ${(e as Error).message}`]);
   }
+  const drawn = drawingReasons(part);
+  return drawn.length > 0 ? refuse(drawn) : { ok: true, part };
+}
+
+/**
+ * THE DRAWING, CHECKED AS DRAWN (eng review R6 and R9, D8 and D11). Every
+ * field above is bounded on its own, yet the numbers together can still
+ * draw too much (128 arch trusses on a straight: a 756-character link and
+ * over a million numbers of 3D geometry, enough to stall a phone) or
+ * nothing at all (a dome with no arch: "not a number" in its corners). So
+ * the piece is drawn once, alone, as the 3D view draws it, and refused when
+ * the drawing is over the budget or holds a number that isn't finite.
+ */
+export function drawingReasons(part: Part): string[] {
+  const resolve = makeResolver([...BUILT_IN, part]);
+  const graph: Graph = { pieces: [{ pieceId: 'piece', partId: part.id, turn: 'left' }], welds: [] };
+  const ports = (p: Piece) => portsOf(resolve(p.partId), p.turn);
+  let numbers = 0, broken = false;
+  try {
+    const render = renderGraph(graph, ports, resolve, placeAll(graph, ports));
+    const scene = buildScene({
+      segments: render.segments, bodies: render.bodies, ports: render.ports, welds: [],
+      partOf: () => part, riseMm: CLEARANCE.riseMm, plankMm: CLEARANCE.plankMm, marks: [],
+    });
+    const walk = (v: unknown): void => {
+      if (v instanceof Float32Array) {
+        numbers += v.length;
+        if (!broken) broken = v.some((n) => !Number.isFinite(n));
+      } else if (typeof v === 'number') {
+        if (!Number.isFinite(v)) broken = true;
+      } else if (Array.isArray(v)) v.forEach(walk);
+      else if (isObj(v)) Object.values(v).forEach(walk);
+    };
+    walk(scene);
+  } catch (e) {
+    return [`the drawing: ${(e as Error).message}`];
+  }
+  const out: string[] = [];
+  if (broken) out.push('decor: its shapes draw impossible numbers (not finite): check each shape\'s sizes, a zero where a size divides or rises is the usual cause');
+  if (numbers > MAX_DRAWING_NUMBERS) out.push(`decor: draws ${numbers} numbers of 3D, over the ${MAX_DRAWING_NUMBERS} a piece may: fewer or simpler shapes`);
+  return out;
 }

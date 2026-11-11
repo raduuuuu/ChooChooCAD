@@ -16,7 +16,8 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DECORATED_SEEDS } from '../data/decoratedSeeds.js';
 import { BUILT_IN, makeResolver } from '../data/library.js';
-import { decodePreview, encodePreview, PREVIEW_MAX_CHARS, PREVIEW_PREFIX } from '../data/previewLink.js';
+import { decodePreview, encodePreview, PREVIEW_MAX_CHARS, PREVIEW_MAX_INFLATED, PREVIEW_PREFIX } from '../data/previewLink.js';
+import { deflate, toBase64Url } from '../src/io/linkCodec.js';
 import { asSubmission, specAs } from '../test/submissions.js';
 import { FORMS_DIR, formFields, ISSUE_MAX_BYTES, issueLink, main, NEW_ISSUE, previewLink, SITE, type Io } from './briefLink.js';
 
@@ -97,6 +98,34 @@ describe('refused either way', () => {
     expect(await decodePreview('#p2.abc')).toMatchObject({ ok: false, code: 'version' });
     expect(await decodePreview('#p1.a$c')).toMatchObject({ ok: false, code: 'bad-encoding' });
     expect(await decodePreview('#p1.AAAA')).toMatchObject({ ok: false, code: 'corrupt' });
+  });
+
+  /*
+   * MUTATION PROOFS, run: decodePreview inflating with no cap (`Infinity`)
+   * fails with `AssertionError: expected { ok: false, code: 'not-json', …(1) }
+   * to match object { ok: false, code: 'too-large' }`; its not-JSON refusal
+   * replaced by `data = null` fails with `expected { ok: false, code:
+   * 'invalid', …(1) } to match object { ok: false, code: 'not-json' }`.
+   */
+  it("past the preview's own unpack cap, or not JSON once unpacked, is refused (eng review R5)", async () => {
+    const packed = async (text: string) => `${PREVIEW_PREFIX}${toBase64Url(await deflate(text))}`;
+    // 70 KB of zeros packs to a few dozen characters: a link-bomb in small.
+    expect(await decodePreview(await packed('0'.repeat(70 * 1024)))).toMatchObject({ ok: false, code: 'too-large' });
+    expect(await decodePreview(await packed('a straight, drawn by hand'))).toMatchObject({ ok: false, code: 'not-json' });
+  });
+
+  /*
+   * MUTATION PROOF, run: encodePreview's byte cap taken out (`if (false &&
+   * bytes > …)`). Fails with `AssertionError: expected { ok: true, …(1) } to
+   * match object { ok: false, code: 'too-large' }`.
+   */
+  it('a piece that packs small but unpacks past the cap gets no link: the preview would refuse it (eng review R10)', async () => {
+    // 128 canopies, each with 64 seams: accepted by the checker, under the drawing budget, but 170 KB of JSON.
+    const seams = Array.from({ length: 64 }, () => 1.2345678901234567);
+    const canopy = { kind: 'canopy', alongMm: 100, lengthMm: 50, sectionMm: [[0, 50], [10, 60]], thickMm: 2, lipMm: 1, seamsMm: seams };
+    const piece = { ...asSubmission(builtIn('A'), 'A9'), decor: Array.from({ length: 128 }, () => canopy) };
+    expect(new TextEncoder().encode(JSON.stringify(piece)).byteLength).toBeGreaterThan(PREVIEW_MAX_INFLATED);
+    expect(await encodePreview(piece)).toMatchObject({ ok: false, code: 'too-large' });
   });
 });
 

@@ -19,7 +19,7 @@ import { asSubmission, specAs } from '../test/submissions.js';
 import { TERMS } from './brandWords.js';
 import { DECORATED_SEEDS } from './decoratedSeeds.js';
 import { BUILT_IN, isStructure, makeResolver } from './library.js';
-import { checkUntrustedPart, MAX_REASONS } from './untrustedPart.js';
+import { checkUntrustedPart, MAX_DRAWING_NUMBERS, MAX_REASONS } from './untrustedPart.js';
 
 const builtIn = makeResolver(BUILT_IN);
 
@@ -184,6 +184,41 @@ describe('what a submission may not claim or carry', () => {
   });
 
   /*
+   * MUTATION PROOF, run: `obj`'s own-name test back to `in`
+   * (`const has = (o, k) => k in o`). Fails with `AssertionError: toString:
+   * expected [] to deeply equal [ Array(1) ]`.
+   */
+  it("a field named like one every object inherits is refused, on the piece and on a shape (eng review R3)", () => {
+    for (const name of ['toString', 'constructor', '__proto__', 'valueOf', 'hasOwnProperty']) {
+      // Parsed, as a link is: JSON.parse makes "__proto__" a field of its own, where an object literal would set the prototype.
+      const piece = JSON.parse(JSON.stringify(asSubmission(builtIn('A'), 'A9')).replace('{', `{"${name}":7,`));
+      expect(reasons(piece), name).toEqual([`${name}: not a field this piece can have (unknown fields are refused, not dropped)`]);
+      const spec = JSON.parse(JSON.stringify(specAs('LC9')).replace('"kind":', `"${name}":7,"kind":`));
+      expect(reasons(spec), name).toEqual([`decor[0].${name}: not a field this piece can have (unknown fields are refused, not dropped)`]);
+    }
+  });
+
+  /*
+   * MUTATION PROOFS, run: `show`'s replace back to the non-global pattern
+   * fails with `AssertionError: expected '"a?b\u202ec": not a field this
+   * piece …' not to match /[\u0000-\u001f\u007f\u202a-\u202e\u20…/`; an
+   * unknown name said raw (`${k}`) fails with `AssertionError: expected
+   * '\u001b]52;c;SGk=\u0007x: not a field …' not to match /[\u0000-…/`.
+   */
+  it('a field name or a value holding control or text-direction characters is said without them (eng review R7)', () => {
+    const unsafe = /[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/;
+    const clipboard = { ...asSubmission(builtIn('A'), 'A9'), '\u001b]52;c;SGk=\u0007x': 1 };
+    const flipped = { ...asSubmission(builtIn('A'), 'A9'), 'a\u202eb\u202ec': 1 };
+    const twice = { ...asSubmission(builtIn('A'), 'A9'), ends: { start: '\u202ex\u202e', end: 'peg' } };
+    for (const piece of [clipboard, flipped, twice]) {
+      const got = reasons(piece);
+      expect(got).toHaveLength(1);
+      expect(got[0]).not.toMatch(unsafe);
+    }
+    expect(reasons(flipped)).toEqual(['"a?b?c": not a field this piece can have (unknown fields are refused, not dropped)']);
+  });
+
+  /*
    * MUTATION PROOF, run: `refuse` without `capped`. Fails with
    * `AssertionError: expected [ …(30) ] to have a length of 21 but got 30`.
    */
@@ -223,5 +258,58 @@ describe('derived, never thrown', () => {
     const ok = checkUntrustedPart(specAs('LC9'));
     expect(ok.ok && ok.part.decoratedFrom).toBe('HP');
     expect(ok.ok && ok.part.decorBody!.length).toBe(BUILT_IN.find((p) => p.id === 'LC')!.decorBody!.length);
+  });
+});
+
+describe('drawn, as the 3D view draws it (eng review R4, R6, R8, R9)', () => {
+  const tunnel = DECORATED_SEEDS.find((seed) => seed.decor.some((d) => d.kind === 'vault' && !d.bore))!;
+  const withVault = (change: Record<string, number>) => {
+    const spec = specAs('TT9', tunnel) as { decor: { kind: string }[] };
+    spec.decor = spec.decor.map((d) => (d.kind === 'vault' ? { ...d, ...change } : d));
+    return spec;
+  };
+
+  /*
+   * MUTATION PROOF, run: the length rule taken out (`if (false) throw`).
+   * Fails with `AssertionError: expected [ Array(1) ] to deeply equal [
+   * Array(1) ]`: the drawing check below still refuses it, for its NaN, but
+   * without naming the length.
+   */
+  it('a vault with no length is refused before it draws "not a number"', () => {
+    expect(reasons(withVault({ lengthMm: 0 }))).toEqual(['the decorated piece: Decorated piece TT9: a vault needs a length.']);
+  });
+
+  /*
+   * MUTATION PROOF, run: the crown's tolerance at 1000mm. Fails with
+   * `AssertionError: expected [] to deeply equal [ Array(1) ]`.
+   */
+  it("a vault whose top isn't where its arch draws it is refused, naming both", () => {
+    expect(reasons(withVault({ widthMm: 100, springMm: 20, topMm: 21 }))).toEqual([
+      "the decorated piece: Decorated piece TT9: a vault's top must be where its arch draws it: topMm says 21, the arch reaches 70.",
+    ]);
+  });
+
+  /*
+   * MUTATION PROOF, run: MAX_DRAWING_NUMBERS at Infinity. Fails with
+   * `AssertionError: expected [] to have a length of 1 but got +0`.
+   */
+  it('a piece that draws more 3D than the budget is refused: 128 arch trusses on a straight', () => {
+    const truss = BUILT_IN.flatMap((p) => p.decor ?? []).find((d) => d.kind === 'truss' && d.band)!;
+    const piece = { ...asSubmission(builtIn('A'), 'A9'), decor: Array.from({ length: 128 }, () => JSON.parse(JSON.stringify(truss))) };
+    const got = reasons(piece);
+    expect(got).toHaveLength(1);
+    expect(got[0]).toMatch(new RegExp(`^decor: draws \\d+ numbers of 3D, over the ${MAX_DRAWING_NUMBERS} a piece may`));
+  });
+
+  /*
+   * MUTATION PROOF, run: the not-finite reason never pushed (`if (false &&
+   * broken)`). Fails with `AssertionError: expected [] to deeply equal [
+   * Array(1) ]`.
+   */
+  it("a shape whose sizes draw numbers that aren't finite is refused: a dome with no arch", () => {
+    const withDome = BUILT_IN.find((p) => p.decoratedFrom === undefined && p.decor?.some((d) => d.kind === 'dome'))!;
+    const piece = asSubmission(withDome, 'D9') as { decor: { kind: string }[] };
+    piece.decor = piece.decor.map((d) => (d.kind === 'dome' ? { ...d, archMm: 0 } : d));
+    expect(reasons(piece)).toEqual(["decor: its shapes draw impossible numbers (not finite): check each shape's sizes, a zero where a size divides or rises is the usual cause"]);
   });
 });
