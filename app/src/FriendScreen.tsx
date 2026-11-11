@@ -32,7 +32,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { codeOf } from '../../engine/src/parts/schema.js';
 import { AppName } from './AppName.js';
-import { CATALOGUE_SIZES, linkTitle, PHONE_DESIGN_ELSEWHERE } from './linkWords.js';
+import { linkTitle, PHONE_DESIGN_ELSEWHERE, sizesLine } from './linkWords.js';
 import { OpenInEditor } from './OpenInEditor.js';
 
 export interface FriendPartRow {
@@ -50,6 +50,8 @@ export interface FriendScreenProps {
   /** The editor's own verdict line, so the friend reads exactly what the sender did. */
   readonly verdict: ReactNode;
   readonly parts: readonly FriendPartRow[];
+  /** Placed pieces nobody has measured, counting repeats (the verdict's count). */
+  readonly unmeasured: number;
   readonly adapters: number;
   readonly view: '2d' | '3d';
   readonly onView: (v: '2d' | '3d') => void;
@@ -93,7 +95,7 @@ export function FriendScreen(props: FriendScreenProps | PhoneScreenProps) {
         </div>
         <div className="friend-verdict">
           {props.verdict}
-          {!own && <p className="friend-sizes">{CATALOGUE_SIZES}</p>}
+          {!own && <p className="friend-sizes">{sizesLine(props.unmeasured, props.pieces)}</p>}
         </div>
         <div className="friend-actions">
           <button className="friend-build" onClick={props.onBuild}>

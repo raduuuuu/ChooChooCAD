@@ -34,6 +34,19 @@ export const linkTitle = (pieces: number) => `A wooden railway · ${pieces} ${pi
 export const LINK_LOADING = 'Opening a shared railway…';
 export const LINK_CRASHED = "This link couldn't be shown.";
 export const CATALOGUE_SIZES = 'Checked with catalogue sizes.';
+/**
+ * What the check rests on (DESIGN.md rule 13), read with the verdict's
+ * unmeasured count just above it: catalogue sizes alone only when every
+ * piece has one (TODO "overstates photo-read pieces", 2026-11-08, D19).
+ * Unmeasured is more than photos (a guide's figure, a print file's mesh), so
+ * it says estimates.
+ */
+export const sizesLine = (unmeasured: number, pieces: number) =>
+  unmeasured === 0
+    ? CATALOGUE_SIZES
+    : unmeasured >= pieces
+      ? 'Checked with estimated sizes: nobody has measured these pieces.'
+      : 'Checked with catalogue sizes, and estimates for the pieces nobody has measured.';
 /** The exit, worded for where it goes: D23's empty check picks one (design 10A). */
 export const exitLabel = (holdsOwn: boolean) => (holdsOwn ? 'Back to my layout' : 'Start your own');
 
