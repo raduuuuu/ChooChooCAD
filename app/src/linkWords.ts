@@ -33,6 +33,8 @@ export const LINK_HELD = "Your last changes couldn't be saved, so the link wasn'
 export const linkTitle = (pieces: number) => `A wooden railway · ${pieces} ${pieces === 1 ? 'piece' : 'pieces'}`;
 export const LINK_LOADING = 'Opening a shared railway…';
 export const LINK_CRASHED = "This link couldn't be shown.";
+/** Under the crash sentence when the screen itself didn't arrive (eng review R1): trying again usually fetches it. */
+export const RELOAD = 'Reload';
 export const CATALOGUE_SIZES = 'Checked with catalogue sizes.';
 /**
  * What the check rests on (DESIGN.md rule 13), read with the verdict's
