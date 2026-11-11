@@ -44,12 +44,17 @@ const no = (code: PreviewRefusal, reason: string): PreviewResult => ({ ok: false
 
 /**
  * The fragment for a piece, checked first: `{ ok: true, fragment }` or the
- * validator's reasons, or 'too-long' past PREVIEW_MAX_CHARS. Needs `canCompress()`.
+ * validator's reasons, 'too-large' past PREVIEW_MAX_INFLATED bytes of JSON,
+ * or 'too-long' past PREVIEW_MAX_CHARS. Needs `canCompress()`.
  */
 export async function encodePreview(data: unknown): Promise<{ ok: true; fragment: string } | { ok: false; code: PreviewRefusal; reasons: readonly string[] }> {
   const checked = checkUntrustedPart(data);
   if (!checked.ok) return { ok: false, code: 'invalid', reasons: checked.reasons };
-  const fragment = `${PREVIEW_PREFIX}${toBase64Url(await deflate(JSON.stringify(data)))}`;
+  const json = JSON.stringify(data);
+  // What decode would refuse, refused here too (eng review R10, D12): a piece that packs small but unpacks past the cap.
+  const bytes = new TextEncoder().encode(json).byteLength;
+  if (bytes > PREVIEW_MAX_INFLATED) return { ok: false, code: 'too-large', reasons: [`it unpacks to over ${PREVIEW_MAX_INFLATED} bytes (${bytes})`] };
+  const fragment = `${PREVIEW_PREFIX}${toBase64Url(await deflate(json))}`;
   if (fragment.length > PREVIEW_MAX_CHARS) {
     return { ok: false, code: 'too-long', reasons: [`the preview fragment is ${fragment.length} characters, over the ${PREVIEW_MAX_CHARS} cap`] };
   }

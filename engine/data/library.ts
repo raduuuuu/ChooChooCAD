@@ -107,6 +107,17 @@ export function decorBoxesOf(owner: string, decor: readonly DecorShape[], riseMm
         const [x, y] = shape.atMm;
         const { lengthMm: l, widthMm: w, wallMm: t, springMm: spring, topMm: top } = shape;
         if (!(t > 0 && 2 * t < w && spring < top)) throw new Error(`${owner}: a vault needs walls thinner than half its width and a top higher than its spring.`);
+        // No length draws "not a number" in 3D (eng review R4, D6).
+        if (!(l > 0)) throw new Error(`${owner}: a vault needs a length.`);
+        /*
+         * ITS TOP IS THE TOP IT DRAWS (eng review R8, D10). The 3D view draws
+         * the crown at the spring (or a round bore's centre) plus half the
+         * width (view3d/decor.ts, vaultSection) and never reads topMm, while
+         * the boxes, the sizes and the train's clearance do; so the two must
+         * agree, to within 1mm. Every built-in vault agrees exactly.
+         */
+        const crown = (shape.round && shape.bore ? shape.bore.centreMm : spring) + w / 2;
+        if (Math.abs(crown - top) > 1) throw new Error(`${owner}: a vault's top must be where its arch draws it: topMm says ${top}, the arch reaches ${crown}.`);
         const wall = (side: 1 | -1) => boxOf('wall', [x, y + side * (w - t) / 2], l, t, 0, spring, { solid: true, draw: false, ...noun });
         return [
           wall(1),
