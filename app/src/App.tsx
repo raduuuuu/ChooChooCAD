@@ -1885,6 +1885,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
       planLabel: `Plan of the railway, ${n} ${n === 1 ? 'piece' : 'pieces'}.`,
       verdict: verdictLine,
       parts: Object.entries(counts).map(([partId, count]) => ({ partId, name: resolve(partId).name, count })),
+      unmeasured: trust.find((t) => t.kind === 'unverified-size')?.pieces ?? 0,
       adapters: adaptersUsed,
       view,
       onView: setViewState,

@@ -274,7 +274,9 @@ arrived before anything else:
 - **Exits say where they go:** "Back to my layout" when the friend has one,
   "Start your own" when they do not.
 - **It says what the check rests on:** "Checked with catalogue sizes." is
-  always shown under the verdict, never folded.
+  always shown under the verdict, never folded. When pieces nobody has
+  measured are in the layout it says so: "and estimates for the pieces nobody
+  has measured", or "estimated sizes" when that is every piece.
 
 ## What is NOT settled
 

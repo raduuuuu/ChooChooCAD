@@ -900,7 +900,10 @@ Measurement and method: `.gstack/qa-reports/20261020T163029Z-split-cursor/`.
 
 ---
 
-## P2 — "Checked with catalogue sizes." overstates photo-read pieces (filed by /plan-design-review, 2026-11-08, D19)
+## DONE — "Checked with catalogue sizes." overstates photo-read pieces (P2, filed by /plan-design-review, 2026-11-08, D19; built 2026-11-11)
+
+**Done:** the sentence now follows the verdict's unmeasured count (`sizesLine`, app/src/linkWords.ts): "Checked with catalogue sizes, and estimates for the pieces nobody has measured." when some are, "Checked with estimated sizes: nobody has measured these pieces." when all are. It says estimates, not photos: unmeasured also covers guide figures and print-file meshes. The community case (community-pieces plan, design D8) is still that plan's.
+
 
 **What:** the friend screen's always-shown sentence (`CATALOGUE_SIZES`, app/src/linkWords.ts:36) names photo-read sizes when a shared layout uses an unverified photo-drawn piece: "Checked with catalogue sizes and sizes read from photos."
 **Why:** DESIGN.md rule 13 makes this sentence the friend screen's promise; today it is untrue for layouts using the stations, crane, tunnel and other photo pieces.

@@ -26,6 +26,8 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { watchReloads } from '../test/reloads.js';
 import { startReadOnlySession } from '../../engine/data/storage.js';
 import { LinkRoute } from './LinkRoute.js';
+import { encodeLink } from './shareLink.js';
+import type { Graph } from '../../engine/src/graph/model.js';
 import { BUILD_LINK_STORAGE_KEY, GRAPH_STORAGE_KEY } from './storageKeys.js';
 
 vi.mock('./Viewer3D.js', () => ({
@@ -126,5 +128,33 @@ describe('a shared link', () => {
     expect(location.hash).toBe('');
     expect(reloaded()).toBe(true);
     quiet.mockRestore();
+  });
+});
+
+describe('what the check rests on (DESIGN.md rule 13; TODO D19, 2026-11-08)', () => {
+  /** Loose pieces, each anchored apart: `MT` is the metro tunnel, sized from photos. */
+  const linkOf = (partIds: readonly string[]) => {
+    const graph: Graph = {
+      pieces: partIds.map((partId, i) => ({ pieceId: `p${i}`, partId, turn: 'left' as const })),
+      welds: [],
+      anchors: new Map(partIds.map((_, i) => [`p${i}`, { pos: [0, 0, 0, 300 * i, 0, 0, 0, 0], heading: 0, level: 0 }])),
+    };
+    return encodeLink(graph);
+  };
+
+  /*
+   * MUTATION PROOF, run: FriendScreen told no piece is unmeasured
+   * (`sizesLine(0, …)`, the catalogue line alone): `Unable to find an element
+   * with the text: Checked with catalogue sizes, and estimates for the pieces
+   * nobody has measured.`
+   */
+  it('says estimates when some pieces are unmeasured, and estimated sizes when all are', async () => {
+    const some = open(await linkOf(['A', 'MT']));
+    await screen.findByRole('heading', { name: 'A wooden railway · 2 pieces' });
+    expect(screen.getByText('Checked with catalogue sizes, and estimates for the pieces nobody has measured.')).toBeTruthy();
+    some.unmount();
+    open(await linkOf(['MT']));
+    await screen.findByRole('heading', { name: 'A wooden railway · 1 piece' });
+    expect(screen.getByText('Checked with estimated sizes: nobody has measured these pieces.')).toBeTruthy();
   });
 });
