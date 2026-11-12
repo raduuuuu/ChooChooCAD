@@ -381,6 +381,14 @@ ever likely, widen BEFORE any file exists.
 
 **2026-11-04 (D6, P1 → P2 umbrella) (/plan-ceo-review 2026-11-04, app-focus review, docs/plan/2026-11-04-app-focus-review.md):** the open physical readings, each with its own entry or sheet question: ramp run 225 vs 216 ("The ramp measures 225mm"), Q2 bend, a real switch ("Measure a real Generic switch"), F4 support span ("Check that raised track is held up"), F2 train under a bridge (the P1 clearance entry), plank thickness, Q1b. The rise is no longer null: 61 (measurements.ts q5).
 
+**2026-11-12:** the sheet's "Still open" list (`docs/calibration-sheet.html`) is
+the current list. Besides the readings above, it holds the ruler heights of the
+pieces built from photos: S1 and S2 (the elevated station and its arch), M1
+(the metro tunnel, T1 to T4 and the 55mm train pushed through; T4, the inside
+of the red tube, decides the fit, #262), M2 (the metro station), B1 (the
+bowstring bridge), K1 (the cargo crane) and D1 (the Action Tunnel Station).
+Each piece stays marked unverified until its heights are read.
+
 **MOSTLY DONE (2026-10-30, PR #72).** The afternoon happened. Joint stretch
 and the train's height are measured and in `engine/data/measurements.ts`; the
 Q1 loop closed and carried a train, which is where the Generic bend limit now
@@ -1082,3 +1090,16 @@ IP questions below should be settled before anything is published publicly
   decide whether one brief can cover both or a second one is needed. Why
   deferred: the owner, 2026-11-09, "Only Claude in the beginning but we can do
   it for others afterwards". **Effort:** M. **Priority:** P3.
+
+## Parked — Move the repository to a `woodentrain` organisation (2026-11-12, #255)
+
+- **The move (parked by the owner, 2026-11-11: "delete it for now, I'll come
+  back to it later").** The review is in PR #255 (closed); its plan,
+  `docs/plan/2026-11-10-repo-and-org.md`, is kept on the `repo-org-review`
+  branch. Decided there: one repository (R1), an organisation (R2) named
+  `woodentrain` (R3), and a runbook whose steps 1 to 5 (organisation,
+  transfer, the www CNAME, the custom domain, domain verification) are the
+  owner's. When it resumes: the contributor brief is at version 2 since #257,
+  so the link PR (step 6) makes it version 3, and every link added since
+  2026-11-10 needs recounting. **Effort:** S (owner) + S (CC).
+  **Priority:** P3.
