@@ -56,6 +56,9 @@ the design rules are in [DESIGN.md](DESIGN.md); how people contribute is in
 - Every measurement asked of a person comes with a dimensioned drawing showing
   exactly what to measure (the datum points, the line, the face, the unit), and
   yes/no questions are phrased so they can't be read backwards.
+- Never ask the owner for an angle or anything needing a square or protractor:
+  ask for lengths, read with a ruler or counted on the millimetre paper's grid
+  (which gives the right angle), or for a photo Claude reads the angle from.
 - When a check starts reading a different figure (a tunnel's fit now comes
   from its lowest vault, the red tube rather than the portal), update the
   calibration sheet in the same PR so it asks for the figure the check uses.

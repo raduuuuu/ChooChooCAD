@@ -59,13 +59,13 @@
   <span>Date <code>measuredOn</code></span><span class="fill"></span>
   <span>Tools <code>method</code></span><span class="fill"></span>
 </div>
-<p class="do">Leave a box empty if you did not measure it. A caliper is ideal; a steel rule and a phone photo answer Q1, Q3 and Q4. Only Q2's bend wants care.</p>
+<p class="do">Leave a box empty if you did not measure it. A caliper is ideal; a steel rule and a phone photo answer Q1, Q3 and Q4. Only Q2's bend wants care. Nothing on it needs an angle: the millimetre grid gives every right angle.</p>
 
 <h2>Still open, 2026-11-12</h2>
 <p class="do">Everything else on this sheet is answered. A photo from straight above measures only what lies flat on the paper: anything standing up is nearer the camera and looks bigger, so heights, raised decks and slopes need the ruler.</p>
 <table class="how">
   <tr><th></th><th>Reading</th><th>How</th></tr>
-  <tr><td>&#9744;</td><td>Q2 · the joint's bend (pull and push are done)</td><td><b>PHOTO</b> two straights flat, bent until the joint binds; hold them there with tape or a weight</td></tr>
+  <tr><td>&#9744;</td><td>Q2 · the joint's bend (pull and push are done)</td><td><b>PHOTO</b> or <b>GRID</b> two straights flat on the paper, bent until the joint binds; no angle to measure</td></tr>
   <tr><td>&#9744;</td><td>Q6 · a switch's three figures</td><td><b>PHOTO</b> the switch flat</td></tr>
   <tr><td>&#9745;</td><td>S1 · the elevated station: P1 and P2 (four photos, 2026-11-06)</td><td><b>PHOTO</b> done: the model is built from them</td></tr>
   <tr><td>&#9744;</td><td>S1 · the elevated station: H0 to H4</td><td><b>RULER</b> five heights from the table</td></tr>
@@ -75,7 +75,7 @@
   <tr><td>&#9744;</td><td>B1 · the bowstring bridge: W1 to W3</td><td><b>RULER</b> heights from the table</td></tr>
   <tr><td>&#9744;</td><td>K1 · the cargo crane: G1 to G3</td><td><b>RULER</b> heights from the table</td></tr>
   <tr><td>&#9744;</td><td>D1 · the Action Tunnel Station: E1 to E3</td><td><b>RULER</b> heights, and the room over the track</td></tr>
-  <tr><td>&#9744;</td><td>F1 · the ramp's run, once more</td><td><b>RULER</b> its high end is 61 nearer the camera</td></tr>
+  <tr><td>&#9744;</td><td>F1 · the ramp's run, once more</td><td><b>RULER</b> between two pencil marks on the paper; its high end is 61 nearer the camera, so not a photo</td></tr>
   <tr><td>&#9744;</td><td>F2 · the air under a bridge, and the train pushed through</td><td><b>RULER</b> and by hand</td></tr>
   <tr><td>&#9744;</td><td>F3 · the tighter loop</td><td><b>BY HAND</b> build it and run a train; photo the gap only if it won't close</td></tr>
   <tr><td>&#9744;</td><td>F4 · the gap between two supports (unlocks the raised-track check)</td><td><b>RULER</b> the 2mm dip is read with a ruler on the track</td></tr>
@@ -96,15 +96,14 @@
 <table>
   <tr><td>Pull apart: gap between the end faces at the limit<code class="field">q2.pullApartMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
   <tr><td>Push together: 0 if the faces touch, else the gap at the hard stop<code class="field">q2.pushStopMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
-  <tr><td>Bend flat on the floor, angle at the limit<code class="field">q2.bendDeg</code></td><td class="box"></td><td class="unit">deg</td></tr>
-  <tr><td>Or: sideways travel at the far end, square to the rule<code class="field">q2.bendSidewaysMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
-  <tr><td>&hellip; and the distance along the rule from the joint to that point<code class="field">q2.bendOverMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+  <tr><td>SIDEWAYS: piece 2's far corner, counted across the grid from piece 1's line<code class="field">q2.bendSidewaysMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+  <tr><td>OVER: the joint to that corner, counted along the grid line<code class="field">q2.bendOverMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
 </table>
-<p class="do">Easiest: a photo. Lay both straights flat on the millimetre paper, swing piece 2 until the joint binds, hold it there with tape or a weight, and photograph from straight above; Claude reads the angle. Or, with a ruler and no protractor, lay a steel rule flat on the floor against one side of piece 1, running on past the joint. Swing piece 2 away from the rule until the joint binds, and hold it there without forcing.</p>
-<svg class="dwg" viewBox="0 24 200 52" role="img" aria-label="Plan view from above. Piece 1 lies along a steel rule. Piece 2 is swung away from the rule until the joint binds. Measure the sideways travel at piece 2's far corner, square to the rule, and the distance along the rule from the joint to that point.">
+<p class="do">No angle to measure: the grid does it. Lay piece 1 flat on the millimetre paper with one side exactly on a printed line, and the joint on a thick centimetre line. Swing piece 2 away from that line until the joint binds, and hold it there with tape or a weight, without forcing. Easiest: photograph it from straight above and Claude reads both figures. Or count the millimetre squares at piece 2's far outer corner: across, from piece 1's line to the corner (SIDEWAYS), and along the line, from the joint's centimetre line to the corner (OVER).</p>
+<svg class="dwg" viewBox="0 24 200 52" role="img" aria-label="Plan view from above. Piece 1 lies with one side on a printed line of the millimetre paper. Piece 2 is swung away from that line until the joint binds. Count the squares at piece 2's far corner: across the grid from the line, and along the line from the joint to that point.">
   <rect class="floor" x="8" y="48" width="166" height="5" style="fill:none"/>
   <g class="tick"><line x1="30" y1="48" x2="30" y2="50"/><line x1="50" y1="48" x2="50" y2="50"/><line x1="70" y1="48" x2="70" y2="50"/><line x1="90" y1="48" x2="90" y2="51"/><line x1="110" y1="48" x2="110" y2="50"/><line x1="130" y1="48" x2="130" y2="50"/><line x1="150" y1="48" x2="150" y2="50"/><line x1="170" y1="48" x2="170" y2="50"/></g>
-  <text x="20" y="57" class="note">steel rule, flat on the floor</text>
+  <text x="20" y="57" class="note">a printed line of the millimetre paper</text>
   <rect class="part" x="20" y="38" width="70" height="10"/>
   <text x="55" y="44" text-anchor="middle">piece 1</text>
   <g transform="rotate(-10 90 48)"><rect class="part" x="90" y="38" width="70" height="10"/><text x="125" y="44" text-anchor="middle">piece 2</text></g>
@@ -114,12 +113,12 @@
   <line class="ext" x1="158.9" y1="35.8" x2="166" y2="35.8"/>
   <line class="dim" x1="164" y1="35.8" x2="164" y2="48" marker-start="url(#a)" marker-end="url(#a)"/>
   <text x="166" y="40">SIDEWAYS = ?</text>
-  <text x="166" y="44" class="note">square to the rule,</text>
+  <text x="166" y="44" class="note">across the grid,</text>
   <text x="166" y="47" class="note">at the far corner</text>
   <line class="ext" x1="90" y1="53" x2="90" y2="66"/>
   <line class="ext" x1="158.9" y1="36" x2="158.9" y2="66" style="stroke-dasharray:1 1"/>
   <line class="dim" x1="90" y1="63" x2="158.9" y2="63" marker-start="url(#a)" marker-end="url(#a)"/>
-  <text x="124" y="61" text-anchor="middle">OVER = ?  (along the rule, joint to that point)</text>
+  <text x="124" y="61" text-anchor="middle">OVER = ?  (along the line, joint to that point)</text>
   <text x="124" y="72" text-anchor="middle" class="note">plan view from above; the bend is drawn far larger than it really is</text>
 </svg>
 
@@ -149,8 +148,8 @@
 </div>
 
 <h2>Q6 · A switch, if you have one</h2>
-<p class="do">Measure along the centreline, between the two grooves, from the heel (the single end). Easier: lay the switch flat on millimetre paper with a medium straight (A, 144) beside it and photograph it from straight above, as for the T switch; Claude reads all three from the photo.</p>
-<svg class="dwg" viewBox="0 0 180 72" role="img" aria-label="Plan view of a switch from above. From the heel, the straight road runs to its end; the curved road leaves and ends higher up. THROUGH is the heel to the straight road's end along the centreline. CHORD is the straight line from the heel to the curved road's end. OFFSET is that end's distance square off the straight road's line.">
+<p class="do">Measure along the centreline, between the two grooves, from the heel (the single end). Easier: lay the switch flat on millimetre paper with a medium straight (A, 144) beside it and photograph it from straight above, as for the T switch; Claude reads all three from the photo. Without a camera, lay the straight road's centreline along a printed line of the paper: THROUGH and CHORD are straight ruler readings, and OFFSET is counted across the grid from that line, so nothing needs an angle.</p>
+<svg class="dwg" viewBox="0 0 180 72" role="img" aria-label="Plan view of a switch from above. From the heel, the straight road runs to its end; the curved road leaves and ends higher up. THROUGH is the heel to the straight road's end along the centreline. CHORD is the straight line from the heel to the curved road's end. OFFSET is that end's distance off the straight road's line, counted across the grid.">
   <path class="trackline" d="M 20 50 L 150 50 M 20 50 C 70 50 105 40 130 18"/>
   <circle cx="20" cy="50" r="1.4" class="part"/><circle cx="150" cy="50" r="1.4" class="part"/><circle cx="130" cy="18" r="1.4" class="part"/>
   <text x="18" y="44" text-anchor="end" class="note">heel</text>
@@ -162,13 +161,13 @@
   <line class="dim" x1="138" y1="18" x2="138" y2="50" marker-start="url(#a)" marker-end="url(#a)"/>
   <line class="ext" x1="132" y1="18" x2="142" y2="18"/>
   <text x="141" y="36">OFFSET = ?</text>
-  <text x="141" y="40" class="note">square to the straight road</text>
+  <text x="141" y="40" class="note">across the grid from that line</text>
   <text x="90" y="71" text-anchor="middle" class="note">plan view, centreline dots mark each end's middle; not to scale</text>
 </svg>
 <table>
   <tr><td>Heel to the straight road's end<code class="field">q6.throughMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
   <tr><td>Heel to the diverging road's end, in a straight line<code class="field">q6.chordMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
-  <tr><td>That end's distance off the straight road's line<code class="field">q6.offsetMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
+  <tr><td>That end's distance off the straight road's line, counted across the grid<code class="field">q6.offsetMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
 </table>
 
 <div class="followup">
@@ -192,7 +191,7 @@
   <text x="22" y="60" text-anchor="middle" class="note">low end face</text>
   <text x="158" y="60" text-anchor="middle" class="note">high end face</text>
 </svg>
-<p class="do">Stand the ramp on a flat floor. Put a square against each end face, down to the floor, and measure between the two squares along the floor. Do not follow the slope.</p>
+<p class="do">Stand the ramp on the millimetre paper with one long edge along a printed line. Looking straight down, make a pencil mark on that line where each end face meets the paper, then measure between the two marks along the line. Do not follow the slope, and nothing needs a square.</p>
 <table>
   <tr><td>Run, end face to end face, peg not counted<code class="field">q4.runMm</code></td><td class="box"></td><td class="unit">mm</td></tr>
 </table>
