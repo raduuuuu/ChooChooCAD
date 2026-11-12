@@ -56,6 +56,9 @@ the design rules are in [DESIGN.md](DESIGN.md); how people contribute is in
 - Every measurement asked of a person comes with a dimensioned drawing showing
   exactly what to measure (the datum points, the line, the face, the unit), and
   yes/no questions are phrased so they can't be read backwards.
+- When a check starts reading a different figure (a tunnel's fit now comes
+  from its lowest vault, the red tube rather than the portal), update the
+  calibration sheet in the same PR so it asks for the figure the check uses.
 - When reporting a figure read from a photo, say which line and which scale it
   used, and keep them fixed across reruns.
 - Male-male adapters add no length: a socket-to-socket joint is exact and

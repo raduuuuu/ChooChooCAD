@@ -29,6 +29,10 @@ bun run typecheck   # strict typecheck (tsc --noEmit), must be clean
 bun run build       # vite build, rooted at app/
 ```
 
+Run tests from the repo root. Vitest started inside `app/` skips `vitest.config.ts`,
+and the DOM tests then fail with `localStorage` undefined. One file:
+`bunx vitest run --config vitest.config.ts <file>`.
+
 Tests live beside the code they cover. `vitest.config.ts` runs two projects:
 
 - **node**: `engine/**/*.test.ts` and `app/**/*.test.ts`, NO DOM. Pure logic, plus
