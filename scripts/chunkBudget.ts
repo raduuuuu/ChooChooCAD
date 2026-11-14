@@ -37,8 +37,15 @@
  *
  * On that measure main at 535b400 (the very build whose `index-*.js` was the
  * 154.52 above) is 162.06 kB: 154.52 plus the 7.54 kB `render-*.js` it always
- * preloaded and this never counted. That is the baseline now. It may grow by
- * at most 5 kB from there. And Three.js must not be in any of it: its
+ * preloaded and this never counted. That was the baseline. Finish the loop's
+ * offer, the train run on the plan and in 3D, and the piece shelves cut out
+ * of App.tsx spent that allowance, so it was re-measured again: 166.90 kB
+ * (2026-11-14, the end-marks PR, the first step of the phone editor; the
+ * owner's call: plan 2026-11-14-additions-eng.md, choice C7 and ED8, "yes
+ * re-measure at the first step"). The phone editor's own screen loads as a
+ * separate file and is not in this figure; what it must add to the editor
+ * itself is. It may grow by at most 5 kB from there. And Three.js must not
+ * be in any of it: its
  * renderer's name in a first-load file means a stray import pulled it in,
  * which `app/src/view3dImports.test.ts` also guards from the source side.
  */
@@ -49,7 +56,7 @@ import { gzipSync } from 'node:zlib';
 
 const DIST = join(import.meta.dir, '..', 'app', 'dist');
 const ASSETS = join(DIST, 'assets');
-const BASELINE_KB = 162.06;
+const BASELINE_KB = 166.9;
 const ALLOWANCE_KB = 5;
 
 const fail = (msg: string): never => {

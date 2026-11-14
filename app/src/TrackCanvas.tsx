@@ -1344,6 +1344,18 @@ export function TrackCanvas({
                 {refused && <title>{`Can't join the selected end: ${JOIN_REFUSED_SHORT[refused]}`}</title>}
                 <circle cx={p.x} cy={p.y} r={endHitMm} className="port-hit" />
                 {/*
+                  * THE END'S MARKS KEEP THEIR SCREEN SIZE (plan 2026-11-14, E4,
+                  * task T11; generic-TODOS.md "The cursor ring shrinks with
+                  * the board"). The hit circle above already has a pixel
+                  * floor; what is SEEN had none, so on a big layout fitted to
+                  * a phone the dot and its rings were a few pixels across.
+                  * Below `MARK_MIN_PX_PER_MM` they stop shrinking, by the
+                  * same `k` the fault marks use: one floor, so a fault and
+                  * the end beside it stay in proportion. The dot and its
+                  * rings are enlarged together, about the end's own point.
+                  */}
+                <g className="port-marks" transform={`translate(${p.x}, ${p.y}) scale(${k})`}>
+                {/*
                   * ARMED IS A RING, NOT A BIGGER BLOB (task W3, decision D5).
                   *
                   * The dot keeps ONE radius in every state. It used to swell
@@ -1354,7 +1366,7 @@ export function TrackCanvas({
                   * smaller than the r=28 clash ring below, so the two marks
                   * cannot be mistaken for each other.
                   */}
-                {isArmed && <circle cx={p.x} cy={p.y} r={16} className="port-ring" />}
+                {isArmed && <circle cx={0} cy={0} r={16} className="port-ring" />}
                 {/*
                   * THE CURSOR RING: where the next piece will attach.
                   *
@@ -1376,14 +1388,14 @@ export function TrackCanvas({
                   * already marks it and two rings on one dot is noise.
                   */}
                 {isCursor && !isArmed && (
-                  <circle cx={p.x} cy={p.y} r={21} className="port-cursor-ring" />
+                  <circle cx={0} cy={0} r={21} className="port-cursor-ring" />
                 )}
                 {/*
                   * A JOIN TARGET (design 27A): an end the join can go to, while
                   * joining. Weight, not colour: 2px against the armed end's 3px,
                   * and inside it at r=12 so the two rings never sit on one line.
                   */}
-                {joining && !isArmed && !refused && <circle cx={p.x} cy={p.y} r={12} className="port-target-ring" />}
+                {joining && !isArmed && !refused && <circle cx={0} cy={0} r={12} className="port-target-ring" />}
                 {/*
                   * Filled is a peg, hollow is a socket; same radius, so this
                   * adds no ink to a dense layout. A switch's heel is drawn the
@@ -1391,7 +1403,8 @@ export function TrackCanvas({
                   * drawing exists at all: the DONE entry in
                   * docs/plan/generic-TODOS.md.
                   */}
-                <circle cx={p.x} cy={p.y} r={8} className={POLARITY_CLASS[p.polarity]} />
+                <circle cx={0} cy={0} r={8} className={POLARITY_CLASS[p.polarity]} />
+                </g>
               </g>
             );
           })}
