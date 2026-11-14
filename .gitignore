@@ -15,3 +15,8 @@ photos/
 # The owner's private calibration notes (public until 2026-11-08). The public
 # records are docs/calibration-sheet.html and engine/data/measurements.ts.
 /CALIBRATION.md
+
+# The pages a search engine can read, written by scripts/layoutPages.ts before
+# every build from the ready layouts (plan 2026-11-14, E1). Never edited by hand.
+app/layouts/
+app/public/sitemap.xml
