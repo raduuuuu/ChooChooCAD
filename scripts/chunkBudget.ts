@@ -23,35 +23,59 @@
  * other structures, the contributor link, the piece checker) and then the
  * five ready layouts with their box-can-build words spent that in turn, so
  * it was re-measured again: 154.53 kB (2026-11-14, the ready-layouts PR, the
- * owner's call: plan 2026-11-14-additions-eng.md, choice C7). It may grow by
- * at most 5 kB from there. And
- * Three.js must not be in it: its renderer's name in the main chunk means a
- * stray import pulled it in, which `app/src/view3dImports.test.ts` also
- * guards from the source side.
+ * owner's call: plan 2026-11-14-additions-eng.md, choice C7).
+ *
+ * WHAT IS MEASURED CHANGED ON 2026-11-14 (the finish-the-loop PR), and the
+ * figure above is restated, not raised. Until then this counted the one file
+ * `index-*.js`. The first lazy import of code the editor also uses (the fill
+ * search shares the solver) made the bundler move that shared code out of
+ * `index-*.js` into a second file the page still loads at once: `index-*.js`
+ * alone fell from 154.52 to 131.02 kB while the page's first load GREW. A
+ * budget on one file would have passed that, and any later growth hidden the
+ * same way. So this now adds up everything the page loads before it can
+ * draw: the entry script and every script `index.html` preloads.
+ *
+ * On that measure main at 535b400 (the very build whose `index-*.js` was the
+ * 154.52 above) is 162.06 kB: 154.52 plus the 7.54 kB `render-*.js` it always
+ * preloaded and this never counted. That is the baseline now. It may grow by
+ * at most 5 kB from there. And Three.js must not be in any of it: its
+ * renderer's name in a first-load file means a stray import pulled it in,
+ * which `app/src/view3dImports.test.ts` also guards from the source side.
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
-const ASSETS = join(import.meta.dir, '..', 'app', 'dist', 'assets');
-const BASELINE_KB = 154.53;
+const DIST = join(import.meta.dir, '..', 'app', 'dist');
+const ASSETS = join(DIST, 'assets');
+const BASELINE_KB = 162.06;
 const ALLOWANCE_KB = 5;
 
-const files = readdirSync(ASSETS).filter((f) => f.endsWith('.js'));
-const main = files.filter((f) => f.startsWith('index-'));
-const viewer = files.filter((f) => f.startsWith('Viewer3D-'));
 const fail = (msg: string): never => {
   console.error(`chunk budget: ${msg}`);
   process.exit(1);
 };
 
-if (main.length !== 1) fail(`expected one main chunk (index-*.js), found ${main.length}`);
+const files = readdirSync(ASSETS).filter((f) => f.endsWith('.js'));
+const viewer = files.filter((f) => f.startsWith('Viewer3D-'));
 if (viewer.length !== 1) fail(`expected one lazy viewer chunk (Viewer3D-*.js), found ${viewer.length}`);
-const code = readFileSync(join(ASSETS, main[0]!));
-// zlib's default level, in thousands of bytes: the figure Vite's build prints, which the baseline is.
-const kb = gzipSync(code).length / 1000;
+
+// The first load: the entry script and every script the page preloads, as index.html names them.
+const html = readFileSync(join(DIST, 'index.html'), 'utf8');
+const first = [...new Set([...html.matchAll(/(?:src|href)="\/assets\/([^"]+\.js)"/g)].map((m) => m[1]!))];
+if (!first.some((f) => f.startsWith('index-'))) fail('index.html names no entry script (index-*.js)');
+if (first.includes(viewer[0]!)) fail(`${viewer[0]} is loaded with the page: the 3D view is no longer lazy`);
+
+let kb = 0;
+for (const f of first) {
+  const code = readFileSync(join(ASSETS, f));
+  if (code.includes('WebGLRenderer')) fail(`${f} contains WebGLRenderer: Three.js is in the first load`);
+  // zlib's default level, in thousands of bytes: the figure Vite's build prints, which the baseline is.
+  kb += gzipSync(code).length / 1000;
+}
 const limit = BASELINE_KB + ALLOWANCE_KB;
-if (code.includes('WebGLRenderer')) fail(`${main[0]} contains WebGLRenderer: Three.js is in the main chunk`);
-if (kb > limit) fail(`${main[0]} is ${kb.toFixed(2)} kB gzipped, over the ${limit.toFixed(2)} kB budget`);
-console.log(`chunk budget: ${main[0]} ${kb.toFixed(2)} kB gzipped (budget ${limit.toFixed(2)} kB); Three.js only in ${viewer[0]}`);
+if (kb > limit) fail(`the first load (${first.join(', ')}) is ${kb.toFixed(2)} kB gzipped, over the ${limit.toFixed(2)} kB budget`);
+console.log(
+  `chunk budget: first load ${kb.toFixed(2)} kB gzipped in ${first.length} files (budget ${limit.toFixed(2)} kB); Three.js only in ${viewer[0]}`,
+);

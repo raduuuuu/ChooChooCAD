@@ -25,6 +25,7 @@ const NAME: Record<Step['kind'], string> = {
   swap: 'swap',
   clear: 'clear',
   preset: 'preset',
+  fill: 'added pieces',
 };
 
 export function undoLabel(step: Step | null): string {

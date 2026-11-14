@@ -240,6 +240,7 @@ export function describeAction(
       if (kind === 'swap') return 'Undid the swap. The piece is back as it was.';
       if (kind === 'clear') return 'Undid the clear. The layout is back.';
       if (kind === 'preset') return 'Undid loading the layout. The one before is back.';
+      if (kind === 'fill') return 'Undid the added pieces. The gap is back.';
       return null;
     }
     case 'redo': {
@@ -253,6 +254,7 @@ export function describeAction(
       if (kind === 'swap') return 'Swapped the piece again.';
       if (kind === 'clear') return 'Cleared the layout again.';
       if (kind === 'preset') return 'Loaded the layout again.';
+      if (kind === 'fill') return 'Added the pieces again.';
       return null;
     }
     case 'selectPiece': {
@@ -270,5 +272,11 @@ export function describeAction(
       return 'Cleared the layout.';
     case 'preset':
       return `Loaded a layout of ${next.graph.pieces.length} pieces.`;
+    case 'fill': {
+      // A fill found for a layout that has since changed does nothing, and says nothing.
+      if (next.graph === prev.graph) return null;
+      const added = next.graph.pieces.length - prev.graph.pieces.length;
+      return added === 1 ? 'Added 1 piece. The gap is closed.' : `Added ${added} pieces. The gap is closed.`;
+    }
   }
 }
