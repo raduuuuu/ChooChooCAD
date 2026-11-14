@@ -7,8 +7,9 @@
  * Plain three in one component (eng D19): the effect owns the renderer,
  * camera and controls; `syncScene` swaps the scene's contents when the layout
  * changes and disposes what it replaces (eng D16); unmounting disposes all
- * (eng D12). It draws only on change: no animation loop, no damping, no
- * fly-in (design 20A, DESIGN.md rule 8).
+ * (eng D12). It draws only on change: no damping, no fly-in (design 20A,
+ * DESIGN.md rule 8). The one thing that redraws it frame after frame is a
+ * train run the user started (see A TRAIN RUN), and only while it lasts.
  *
  * THE LOOK (design 13A-19A, 25A): unlit, flat colour read from the CSS tokens
  * at runtime, so no colour is written here; marks are the 2D canvas's own
@@ -28,10 +29,22 @@
  * and footprints let the ray through to the wood they belong to, and anything
  * else hit first (the table) means nothing is picked. Lines, a bridge's
  * cables among them, are never picked (eng Y3).
+ *
+ * A TRAIN RUN (plan 2026-11-14, E5; DESIGN.md rule 8's second motion). The
+ * train is one box as tall as the app's measured train, standing on the road
+ * as drawn, in a group of its own beside the layout's: a new layout never
+ * disposes it by accident, and a pick never hits it.
+ *
+ *   train (from the panel) ──▶ driveTrain: each frame ──▶ placeTrain ──▶ render()
+ *        │ null, or unmount                 │ the route ended
+ *        ▼                                  ▼
+ *     the frame is cancelled,            no more frames are asked for;
+ *     the box disposed, one last draw    the train stays where it stopped
  */
 
 import { useEffect, useMemo, useRef } from 'react';
 import {
+  BoxGeometry,
   BufferAttribute,
   BufferGeometry,
   CanvasTexture,
@@ -56,7 +69,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
-import { buildScene, type Box, type Mesh as MeshArrays, type PlacedMark, type SceneArrays, type SceneInput } from '../../engine/src/view3d/mesh.js';
+import { buildScene, roadTopAt, type Box, type Mesh as MeshArrays, type PlacedMark, type SceneArrays, type SceneInput } from '../../engine/src/view3d/mesh.js';
 
 /** Thrown when the browser cannot make a WebGL context; the panel says so (eng D9). */
 export class WebGLUnavailable extends Error {
@@ -396,6 +409,89 @@ export function syncScene(group: Group, arrays: SceneArrays, c: SceneColors, dpr
   if (levelLines.length > 0) haloed(new Float32Array(levelLines), c.fail, LEVEL_LINE_PX, false, 9);
 }
 
+/** The train's length and width in the 3D view, in millimetres: the plan's own mark (`TrainControl.tsx`). */
+export const TRAIN_LENGTH_MM = 64;
+export const TRAIN_WIDTH_MM = 22;
+
+/** Where a train is at a moment, as the viewer needs it (`playback.ts` `TrainAt` is one of these). */
+export interface TrainSpot {
+  readonly pose: { readonly x: number; readonly y: number; readonly h: number };
+  /** The drawn segment it is on, and how far along it, 0..1. */
+  readonly on: Parameters<typeof roadTopAt>[0] | null;
+  readonly t: number;
+  /** True once a route that ends has ended. */
+  readonly done: boolean;
+}
+
+/** What the viewer needs of a train run. `trainRun.ts` makes these. */
+export interface TrainIn3d {
+  /** How tall the train is, in millimetres. */
+  readonly trainMm: number;
+  readonly at: (elapsedMs: number) => TrainSpot | null;
+}
+
+/**
+ * The train: an ink box with paper edges, `trainMm` tall, its origin at the
+ * middle of its underside so it is placed by where it stands. Ink and paper
+ * only: a run is not a verdict (DESIGN.md rule 1).
+ */
+export function trainObject(trainMm: number, c: SceneColors): Group {
+  const train = new Group();
+  const [l, w, h] = [TRAIN_LENGTH_MM / 2, TRAIN_WIDTH_MM / 2, trainMm];
+  const box = new BoxGeometry(TRAIN_LENGTH_MM, TRAIN_WIDTH_MM, trainMm);
+  box.translate(0, 0, trainMm / 2);
+  train.add(new Mesh(box, flat(c.ink)));
+  const corners: [number, number][] = [[-l, -w], [l, -w], [l, w], [-l, w]];
+  const edges: number[] = [];
+  corners.forEach(([x, y], i) => {
+    const [nx, ny] = corners[(i + 1) % 4]!;
+    edges.push(x, y, 0, nx, ny, 0, x, y, h, nx, ny, h, x, y, 0, x, y, h);
+  });
+  train.add(lines(new Float32Array(edges), c.paper, DETAIL_PX));
+  return train;
+}
+
+/** Stand the train where the run says it is: on the top of the road as drawn, facing along it. */
+export function placeTrain(train: Object3D, at: TrainSpot, riseMm: number, plankMm: number): void {
+  train.position.set(at.pose.x, at.pose.y, at.on ? roadTopAt(at.on, at.t, riseMm, plankMm) : plankMm);
+  train.rotation.set(0, 0, at.pose.h);
+}
+
+/**
+ * Run the train: place it and draw, frame after frame, until the route ends
+ * or the returned function is called. The clock and the frame calls are
+ * handed in so a test needs no browser.
+ */
+export function driveTrain(opts: {
+  readonly train: TrainIn3d;
+  readonly startedMs: number;
+  readonly place: (at: TrainSpot) => void;
+  readonly draw: () => void;
+  readonly now: () => number;
+  readonly request: (fn: () => void) => number;
+  readonly cancel: (id: number) => void;
+}): () => void {
+  let frame: number | null = null;
+  let over = false;
+  const step = () => {
+    frame = null;
+    if (over) return;
+    const at = opts.train.at(opts.now() - opts.startedMs);
+    if (at) {
+      opts.place(at);
+      opts.draw();
+    }
+    // A route that ends leaves the train where it stopped; a loop keeps going until the run is over.
+    if (!at?.done) frame = opts.request(step);
+  };
+  step();
+  return () => {
+    over = true;
+    if (frame !== null) opts.cancel(frame);
+    frame = null;
+  };
+}
+
 /** How far a press may move, CSS px, and still be a click rather than a turn or a pan (P3 pick in 3D). */
 export const CLICK_SLOP_PX = 5;
 
@@ -537,6 +633,8 @@ export interface Viewer3DProps {
    * modules into the editor's chunk (5.5 kB, `scripts/chunkBudget.ts`).
    */
   readonly paintTokens?: readonly string[];
+  /** A train run in progress (see A TRAIN RUN), and when it began (`performance.now()`). Absent or null: no train. */
+  readonly train?: { readonly run: TrainIn3d; readonly startedMs: number } | null;
 }
 
 export interface BuildView {
@@ -563,7 +661,7 @@ export function boxOf(arrays: SceneArrays, ids: readonly string[]): Box {
   return min[0] === Infinity ? arrays.bounds : { min: [min[0]!, min[1]!, min[2]!], max: [max[0]!, max[1]!, max[2]!] };
 }
 
-export default function Viewer3D({ input, label, resetSignal, sideSignal = 0, onContextLost, describedBy, build = null, onDrawn, onPick, paintTokens = [] }: Viewer3DProps) {
+export default function Viewer3D({ input, label, resetSignal, sideSignal = 0, onContextLost, describedBy, build = null, onDrawn, onPick, paintTokens = [], train = null }: Viewer3DProps) {
   const drawnRef = useRef(onDrawn);
   drawnRef.current = onDrawn;
   const pickRef = useRef(onPick);
@@ -576,6 +674,7 @@ export default function Viewer3D({ input, label, resetSignal, sideSignal = 0, on
     renderer: WebGLRenderer;
     scene: Scene;
     group: Group;
+    trainGroup: Group;
     camera: PerspectiveCamera;
     controls: OrbitControls;
     colors: SceneColors;
@@ -607,6 +706,9 @@ export default function Viewer3D({ input, label, resetSignal, sideSignal = 0, on
     const scene = new Scene();
     const group = new Group();
     scene.add(group);
+    // The train's own group: `syncScene` empties `group` on every layout, and a pick reads only `group`.
+    const trainGroup = new Group();
+    scene.add(trainGroup);
     const camera = new PerspectiveCamera(FOV_DEG, 1, 1, 100000);
     camera.up.set(0, 0, 1);
     const controls = new OrbitControls(camera, canvas);
@@ -625,7 +727,7 @@ export default function Viewer3D({ input, label, resetSignal, sideSignal = 0, on
     const render = () => {
       const w = el.clientWidth || 1;
       const h = el.clientHeight || 1;
-      group.traverse((o) => {
+      scene.traverse((o) => {
         const m = (o as { material?: unknown }).material;
         if (m instanceof LineMaterial) m.resolution.set(w, h);
         if (o instanceof Sprite) {
@@ -712,7 +814,7 @@ export default function Viewer3D({ input, label, resetSignal, sideSignal = 0, on
       controls.update();
       render();
     };
-    world.current = { renderer, scene, group, camera, controls, colors, render, reset, side };
+    world.current = { renderer, scene, group, trainGroup, camera, controls, colors, render, reset, side };
     (world.current as unknown as { setArrays: (a: SceneArrays) => void }).setArrays = (a) => {
       const first = current === null;
       current = a;
@@ -817,6 +919,7 @@ export default function Viewer3D({ input, label, resetSignal, sideSignal = 0, on
       controls.removeEventListener('change', render);
       ro?.disconnect();
       disposeChildren(group);
+      disposeChildren(trainGroup);
       overlay.remove();
       controls.dispose();
       renderer.dispose();
@@ -829,6 +932,34 @@ export default function Viewer3D({ input, label, resetSignal, sideSignal = 0, on
   useEffect(() => {
     (world.current as unknown as { setArrays?: (a: SceneArrays) => void } | null)?.setArrays?.(arrays);
   }, [arrays]);
+
+  // A train run: one box, moved and drawn each frame while the run lasts (see A TRAIN RUN).
+  const { riseMm, plankMm } = input;
+  useEffect(() => {
+    const w = world.current;
+    if (!w || !train) return;
+    const box = trainObject(train.run.trainMm, w.colors);
+    box.visible = false;
+    w.trainGroup.add(box);
+    const stop = driveTrain({
+      train: train.run,
+      startedMs: train.startedMs,
+      place: (at) => {
+        placeTrain(box, at, riseMm, plankMm);
+        box.visible = true;
+      },
+      draw: () => world.current?.render(),
+      now: () => performance.now(),
+      request: (fn) => requestAnimationFrame(fn),
+      cancel: (id) => cancelAnimationFrame(id),
+    });
+    return () => {
+      stop();
+      disposeChildren(w.trainGroup);
+      // The viewer may already be gone (unmount disposes everything itself).
+      world.current?.render();
+    };
+  }, [train, riseMm, plankMm]);
 
   useEffect(() => {
     world.current?.renderer.domElement.setAttribute('aria-label', label);

@@ -24,11 +24,11 @@
  * is in the editor's first load.
  */
 
-import type { FPose } from '../../engine/src/geom/fk.js';
+import type { FPose, Segment } from '../../engine/src/geom/fk.js';
 import type { PortsOf } from '../../engine/src/graph/frames.js';
 import type { Graph, PortRef } from '../../engine/src/graph/model.js';
 import type { Opening } from '../../engine/src/graph/openings.js';
-import { levelAlong, poseAlong, type Leg, type Route } from '../../engine/src/graph/route.js';
+import { levelAlong, poseAlong, spotAlong, type Leg, type Route } from '../../engine/src/graph/route.js';
 
 /** One step of the run's clock, in milliseconds: a sixtieth of a second. */
 export const STEP_MS = 1000 / 60;
@@ -47,6 +47,9 @@ export interface TrainAt {
   readonly level: number;
   /** The piece it is on. */
   readonly pieceId: string;
+  /** The drawn segment it is on, and how far along it (0..1): the 3D view stands the train on this segment's top. */
+  readonly on: Segment | null;
+  readonly t: number;
   /** True once the train has reached the end of a route that ends. Never true on a loop. */
   readonly done: boolean;
 }
@@ -82,10 +85,13 @@ export function trainAt(route: Route, mm: number): TrainAt | null {
   const onLoop = route.end === 'loop' && loop > 0 && run >= lead;
   const spot = onLoop ? within(route.loop, (run - lead) % loop) : within(route.lead, Math.min(run, lead));
   if (!spot) return null;
+  const on = spotAlong(spot.leg, spot.at);
   return {
     pose: poseAlong(spot.leg, spot.at),
     level: levelAlong(spot.leg, spot.at),
     pieceId: spot.leg.pieceId,
+    on: on?.segment ?? null,
+    t: on?.t ?? 0,
     done: !onLoop && route.end !== 'loop' && run >= lead,
   };
 }
