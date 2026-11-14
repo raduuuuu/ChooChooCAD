@@ -50,17 +50,18 @@ export function trainSentences(graph: Graph): string[] {
 }
 
 /** A loose piece at an exact place: `x` along the axis, `y` across it, pointing `heading` sixteenths round. */
-function loose(graph: Graph, partId: string, x: number, y: number, heading: number): Graph {
+export function loose(graph: Graph, partId: string, x: number, y: number, heading: number): Graph {
   const anchor: Frame = { pos: add(fromInt(x), scale(zetaPow(4), y)), heading };
   return addPiece(graph, partId, 'left', 2, null, ports, undefined, anchor).graph;
 }
 
 /** A run of pieces from the origin along the axis, each joined to the last. */
-function run(ids: readonly string[]): Graph {
+export function run(ids: readonly string[]): Graph {
   let graph: Graph = EMPTY_GRAPH;
   let at: { pieceId: string; port: number } | null = null;
   for (const id of ids) {
-    const step = addPiece(graph, id, 'left', 2, at, ports);
+    // The piece's own count of ends: a buffer has one, and `addPiece` must be told.
+    const step = addPiece(graph, id, 'left', ports({ pieceId: '', partId: id, turn: 'left' }).length, at, ports);
     graph = step.graph;
     at = step.select;
   }
