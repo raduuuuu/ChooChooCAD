@@ -102,6 +102,7 @@ import { EXAMPLE_PRESET, exampleTitle, exitLabel, LINK_HELD, ownTitle, STALE_TAB
 import { screenMode } from './screenMode.js';
 import { NARROW_QUERY, useMatchMedia } from './useMatchMedia.js';
 import { HINT_MOUSE, HINT_TOUCH, hintSeen, rememberHintSeen } from './selectHint.js';
+import { stripWords, TOUCH_QUERY } from './stripWords.js';
 import { FriendScreen } from './FriendScreen.js';
 import { ContributeLink } from './ContributeLink.js';
 import { leaveLink } from './leaveLink.js';
@@ -378,6 +379,16 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
   const screen = screenMode({ link: link !== undefined, stored: hadLayout, narrow, adopted });
   const canEditNow = useRef(screen.canEdit);
   canEditNow.current = screen.canEdit;
+  /*
+   * WORDS FOR THE HAND BEING USED (design DD8): no key names and no "Click"
+   * on a touch screen, in the strips and in what is read out. A ref beside
+   * the value, because the reducer's updater describes each action and must
+   * not be rebuilt when a tablet's keyboard is attached.
+   */
+  const coarsePointer = useMatchMedia(TOUCH_QUERY);
+  const words = stripWords(coarsePointer);
+  const touchNow = useRef(coarsePointer);
+  touchNow.current = coarsePointer;
   // The first change to the example's layout makes it yours, and from then on it saves (D66).
   useEffect(() => {
     if (exampleGraph !== null && graph !== exampleGraph) setAdopted(true);
@@ -692,7 +703,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
       // Described here, from the exact state the action ran on, because the
       // updater is the one place that sees it (see `said` below). Pure, so
       // StrictMode calling this twice writes the same sentence twice.
-      saidNext.current = describeAction(e, action, next, resolve);
+      saidNext.current = describeAction(e, action, next, resolve, touchNow.current);
       saidKind.current =
         action.kind === 'removePiece'
           ? 'removed'
@@ -1146,7 +1157,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             */}
           {selectedPart?.kind === 'block' ? (
             lastStep(editor)?.kind === 'place' && graph.pieces[graph.pieces.length - 1]!.pieceId === selected
-              ? `${selectedPart.name} placed. Move it with the arrows, R to turn, or drag it.`
+              ? words.pierPlaced(selectedPart.name)
               : canvasPieceName(selected)
           ) : (
             <>
@@ -1180,9 +1191,9 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
           <button aria-label="Move run down 1 cm" onClick={() => moveRunBy(selected, 0, -10, 0)}>↓</button>
           <button aria-label="Move run right 1 cm" onClick={() => moveRunBy(selected, 10, 0, 0)}>→</button>
         </span>
-        <button onClick={() => moveRunBy(selected, 0, 0, 1)}>Rotate run (R)</button>
+        <button onClick={() => moveRunBy(selected, 0, 0, 1)}>{words.button('Rotate run', 'R')}</button>
         {/* A one-sided decorated piece: its decoration to the other side, ends unchanged (design 5A). */}
-        {selectedFlip && <button onClick={() => dispatch({ kind: 'flipPiece', pieceId: selected })}>{selectedFlip.label} (F)</button>}
+        {selectedFlip && <button onClick={() => dispatch({ kind: 'flipPiece', pieceId: selected })}>{words.button(selectedFlip.label, 'F')}</button>}
         {/* Dressed or plain, the joints kept (design 3A): one button per version, or from three the list (D4). */}
         {selectedSwaps.length >= LIST_FROM && selectedPart ? (
           <VersionList
@@ -1483,7 +1494,6 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     rememberHintSeen();
     setHintDone(true);
   }, [selected, hintDone]);
-  const coarsePointer = useMatchMedia('(pointer: coarse)');
   const hintStrip =
     !hintDone && !ghost ? (
       <div className="mode-strip" role="group" aria-label="Tip">
@@ -1508,13 +1518,9 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
       }}
     >
       <p className="mode-strip-text">
-        {armed ? (
-          <>Joining from {endWords(armed)}. Click another free end to join it.</>
-        ) : (
-          <>Joining two ends. Click the first free end.</>
-        )}
+        {armed ? words.joinNext(endWords(armed)) : words.joinFirst}
       </p>
-      <button onClick={cancelJoin}>Cancel (Esc)</button>
+      <button onClick={cancelJoin}>{words.button('Cancel', 'Esc')}</button>
     </div>
   ) : null;
 
@@ -1544,17 +1550,17 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         </span>
       </p>
       <button onClick={() => dispatch({ kind: 'rotateGhost' })} disabled={!ghostView.keys.rotate.enabled}>
-        {ghostView.keys.rotate.label} (R)
+        {words.button(ghostView.keys.rotate.label, 'R')}
       </button>
       {/* Shown greyed when it can't act here, so F is always discoverable on a part that has it. */}
       {ghostView.keys.flip && (
         <button onClick={() => dispatch({ kind: 'flipGhost' })} disabled={!ghostView.keys.flip.enabled}>
-          {ghostView.keys.flip.label} (F)
+          {words.button(ghostView.keys.flip.label, 'F')}
         </button>
       )}
-      <button onClick={cancelGhost}>Cancel (Esc)</button>
+      <button onClick={cancelGhost}>{words.button('Cancel', 'Esc')}</button>
       <button ref={placeButton} className="primary" onClick={placeGhost}>
-        Place (Enter)
+        {words.button('Place', 'Enter')}
       </button>
     </div>
   ) : null;

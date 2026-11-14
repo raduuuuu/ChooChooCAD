@@ -27,6 +27,7 @@ import { afterKey, ghostKeys, keyHelp } from './ghostKeys.js';
 import { connectorSites } from '../../engine/src/graph/feasible.js';
 import { joinRefusal } from './layoutModel.js';
 import { JOIN_REFUSED } from './joinWords.js';
+import { stripWords } from './stripWords.js';
 
 
 const same = (a: PortRef | null, b: PortRef | null): boolean =>
@@ -37,8 +38,11 @@ export function describeAction(
   action: EditorAction,
   next: EditorState,
   resolve: (id: string) => Part,
+  /** True on a touch screen: nothing read out names a key (design DD8). */
+  touch = false,
 ): string | null {
   if (prev === next) return null;
+  const words = stripWords(touch);
   const where = (graph: Graph, ref: PortRef): string => {
     const i = graph.pieces.findIndex((p) => p.pieceId === ref.pieceId);
     const piece = graph.pieces[i];
@@ -149,7 +153,7 @@ export function describeAction(
     }
     case 'dropGhost':
       // Still pending means the drop was refused (6A); the strip says why.
-      if (next.ghost) return "Didn't place it: it doesn't fit there. Enter places it anyway, Escape cancels.";
+      if (next.ghost) return words.dropRefused;
     // falls through: a clean drop is a Place
     case 'placeGhost': {
       const n = next.graph.pieces.length;
@@ -166,7 +170,7 @@ export function describeAction(
     }
     case 'pick':
       if (!next.ghost) return null;
-      return `Placing ${resolve(action.partId).name}. ${keyHelp(ghostKeys(next.graph, portsOfPiece, next.ghost, resolve(action.partId)))}`;
+      return words.picked(resolve(action.partId).name, keyHelp(ghostKeys(next.graph, portsOfPiece, next.ghost, resolve(action.partId))));
     case 'rotateGhost':
     case 'flipGhost':
       return next.ghost ? afterKey(action.kind, resolve(next.ghost.partId), next.ghost) : null;
