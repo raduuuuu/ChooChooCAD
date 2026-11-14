@@ -230,20 +230,81 @@ function notesFor(
   bridges: readonly BridgeNote[] = [],
 ) {
   if (trust.length === 0 && !action && adapters === 0 && !raised && !bend && bridges.length === 0) return undefined;
+  return <Notes trust={trust} action={action} basis={basis} adapters={adapters} unmarked={unmarked} raised={raised} bend={bend} bridges={bridges} />;
+}
+
+/**
+ * WHERE THERE IS LITTLE ROOM (plan 2026-11-14, design DD3; eng ED5). True in
+ * the phone's editor, where the verdict has a few lines under the plan. The
+ * sentence, the next step and every must-read statement still show whole;
+ * what moves behind "N notes" there is the one kind of line that is neither:
+ * a train fit that PASSES ("about 12mm to spare"). False everywhere today.
+ */
+export const VerdictCompact = createContext(false);
+
+/** True when the measured train clears an opening this high (the sentence `TrainFit` would write is a pass). */
+const fits = (openingMm: number) => trainMargin(openingMm, CLEARANCE) > 0;
+
+/*
+ * THE VERDICT'S NOTES, IN TWO SETS (design 4A, DD3; eng ED5).
+ *
+ *   MUST-READ, never folded            EXPLANATIONS, behind "N notes"
+ *   ──────────────────────────         ──────────────────────────────
+ *   adapters needed                    where each bend limit comes from
+ *   raised track: supports, mid-air    "Exact to the catalogue."
+ *   a train that may NOT fit           the other trust lines
+ *   sizes nobody has measured          a train fit that passes   (compact only)
+ *   systems that do not join
+ *   the next step
+ *
+ * The left set is what the track physically needs, what was not checked, and
+ * what to do now (DESIGN.md rule 3). It is decided here, in one place, from
+ * the data: a caller cannot fold a must-read line by where it puts the block.
+ * `mustReadSurvivesFold` in verdictLine.test.ts holds each one outside the
+ * fold, compact or not.
+ */
+function Notes({
+  trust,
+  action,
+  basis,
+  adapters,
+  unmarked,
+  raised,
+  bend,
+  bridges,
+}: {
+  trust: readonly TrustIssue[];
+  action: string | null;
+  basis: boolean;
+  adapters: number;
+  unmarked: number;
+  raised: { readonly bridges: number; readonly supports: SupportNote | null } | null;
+  bend: BendWords | null;
+  bridges: readonly BridgeNote[];
+}) {
+  const compact = useContext(VerdictCompact);
   const unmeasured = trust.find((t) => t.kind === 'unverified-size')?.pieces ?? 0;
   const folded = trust.filter((t) => !kept(t));
   const limits = bend ? bend.limits.length + (bend.overlapNote ? 1 : 0) : 0;
-  const foldCount = limits + (basis ? 1 : 0) + folded.length;
+  // A passing train fit is an explanation where room is short; one that fails is never folded.
+  const foldFit = (openingMm: number) => compact && fits(openingMm);
+  const raisedFit = raised !== null && raised.bridges > 0;
+  const raisedFitFolded = raisedFit && foldFit(CLEARANCE.riseMm);
+  const fitsFolded = bridges.filter((b) => foldFit(b.clearanceMm));
+  const foldCount = limits + (basis ? 1 : 0) + folded.length + fitsFolded.length + (raisedFitFolded ? 1 : 0);
   return (
     <>
       {adapters > 0 && <AdapterNote n={adapters} unmarked={unmarked} />}
-      {raised && <RaisedNote bridges={raised.bridges} supports={raised.supports} />}
-      {bridges.map((b, i) => <BridgeClearance key={i} note={b} />)}
+      {raised && <RaisedNote supports={raised.supports} />}
+      {raised && raisedFit && !raisedFitFolded && <RaisedFit bridges={raised.bridges} />}
+      {bridges.map((b, i) => (foldFit(b.clearanceMm) ? null : <BridgeClearance key={i} note={b} />))}
       {unmeasured > 0 && <Unmeasured n={unmeasured} />}
       <Trust trust={trust.filter(kept)} />
       <Action action={action} />
       {foldCount > 0 && (
         <Fold count={foldCount}>
+          {raised && raisedFitFolded && <RaisedFit bridges={raised.bridges} />}
+          {fitsFolded.map((b, i) => <BridgeClearance key={i} note={b} />)}
           {bend && <BendNotes words={bend} />}
           {basis && <Basis />}
           <Trust trust={folded} />
@@ -452,18 +513,18 @@ function SupportLines({ note }: { note: SupportNote }) {
  * passes under it, through the bridges' sentence: the opening is the rise,
  * floor to the raised plank's underside (rampSeeds.ts `CLEARANCE`).
  */
-function RaisedNote({ bridges, supports }: { bridges: number; supports: SupportNote | null }) {
+function RaisedNote({ supports }: { supports: SupportNote | null }) {
+  return supports ? <SupportLines note={supports} /> : <p className="verdict-raised">Raised track: supports are not checked.</p>;
+}
+
+/** Whether the train passes under plain raised track, where it crosses floor track. Its own line, so it can be folded apart from the supports (eng ED5). */
+function RaisedFit({ bridges }: { bridges: number }) {
   return (
-    <>
-      {supports ? <SupportLines note={supports} /> : <p className="verdict-raised">Raised track: supports are not checked.</p>}
-      {bridges > 0 && (
-        <TrainFit
-          under={<>raised track (<span className="num">{bridges}</span> {bridges === 1 ? 'place' : 'places'})</>}
-          openingMm={CLEARANCE.riseMm}
-          estimate={trainEstimate()}
-        />
-      )}
-    </>
+    <TrainFit
+      under={<>raised track (<span className="num">{bridges}</span> {bridges === 1 ? 'place' : 'places'})</>}
+      openingMm={CLEARANCE.riseMm}
+      estimate={trainEstimate()}
+    />
   );
 }
 
