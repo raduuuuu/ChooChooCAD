@@ -67,6 +67,29 @@ describe('run a train, in the app', () => {
     expect(runButton()).not.toBe(null);
   });
 
+  /*
+   * UNDO PUTS THE SAME LAYOUT BACK, NOT THE RUN. Undo restores the very
+   * layout object the run was planned for, so "is this still that layout"
+   * says yes again.
+   *
+   * MUTATION PROOF, run: the effect in App.tsx that clears the run on every
+   * change to the layout removed: after Undo the Stop button and the mark
+   * are back, `expected <button …> to be null`.
+   */
+  it('an edit ends the run for good: Undo does not bring it back', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(preset('Stadium'));
+    await user.click(await ready());
+    await stopping();
+    await user.click(screen.getByRole('button', { name: 'Remove last' }));
+    expect(stopButton()).toBe(null);
+    await user.click(screen.getByRole('button', { name: /^Undo/ }));
+    expect(stopButton()).toBe(null);
+    expect(mark()).toBe(null);
+    expect(runButton()).not.toBe(null);
+  });
+
   it('stops when asked', async () => {
     const user = userEvent.setup();
     render(<App />);

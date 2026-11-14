@@ -1271,16 +1271,28 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
   const trainRun = train && train.graph === graph ? train.run : null;
   // One run on the plan and in 3D: both count from when it began, so changing view does not start it again.
   const trainShown = useMemo(() => (trainRun && train ? { run: trainRun, startedMs: train.startedMs } : null), [trainRun, train]);
-  const graphNow = useRef(graph);
-  graphNow.current = graph;
+  /*
+   * AN EDIT ENDS THE RUN FOR GOOD. "Is this still the layout it was planned
+   * for" is not enough by itself: Undo puts the very same layout object back,
+   * and the old run would come back with it, started long ago. So every
+   * change to the layout clears the run, and counts, so that a run still
+   * loading for a layout that has since changed (and changed back) is dropped
+   * too. Moving a preview is no change to the layout and ends nothing.
+   */
+  const layoutChanges = useRef(0);
+  useEffect(() => {
+    layoutChanges.current += 1;
+    setTrain((t) => (t && t.graph !== graph ? null : t));
+  }, [graph]);
   const stillMotion = useMatchMedia('(prefers-reduced-motion: reduce)');
   const canRunTrain = verdictView.kind === 'EXACT' || verdictView.kind === 'NEEDS_GIVE' || verdictView.kind === 'NO_CYCLE';
   const runTrain = () => {
     if (!result || !canRunTrain) return;
     const planned = { graph, ports, resolve, drawn, result, selected };
+    const asked = layoutChanges.current;
     void import('./trainRun.js').then(({ planRun }) => {
       // The layout changed while the walker was loading: that run is for a layout no longer here.
-      if (graphNow.current !== planned.graph) return;
+      if (layoutChanges.current !== asked) return;
       const run = planRun(planned);
       if (run) setTrain({ graph: planned.graph, run, startedMs: performance.now() });
     });
