@@ -96,6 +96,8 @@ export interface View3DPanelProps {
    * build mode.
    */
   readonly onPick?: (pieceId: string) => void;
+  /** A train run in progress, drawn in the picture (plan 2026-11-14, E5). The editor only. */
+  readonly train?: Viewer3DProps['train'];
 }
 
 export function View3DPanel(props: View3DPanelProps) {
@@ -191,6 +193,7 @@ export function View3DPanel(props: View3DPanelProps) {
       build: props.build ?? null,
       ...(props.onDrawn ? { onDrawn: props.onDrawn } : {}),
       ...(live && props.onPick ? { onPick: props.onPick } : {}),
+      ...(live && props.train ? { train: props.train } : {}),
     };
     body = (
       <Boundary key={attempt} onError={onError}>

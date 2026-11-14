@@ -150,6 +150,22 @@ export function levelAlong(leg: Leg, mm: number): number {
   return 0;
 }
 
+/**
+ * Which drawn segment the train is on `mm` along a leg, and how far along it
+ * as a fraction 0..1. The 3D view stands the train on that segment's top.
+ */
+export function spotAlong(leg: Leg, mm: number): { readonly segment: Segment; readonly t: number } | null {
+  let left = Math.max(0, Math.min(leg.lengthMm, mm));
+  for (const s of leg.path) {
+    const length = segmentLength(s);
+    if (left <= length || s === leg.path[leg.path.length - 1]) {
+      return { segment: s, t: length === 0 ? 0 : Math.min(1, left / length) };
+    }
+    left -= length;
+  }
+  return null;
+}
+
 /** Where the train is and which way it faces, `mm` along a leg. */
 export function poseAlong(leg: Leg, mm: number): FPose {
   let left = Math.max(0, Math.min(leg.lengthMm, mm));

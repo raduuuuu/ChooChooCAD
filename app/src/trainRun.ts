@@ -19,6 +19,8 @@ export interface TrainRun {
   readonly route: Route;
   /** What the run says, a sentence each. */
   readonly words: readonly string[];
+  /** How tall the train is, in millimetres: the app's one measured train, which the 3D view draws at this height. */
+  readonly trainMm: number;
   /** Where the train is `elapsedMs` after the run began. Null when the route has nowhere to be. */
   readonly at: (elapsedMs: number) => TrainAt | null;
 }
@@ -55,5 +57,5 @@ export function planRun(input: TrainRunInput): TrainRun | null {
       return piece ? ports(piece).length : 0;
     },
   });
-  return { route, words, at: (elapsedMs) => trainAt(route, distanceAfter(elapsedMs)) };
+  return { route, words, trainMm: CLEARANCE.trainMm, at: (elapsedMs) => trainAt(route, distanceAfter(elapsedMs)) };
 }

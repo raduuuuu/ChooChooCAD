@@ -20,7 +20,7 @@
  * touched while the train runs.
  */
 
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import type { TrainRun } from './trainRun.js';
 
 /** The train's size on the plan, in millimetres: inside the 26mm gauge, about a small engine long. */
@@ -34,10 +34,11 @@ const TRAIN_WIDTH_MM = 22;
  * beam lies across it). Rendered inside the canvas's own drawing group, in
  * millimetres.
  */
-export function TrainMark({ run }: { run: TrainRun }) {
+export function TrainMark({ run, startedMs }: { run: TrainRun; /** When the run began (`performance.now()`), so the plan and the 3D view show one run. Absent: now. */ startedMs?: number }) {
   const mark = useRef<SVGGElement | null>(null);
-  useEffect(() => {
-    const started = performance.now();
+  // Before the first paint, not after it: the mark is never seen at the drawing's corner, waiting to be placed.
+  useLayoutEffect(() => {
+    const started = startedMs ?? performance.now();
     let frame = 0;
     const place = (now: number) => {
       const at = run.at(now - started);
@@ -49,12 +50,12 @@ export function TrainMark({ run }: { run: TrainRun }) {
       // A route that ends leaves the train where it stopped; a loop keeps going until the run is over.
       if (!at?.done) frame = requestAnimationFrame(place);
     };
-    place(started);
+    place(performance.now());
     return () => {
       // Only a frame that was asked for: a run that was done at once asked for none.
       if (frame !== 0) cancelAnimationFrame(frame);
     };
-  }, [run]);
+  }, [run, startedMs]);
   return (
     <g ref={mark} className="train-mark" aria-hidden="true">
       <rect x={-TRAIN_LENGTH_MM / 2} y={-TRAIN_WIDTH_MM / 2} width={TRAIN_LENGTH_MM} height={TRAIN_WIDTH_MM} rx={TRAIN_WIDTH_MM / 2} />
