@@ -136,6 +136,14 @@ export type GraphResult =
       readonly supports: SupportReport | null;
       /** Track passing under an up-and-over bridge: the bridge, and the piece under it (design DD5). */
       readonly underBridges: readonly { readonly bridge: string; readonly under: string }[];
+      /**
+       * Every pair of planks crossing on different levels, structures included,
+       * with where they cross (plan 2026-11-14, E5): `bridges` and
+       * `underBridges` are both cut from this list, and neither keeps the place
+       * for a bridge. `openings.ts` reads it to say where a train meets one.
+       * Always written by `solveGraph`; optional so a result built by hand need not carry it.
+       */
+      readonly crossings?: readonly PlankOverlap[];
       /** The separate runs of track, so the verdict can speak about each one. Every branch. */
       readonly runs: RunSummary;
       /**
@@ -192,6 +200,14 @@ export type GraphResult =
       readonly supports: SupportReport | null;
       /** Track passing under an up-and-over bridge: the bridge, and the piece under it (design DD5). */
       readonly underBridges: readonly { readonly bridge: string; readonly under: string }[];
+      /**
+       * Every pair of planks crossing on different levels, structures included,
+       * with where they cross (plan 2026-11-14, E5): `bridges` and
+       * `underBridges` are both cut from this list, and neither keeps the place
+       * for a bridge. `openings.ts` reads it to say where a train meets one.
+       * Always written by `solveGraph`; optional so a result built by hand need not carry it.
+       */
+      readonly crossings?: readonly PlankOverlap[];
       /** The separate runs of track, so the verdict can speak about each one. Every branch. */
       readonly runs: RunSummary;
       /**
@@ -268,7 +284,7 @@ export function solveGraph(
   );
   const raised = segments.some((sg) => (sg.level ?? 0) + (sg.rise ?? 0) > 0 && !(sg.pieceId !== undefined && structural(sg.pieceId)));
   const supports = raised ? checkSupports(segments, bodies, (id) => resolve(partOfPiece.get(id)!), supportSpanMm) : null;
-  const levels = { levelMismatches, thirdLevels, bridges, underBridges, raised, supports, runs: summariseRuns(graph, placement.forest, rs, ports) };
+  const levels = { levelMismatches, thirdLevels, bridges, underBridges, crossings: allBridges, raised, supports, runs: summariseRuns(graph, placement.forest, rs, ports) };
 
   if (rank === 0) {
     /*
