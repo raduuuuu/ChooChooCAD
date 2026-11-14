@@ -1,3 +1,4 @@
+<!-- /autoplan restore point: "/Users/radudiaconescu/Developer/ChooChooCAD/.gstack/tmp/autoplan/phone-editor-design-autoplan-restore-20261114-200921.md" -->
 <!-- /autoplan restore point: "/Users/radudiaconescu/Developer/ChooChooCAD/.gstack/tmp/autoplan/additions-eng-review-autoplan-restore-20261114-102548.md" -->
 ## Implementation plan
 # Plan: building the four approved additions (E2, E3, E5, E4)
@@ -410,9 +411,10 @@ picked piece, the chosen end, an open sheet and an open panel.
 
 For the build: this is a second condition beside `NARROW_QUERY`
 (`(max-width: 620px)`), not a change to it. `narrowQuery.test.ts` pins the
-stylesheet's gate to that constant, and a shared link's phone screen keys
-off it; the phone shell's own query is "narrow, or short and coarse", in one
-exported constant with the same kind of pin.
+stylesheet's gate to that constant. (Corrected by the engineering review: a
+shared link is routed to the friend's screen at every width, and that
+screen's narrow styling is its own literal `620px` rule, not this constant.
+How the shell is chosen is ED2 in "Engineering review of E4".)
 
 **DD10. Panels and the keyboard (owner: "Done in a fixed first row").**
 Your box, Your table and Add a part each open full screen with a first row
@@ -889,19 +891,237 @@ by T12 on the built screen.
 
 None.
 
+## Engineering review of E4 (2026-11-14, after the design review)
+
+`/autoplan`'s guard refused an engineering phase without its CEO phase
+("Read the current Phase 1 CEO entry successfully before entering a later
+phase"), as it did in the morning. The review was therefore run directly:
+the code read against the plan, plus two independent reviewers (Codex, and a
+separate Claude that saw neither review). Both returned findings; they agree
+except where ED4 says otherwise. Every claim below was checked in the code.
+
+### Reality check (what the code says against what the plan assumed)
+
+REALITY: already-done touch placing, the 44px end hit areas and number pads on the box and table exist `app/src/trackPath.ts:627`, `app/src/Inventory.tsx:105`
+REALITY: different-from-plan the browser `<dialog>` has no behaviour under the test environment: jsdom 31.0.0's class is empty `node_modules/jsdom/lib/jsdom/living/nodes/HTMLDialogElement-impl.js:5`
+REALITY: different-from-plan a phone is sent to the friend's screen by `screen.mode === 'view' || (example && narrow)`, not by `canEdit` `app/src/App.tsx:1617`
+REALITY: different-from-plan a shared link goes to the friend's screen at every width; its narrow styling is a literal 620px rule that also hides the editor exit `app/src/app.css:2249`
+REALITY: different-from-plan "Next end" cannot be worked out by the reducer: only the canvas knows the scale and which ends a tap reached `app/src/TrackCanvas.tsx:1282`
+REALITY: different-from-plan Place consumes the preview, picks a cursor and may select a pier; a fresh pick after a closed loop floats loose `app/src/editorReducer.ts:604`, `:455`
+REALITY: different-from-plan the notes block holds the next step and the must-read statements as well as the fold, so "notes folded" needs the content split first `app/src/VerdictLine.tsx:237`
+REALITY: bug-found a train run comes back after Undo: the run is hidden when `train.graph !== graph`, and Undo restores the same graph object `app/src/App.tsx:1271`, `app/src/editorReducer.ts:774`
+REALITY: budget first load is 166.87 kB of 167.06 kB, and the script counts every preloaded file `scripts/chunkBudget.ts:64`
+
+### The two reviewers
+
+```
+ENG DUAL VOICES — CONSENSUS TABLE
+  Dimension                           Claude   Codex    Consensus
+  1. Architecture sound?              partly   partly   CONFIRMED: gate/query split and reducer shape must be fixed first
+  2. Test coverage sufficient?        no       no       CONFIRMED: several promised tests cannot fail
+  3. Perf risks + budget named?       no       no       CONFIRMED: no budget plan; about 190 bytes left
+  4. Security threats covered?        yes      n/a      single voice: no new input surface, links stay read-only
+  5. Error paths handled?             partly   partly   CONFIRMED: warnings lose their recovery buttons; loop close; Undo
+  6. Deployment risk manageable?      yes      yes      CONFIRMED, with the landing order in ED9
+```
+
+Single-voice findings that were checked and kept: the train run returning
+after Undo (Codex), editor shortcuts firing from inside a sheet (Codex), the
+keyboard shrinking a sideways tablet under the short-screen limit (Claude),
+Clear being permanent when a phone discards the tab (Claude).
+
+### How the parts fit
+
+```
+ matchMedia: PHONE_SHELL_QUERY (narrow, or short and coarse) ── ONE reader ──▶ App.tsx
+                                                                                │
+   link? ──yes──▶ FriendScreen (read-only, every width; gains the exit, T10)    │
+     │no                                                                        ▼
+   screenMode({link, stored, adopted})  ── no `narrow` any more ──▶ edit | example | link
+     │                                                   canEdit true for edit and example
+     ▼
+   App state, lifted above both shells: editor (reducer), open sheet, open panel, drafts
+     ├── wide: today's rail and section.palette                (eager, unchanged)
+     └── phone: lazy(() => import('./PhoneShell.js'))          (its own chunk)
+            ├── Sheet (dialog) ─▶ PieceShelves (eager, shared; drag off)
+            ├── Sheet (dialog) ─▶ More
+            ├── warning line  ─▶ the same notices, with their buttons
+            └── strip row     ─▶ Place / Turn / Cancel / Next end
+
+   TrackCanvas ── scale (px per mm) lifted ──▶ endsWithinReach(chosen end, ends, scale)   trackPath.ts, pure
+   editorReducer: placeGhost {again: true} ─▶ next preview only if the placed piece has a free end
+```
+
+### Engineering decisions
+
+Decided here by the usual rules (explicit over clever; reuse first), except
+ED3, ED4 and ED10, which were put to the owner.
+
+- **ED1. The dialog and the tests.** `Sheet.tsx` uses the browser's
+  `<dialog>` and `showModal()` (DD11 stands). `app/test/domSetup.ts` gains a
+  small stand-in for the test environment only (showModal sets `open`; close
+  removes it and fires `close`). DOM tests cover what the app owns: a pick
+  closes, Close closes, a tap outside the sheet's box closes and is not
+  passed to the plan, closing updates state. Escape, focus held in the sheet
+  and focus returning to its button are checked in a real browser (T12),
+  because the stand-in could only test itself.
+- **ED2. One query, read once.** `PHONE_SHELL_QUERY` ("narrow, or short and
+  coarse") is read in one place and picks the shell by rendering it; the
+  shell is styled by its class, not by a second media query. `screenMode`
+  loses `narrow` and its `view` mode: a link is `link`, your own layout is
+  `edit`, the example is `example`, and both of the last two may edit.
+  `saveLayout` and `ownBuild` keep depending on ownership only. The
+  stylesheet's gate block and `narrowQuery.test.ts` go with the gate (T10);
+  the friend's screen keeps its own 620px styling, minus the two rules that
+  hide the exit and the ask-before-replacing step.
+- **ED3. When a piece stays ready (owner: "Ready only while it has an end
+  to go on").** `placeGhost` takes `again: true` in the phone shell. The
+  next preview is made in the same reducer step, and only when the piece
+  just placed has a free end; a closed loop, a buffer or a pier leaves
+  nothing previewed. Undo and Redo put the preview away. One action, so the
+  "placed" announcement is kept and focus stays on Place. Each Place is
+  still one Undo step.
+- **ED4. Which ends "Next end" steps through (owner: "Ends near the chosen
+  end").** `endsWithinReach(chosen, ends, pxPerMm)` in `trackPath.ts`, pure:
+  the free ends, hidden ones left out, within the tap radius of the chosen
+  end, nearest first, ties by placement order. The canvas's scale is lifted
+  so App can call it; it is worked out again whenever the layout or the
+  scale changes. Stepping moves the preview and makes no Undo step. In join
+  mode the same button steps the end being joined to. (Codex preferred the
+  ends under the original tap; the owner chose the rule that survives
+  turning the phone.)
+- **ED5. The verdict's content is split before it is folded.** In
+  `VerdictLine.tsx` the next step and the statements a person must act on
+  (adapter needed, raised track unsupported, systems that do not join,
+  partly checked) are separated from the explanations. Only the
+  explanations go behind "N notes" on a phone. Without this, DD3 would hide
+  exactly what it says must stay.
+- **ED6. Sheets are modal to the keyboard too.** `useEditorKeys` is off
+  while a sheet or a full-screen panel is open, as it is in build mode, so a
+  key pressed inside a sheet cannot undo or turn track behind it. Focus
+  after closing depends on why it closed: dismissed, back to the button that
+  opened it; a pick, to Place.
+- **ED7. State lives above both shells.** The reducer, which sheet or panel
+  is open, the sheet's scroll position and the drafts in Your table and Add
+  a part are held above the wide and phone shells, so turning the phone, or
+  the keyboard shrinking a sideways tablet under the limit, keeps them.
+- **ED8. The first-load budget.** `PhoneShell.tsx` (with `Sheet` and More)
+  is one lazily loaded chunk, with a loading line and the 3D view's kind of
+  failure line. What cannot be lazy (the gate, the reducer change,
+  `endsWithinReach`, the touch wording, the verdict split, the ring floor)
+  lands in the editor's chunk, and the budget is re-measured once for E4, as
+  the owner approved (choice C7), with the phone chunk's own size recorded
+  beside it.
+- **ED9. Landing order: built dark, switched on once.**
+  1. Fixes that stand alone: the train run and Undo (ED11); the ring floor
+     (T11); touch wording (T7); the verdict split (ED5).
+  2. Reducer and canvas, wide screens unchanged: `again` (ED3),
+     `endsWithinReach` and Next end (ED4), drag made optional in
+     `PieceShelves`.
+  3. The shell, the sheets, More, the warning line and the panels, all
+     behind a condition nothing turns on yet.
+  4. One pull request that turns it on: `screenMode`, the routing at
+     `App.tsx:1617`, the gate block and its test removed, the friend's exit,
+     the retired sentences deleted.
+  No step leaves a phone with an editor it cannot see or a save failure it
+  cannot read.
+- **ED10. Clear keeps the old layout (owner: "Put the old layout aside
+  first").** Clear and a ready layout first keep the current layout in the
+  existing put-aside store (`app/src/putAside.ts`), on every screen, and
+  More gains a row to bring it back. Still no question before clearing
+  (DD14 stands).
+- **ED11. A train run ends for good on an edit.** Found while checking: a
+  run started, then an edit, then Undo, shows the old run again with its old
+  start time. Fixed on its own, before E4: any committed change to the
+  layout clears the run, and a run still loading for a layout that has since
+  changed is dropped. Moving a preview is not an edit.
+- **ED12. Warnings keep their buttons.** The phone's warning line carries
+  the same actions the notices have today (download the copy, remove it,
+  reload), not only their sentences.
+
+### What each new path is tested by
+
+| New path | Test | Where it can run |
+|----------|------|------------------|
+| shell chosen by the one query; link still read-only | `screenMode` truth table; DOM test with a matchMedia fake for the new query | node, dom |
+| pick, cancel: nothing saved; first edit adopts the example; reload keeps it | DOM tests on storage after each step | dom |
+| sheet: pick closes, Close, outside tap not passed on, state follows `close` | DOM tests on the stand-in | dom |
+| sheet: Escape, focus held, focus back; scroll remembered; never scrolls; 44px | named checks in T12 | real browser |
+| keys off while a sheet is open | DOM test: R and Ctrl+Z inside a sheet change nothing | dom |
+| `again`: eight placements, loop closes with no preview, pier, buffer, Undo | reducer tests; the existing wide-screen expectations stay as they are | node |
+| `endsWithinReach`: order, ties, hidden ends, none | unit tests | node |
+| Next end moves the preview, makes no Undo step, wraps | reducer and DOM tests | node, dom |
+| verdict: each must-read statement still on screen when folded | fixtures for adapter, raised, not joining, partly checked | node (static markup) |
+| warnings: order, "and 1 more", every recovery button reachable | DOM test with two warnings live | dom |
+| panels: a draft survives the shell changing | DOM test flipping the query with a half-typed field | dom |
+| Clear and ready layouts put the layout aside; bring back restores it | unit and DOM tests on the store | node, dom |
+| train run: Run, edit, Undo shows no run | DOM test | dom |
+| touch wording: the strips as rendered, not a words file | DOM tests per pointer type | dom |
+| rings: the radius the SVG actually emits at a small scale | static markup test | node |
+| first load within the re-measured budget; phone chunk size recorded | `scripts/chunkBudget.ts` in CI | CI |
+
+Every test records the change that makes it fail, and that change is run
+(CLAUDE.md).
+
+### What can go wrong, and what catches it
+
+| Failure | Seen by the user as | Caught by | Open? |
+|---------|--------------------|-----------|-------|
+| the phone chunk fails to download | no editor | a failure line with Reload, as the 3D view has | no |
+| the gate opens before the shell exists | "needs a larger screen" on an editing phone | landing order, ED9 | no |
+| a save fails on a phone | silently lost work | the warning line with its buttons, T8 and ED12 | no |
+| Clear, then the tab is discarded | a layout gone | the put-aside copy, ED10 | no |
+| the loop closes with a piece still ready | a stray piece | ED3 | no |
+| a key pressed in a sheet edits the plan | track changed unseen | ED6 | no |
+| the keyboard flips the shell mid-typing | a lost draft | ED7 | no |
+| native dialog behaviour differs between browsers | a sheet that will not close | T12 on a real phone, two browsers | **yes, until T12 is done** |
+
+### Not in scope for this review
+
+Persisting Undo history across a reload (ED10 covers the loss that
+matters); `interactive-widget` on the viewport tag (ED7 makes it
+unnecessary); making the panels lazy on wide screens; any change to the
+wide-screen placing behaviour.
+
+### Tasks, as the engineering review leaves them
+
+T1 to T12 above stand, with these changes:
+
+- **T0 (new, P1, human: ~3 h / CC: ~20 min)** — train run — ED11, on its own pull request, first.
+- **T1** adds: the shell is a lazy chunk with loading and failure lines (ED8); the verdict split (ED5) comes before it.
+- **T2** adds: the test stand-in and the outside-tap rule (ED1); keys off while open (ED6); drag off through a prop on `PieceShelves`.
+- **T3** adds: the "bring back" row (ED10).
+- **T4** becomes the switch-on pull request and absorbs T10 (ED2, ED9).
+- **T5** adds `app/src/TrackCanvas.tsx` to its files and is built on `endsWithinReach` (ED4).
+- **T6** is `placeGhost {again}` (ED3).
+- **T8** adds the recovery buttons (ED12).
+- **T9** adds: drafts held above the shells (ED7).
+- **T12** adds the browser-only checks named in the table above, on two phone browsers.
+
+### Engineering review summary
+
+- Scope: nothing removed; one fix (T0) and one safeguard (ED10) added.
+- Architecture: 5 issues, all decided (ED1, ED2, ED6, ED7, ED9).
+- Code quality: 2 issues, decided (ED5, ED12).
+- Tests: 12 promised tests could not fail as written; each now has a path in the table.
+- Performance: 1 issue, decided (ED8).
+- Critical gaps open: 0. One failure mode stays open until T12 is done on real phones.
+- Owner decisions: 3 (ED3, ED4, ED10).
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 1 | done in `2026-11-14-product-state-review.md` | 5 proposals, 5 accepted, 0 deferred |
-| Outside Review | Codex, eng phase (`/autoplan`) | Independent 2nd opinion | 1 | completed | 10 findings, all applied |
+| Outside Review | Codex, eng phase, morning | Independent 2nd opinion | 1 | completed | 10 findings, all applied |
 | Outside Review | Codex, design phase (`/plan-design-review`) | Independent 2nd opinion | 1 | completed | 11 findings, all put to the owner |
-| Eng Review | `/autoplan` | Architecture & tests (required) | 1 | approved by the owner as written | 10 issues, 0 critical gaps open |
+| Outside Review | Codex, eng phase for E4 | Independent 2nd opinion | 1 | completed | 12 findings, all decided |
+| Eng Review | direct (the `/autoplan` guard refused an eng-only run) | Architecture & tests (required) | 2 | clean for E4 | 12 issues, 0 critical gaps |
 | Design Review | `/plan-design-review` | UI/UX gaps | 1 | clean | score: 2/10 → 8/10, 14 decisions |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | not run | n/a |
 
-- **OUTSIDE COVERAGE:** Codex, design phase, completed, 11 findings (highest severity High). A separate Claude subagent, design phase, completed, 12 findings (2 critical).
-- **CROSS-MODEL:** both design voices independently put the same gaps first: controls with no place, close-together ends with no zoom, the sheet's rules, sideways, the keyboard and the screen reader. The Claude voice alone found the key names in the strip copy, the three-row selection strip and the cost of reopening the sheet for every piece.
-- **VERDICT:** DESIGN CLEARED for E4. The eng review predates DD1 to DD14, which add a sheet, a second screen condition and a "Next end" step: eng review required again for E4 before it is built.
+- **OUTSIDE COVERAGE:** Codex completed in both the design phase (11 findings) and the E4 eng phase (12 findings, 6 High). A separate Claude subagent completed in both (12 and 11 findings).
+- **CROSS-MODEL:** in the eng phase both voices independently found the empty dialog class in the test environment, the missing landing order, the reducer gap at loop close, that "Next end" is not derivable from reducer state, the lack of a budget plan and the tests that cannot fail. They differed on how "Next end" picks its ends; the owner chose (ED4).
+- **VERDICT:** DESIGN + ENG CLEARED for E4. Ready to build in the order of ED9, starting with T0.
 
 NO UNRESOLVED DECISIONS
