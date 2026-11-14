@@ -297,6 +297,167 @@ second editing model.
 5. **Design review first** (approved scope): `/plan-design-review` on the
    phone shell before any of steps 2 to 4 are built.
 
+### E4 design decisions (design review, 2026-11-14)
+
+Each was put to the owner as its own question and is recorded with the
+answer. Step 2 above is built to these, not to its one sentence.
+
+**DD1. Where the controls live (owner: "Row of four + More").** One screen
+that never scrolls:
+
+```
++----------------------------+
+| identity line              |
+|              [Share][Build]|   the view corner, as on a wide screen
+|                    [2D|3D] |
+|          the plan          |   takes all the height that is left
+|                            |
+| O verdict            1 note|
+| [ strip: Place Turn Cancel]|
+|----------------------------|
+| [Pieces] [Undo][Redo][More]|   fixed row, every target 44px or more
++----------------------------+
+```
+
+More holds, in this order: Remove last, Clear, Ready layouts, Save to a
+file, Open a layout file, Your box, Your table, Add a part, Run a train.
+Seen first: the plan. Second: the verdict. Third: Pieces.
+
+**DD2. The plan does not move while you aim (owner: "Reserved row, short
+forms").** One row, 52px, is always reserved under the verdict for the
+placing, joining and selection strips; empty, it shows the quiet hint. The
+plan never resizes when a strip appears. On a phone the selected-piece strip
+is one line: Turn, Flip, Remove, and a More for the arrows and versions.
+
+**DD3. The verdict's room (owner: "Answer always, notes folded").** The
+verdict sentence and the next step always show in full and wrap freely;
+neither is ever cut. Everything else (trust lines, limits, train fit) is
+behind "N notes", which opens over the plan and closes again. A physical
+requirement the user must act on belongs in the sentence or the next step,
+not only in a note.
+
+**DD4. The Pieces sheet (owner: "Half height, plan visible").** The sheet
+covers the lower half of the screen over the verdict, the strip row and the
+bottom row; the plan stays above it at the same size and does not resize.
+Its first row is the word "Pieces" and a Close button. It closes on a pick,
+on Close, or on a tap on the plan, and that tap does nothing else. It
+remembers its scroll position. It holds what `PieceShelves` holds: the
+Generic list, then the other systems as closed shelves. It opens and closes
+at once, with no slide (DESIGN.md rule 8).
+
+**DD5. Warnings (owner: "One line under the identity line").** A live
+warning (the layout could not be saved, another tab has changed it, the
+layout needs more track than the box holds) takes one wrapping line directly
+under the identity line. With several, the most serious shows (a failed save
+first) with "and 1 more" opening the rest. The phone stylesheet no longer
+hides `.notice` or `.shortfall`.
+
+What each part shows, state by state (what the person sees):
+
+| Part | Empty | Loading | Working | Failed | Partly |
+|------|-------|---------|---------|--------|--------|
+| The plan | "Build a circle" and the sentence it has today | none: it draws at once | the layout, fitted to the space | too much track to draw: today's sentence, placing paused | n/a |
+| Verdict | not shown on an empty floor, as today | "Checking" as today | sentence + next step, "N notes" | n/a | "partly checked" stays in the sentence, never only in a note |
+| Strip row | the quiet hint | n/a | Place / Turn / Cancel, or the selection row | a refusal is said in the row, as today | n/a |
+| Pieces sheet | never empty (the library) | none | the shelves | paused: cards greyed, the paused sentence first | a card past the box is marked, still pressable |
+| 3D view | "Nothing to show in 3D yet." | today's loading line | the picture | today's Try again / Reload | n/a |
+| Warning line | absent | n/a | absent | the failed-save sentence | "and 1 more" |
+
+**DD6. The next piece (owner: "Same piece stays ready").** In the phone
+shell, after Place the same piece is previewed on the new free end, so a run
+of eight curves is one pick and eight presses of Place. Cancel puts the
+preview away; Pieces changes the piece. A wide screen keeps its double-click
+and is not changed.
+
+**DD7. Crowded ends (owner: "'Next end' in the row").** A tap picks the
+nearest free end. When other free ends lie within the same tap's reach
+(`endHitRadiusMm`), the strip row gains "Next end", which moves the preview
+to each of them in turn, nearest first, and round again. The preview always
+shows which end is chosen before Place. This is what makes choice C5 (no pan
+or zoom) hold on a large layout.
+
+The journey these decisions make:
+
+| Step | The person does | The person feels | What supports it |
+|------|-----------------|------------------|------------------|
+| 1 | Opens the site on a phone, empty floor | "What is this, what do I press?" | identity line; "Build a circle" on the plan (exists) |
+| 2 | Presses Build a circle | relief: there is a railway, and it "works" | the verdict under the plan (DD3) |
+| 3 | Presses Pieces, picks a long straight | in control: the track is still in view | half-height sheet, plan visible (DD4) |
+| 4 | Sees the preview, presses Place | sure of where it goes | reserved row, plan does not jump (DD2) |
+| 5 | Places five more of the same | fast | same piece stays ready (DD6) |
+| 6 | Two ends nearly meet; taps between them | no guessing | "Next end" (DD7) |
+| 7 | The loop closes; the verdict changes | the payoff | verdict sentence always whole (DD3) |
+| 8 | Comes back a week later | it is still there, or it says why not | the warning line (DD5) |
+
+**DD8. Touch wording (owner: "Touch wording on touch screens").** On a
+touch screen (phone or tablet) the strips say "Place", "Turn", "Cancel",
+"Tap another free end", with no key names, as `HINT_TOUCH` already does for
+the selection hint. A mouse or keyboard keeps today's wording with its keys.
+Each strip sentence has both wordings and a test for each.
+
+Held to DESIGN.md as it stands (no new decision): Pieces is the heaviest
+button in the bottom row by weight, never by colour (rule 1); the sheet and
+More do not animate (rule 8); no sentence names where a button is, only its
+name (rule 7); every target in the shell is 44px or more (rule 10); colours
+and fonts are the existing tokens, with no new ones.
+
+**DD9. Sideways (owner: "Short touch screens use the phone shell").** A
+touch screen under 500px tall gets the phone shell too, arranged side by
+side: the plan, and beside it a narrow column with the verdict, the strip
+row and the four buttons. The Pieces sheet there is the full height of that
+column's side, and the plan stays visible. Turning the phone keeps the
+picked piece, the chosen end, an open sheet and an open panel.
+
+For the build: this is a second condition beside `NARROW_QUERY`
+(`(max-width: 620px)`), not a change to it. `narrowQuery.test.ts` pins the
+stylesheet's gate to that constant, and a shared link's phone screen keys
+off it; the phone shell's own query is "narrow, or short and coarse", in one
+exported constant with the same kind of pin.
+
+**DD10. Panels and the keyboard (owner: "Done in a fixed first row").**
+Your box, Your table and Add a part each open full screen with a first row
+that never scrolls: the panel's name and Done. The form scrolls by itself
+under that row, and the field in use is scrolled into view when the keyboard
+opens. Number fields open the number pad (the box and the table already ask
+for it; Add a part's fields are checked and given the same). The 44px
+data-entry floor of rule 10 holds as it does now.
+
+**DD11. Screen reader and keyboard (owner: "The browser's own dialog").**
+Pieces and More open as labelled dialogs using the browser's own `<dialog>`
+element: focus moves in, Escape closes, and focus returns to the button that
+opened it. This is the app's first use of that element (none exists today),
+so the build checks it under jsdom before relying on it in the DOM tests.
+While one is open, the plan behind it is not reachable by keyboard or screen
+reader; the tap on the plan that closes the sheet (DD4) is a tap on the
+dialog's backdrop. After a pick, focus goes to Place and the pick is
+announced, as today. The layout list (every piece, end and joint by name)
+is reachable from More.
+
+**DD12. A friend's exit on a phone (owner: "Offer the same exit as a wide
+screen").** A shared link stays read-only on every screen (DESIGN.md rule
+13). On a phone the friend's screen gains the exit a wide screen has (the
+`OPEN_IN_EDITOR` button, with its ask-before-replacing step), placed with
+the quiet ways out, after Build it. `PHONE_CANNOT_EDIT` and
+`PHONE_DESIGN_ELSEWHERE` (`linkWords.ts`) are deleted, with the stylesheet's
+"needs a larger screen" fallback sentence.
+
+**DD13. No drag out of the sheet (owner: "Tap only in the sheet").** In the
+phone's sheet a card is picked by a tap and nothing else, so scrolling the
+list never grabs a piece. Tablets and wide screens keep the palette drag as
+it is, and dragging a piece already on the plan is not changed anywhere.
+
+**DD14. More (owner: "The same half sheet, grouped rows").** More opens as
+the same half-height sheet as Pieces (plan visible, Close in its first row,
+a dialog per DD11). Its rows are grouped under three plain headings, and
+this order replaces the flat list in DD1:
+
+- This layout: Remove last, Clear, Run a train, Save to a file, Open a
+  layout file, This layout as a list.
+- Your things: Your box, Your table, Add a part.
+- Ready layouts: all eight, each with its note about the box.
+
+Clear keeps Undo as its safety, as today, and asks nothing first.
+
 Files: `app/src/Palette.tsx` (new, cut from `App.tsx`), `App.tsx`,
 `screenMode.ts` (+ its tests), `app.css`, `linkWords.ts`, `FriendScreen.tsx`,
 `OpenInEditor.tsx`, `TrackCanvas.tsx` (ring floor), `DESIGN.md`.
@@ -601,6 +762,146 @@ Approved by the owner on 2026-11-14, as written.
 | C7 chunk budget | "Re-measure for E2 and E4": the budget is re-measured once with each, recorded with its date and reason |
 | The plan, with C1, C2, C4, C5, C6 and C8 | "Approve as written" |
 
-Still required before its step: `/plan-design-review` for E4's phone shell.
-The native review voice did not run; Codex's completed review is the only
-independent coverage of this plan.
+`/plan-design-review` for E4's phone shell was run on 2026-11-14; its
+fourteen decisions are DD1 to DD14 under E4, and its record follows. For the
+engineering review, the native review voice did not run; Codex's completed
+review is the only independent coverage of that phase.
+
+## Design review of E4 (2026-11-14)
+
+`/plan-design-review` on the phone editor only. Picture mockups were not
+made: the mockup tool had no image key on this machine, so the layouts were
+decided from sketches in the questions. Two outside reviews were run first
+(Codex, and a separate Claude that had not seen this review); both found the
+same top gaps, and every one of them became a question to the owner.
+
+### What already exists, and is reused
+
+- `PieceShelves` (`app/src/Palette.tsx`): the sheet's whole content.
+- The `mode-strip` rows (placing, joining, selection) and their focus moves.
+- Tap an end, then Place; `endHitRadiusMm` gives each end 44px on touch.
+- The empty floor's "Build a circle"; the 3D view's loading and failure
+  sentences; the polite announcements region; the layout list.
+- `HINT_TOUCH` (`selectHint.ts`): the pattern for touch wording.
+- The friend's screen and its `OPEN_IN_EDITOR` exit with ask-before-replace.
+- DESIGN.md rules 1, 7, 8, 10, 11 and 13, unchanged.
+
+### Not in scope for the phone editor
+
+- Pan and zoom: the owner's choice C5; DD7 is what makes it hold.
+- Any slide or fade on the sheet: rule 8 allows two motions, and this is
+  neither.
+- The wide-screen and tablet layouts: unchanged, apart from touch wording on
+  tablets (DD8).
+- The order of the friend's screen: unchanged apart from the one exit (DD12).
+- Picture mockups: not made (no image key); `/design-review` on the built
+  screen is the visual check.
+
+### TODOS.md
+
+Nothing deferred: every finding was decided and is a task below.
+
+## Implementation Tasks
+
+Synthesized from the design review's findings. Each task derives from a
+decision above. These replace E4's steps 2 to 4; step 1 is done.
+
+- [ ] **T1 (P1, human: ~3 days / CC: ~2 h)** — phone shell — One screen that never scrolls: identity line, warning line, view corner, plan, verdict, reserved strip row, bottom row of Pieces, Undo, Redo, More
+  - Surfaced by: DD1, DD2, DD3 (the controls had no home; strips moved the plan; the verdict's room was unsaid)
+  - Files: `app/src/App.tsx`, `app/src/app.css`, a new `app/src/PhoneShell.tsx`, `app/src/VerdictLine.tsx`
+  - Verify: `bun run test`; DOM test that the shell renders the four buttons and no palette section when narrow; screenshots at 390x844
+- [ ] **T2 (P1, human: ~2 days / CC: ~1 h)** — sheet — A half-height sheet on the browser's `<dialog>`: Close row, closes on pick, Close, backdrop tap and Escape; remembers scroll; no motion; holds `PieceShelves`; tap only
+  - Surfaced by: DD4, DD11, DD13
+  - Files: a new `app/src/Sheet.tsx`, `app/src/Palette.tsx`, `app/src/app.css`
+  - Verify: DOM tests for open, pick-closes, Close, Escape, focus in and focus back; a check that `<dialog>` works under jsdom before the tests rely on it
+- [ ] **T3 (P1, human: ~1 day / CC: ~45 min)** — More — The same sheet with three headed groups and the eight ready layouts with their box notes
+  - Surfaced by: DD14
+  - Files: `app/src/PhoneShell.tsx`, `app/src/App.tsx`
+  - Verify: DOM test that each row reaches its action and that Clear is undoable
+- [ ] **T4 (P1, human: ~1 day / CC: ~45 min)** — gate — `screenMode` allows editing when narrow for your own layout and the example; the dispatch guard and stylesheet follow; one exported query for "narrow, or short and coarse", pinned like `NARROW_QUERY`; the sideways arrangement
+  - Surfaced by: DD9, and E4's step 3
+  - Files: `app/src/screenMode.ts`, `app/src/useMatchMedia.ts`, `app/src/App.tsx`, `app/src/app.css`, their tests
+  - Verify: the `screenMode` truth table; a shared link still refuses edits when narrow; turning keeps the picked piece
+- [ ] **T5 (P1, human: ~1 day / CC: ~45 min)** — crowded ends — "Next end" in the strip row when other free ends are within the tap's reach
+  - Surfaced by: DD7 (both outside reviews: bigger rings do not make close ends choosable)
+  - Files: `app/src/trackPath.ts`, `app/src/App.tsx`, `app/src/editorReducer.ts`
+  - Verify: unit test on which ends are within reach and their order; DOM test that Next end moves the preview
+- [ ] **T6 (P2, human: ~4 h / CC: ~30 min)** — placing — In the phone shell the same piece stays ready after Place
+  - Surfaced by: DD6
+  - Files: `app/src/editorReducer.ts`, `app/src/App.tsx`
+  - Verify: reducer test; a wide screen's behaviour unchanged
+- [ ] **T7 (P2, human: ~4 h / CC: ~30 min)** — copy — Touch wording for every strip sentence and button, with no key names
+  - Surfaced by: DD8
+  - Files: `app/src/App.tsx`, a words file beside `selectHint.ts`
+  - Verify: a test for each wording; `copyPosition.test.ts` stays green
+- [ ] **T8 (P2, human: ~4 h / CC: ~30 min)** — warnings — One wrapping line under the identity line, most serious first, "and 1 more"
+  - Surfaced by: DD5 (the phone stylesheet hides a failed save today)
+  - Files: `app/src/App.tsx`, `app/src/app.css`
+  - Verify: `saveFailure.dom.test.tsx` extended to the narrow screen
+- [ ] **T9 (P2, human: ~1 day / CC: ~45 min)** — panels — Full screen with a fixed first row (name and Done), a form that scrolls by itself, number pads
+  - Surfaced by: DD10
+  - Files: `app/src/Inventory.tsx`, `app/src/TablePanel.tsx`, `app/src/SubmitPart.tsx`, `app/src/app.css`
+  - Verify: DOM test that Done is outside the scrolling form; a real-phone check with the keyboard up
+- [ ] **T10 (P2, human: ~3 h / CC: ~20 min)** — friend's screen — The editor exit on a phone; delete `PHONE_CANNOT_EDIT`, `PHONE_DESIGN_ELSEWHERE` and the stylesheet's fallback sentence
+  - Surfaced by: DD12
+  - Files: `app/src/OpenInEditor.tsx`, `app/src/linkWords.ts`, `app/src/FriendScreen.tsx`, `app/src/app.css`
+  - Verify: `friendScreen.dom.test.tsx` and `openInEditor.dom.test.tsx` at the narrow width
+- [ ] **T11 (P2, human: ~3 h / CC: ~20 min)** — rings — The visible end rings get the pixel floor the hit areas have
+  - Surfaced by: E4's step 4
+  - Files: `app/src/TrackCanvas.tsx`, `app/src/trackPath.ts`
+  - Verify: unit test on the ring's radius at a small scale
+- [ ] **T12 (P1, human: ~2 h / CC: n/a)** — check — A person builds a loop on a real phone, upright and sideways, with one hand, then with a screen reader; `/design-review` on the built screen
+  - Surfaced by: the review as a whole; no pictures were made, so this is the visual check
+  - Files: none
+  - Verify: the owner's own pass
+
+## Design Review Completion Summary
+
+```
++====================================================================+
+|         DESIGN PLAN REVIEW — COMPLETION SUMMARY                    |
++====================================================================+
+| System Audit         | DESIGN.md exists; one new screen, one sheet |
+| Step 0               | 3/10; all seven passes, mockups asked for   |
+| Pass 1  (Info Arch)  | 3/10 → 9/10 after fixes                     |
+| Pass 2  (States)     | 2/10 → 8/10 after fixes                     |
+| Pass 3  (Journey)    | 3/10 → 9/10 after fixes                     |
+| Pass 4  (AI Slop)    | 8/10 → 8/10 (no issues)                     |
+| Pass 5  (Design Sys) | 6/10 → 9/10 after fixes                     |
+| Pass 6  (Responsive) | 2/10 → 9/10 after fixes                     |
+| Pass 7  (Decisions)  | 3 resolved, 0 deferred                      |
++--------------------------------------------------------------------+
+| NOT in scope         | written (5 items)                           |
+| What already exists  | written                                     |
+| TODOS.md updates     | 0 items proposed                            |
+| Approved Mockups     | 0 generated, 0 approved (no image key)      |
+| Decisions made       | 14 added to plan (DD1 to DD14)              |
+| Decisions deferred   | 0                                           |
+| Overall design score | 2/10 → 8/10                                 |
++====================================================================+
+```
+
+Why two passes stop short of 10: states (8) has no picture of any state,
+and generic-UI risk (8) cannot be judged finally from words. Both are closed
+by T12 on the built screen.
+
+### Unresolved Decisions
+
+None.
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 1 | done in `2026-11-14-product-state-review.md` | 5 proposals, 5 accepted, 0 deferred |
+| Outside Review | Codex, eng phase (`/autoplan`) | Independent 2nd opinion | 1 | completed | 10 findings, all applied |
+| Outside Review | Codex, design phase (`/plan-design-review`) | Independent 2nd opinion | 1 | completed | 11 findings, all put to the owner |
+| Eng Review | `/autoplan` | Architecture & tests (required) | 1 | approved by the owner as written | 10 issues, 0 critical gaps open |
+| Design Review | `/plan-design-review` | UI/UX gaps | 1 | clean | score: 2/10 → 8/10, 14 decisions |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | not run | n/a |
+
+- **OUTSIDE COVERAGE:** Codex, design phase, completed, 11 findings (highest severity High). A separate Claude subagent, design phase, completed, 12 findings (2 critical).
+- **CROSS-MODEL:** both design voices independently put the same gaps first: controls with no place, close-together ends with no zoom, the sheet's rules, sideways, the keyboard and the screen reader. The Claude voice alone found the key names in the strip copy, the three-row selection strip and the cost of reopening the sheet for every piece.
+- **VERDICT:** DESIGN CLEARED for E4. The eng review predates DD1 to DD14, which add a sheet, a second screen condition and a "Next end" step: eng review required again for E4 before it is built.
+
+NO UNRESOLVED DECISIONS
