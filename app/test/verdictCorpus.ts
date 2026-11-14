@@ -17,7 +17,7 @@ import { BUILT_IN, isStructure } from '../../engine/data/library.js';
 import { graphFromChain } from '../../engine/src/graph/fromChain.js';
 import type { Frame, Graph, Piece, Weld } from '../../engine/src/graph/model.js';
 import type { Layout, Turn } from '../../engine/src/parts/schema.js';
-import { PRESETS, presetLayout } from '../src/presets.js';
+import { presetByLabel, presetLayout } from '../src/presets.js';
 
 function lcg(seed: number) {
   let s = seed >>> 0;
@@ -58,7 +58,11 @@ export function corpus(): Array<[string, Graph]> {
     });
     out.push([`ramp loop ${n}`, { pieces, welds }]);
   }
-  for (const p of PRESETS) out.push([`preset ${p.label}`, graphFromChain(presetLayout(p))]);
+  // The three presets the corpus was frozen with. Ready layouts added since are
+  // pinned by app/src/presets.test.ts; adding them here would change a fixed corpus.
+  for (const label of ['Circle', 'Stadium', 'Near miss']) {
+    out.push([`preset ${label}`, graphFromChain(presetLayout(presetByLabel(label)))]);
+  }
   // The owner's layout, joined a pair at a time.
   const fx = JSON.parse(readFileSync(new URL('../../engine/test/fixtures/owner-interlocked.json', import.meta.url), 'utf8'));
   const anchors = new Map<string, Frame>(

@@ -21,18 +21,14 @@
  */
 
 import { BUILT_IN, makeResolver } from '../../engine/data/library.js';
-import { brandFit } from '../../engine/data/thirdParty.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
 import { portsOf, type Graph, type Piece } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
-import { solveGraph } from '../../engine/src/graph/solve.js';
-import { initialEditor, reduce } from './editorReducer.js';
-import { EMPTY_GRAPH } from './layoutModel.js';
 import { CATALOGUE_SIZES } from './linkWords.js';
-import { PRESETS, type Preset } from './presets.js';
+import { PRESETS } from './presets.js';
+import { closesExactly, presetGraph } from './presetVerdict.js';
 import { encodeLink } from './shareLink.js';
 import { seamLines, segmentPath } from './trackPath.js';
-import { viewOf } from './verdictView.js';
 
 /** Where the site lives. The CNAME in `app/public/` says the same. */
 export const SITE = 'https://woodentrain.world';
@@ -63,29 +59,6 @@ export interface LayoutPage {
 
 const resolve = makeResolver(BUILT_IN);
 const ports = (p: Piece) => portsOf(resolve(p.partId), p.turn);
-
-/** The layout a preset builds, through the same reducer step the app's button takes. */
-export function presetGraph(preset: Preset): Graph {
-  return reduce(initialEditor(EMPTY_GRAPH, ports), { kind: 'preset', ids: preset.pieces }, ports).graph;
-}
-
-/** The verdict's own answer for a layout, classified exactly as the screen does. */
-export function closesExactly(graph: Graph): boolean {
-  const placement = placeAll(graph, ports);
-  const render = renderGraph(graph, ports, resolve, placement);
-  const slop = new Map(graph.pieces.map((p) => [p.pieceId, resolve(p.partId).slop.axialMm]));
-  const result = solveGraph(
-    graph,
-    ports,
-    resolve,
-    (id: string) => slop.get(id) ?? 0,
-    placement,
-    { parts: BUILT_IN, brandFit },
-    render.segments,
-    render.bodies,
-  );
-  return viewOf(result).kind === 'EXACT';
-}
 
 const slugOf = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 

@@ -19,7 +19,12 @@
  * supports check, the 3D paint, the elevated station's detail and then the
  * metro tunnel and station with the version list they called for spent
  * that, so it was re-measured again: 149.20 kB (2026-11-07, the metro PR,
- * the owner's call). It may grow by at most 5 kB from there. And
+ * the owner's call). The pieces and plans since (the cargo crane and the
+ * other structures, the contributor link, the piece checker) and then the
+ * five ready layouts with their box-can-build words spent that in turn, so
+ * it was re-measured again: 154.53 kB (2026-11-14, the ready-layouts PR, the
+ * owner's call: plan 2026-11-14-additions-eng.md, choice C7). It may grow by
+ * at most 5 kB from there. And
  * Three.js must not be in it: its renderer's name in the main chunk means a
  * stray import pulled it in, which `app/src/view3dImports.test.ts` also
  * guards from the source side.
@@ -30,7 +35,7 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
 const ASSETS = join(import.meta.dir, '..', 'app', 'dist', 'assets');
-const BASELINE_KB = 149.2;
+const BASELINE_KB = 154.53;
 const ALLOWANCE_KB = 5;
 
 const files = readdirSync(ASSETS).filter((f) => f.endsWith('.js'));

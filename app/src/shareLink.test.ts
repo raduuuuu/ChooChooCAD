@@ -99,7 +99,7 @@ describe('a link carries exactly what a saved layout keeps (D30)', () => {
    */
   it('every preset comes back the same', async () => {
     for (const preset of PRESETS) {
-      const graph = act(START, { kind: 'preset', ids: preset.pieces }).graph;
+      const graph = act(START, { kind: 'preset', ids: preset.pieces, turns: preset.turns }).graph;
       const back = await decodeLink(await encodeLink(graph));
       if (!back.ok) throw new Error(`${preset.label}: ${back.reason}`);
       expect(storedGraphOf(back.graph)).toEqual(canonical(graph));

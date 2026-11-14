@@ -839,6 +839,12 @@
 }
 .palette-controls button:hover:not(:disabled) { border-color: var(--ink-soft); }
 .palette-controls button:disabled { opacity: 0.4; cursor: default; }
+/* What your box says of a ready layout (plan 2026-11-14, E2): a second line of
+   words on its button, in the soft ink, never a colour (DESIGN.md rule 1). */
+.palette-controls button .ready-box { display: block; color: var(--ink-soft); font-size: 12px; line-height: 1.2; }
+/* The button is a row by default, which set the words beside the name and
+   pushed them out of a third-width button. Stacked, both lines fit. */
+.palette-controls button.has-box { flex-direction: column; justify-content: center; gap: 2px; padding-block: var(--s1); }
 .toggle { cursor: pointer; }
 .spacer { flex: 1; }
 

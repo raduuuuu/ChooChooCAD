@@ -83,7 +83,9 @@ import { originLabel, originOf, originUrl } from '../../engine/data/origins.js';
 import { isMeasured } from '../../engine/data/measured.js';
 import { AppName } from './AppName.js';
 import { previews } from './previewGeometry.js';
-import { EMPTY_STATE_PRESET, PRESETS, presetByLabel } from './presets.js';
+import { EMPTY_STATE_PRESET, PRESETS, presetByLabel, type Preset } from './presets.js';
+import { presetAction } from './presetVerdict.js';
+import { boxWords, byBox } from './canBuild.js';
 import { JoinStart, VerdictLine, VerdictScope, type BridgeNote } from './VerdictLine.js';
 import { markLists } from './markLists.js';
 import { EMPTY_GRAPH, familyOf, ghostFit, joinRefusal, otherLevelEndNear, shiftMm, snapRunMove, swapPiece, swapsOf, woodOf, type JoinRefusal } from './layoutModel.js';
@@ -997,9 +999,9 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
   });
   const breakJoint = (a: PortRef, b: PortRef) => dispatch({ kind: 'breakWeld', a, b });
   const clear = () => dispatch({ kind: 'clear' });
-  const preset = (ids: readonly string[]) => {
+  const preset = (p: Preset) => {
     countAction('preset');
-    dispatch({ kind: 'preset', ids });
+    dispatch(presetAction(p));
   };
 
   // The trust register. Computed from the library, so it knows what the solver
@@ -1787,7 +1789,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             <>
               <button
                 className="primary"
-                onClick={() => preset(presetByLabel(EMPTY_STATE_PRESET).pieces)}
+                onClick={() => preset(presetByLabel(EMPTY_STATE_PRESET))}
               >
                 Build a {EMPTY_STATE_PRESET.toLowerCase()}
               </button>
@@ -2245,11 +2247,25 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             * the blank canvas's "give me something to look at", so the overlap
             * is not a duplicate invitation.
             */}
-          {PRESETS.map((p) => (
-            <button key={p.label} onClick={() => preset(p.pieces)} title={p.note}>
-              {p.label}
-            </button>
-          ))}
+          {/*
+            * With a box declared, each says whether the box can build it, and
+            * the ones it can come first (plan 2026-11-14, E2). The words are
+            * text, not colour: nothing here is a verdict (DESIGN.md rule 1).
+            */}
+          {byBox(PRESETS, inventory).map(({ preset: p, short }) => {
+            const box = boxWords(short, (id) => resolve(id).name);
+            return (
+              <button
+                key={p.label}
+                className={box ? 'has-box' : undefined}
+                onClick={() => preset(p)}
+                title={box ? `${p.note}. ${box.line}` : p.note}
+              >
+                {p.label}
+                {box && <span className="ready-box">{box.tag}</span>}
+              </button>
+            );
+          })}
         </div>
 
         <LayoutFileControls
