@@ -1851,6 +1851,32 @@
 }
 
 /*
+ * FINISH THE LOOP (plan 2026-11-14, E3): the offer under the verdict, and the
+ * fills it finds. Ink and paper only: a fill is a suggestion, not a verdict,
+ * so nothing here is coloured (DESIGN.md rule 1). 44px on a finger (rule 10).
+ */
+.finish-loop { padding: var(--s2) var(--s4) var(--s3); }
+.finish-line { margin: 0 0 var(--s2); }
+.finish-note { margin: var(--s2) 0 0; color: var(--ink-soft); font-size: 14px; }
+.finish-fills { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s2); }
+.finish-find,
+.finish-fill {
+  min-height: 36px;
+  padding: 0 var(--s3);
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  border-radius: 3px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+@media (pointer: coarse) {
+  .finish-find,
+  .finish-fill { min-height: 44px; }
+}
+
+/*
  * THE 3D VIEW (docs/plan/2026-10-31-3d-viewer.md).
  *
  * The switch and Reset sit in the view's top-end corner, the one corner the

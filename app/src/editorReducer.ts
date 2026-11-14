@@ -52,6 +52,8 @@ import {
   woodOf,
   type Fit,
   type FitGeometry,
+  applyFill,
+  type FillPlan,
 } from './layoutModel.js';
 import { connectorSites } from '../../engine/src/graph/feasible.js';
 
@@ -218,7 +220,7 @@ export interface Ghost {
 }
 
 export interface Step {
-  readonly kind: 'place' | 'placeJoin' | 'break' | 'join' | 'remove' | 'move' | 'flip' | 'swap' | 'clear' | 'preset';
+  readonly kind: 'place' | 'placeJoin' | 'break' | 'join' | 'remove' | 'move' | 'flip' | 'swap' | 'clear' | 'preset' | 'fill';
   /** In `past`, the graph before the step; in `future`, the graph after it. */
   readonly graph: Graph;
 }
@@ -305,6 +307,13 @@ export type EditorAction =
       readonly otherLevelNear?: boolean;
     }
   | { readonly kind: 'clear' }
+  /**
+   * Put in the pieces that close a gap (plan 2026-11-14, E3). `graph` is the
+   * layout the fill was found and checked for: if the layout has changed
+   * since, by so much as one edit, the action does nothing, because the check
+   * it passed was of another layout.
+   */
+  | { readonly kind: 'fill'; readonly plan: FillPlan; readonly graph: Graph }
   | {
       readonly kind: 'preset';
       readonly ids: readonly string[];
@@ -874,6 +883,24 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
      * `ports` is now required by `addPiece`, so the two call sites cannot
      * drift apart again.
      */
+    /*
+     * A FILL IS ONE STEP (plan 2026-11-14, E3): its pieces and its closing
+     * join go in together and come out together, and a weld it replaced comes
+     * back with them. `applyFill` is the function the search checked the
+     * layout with, so what was checked is what is placed (eng finding 1).
+     */
+    case 'fill': {
+      if (action.graph !== state.graph) return state;
+      const applied = applyFill(state.graph, ports, action.plan);
+      if (applied === null) return state;
+      return {
+        graph: applied.graph,
+        cursor: resumeCursor(applied.graph, ports),
+        armed: null,
+        ...remember(state, 'fill'),
+      };
+    }
+
     case 'preset': {
       let graph = EMPTY_GRAPH;
       let at: PortRef | null = null;

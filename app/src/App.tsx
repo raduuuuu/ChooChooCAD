@@ -86,6 +86,7 @@ import { previews } from './previewGeometry.js';
 import { EMPTY_STATE_PRESET, PRESETS, presetByLabel, type Preset } from './presets.js';
 import { presetAction } from './presetVerdict.js';
 import { boxWords, byBox } from './canBuild.js';
+import { FinishLoop } from './FillOffer.js';
 import { JoinStart, VerdictLine, VerdictScope, type BridgeNote } from './VerdictLine.js';
 import { markLists } from './markLists.js';
 import { EMPTY_GRAPH, familyOf, ghostFit, joinRefusal, otherLevelEndNear, shiftMm, snapRunMove, swapPiece, swapsOf, woodOf, type JoinRefusal } from './layoutModel.js';
@@ -1327,6 +1328,21 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     const piece = graph.pieces[i];
     return piece ? `the ${endName(resolve(piece.partId), ref.port, piece.turn)} of piece ${i + 1}` : 'an end';
   };
+  /**
+   * The one joint that does not meet, or null when there is none or more
+   * than one. Read from the solver's residuals, not from the canvas's gap
+   * marks: a loop that closes with the joints' give is drawn bent and shows
+   * no gap mark, and it is offered a fill all the same (owner, 2026-11-14).
+   */
+  const finishGap = useMemo(() => {
+    const unmet = (result && 'residuals' in result ? result.residuals : []).filter(
+      (r) => r.gapMm > 0 && r.headingSteps === 0,
+    );
+    if (unmet.length !== 1) return null;
+    const gap = unmet[0]!;
+    const weld = graph.welds[gap.weld];
+    return weld ? { weld: gap.weld, from: weld.a, to: weld.b, gapMm: gap.gapMm } : null;
+  }, [result, graph]);
   const suggestionName = (g: JoinSuggestion) => `Join ${endWords(g.a)} to ${endWords(g.b)}`;
   const freeEnds = useMemo(() => drawn.ports.filter((p) => p.free).length, [drawn]);
   const ghostView = useMemo(() => {
@@ -2147,6 +2163,29 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         />
       </VerdictScope.Provider>
       </JoinStart.Provider>
+
+      {/*
+        * FINISH THE LOOP (plan 2026-11-14, E3). Offered for a layout with
+        * exactly ONE joint that does not meet, whether its loop fails or only
+        * closes with the joints' give (owner, 2026-11-14): with two or more,
+        * which gap a fill belongs to would need saying, and it is not offered.
+        * Not while placing or joining, and never where the layout cannot change.
+        */}
+      {finishGap && !ghost && !joining && screen.canEdit && (
+        <FinishLoop
+          key={`${finishGap.weld}`}
+          graph={graph}
+          ports={ports}
+          resolve={resolve}
+          parts={library}
+          brandFit={brandFit}
+          inventory={inventory}
+          from={finishGap.from}
+          to={finishGap.to}
+          gapMm={finishGap.gapMm}
+          onFill={(plan, forGraph) => dispatch({ kind: 'fill', plan, graph: forGraph })}
+        />
+      )}
 
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="false">
         {said}

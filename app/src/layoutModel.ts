@@ -38,6 +38,7 @@ import {
   type Weld,
 } from '../../engine/src/graph/model.js';
 import type { Part, Polarity, Turn } from '../../engine/src/parts/schema.js';
+import type { FillPiece } from '../../engine/src/graph/fill.js';
 
 export const EMPTY_GRAPH: Graph = { pieces: [], welds: [] };
 
@@ -1000,3 +1001,55 @@ export function snapRunMove(
   if (accepted) return accepted.move;
   return [...candidates].sort((a, b) => a.d - b.d)[0]!.move;
 }
+
+/*
+ * PUTTING A FILL IN (plan 2026-11-14, E3; eng review finding 1). Here, not in
+ * finishLoop.ts, because the reducer's `fill` action needs it and must not pull
+ * the search and its solver calls into the editor's first load.
+ */
+
+const sameRef = (a: PortRef, b: PortRef) => a.pieceId === b.pieceId && a.port === b.port;
+
+/** What to put down, and between which ends. Enough to apply it again, exactly. */
+export interface FillPlan {
+  readonly from: PortRef;
+  readonly to: PortRef;
+  /** True when `from` and `to` are joined by a weld that does not meet: the fill takes its place. */
+  readonly replacesWeld: boolean;
+  readonly pieces: readonly FillPiece[];
+}
+
+/** The weld joining these two ends, or -1. */
+export function weldBetween(graph: Graph, a: PortRef, b: PortRef): number {
+  return graph.welds.findIndex((w) => (sameRef(w.a, a) && sameRef(w.b, b)) || (sameRef(w.a, b) && sameRef(w.b, a)));
+}
+
+/**
+ * The layout with a fill put in: the one function the check and the `fill`
+ * action share. Returns null when the layout is no longer the one the plan
+ * was made for (an end already taken, a weld already gone), so a stale plan
+ * changes nothing.
+ */
+export function applyFill(graph: Graph, ports: PortsOf, plan: FillPlan): { graph: Graph; pieceIds: string[] } | null {
+  let g = graph;
+  if (plan.replacesWeld) {
+    const index = weldBetween(g, plan.from, plan.to);
+    if (index === -1) return null;
+    g = removeWeld(g, ports, index);
+  }
+  const pieceIds: string[] = [];
+  let at: PortRef = plan.from;
+  for (const piece of plan.pieces) {
+    const before = g.welds.length;
+    const step = addPiece(g, piece.partId, piece.turn, 2, at, ports, { port: piece.port, turn: piece.turn });
+    // `addPiece` starts a new run when the end is taken: that is not this fill.
+    if (step.graph.welds.length !== before + 1 || step.select === null) return null;
+    g = step.graph;
+    pieceIds.push(step.select.pieceId);
+    at = step.select;
+  }
+  const closed = weldEnds(g, at, plan.to);
+  if (closed === g) return null;
+  return { graph: closed, pieceIds };
+}
+

@@ -43,7 +43,14 @@
 import { isZero } from '../../engine/src/geom/cyclotomic.js';
 import { removeWeld } from '../../engine/src/graph/edit.js';
 import { connectorSites, findVertexClashes } from '../../engine/src/graph/feasible.js';
-import { FILL_BUDGET, gapFills, isFillPart, type FillPiece, type FillWork } from '../../engine/src/graph/fill.js';
+import {
+  FILL_BUDGET,
+  gapFills,
+  isFillPart,
+  MAX_FILL_PIECES,
+  type FillPiece,
+  type FillWork,
+} from '../../engine/src/graph/fill.js';
 import { placeAll, type PortsOf } from '../../engine/src/graph/frames.js';
 import type { Graph, PortRef } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
@@ -51,21 +58,14 @@ import { solveGraph, type GraphResult } from '../../engine/src/graph/solve.js';
 import type { BrandFitLookup } from '../../engine/src/joints/trust.js';
 import { trustRank, type Part } from '../../engine/src/parts/schema.js';
 import { usedCounts, type Inventory } from './inventoryModel.js';
-import { addPiece, weldEnds } from './layoutModel.js';
+import { applyFill, weldBetween, type FillPlan } from './layoutModel.js';
+
+export { applyFill, MAX_FILL_PIECES, weldBetween, type FillPlan };
 
 /** How many candidate fills are given the full check before the search stops (finding 5). */
 export const MAX_FILL_CHECKS = 6;
 /** How many fills are offered. */
 export const MAX_FILLS_SHOWN = 3;
-
-/** What to put down, and between which ends. Enough to apply it again, exactly. */
-export interface FillPlan {
-  readonly from: PortRef;
-  readonly to: PortRef;
-  /** True when `from` and `to` are joined by a weld that does not meet: the fill takes its place. */
-  readonly replacesWeld: boolean;
-  readonly pieces: readonly FillPiece[];
-}
 
 /** A fill that passed every rule, with the layout that was checked. */
 export interface Fill extends FillPlan {
@@ -85,40 +85,6 @@ export type FillAnswer =
   | { readonly status: 'refused'; readonly why: 'levels' | 'not free' | 'same end' };
 
 const sameRef = (a: PortRef, b: PortRef) => a.pieceId === b.pieceId && a.port === b.port;
-
-/** The weld joining these two ends, or -1. */
-export function weldBetween(graph: Graph, a: PortRef, b: PortRef): number {
-  return graph.welds.findIndex((w) => (sameRef(w.a, a) && sameRef(w.b, b)) || (sameRef(w.a, b) && sameRef(w.b, a)));
-}
-
-/**
- * The layout with a fill put in: the one function the check and the `fill`
- * action share. Returns null when the layout is no longer the one the plan
- * was made for (an end already taken, a weld already gone), so a stale plan
- * changes nothing.
- */
-export function applyFill(graph: Graph, ports: PortsOf, plan: FillPlan): { graph: Graph; pieceIds: string[] } | null {
-  let g = graph;
-  if (plan.replacesWeld) {
-    const index = weldBetween(g, plan.from, plan.to);
-    if (index === -1) return null;
-    g = removeWeld(g, ports, index);
-  }
-  const pieceIds: string[] = [];
-  let at: PortRef = plan.from;
-  for (const piece of plan.pieces) {
-    const before = g.welds.length;
-    const step = addPiece(g, piece.partId, piece.turn, 2, at, ports, { port: piece.port, turn: piece.turn });
-    // `addPiece` starts a new run when the end is taken: that is not this fill.
-    if (step.graph.welds.length !== before + 1 || step.select === null) return null;
-    g = step.graph;
-    pieceIds.push(step.select.pieceId);
-    at = step.select;
-  }
-  const closed = weldEnds(g, at, plan.to);
-  if (closed === g) return null;
-  return { graph: closed, pieceIds };
-}
 
 export interface FillRequest {
   readonly graph: Graph;
