@@ -95,6 +95,38 @@ describe('on the canvas', () => {
     expect(scaleOf(root, 'adapter-joint-mark')).toBe(k);
   });
 
+  /*
+   * THE END'S OWN MARKS TOO (plan 2026-11-14, E4, task T11): the dot and its
+   * rings had no floor, so on a big layout fitted to a phone they were a few
+   * pixels across while the fault mark beside them kept its size. One floor
+   * for both, and the marks are drawn about the end's own point.
+   *
+   * MUTATION PROOF, run: the `.port-marks` group's `scale(${k})` made
+   * `scale(1)`: `expected 1 to be 7.65` (the fault marks' own factor).
+   *
+   * MUTATION PROOF, run: the dot drawn at `cx={p.x}` inside the group (moved
+   * twice): `expected [ '2880', '0', '8' ] to deeply equal [ '0', '0', '8' ]`.
+   */
+  it('a big board in a small box: each free end\'s dot and rings are enlarged with the fault marks, about the end', () => {
+    const root = canvasIn(300);
+    const groups = [...root.querySelectorAll('.port-marks')];
+    // Twenty straights in a row leave two free ends.
+    expect(groups).toHaveLength(2);
+    for (const g of groups) {
+      expect(Number(g.getAttribute('transform')!.match(/scale\(([^)]+)\)/)![1])).toBe(scaleOf(root, 'clash-mark'));
+      const dot = g.querySelector('.port-dot')!;
+      expect([dot.getAttribute('cx'), dot.getAttribute('cy'), dot.getAttribute('r')]).toEqual(['0', '0', '8']);
+    }
+    // The two ends are still drawn at two different places.
+    const at = groups.map((g) => g.getAttribute('transform')!.match(/translate\(([^)]+)\)/)![1]);
+    expect(at[0]).not.toBe(at[1]);
+  });
+
+  it('the same board in a box big enough: the end marks are their size on the wood', () => {
+    const root = canvasIn(20000);
+    expect(Number(root.querySelector('.port-marks')!.getAttribute('transform')!.match(/scale\(([^)]+)\)/)![1])).toBe(1);
+  });
+
   it('the same board in a box big enough: drawn at their size on the wood', () => {
     expect(scaleOf(canvasIn(20000), 'clash-mark')).toBe(1);
   });
