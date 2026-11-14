@@ -26,6 +26,7 @@ import type { TrustIssue } from '../../engine/src/joints/trust.js';
 import type { VerdictView } from './verdictView.js';
 import type { BendWords } from '../../engine/src/joints/bendWords.js';
 import { CLEARANCE } from '../../engine/data/rampSeeds.js';
+import { trainMargin } from '../../engine/src/graph/openings.js';
 import {
   ACTION_FOR_FAILURE,
   ACTION_FOR_VERDICT,
@@ -346,8 +347,9 @@ export interface BridgeNote {
  */
 function TrainFit({ under, through, openingMm, estimate }: { under: ReactNode; through?: boolean; openingMm: number; estimate: string }) {
   const { plankMm, trainMm } = CLEARANCE;
+  // The engine's subtraction (openings.ts), which the route reads too: not worked out again here.
+  const margin = trainMargin(openingMm, CLEARANCE);
   const opening = Math.round(openingMm);
-  const margin = openingMm - plankMm - trainMm;
   // A tunnel is said as the train going through it (owner, 2026-11-10).
   if (through) {
     return margin <= 0 ? (

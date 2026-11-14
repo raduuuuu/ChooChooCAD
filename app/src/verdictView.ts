@@ -29,6 +29,8 @@ import { bendWords, type BendWords } from '../../engine/src/joints/bendWords.js'
 import { bendLimit } from '../../engine/data/bendLimit.js';
 import type { PlankOverlap } from '../../engine/src/graph/overlap.js';
 import type { Part } from '../../engine/src/parts/schema.js';
+import { bridgeOpenings, tunnelOpenings } from '../../engine/src/graph/openings.js';
+import { CLEARANCE } from '../../engine/data/rampSeeds.js';
 import { STRUCTURE_WORDS } from '../../engine/data/structureSeeds.js';
 import type { BridgeNote, SupportNote } from './VerdictLine.js';
 import type { SupportReport } from '../../engine/src/graph/supports.js';
@@ -243,18 +245,14 @@ export function bridgeNotesOf(
   numberOf: (pieceId: string) => number,
 ): BridgeNote[] {
   const seen = new Set<string>();
-  return underBridges.flatMap(({ bridge }) => {
-    if (seen.has(bridge)) return [];
-    seen.add(bridge);
-    const part = resolve(partIdOf(bridge));
-    if (part.kind !== 'straight') return [];
-    const clearanceMm = part.hump?.clearanceMm ?? part.deckClearanceMm;
-    if (clearanceMm === undefined) return [];
+  return bridgeOpenings(underBridges, (pieceId) => resolve(partIdOf(pieceId)), CLEARANCE).flatMap((o) => {
+    if (seen.has(o.over)) return [];
+    seen.add(o.over);
     return [{
-      name: part.name.toLowerCase(),
-      piece: numberOf(bridge),
-      clearanceMm,
-      ...(part.hump?.clearanceEstimated ? { estimated: true } : {}),
+      name: resolve(partIdOf(o.over)).name.toLowerCase(),
+      piece: numberOf(o.over),
+      clearanceMm: o.openingMm,
+      ...(o.estimated ? { estimated: true } : {}),
     }];
   });
 }
@@ -272,18 +270,14 @@ export function tunnelNotesOf(
   resolve: (partId: string) => Part,
   numberOf: (pieceId: string) => number,
 ): BridgeNote[] {
-  return pieces.flatMap((p) => {
-    const part = resolve(p.partId);
-    const openings = (part.decor ?? []).flatMap((d) => (d.kind === 'vault' ? [d.topMm - d.wallMm] : []));
-    if (openings.length === 0) return [];
-    return [{
-      name: part.name.toLowerCase(),
-      piece: numberOf(p.pieceId),
-      clearanceMm: Math.min(...openings),
-      through: true as const,
-      ...(part.dimensions.status === 'unverified' ? { estimated: true } : {}),
-    }];
-  });
+  const partId = new Map(pieces.map((p) => [p.pieceId, p.partId]));
+  return tunnelOpenings(pieces, resolve, CLEARANCE).map((o) => ({
+    name: resolve(partId.get(o.over)!).name.toLowerCase(),
+    piece: numberOf(o.over),
+    clearanceMm: o.openingMm,
+    through: true as const,
+    ...(o.estimated ? { estimated: true } : {}),
+  }));
 }
 
 /**

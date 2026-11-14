@@ -1,0 +1,216 @@
+{
+ "ramp loop 0": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 1": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 2": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 3": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 4": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 5": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 6": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 7": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 9": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 10": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 11": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 12": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 13": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 14": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 15": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 17": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 18": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 19": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 20": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 21": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 22": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 23": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 24": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 26": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 27": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 28": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 29": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 30": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 31": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 33": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 34": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 35": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 36": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 37": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 38": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 39": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 40": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 41": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 42": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 43": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 44": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 45": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 46": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 47": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 48": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 49": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 50": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 51": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 52": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 53": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 54": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 55": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 56": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 57": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 58": [
+  "Raised track: supports are not checked."
+ ],
+ "ramp loop 59": [
+  "Raised track: supports are not checked."
+ ],
+ "bridge SA over a straight": [
+  "Under the stone arch bridge (piece 1): about 2mm to spare (69mm opening, 12mm track, 55mm train)."
+ ],
+ "bridge SB over a straight": [
+  "X Your 55mm train may not pass under the suspension bridge (piece 1): 61mm opening. The opening is an estimate."
+ ],
+ "bridge HB over a straight": [
+  "X Your 55mm train may not pass under the harbour arch bridge (piece 1): 61mm opening."
+ ],
+ "bridge BW over a straight": [
+  "X Your 55mm train may not pass under the bowstring bridge (piece 1): 61mm opening."
+ ],
+ "tunnel TT alone": [
+  "Your 55mm train fits through the tunnel straight (piece 1) with about 13mm to spare over its roof (80mm opening, 12mm track). The opening is an estimate."
+ ],
+ "tunnel TT in a run": [
+  "Your 55mm train fits through the tunnel straight (piece 2) with about 13mm to spare over its roof (80mm opening, 12mm track). The opening is an estimate."
+ ],
+ "tunnel MT alone": [
+  "Your 55mm train fits through the metro tunnel (piece 1) with about 2mm to spare over its roof (69mm opening, 12mm track). The opening is an estimate."
+ ],
+ "tunnel MT in a run": [
+  "Your 55mm train fits through the metro tunnel (piece 2) with about 2mm to spare over its roof (69mm opening, 12mm track). The opening is an estimate."
+ ],
+ "tunnel MS alone": [
+  "Your 55mm train fits through the metro station (piece 1) with about 4mm to spare over its roof (71mm opening, 12mm track). The opening is an estimate."
+ ],
+ "tunnel MS in a run": [
+  "Your 55mm train fits through the metro station (piece 2) with about 4mm to spare over its roof (71mm opening, 12mm track). The opening is an estimate."
+ ],
+ "two tunnels and a bridge": [
+  "Under the stone arch bridge (piece 3): about 2mm to spare (69mm opening, 12mm track, 55mm train).",
+  "Your 55mm train fits through the tunnel straight (piece 1) with about 13mm to spare over its roof (80mm opening, 12mm track). The opening is an estimate.",
+  "Your 55mm train fits through the metro tunnel (piece 2) with about 2mm to spare over its roof (69mm opening, 12mm track). The opening is an estimate."
+ ],
+ "raised track alone": [
+  "Raised track: supports are not checked."
+ ],
+ "raised track over a straight": [
+  "Raised track: supports are not checked.",
+  "X Your 55mm train may not pass under raised track (1 place): 61mm opening."
+ ],
+ "raised track over two straights": [
+  "Raised track: supports are not checked.",
+  "X Your 55mm train may not pass under raised track (2 places): 61mm opening."
+ ]
+}
