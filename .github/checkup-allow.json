@@ -2,27 +2,27 @@
   "comment": "Brand words allowed by exact token, per file (repo-checkups plan, R1). A brand word on a line passes only inside one of its file's tokens. Images: the only files of their kind that may be committed (C7).",
   "allow": [
     {
-      "file": "app/src/App.tsx",
+      "file": "app/src/Palette.tsx",
       "token": "'IKEA'",
       "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
     },
     {
-      "file": "app/src/App.tsx",
+      "file": "app/src/Palette.tsx",
       "token": "'PLAYTIVE'",
       "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
     },
     {
-      "file": "app/src/App.tsx",
+      "file": "app/src/Palette.tsx",
       "token": "'HAPE'",
       "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
     },
     {
-      "file": "app/src/App.tsx",
+      "file": "app/src/Palette.tsx",
       "token": "'THOMAS'",
       "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
     },
     {
-      "file": "app/src/App.tsx",
+      "file": "app/src/Palette.tsx",
       "token": "'MELISSA_DOUG'",
       "why": "Brand union value, stored in saved layouts and submissions (AGENTS.md: internal ids)"
     },
