@@ -305,7 +305,16 @@ export type EditorAction =
       readonly otherLevelNear?: boolean;
     }
   | { readonly kind: 'clear' }
-  | { readonly kind: 'preset'; readonly ids: readonly string[] };
+  | {
+      readonly kind: 'preset';
+      readonly ids: readonly string[];
+      /**
+       * Which way each piece bends, one per id (plan 2026-11-14, E2). Absent,
+       * or absent for a piece, is 'left', which is all a preset could say
+       * before a ready layout could bend both ways.
+       */
+      readonly turns?: readonly Turn[] | undefined;
+    };
 
 /**
  * The editor state for a graph restored from storage.
@@ -868,9 +877,10 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
     case 'preset': {
       let graph = EMPTY_GRAPH;
       let at: PortRef | null = null;
-      for (const partId of action.ids) {
-        const count = portCountOf(ports, partId, 'left');
-        const step = addPiece(graph, partId, 'left', count, at, ports);
+      for (const [i, partId] of action.ids.entries()) {
+        const turn = action.turns?.[i] ?? 'left';
+        const count = portCountOf(ports, partId, turn);
+        const step = addPiece(graph, partId, turn, count, at, ports);
         graph = step.graph;
         at = step.select;
       }

@@ -21,13 +21,13 @@ import { reduce, type EditorState } from './editorReducer.js';
 import { EMPTY_GRAPH } from './layoutModel.js';
 import { fileOf, fragmentOfFile } from './layoutFile.js';
 import { storedGraphOf } from './layoutStore.js';
-import { PRESETS } from './presets.js';
+import { presetByLabel } from './presets.js';
 import { encodeLink, LINK_MAX_PIECES } from './shareLink.js';
 
 const resolve = makeResolver(BUILT_IN);
 const ports = (piece: Piece): readonly Port[] => portsOf(resolve(piece.partId), piece.turn);
 const START: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null };
-const stadium = reduce(START, { kind: 'preset', ids: PRESETS[0]!.pieces }, ports).graph;
+const stadium = reduce(START, { kind: 'preset', ids: presetByLabel('Stadium').pieces }, ports).graph;
 
 afterEach(() => vi.unstubAllGlobals());
 

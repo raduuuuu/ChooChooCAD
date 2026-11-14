@@ -276,7 +276,7 @@ describe('saved layouts and presets', () => {
   it('every shipped preset alternates: no adapter joints', () => {
     for (const preset of PRESETS) {
       let s: EditorState = { graph: EMPTY_GRAPH, cursor: null, armed: null };
-      s = reduce(s, { kind: 'preset', ids: preset.pieces }, ports);
+      s = reduce(s, { kind: 'preset', ids: preset.pieces, turns: preset.turns }, ports);
       expect(classifyWelds(s.graph, resolve, ports).adapters, preset.label).toEqual([]);
     }
   });

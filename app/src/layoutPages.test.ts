@@ -3,9 +3,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../../engine/data/library.js';
 import { brandWords, TERMS } from '../../engine/data/brandWords.js';
-import { solveLayout } from '../../engine/src/solver/result.js';
 import { EXPLANATION, HOME_DESCRIPTION, HOME_TITLE, layoutPages, sitemap, SITE } from './layoutPages.js';
-import { PRESETS, presetLayout } from './presets.js';
+import { PRESETS } from './presets.js';
 import { decodeLink } from './shareLink.js';
 
 /*
@@ -18,19 +17,17 @@ const built = await layoutPages();
 const slug = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
 /**
- * Which ready layouts close, from a SECOND witness: the chain solver, which
- * `layoutPages.ts` never calls (it asks the graph solver through `viewOf`).
+ * Which ready layouts close, from a SECOND witness: what each preset declares
+ * (`expect`), which `presets.test.ts` holds to the solver. `layoutPages.ts`
+ * never reads `expect`; it asks the verdict.
  */
-const closing = PRESETS.filter((p) => {
-  const r = solveLayout(presetLayout(p), resolve);
-  return r.ok && r.gapMm === 0;
-});
+const closing = PRESETS.filter((p) => p.expect === 'exact');
 
 describe('layout pages', () => {
   /*
    * Fails when: the `if (!closesExactly(graph)) continue;` line in
    * layoutPages.ts is deleted. Near miss then gets a page saying it "closes
-   * exactly", and this reports three slugs where two are expected.
+   * exactly", and this reports one slug more than the layouts that close.
    */
   it('gives a page to every ready layout that closes, and to no other', () => {
     expect(closing.length).toBeGreaterThan(0);
