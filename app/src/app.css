@@ -1877,6 +1877,34 @@
 }
 
 /*
+ * A TRAIN RUN (plan 2026-11-14, E5). The button and its sentences are ink and
+ * paper: a run is not a verdict (DESIGN.md rule 1). The train on the plan is
+ * a solid ink lozenge lying along the track with a paper edge: the one mark
+ * that lies along the plank and the one that moves (rules 8 and 11). 44px on
+ * a finger (rule 10).
+ */
+.train-run { padding: 0 var(--s4) var(--s3); display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s2) var(--s3); }
+.train-line { margin: 0; }
+.train-note { margin: 0; color: var(--ink-soft); font-size: 14px; }
+.train-button {
+  min-height: 36px;
+  padding: 0 var(--s3);
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  border-radius: 3px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.train-button:disabled { opacity: 0.4; cursor: default; }
+@media (pointer: coarse) {
+  .train-button { min-height: 44px; }
+}
+.train-mark { pointer-events: none; }
+.train-mark rect { fill: var(--ink); stroke: var(--paper); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+
+/*
  * THE 3D VIEW (docs/plan/2026-10-31-3d-viewer.md).
  *
  * The switch and Reset sit in the view's top-end corner, the one corner the

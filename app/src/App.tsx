@@ -87,6 +87,8 @@ import { EMPTY_STATE_PRESET, PRESETS, presetByLabel, type Preset } from './prese
 import { presetAction } from './presetVerdict.js';
 import { boxWords, byBox } from './canBuild.js';
 import { FinishLoop } from './FillOffer.js';
+import { TrainControl, TrainMark } from './TrainControl.js';
+import type { TrainRun } from './trainRun.js';
 import { JoinStart, VerdictLine, VerdictScope, type BridgeNote } from './VerdictLine.js';
 import { markLists } from './markLists.js';
 import { EMPTY_GRAPH, familyOf, ghostFit, joinRefusal, otherLevelEndNear, shiftMm, snapRunMove, swapPiece, swapsOf, woodOf, type JoinRefusal } from './layoutModel.js';
@@ -1328,6 +1330,43 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     const piece = graph.pieces[i];
     return piece ? `the ${endName(resolve(piece.partId), ref.port, piece.turn)} of piece ${i + 1}` : 'an end';
   };
+  /*
+   * A TRAIN RUN (plan 2026-11-14, E5). Kept with the layout it was planned
+   * for, and shown only while that is still the layout on screen: any edit
+   * makes a new `graph`, and the run is over (eng review: stop on edit). The
+   * walker and the playback load on the first press (`trainRun.js`).
+   *
+   * OFFERED ONLY WHERE EVERY JOINT MEETS (owner, choice C8): a joint in the
+   * data is not proof two ends meet, so a layout whose loops do not close is
+   * not run. A layout with no loop at all has no joint that could fail to
+   * meet (each was made by putting a piece on an end), so it is run too.
+   */
+  const [train, setTrain] = useState<{ readonly graph: Graph; readonly run: TrainRun } | null>(null);
+  const trainRun = train && train.graph === graph ? train.run : null;
+  const graphNow = useRef(graph);
+  graphNow.current = graph;
+  const stillMotion = useMatchMedia('(prefers-reduced-motion: reduce)');
+  const canRunTrain = verdictView.kind === 'EXACT' || verdictView.kind === 'NEEDS_GIVE' || verdictView.kind === 'NO_CYCLE';
+  const runTrain = () => {
+    if (!result || !canRunTrain) return;
+    const planned = { graph, ports, resolve, drawn, result, selected };
+    void import('./trainRun.js').then(({ planRun }) => {
+      // The layout changed while the walker was loading: that run is for a layout no longer here.
+      if (graphNow.current !== planned.graph) return;
+      const run = planRun(planned);
+      if (run) setTrain({ graph: planned.graph, run });
+    });
+  };
+  const stopTrain = () => setTrain(null);
+  // A hidden tab ends the run: nothing keeps moving where nobody is looking.
+  useEffect(() => {
+    const onHide = () => {
+      if (document.hidden) setTrain(null);
+    };
+    document.addEventListener('visibilitychange', onHide);
+    return () => document.removeEventListener('visibilitychange', onHide);
+  }, []);
+
   /**
    * The one joint that does not meet, or null when there is none or more
    * than one. Read from the solver's residuals, not from the canvas's gap
@@ -2038,6 +2077,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             thirdLevels={levelMarks.thirds}
             emptyAction={emptyAction}
             corner={<div className="view-corner">{shareIt}{buildIt}{viewSwitch}</div>}
+            overlay={trainRun && !stillMotion ? <TrainMark run={trainRun} /> : null}
           />
         )}
       </main>
@@ -2184,6 +2224,16 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
           to={finishGap.to}
           gapMm={finishGap.gapMm}
           onFill={(plan, forGraph) => dispatch({ kind: 'fill', plan, graph: forGraph })}
+        />
+      )}
+
+      {/* Run a train (plan 2026-11-14, E5): not while placing or joining, and not on an empty floor. */}
+      {graph.pieces.length > 0 && !ghost && !joining && (
+        <TrainControl
+          run={trainRun}
+          whyNot={canRunTrain ? null : 'The track does not join up yet, so no train is run on it.'}
+          onRun={runTrain}
+          onStop={stopTrain}
         />
       )}
 

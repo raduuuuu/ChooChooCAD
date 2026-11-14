@@ -129,16 +129,30 @@ they read as screen positions (design review of the two-layer plan, 7A,
 string literal with the TypeScript parser and fails on a position word.
 Comments and movement ("turning left", "arrows turn") are not copy.
 
-## 8. One authored motion
+## 8. Two authored motions
 
-There is one deliberate moment of movement, and `prefers-reduced-motion` turns
-it off. Nothing else animates. A drafting tool that moves while you are reading
-a measurement is working against its own purpose.
+Two things move, both on purpose, and `prefers-reduced-motion` turns both off.
+Nothing else animates. A drafting tool that moves while you are reading a
+measurement is working against its own purpose.
 
-The moment is the settle (design 15A): a piece placed on its own drops its
+The first is the settle (design 15A): a piece placed on its own drops its
 last 2mm into place over `--motion-settle-ms` (160ms), ease-out, from 0.85 to
 full strength. A preset, a load or a whole run arriving does not move, and
 build mode stays cut (rule 12).
+
+The second is a train run (owner, 2026-11-14; plan
+docs/plan/2026-11-14-additions-eng.md, choice C3). It is the one motion that
+lasts, so it is held to four conditions, and a motion that does not meet all
+four is still forbidden:
+
+- **The user starts it.** "Run a train" is pressed; nothing ever starts a run
+  for them, and no run plays on load.
+- **Any edit ends it**, and so does hiding the tab or pressing Stop. Nothing
+  moves while a layout is being changed or a number is being read off it.
+- **One mark moves**: the train. The track, the marks and the verdict stay
+  still, and the page is not redrawn per frame.
+- **Under reduced motion nothing moves**: the run's sentences are shown and
+  the train is not drawn.
 
 ## 9. Browser surfaces carry the design too
 
@@ -182,6 +196,11 @@ nothing else uses:
   tapering from its low end to its high end; floor track casts none. Depth,
   not hue, because colour is spent on verdicts. Where raised track crosses
   floor track, a gap in the floor plank (the bridge casing) says it too.
+- **A solid ink lozenge lying ALONG the track, with a paper edge, is the
+  train** of a run (rule 8). It is the only mark that lies along the plank
+  and the only one that moves; it is there only while a run is, and it is no
+  part of the layout. The buffer's beam, the other solid ink block, lies
+  across the plank at an end and never moves.
 - **A solid ink block across the plank means a buffer stop**: the beam at
   its far end, 6mm deep, in the wood's millimetres. Ends are circles and
   seams hairlines, so nothing else on the canvas is a filled bar; round

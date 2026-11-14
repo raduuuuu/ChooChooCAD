@@ -320,6 +320,12 @@ export interface TrackCanvasProps {
   readonly seams?: readonly SeamLine[];
   /** Drawn in the canvas's top-end corner: the 2D/3D switch (3D plan, design 1A). */
   readonly corner?: ReactNode;
+  /**
+   * Drawn last inside the drawing's own group, in millimetres, over
+   * everything (plan 2026-11-14, E5): the train of a run, which moves itself
+   * and is no part of the layout's marks.
+   */
+  readonly overlay?: ReactNode;
   /** The selected piece (decision R1/D2), drawn with the strong outline. */
   readonly selected?: string | null;
   /** Every piece connected to the selected one, drawn with the quiet outline (2A). */
@@ -382,6 +388,7 @@ export function TrackCanvas({
   onWeldClick,
   seams = [],
   corner,
+  overlay,
   selected = null,
   selectedRun,
   onPieceSelect,
@@ -1606,6 +1613,7 @@ export function TrackCanvas({
         ))}
         {selectedLabel}
         {ghost && !ghostOnFloor && ghostLayer}
+        {overlay}
       </g>
     </svg>
     {/* HTML, not SVG text, so it is never flipped or scaled with the drawing. */}
