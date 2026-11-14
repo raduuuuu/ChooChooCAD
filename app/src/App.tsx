@@ -1341,8 +1341,10 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
    * not run. A layout with no loop at all has no joint that could fail to
    * meet (each was made by putting a piece on an end), so it is run too.
    */
-  const [train, setTrain] = useState<{ readonly graph: Graph; readonly run: TrainRun } | null>(null);
+  const [train, setTrain] = useState<{ readonly graph: Graph; readonly run: TrainRun; readonly startedMs: number } | null>(null);
   const trainRun = train && train.graph === graph ? train.run : null;
+  // One run on the plan and in 3D: both count from when it began, so changing view does not start it again.
+  const trainShown = useMemo(() => (trainRun && train ? { run: trainRun, startedMs: train.startedMs } : null), [trainRun, train]);
   const graphNow = useRef(graph);
   graphNow.current = graph;
   const stillMotion = useMatchMedia('(prefers-reduced-motion: reduce)');
@@ -1354,7 +1356,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
       // The layout changed while the walker was loading: that run is for a layout no longer here.
       if (graphNow.current !== planned.graph) return;
       const run = planRun(planned);
-      if (run) setTrain({ graph: planned.graph, run });
+      if (run) setTrain({ graph: planned.graph, run, startedMs: performance.now() });
     });
   };
   const stopTrain = () => setTrain(null);
@@ -2028,6 +2030,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             corner={<>{shareIt}{buildIt}{viewSwitch}</>}
             reset={resetButton}
             onPick={pickIn3d}
+            train={stillMotion ? null : trainShown}
           />
         ) : (
           <TrackCanvas
@@ -2077,7 +2080,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             thirdLevels={levelMarks.thirds}
             emptyAction={emptyAction}
             corner={<div className="view-corner">{shareIt}{buildIt}{viewSwitch}</div>}
-            overlay={trainRun && !stillMotion ? <TrainMark run={trainRun} /> : null}
+            overlay={trainShown && !stillMotion ? <TrainMark run={trainShown.run} startedMs={trainShown.startedMs} /> : null}
           />
         )}
       </main>

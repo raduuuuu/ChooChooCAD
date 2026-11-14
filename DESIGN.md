@@ -150,7 +150,10 @@ four is still forbidden:
 - **Any edit ends it**, and so does hiding the tab or pressing Stop. Nothing
   moves while a layout is being changed or a number is being read off it.
 - **One mark moves**: the train. The track, the marks and the verdict stay
-  still, and the page is not redrawn per frame.
+  still, and the page is not redrawn per frame. In the 3D view the picture
+  is drawn again each frame while a run lasts, because that is the only way
+  one thing in it can move; the camera does not move, and when the run is
+  over the view draws only on change again.
 - **Under reduced motion nothing moves**: the run's sentences are shown and
   the train is not drawn.
 
@@ -201,6 +204,9 @@ nothing else uses:
   and the only one that moves; it is there only while a run is, and it is no
   part of the layout. The buffer's beam, the other solid ink block, lies
   across the plank at an end and never moves.
+  In the 3D view the same train is an ink box with paper edges, as long and
+  as wide as the lozenge and as tall as the train the verdict measures with,
+  standing on the road: ink and paper only, like the lozenge.
 - **A solid ink block across the plank means a buffer stop**: the beam at
   its far end, 6mm deep, in the wood's millimetres. Ends are circles and
   seams hairlines, so nothing else on the canvas is a filled bar; round

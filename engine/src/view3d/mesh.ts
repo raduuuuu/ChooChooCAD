@@ -261,6 +261,24 @@ function endLevels(s: Segment): readonly [number, number] {
   return s.highAtStart ? [hi, lo] : [lo, hi];
 }
 
+/**
+ * A road's top at a fraction `t` along a segment, in millimetres above the
+ * floor: its measured profile where it has one (eng D9), else the plank's
+ * top over its levels. A measured road's heights are above its piece's own
+ * floor: one level below the top segment, the level of the slopes.
+ *
+ * Exported because a train run in 3D stands the train on this (plan
+ * 2026-11-14, E5): one function, so the train sits on the wood as drawn.
+ */
+export function roadTopAt(s: Segment, t: number, riseMm: number, plankMm: number): number {
+  if (s.profileMm && s.alongMm) {
+    const base = (s.level ?? 0) - (s.rise ? 0 : 1);
+    return base * riseMm + profileAt(s.profileMm, s.alongMm[0] + (s.alongMm[1] - s.alongMm[0]) * t);
+  }
+  const [l0, l1] = endLevels(s);
+  return l0 * riseMm + (l1 * riseMm - l0 * riseMm) * t + plankMm;
+}
+
 /** How finely a measured road is sampled along its length, mm. */
 export const PROFILE_STEP_MM = 8;
 
@@ -273,9 +291,6 @@ function stationsFor(s: Segment): readonly Station[] {
     return { x: s.from.x + (s.to.x - s.from.x) * t, y: s.from.y + (s.to.y - s.from.y) * t, h: s.from.h, t };
   });
 }
-
-/** The plank's top at a fraction `t` along a segment whose ends sit at `z0` and `z1` (underside). */
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 /** Where along a segment a plan point falls, 0..1, clamped. */
 function fractionAt(s: Segment, x: number, y: number): number {
@@ -334,20 +349,7 @@ export function buildScene(input: SceneInput): SceneArrays {
       boxOf.max[2] = Math.max(boxOf.max[2], z);
     }
   };
-  /**
-   * A road's top at a fraction `t` along a segment: its measured profile
-   * where it has one (eng D9), else the plank's top over its levels. A
-   * measured road's heights are above its piece's own floor: one level below
-   * the top segment, the level of the slopes.
-   */
-  const topOf = (s: Segment, t: number): number => {
-    if (s.profileMm && s.alongMm) {
-      const base = (s.level ?? 0) - (s.rise ? 0 : 1);
-      return base * riseMm + profileAt(s.profileMm, s.alongMm[0] + (s.alongMm[1] - s.alongMm[0]) * t);
-    }
-    const [l0, l1] = endLevels(s);
-    return lerp(l0 * riseMm, l1 * riseMm, t) + plankMm;
-  };
+  const topOf = (s: Segment, t: number): number => roadTopAt(s, t, riseMm, plankMm);
   const byPiece = new Map<string, RenderedPort[]>();
   for (const p of ports) {
     const list = byPiece.get(p.pieceId);

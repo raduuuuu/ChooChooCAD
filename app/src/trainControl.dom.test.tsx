@@ -144,7 +144,7 @@ describe('run a train, in the app', () => {
 });
 
 describe('the train mark', () => {
-  const at = (x: number, done = false) => ({ pose: { x, y: 5, h: Math.PI / 2 }, level: 0, pieceId: 'p', done });
+  const at = (x: number, done = false) => ({ pose: { x, y: 5, h: Math.PI / 2 }, level: 0, pieceId: 'p', on: null, t: 0, done });
   const inSvg = (run: TrainRun) => render(<svg><TrainMark run={run} /></svg>);
 
   /*
@@ -152,7 +152,7 @@ describe('the train mark', () => {
    * in `TrainMark` removed: the mark has no transform.
    */
   it('is put where the run says, facing the way it says', () => {
-    inSvg({ route: { lead: [], loop: [], end: 'loop' }, words: [], at: () => at(120) });
+    inSvg({ route: { lead: [], loop: [], end: 'loop' }, words: [], trainMm: 55, at: () => at(120) });
     expect(mark()!.getAttribute('transform')).toBe('translate(120 5) rotate(90)');
     expect(mark()!.querySelectorAll('rect')).toHaveLength(1);
   });
@@ -168,11 +168,11 @@ describe('the train mark', () => {
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => asked.push(cb));
     vi.stubGlobal('cancelAnimationFrame', (id: number) => void cancelled.push(id));
 
-    const done = inSvg({ route: { lead: [], loop: [], end: 'open end' }, words: [], at: () => at(504, true) });
+    const done = inSvg({ route: { lead: [], loop: [], end: 'open end' }, words: [], trainMm: 55, at: () => at(504, true) });
     expect(asked).toHaveLength(0);
     done.unmount();
 
-    const going = inSvg({ route: { lead: [], loop: [], end: 'loop' }, words: [], at: () => at(10) });
+    const going = inSvg({ route: { lead: [], loop: [], end: 'loop' }, words: [], trainMm: 55, at: () => at(10) });
     expect(asked).toHaveLength(1);
     going.unmount();
     expect(cancelled).toEqual([1]);
