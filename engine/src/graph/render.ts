@@ -65,6 +65,31 @@ export interface GraphRender {
    * reads both.
    */
   readonly bodies: readonly Segment[];
+  /**
+   * WHICH SEGMENTS DRAW WHICH ROAD (plan 2026-11-14, E5; eng review finding
+   * 9): for every road of every piece, the ends it joins and the run of
+   * `segments` that draws it, as a start index and a count. One road can be
+   * several segments (a lead-in then an arc, an S-bend's two arcs, a hump's
+   * three slopes), listed in order from its `from` end to its `to` end.
+   *
+   * Beside the segments, not on them: the segments of the four switches are
+   * frozen as they were (switchRegression.test.ts), and a field added to each
+   * would have changed every one. An index also outlives a copy: any list
+   * made from `segments` one for one, in order (the track drawn bent), is
+   * cut into roads by the same numbers.
+   */
+  readonly roads: readonly RenderedRoad[];
+}
+
+/** One road of one placed piece, and where its segments are in a render's `segments`. */
+export interface RenderedRoad {
+  readonly pieceId: string;
+  /** The ends the road joins, as `roadsOf` numbers them. */
+  readonly from: number;
+  readonly to: number;
+  /** Index of its first segment in `segments`, and how many it has. In order from `from` to `to`. */
+  readonly start: number;
+  readonly count: number;
 }
 
 export function renderGraph(
@@ -82,6 +107,7 @@ export function renderGraph(
   const segments: Segment[] = [];
   const rendered: RenderedPort[] = [];
   const bodies: Segment[] = [];
+  const roads: RenderedRoad[] = [];
 
   for (const piece of graph.pieces) {
     const frame = placement.frames.get(piece.pieceId);
@@ -188,15 +214,20 @@ export function renderGraph(
       });
     }
     for (const road of roadsOf(part, piece.turn)) {
+      const firstOfRoad = segments.length;
+      // Recorded on every way out of this pass, so each road names the segments just pushed for it.
+      const record = () => roads.push({ pieceId: piece.pieceId, from: road.from, to: road.to, start: firstOfRoad, count: segments.length - firstOfRoad });
       const start = portFrame(placement, ports, piece, road.from);
       const from = pose({ pos: start.pos, heading: norm16(start.heading + 8) });
       const to = pose(portFrame(placement, ports, piece, road.to));
       if (road.shape.kind === 'straight' && part.kind === 'straight' && part.hump) {
         segments.push(...humpRoad(from, to, part.lengthMm, part.hump, level, piece.partId, piece.pieceId));
+        record();
         continue;
       }
       if (road.shape.kind === 'straight') {
         segments.push({ kind: 'straight', from, to, partId: piece.partId, pieceId: piece.pieceId, ...levels });
+        record();
         continue;
       }
       if (road.shape.kind === 's-bend') {
@@ -206,6 +237,7 @@ export function renderGraph(
           pieceId: piece.pieceId,
           ...levels,
         })));
+        record();
         continue;
       }
       // A lead-in is its own straight segment, then the arc from where it ends.
@@ -228,10 +260,11 @@ export function renderGraph(
         pieceId: piece.pieceId,
         ...levels,
       });
+      record();
     }
   }
 
-  return { segments, ports: rendered, bodies };
+  return { segments, ports: rendered, bodies, roads };
 }
 
 /**

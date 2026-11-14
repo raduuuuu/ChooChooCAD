@@ -116,5 +116,6 @@ export function bendRender(render: GraphRender, shifts: ReadonlyMap<string, Move
     const [x, y, h] = compose(d, [p.x, p.y, p.h]);
     return { ...p, x, y, h };
   });
-  return { segments, ports, bodies };
+  // Bending moves each segment where it is in the list, so the roads' indices still hold (render.ts `roads`).
+  return { segments, ports, bodies, roads: render.roads };
 }
