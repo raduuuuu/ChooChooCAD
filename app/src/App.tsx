@@ -2177,7 +2177,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         verdict={<VerdictCompact.Provider value={true}>{verdictBlock}</VerdictCompact.Provider>}
         // An empty floor has nothing to tap: no tip about pieces that are not there (design review 2026-11-15).
         strip={strip === hintStrip && graph.pieces.length === 0 ? null : (strip ?? (trainRun ? trainControl : null))}
-        history={<UndoControl last={lastStep(editor)} next={nextStep(editor)} onUndo={undo} onRedo={redo} />}
+        history={<UndoControl last={lastStep(editor)} next={nextStep(editor)} onUndo={undo} onRedo={redo} short />}
         sheet={sheet}
         onSheet={setSheet}
         piecesScroll={piecesScroll}
