@@ -317,6 +317,8 @@ export interface TrackCanvasProps {
    * them outside it (`endsWithinReach`).
    */
   readonly onReachable?: (ends: readonly ClickableEnd[], pxPerMm: number) => void;
+  /** Where pieces come from, as the empty floor names it: "the palette", or on a phone the button, "Pieces". */
+  readonly piecesFrom?: string;
   /** Every joint, resolved to the canvas by `weldTargets` (task U5). */
   readonly welds?: readonly WeldTarget[];
   /** Clicking a joint breaks it. Undo is the path back; there is no confirm. */
@@ -393,6 +395,7 @@ export function TrackCanvas({
   suggestionName,
   onPortClick,
   onReachable,
+  piecesFrom = 'the palette',
   welds = [],
   onWeldClick,
   seams = [],
@@ -856,7 +859,7 @@ export function TrackCanvas({
         <p className="canvas-empty-lead">Nothing on the floor yet.</p>
         {emptyAction && <div className="canvas-empty-action">{emptyAction}</div>}
         <p className="canvas-empty-hint">
-          Or place pieces one at a time from the palette.
+          Or place pieces one at a time from {piecesFrom}.
         </p>
       </div>,
     );
