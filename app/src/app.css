@@ -2310,10 +2310,21 @@
   z-index: 2;
 }
 /* ALWAYS RESERVED (DD2): a sentence of two lines, and one row of 44px buttons. */
-.phone-strip { flex: none; height: 96px; overflow-y: auto; border-top: 1px solid var(--rule); }
+.phone-strip { flex: none; height: 100px; overflow-y: auto; border-top: 1px solid var(--rule); }
 .phone-strip .mode-strip { border-top: none; padding: var(--s1) var(--s3); gap: var(--s1) var(--s2); }
 .phone-strip .mode-strip-text { font-size: 14px; line-height: 1.35; min-height: 2.7em; }
-.phone-strip .mode-strip button { min-height: 44px; min-width: 44px; padding: 0 var(--s2); font-size: 14px; }
+/*
+ * ONE ROW OF BUTTONS, WHATEVER THEY SAY (design review 2026-11-15). Placing a
+ * curve has four ("Other end on", "Bend the other way", Cancel, Place) and
+ * "Next end" makes five: at their natural widths Place wrapped to a second
+ * row, the row grew past its reserved height, and the sentence saying whether
+ * the piece fits scrolled out of sight. The buttons now share the row equally
+ * and a long label wraps inside its own button, two lines in 44px.
+ */
+.phone-strip .mode-strip button { flex: 1 1 0; min-width: 44px; min-height: 44px; padding: 0 var(--s1); font-size: 14px; line-height: 1.15; white-space: normal; overflow-wrap: anywhere; }
+/* The four arrows keep their own size; they are a pad, not a sentence. */
+.phone-strip .move-run { flex: none; display: flex; gap: var(--s1); }
+.phone-strip .move-run button { flex: none; width: 44px; }
 .phone-strip .train-run { padding: var(--s1) var(--s3); }
 .phone-row {
   flex: none;
