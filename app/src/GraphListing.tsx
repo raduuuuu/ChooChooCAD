@@ -142,12 +142,19 @@ export function GraphListing({
   armed = null,
   unjoinable,
   cursor = null,
+  startOpen = false,
 }: {
   graph: Graph;
   resolve: (id: string) => Part;
   ports: (piece: Piece) => readonly Port[];
   /** Free ends the selected one can't join, keyed `pieceId#port`, with why. */
   unjoinable?: ReadonlyMap<string, JoinRefusal>;
+  /**
+   * Drawn open. On a phone the list has a screen to itself, reached by a row
+   * that names it: a closed disclosure there is an empty screen and a second
+   * tap for nothing (design review 2026-11-15).
+   */
+  startOpen?: boolean;
   /** Select a free end, or join it to the selected one (task U7b). Omit for read-only. */
   onPortClick?: (ref: PortRef) => void;
   /** Break a joint (task U7b). Omit for read-only. */
@@ -228,6 +235,7 @@ export function GraphListing({
   return (
     <details
       className="graph-listing"
+      open={startOpen || undefined}
       ref={container}
       onFocus={() => {
         focusInside.current = true;

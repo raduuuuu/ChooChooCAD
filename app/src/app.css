@@ -2376,6 +2376,9 @@
 .phone-panel-body .inventory-head { display: none; }
 .phone-panel-body :is(.inventory, .submit) { border: none; padding: 0; margin: 0; }
 .phone-panel-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--s3); }
+/* The layout list on a phone: its buttons are for a finger (DESIGN.md rule 10). */
+.phone-panel-body .graph-listing button { min-height: 44px; }
+.phone-panel-body .graph-listing summary { min-height: 44px; display: flex; align-items: center; }
 /* MORE (DD14): plain rows under three headings. */
 .more-heading { margin: var(--s4) 0 var(--s1); font-size: 13px; font-weight: 600; color: var(--ink-soft); }
 .more-heading:first-child { margin-top: var(--s1); }

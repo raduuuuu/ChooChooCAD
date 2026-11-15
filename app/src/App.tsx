@@ -2133,6 +2133,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
   );
   const listing = (
         <GraphListing
+          startOpen={phone}
           graph={graph}
           resolve={resolve}
           ports={ports}
