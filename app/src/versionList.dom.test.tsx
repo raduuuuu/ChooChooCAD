@@ -84,7 +84,7 @@ describe('the version list', () => {
   /*
    * MUTATION PROOF, run: the pick not closing the list itself (no `close`;
    * the layout's change still closes it, so focus is lost): `expected
-   * 'ChooChooCADwooden railway layoutsPiec…' to be 'Make it…'`.
+   * 'The Nod Boardwooden railway layoutsPiec…' to be 'Make it…'`.
    */
   it('a pick swaps the piece, says so, and closes the list; reopened, the new version is now', async () => {
     const user = mount(false);

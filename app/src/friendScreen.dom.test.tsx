@@ -93,13 +93,13 @@ describe('a shared link', () => {
   /*
    * MUTATION PROOF, run: LinkRoute rendering `<App />` for any refusal instead
    * of the message: `Unable to find an element with the text: This link was
-   * made by a newer ChooChooCAD. Reloading usually fixes this.`.
+   * made by a newer version of The Nod Board. Reloading usually fixes this.`.
    */
   it('a newer link is refused with its sentence, and the editor never mounts (D17)', async () => {
     localStorage.setItem(GRAPH_STORAGE_KEY, OWN);
     const before = everything();
     open('#v2.abc');
-    expect(await screen.findByText('This link was made by a newer ChooChooCAD. Reloading usually fixes this.')).toBeTruthy();
+    expect(await screen.findByText('This link was made by a newer version of The Nod Board. Reloading usually fixes this.')).toBeTruthy();
     expect(document.querySelector('.palette')).toBe(null);
     expect(screen.getByRole('button', { name: 'Back to my layout' })).toBeTruthy();
     expect(everything()).toEqual(before);

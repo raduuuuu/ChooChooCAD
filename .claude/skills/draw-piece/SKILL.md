@@ -1,6 +1,6 @@
 ---
 name: draw-piece
-description: Review a piece the contributor brief drew (a Drawn piece issue holding its preview link, figures, measuring output and diff; never photos) and draw it into ChooChooCAD with a pull request. Its measuring steps are the ones the brief's Claude follows on the sender's photos. Use when asked to draw, measure or add the piece from issue #N. Run in Claude Code's default permission mode; the person running it approves each step.
+description: Review a piece the contributor brief drew (a Drawn piece issue holding its preview link, figures, measuring output and diff; never photos) and draw it into The Nod Board with a pull request. Its measuring steps are the ones the brief's Claude follows on the sender's photos. Use when asked to draw, measure or add the piece from issue #N. Run in Claude Code's default permission mode; the person running it approves each step.
 ---
 
 # Draw a piece from an issue

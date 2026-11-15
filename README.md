@@ -1,4 +1,4 @@
-# ChooChooCAD
+# The Nod Board
 
 A layout designer for wooden toy-train track that answers one question no
 other tool answers: **will this layout actually work?** Live at

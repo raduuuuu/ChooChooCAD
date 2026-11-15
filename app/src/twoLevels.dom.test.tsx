@@ -122,7 +122,7 @@ describe('a bridge on the canvas', () => {
    * 2026-10-30; 61mm rise from the owner's 73mm ramp top, 2026-11-03), said
    * as the bridges say it (app-focus review 2026-11-04, CEO D2, eng D1).
    * MUTATION PROOF, run: `vehicleHeightMm: 44` in measurements.ts fails with
-   * `expected 'ChooChooCADwooden railway layoutsGrid…' to match /Your\s*55\s*mm
+   * `expected 'The Nod Boardwooden railway layoutsGrid…' to match /Your\s*55\s*mm
    * train may not pass und…/`.
    */
   it('the note says supports are not checked, and that the measured train may not pass', () => {

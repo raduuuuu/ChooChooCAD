@@ -165,7 +165,7 @@ is the cheapest tell that a page was assembled rather than designed, and it is
 the thing a reviewer notices without being able to say why.
 
 The identity line is one of these surfaces (design 2A): the mark,
-ChooChooCAD and "wooden railway layouts", start-aligned at the top of every
+The Nod Board and "wooden railway layouts", start-aligned at the top of every
 screen (editor, a friend's screen, a first visit), so a screenshot always
 says which tool it is.
 

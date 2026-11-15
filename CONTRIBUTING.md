@@ -1,6 +1,6 @@
-# Contributing to ChooChooCAD
+# Contributing to The Nod Board
 
-ChooChooCAD checks whether a wooden railway layout will actually work. It can
+The Nod Board checks whether a wooden railway layout will actually work. It can
 only check pieces it knows, and it only knows a piece once someone has
 photographed or measured a real one. There are three ways to help:
 

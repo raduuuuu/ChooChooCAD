@@ -90,7 +90,7 @@ describe('layout files in the editor', () => {
     expect(location.hash).toBe('');
 
     const backup = JSON.stringify({ pieces: [{ pieceId: 'a', partId: 'E', turn: 'left' }], welds: [], anchors: [] });
-    await user.upload(picker, new File([backup], 'choochoocad-layout.json', { type: 'application/json' }));
+    await user.upload(picker, new File([backup], 'the-nod-board-layout.json', { type: 'application/json' }));
     await waitFor(() => expect(location.hash).toMatch(/^#v1\./));
   });
 });

@@ -1918,7 +1918,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
                   <button
                     className="put-aside-button"
                     onClick={() => {
-                      downloadBytes(stuckRescue, 'choochoocad-unreadable-layout.json');
+                      downloadBytes(stuckRescue, 'the-nod-board-unreadable-layout.json');
                       setRescueDownloaded(true);
                     }}
                   >

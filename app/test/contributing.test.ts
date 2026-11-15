@@ -47,11 +47,13 @@ const VERSION_LINE = /^Brief version: \*\*(\d+), (\d{4}-\d{2}-\d{2})\*\*$/m;
  * less the version line. Changing the brief's text: bump its version line and
  * add the next entry here, in the same commit. Version 1 is draft-7 published
  * with the T5 steps (2026-11-10); version 2 drops the maintainers' comment
- * from its top, the rule now in AGENTS.md (2026-11-10).
+ * from its top, the rule now in AGENTS.md (2026-11-10); version 3 carries the
+ * app's new name, The Nod Board (2026-11-15).
  */
 const BRIEF_VERSIONS = [
   { version: 1, date: '2026-11-10', hash: 'cfac5aa7c277e40b' },
   { version: 2, date: '2026-11-10', hash: '45a3747087d71def' },
+  { version: 3, date: '2026-11-15', hash: 'b5c955dd1d7ef04c' },
 ];
 const hashOf = (text: string) => createHash('sha256').update(text.replace(VERSION_LINE, '')).digest('hex').slice(0, 16);
 
@@ -210,7 +212,7 @@ describe('the review path (/draw-piece) reads the drawn-piece form', () => {
 describe("the maintainer's rules", () => {
   /*
    * MUTATION PROOFS, run:
-   * - the `@AGENTS.md` line removed from CLAUDE.md: `expected '# ChooChooCAD\n\n\n## Skill routing\n…' to match /^@AGENTS\.md$/m`.
+   * - the `@AGENTS.md` line removed from CLAUDE.md: `expected '# The Nod Board\n\n\n## Skill routing\n…' to match /^@AGENTS\.md$/m`.
    * - the stacked-PR rule deleted from AGENTS.md: `expected '# AGENTS.md Rules for any AI agent (C…' to match /Don't stack pull requests/`.
    */
   /*
@@ -273,7 +275,7 @@ describe('the deep checkup (repo-checkups plan, T4)', () => {
   it('keeps its generic steps free of this repository', () => {
     const part1 = skill.slice(skill.indexOf('## Part 1'), skill.indexOf('## Part 2'));
     expect(part1.length).toBeGreaterThan(1000);
-    expect(part1.match(/raduuuuu|ChooChooCAD|AGENTS\.md|CLAUDE\.md|photo|piece/gi) ?? []).toEqual([]);
+    expect(part1.match(/raduuuuu|ChooChooCAD|The Nod Board|AGENTS\.md|CLAUDE\.md|photo|piece/gi) ?? []).toEqual([]);
   });
 });
 

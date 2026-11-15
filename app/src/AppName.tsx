@@ -30,7 +30,7 @@ export function AppName() {
         <line x1="157.34" y1="59.85" x2="168.8" y2="76.2" stroke="currentColor" strokeWidth="12" />
         <circle cx="168.8" cy="76.2" r="13" fill="currentColor" />
       </svg>
-      <span className="app-name-title">ChooChooCAD</span>
+      <span className="app-name-title">The Nod Board</span>
       <span className="app-name-tag">wooden railway layouts</span>
     </p>
   );

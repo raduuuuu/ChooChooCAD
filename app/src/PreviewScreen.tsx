@@ -3,7 +3,7 @@
  * designed", D1 to D3, D7 to D14; T4). Built on the shared-layout screen's
  * column (FriendScreen, D1): no library rail, works on a phone.
  *
- *   ChooChooCAD · wooden railway layouts            (1) identity
+ *   The Nod Board · wooden railway layouts            (1) identity
  *   Piece preview · Double-arch bridge              (2) h1, focused on load
  *   This piece isn't in the library: …              (3) never folded
  *   ┌───────────────────────────────────────────┐

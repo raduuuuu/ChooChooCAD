@@ -26,7 +26,7 @@ import { discardPrevious, dropSameCopy, putAside, restorePrevious, type Summary 
 import { GRAPH_PREVIOUS_KEY } from './storageKeys.js';
 
 /** The exact bytes as a file, so nothing about them is changed on the way out (D36). */
-const download = (bytes: string) => downloadBytes(bytes, 'choochoocad-layout.json');
+const download = (bytes: string) => downloadBytes(bytes, 'the-nod-board-layout.json');
 
 const piecesOf = (s: Summary) => (s.kind === 'layout' ? s.pieces : null);
 

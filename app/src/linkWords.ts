@@ -14,8 +14,8 @@
 import type { LinkRefusal } from './shareLink.js';
 
 export const LINK_REFUSED: Record<LinkRefusal, string> = {
-  version: 'This link was made by a newer ChooChooCAD. Reloading usually fixes this.',
-  'unknown-part': "This link uses a piece this version of ChooChooCAD doesn't have. Reloading usually fixes this.",
+  version: 'This link was made by a newer version of The Nod Board. Reloading usually fixes this.',
+  'unknown-part': "This link uses a piece this version of The Nod Board doesn't have. Reloading usually fixes this.",
   'old-browser': "This browser can't open shared links. Updating it should fix this.",
   'too-long': "This link couldn't be opened.",
   'bad-encoding': "This link couldn't be opened.",
@@ -121,11 +121,11 @@ export const SHARE_REFUSED: Record<LinkRefusal, string> = {
  * A LAYOUT FILE (layoutFile.ts). Opening says what a link would, about a file;
  * saving says what Share would, about a file.
  */
-const FILE_UNREADABLE = "This file isn't a layout ChooChooCAD can open.";
+const FILE_UNREADABLE = "This file isn't a layout The Nod Board can open.";
 const FILE_TOO_BIG = 'This layout is too big for a file: files carry 500 pieces at most.';
 export const FILE_REFUSED: Record<LinkRefusal, string> = {
-  version: 'This file was made by a newer ChooChooCAD. Reloading usually fixes this.',
-  'unknown-part': "This file uses a piece this version of ChooChooCAD doesn't have, or one added in another browser.",
+  version: 'This file was made by a newer version of The Nod Board. Reloading usually fixes this.',
+  'unknown-part': "This file uses a piece this version of The Nod Board doesn't have, or one added in another browser.",
   'old-browser': "This browser can't open layout files. Updating it should fix this.",
   'too-long': FILE_TOO_BIG,
   'too-large': FILE_TOO_BIG,

@@ -226,7 +226,7 @@ describe('every refusal says which', () => {
   });
 
   it('every reason has a sentence, and three of them name a fix', () => {
-    expect(LINK_REFUSED.version).toMatch(/newer ChooChooCAD/);
+    expect(LINK_REFUSED.version).toMatch(/newer version of The Nod Board/);
     expect(LINK_REFUSED['unknown-part']).toMatch(/piece this version/);
     expect(LINK_REFUSED['old-browser']).toMatch(/Updating it/);
     expect(LINK_REFUSED.invalid).toBe("This link couldn't be opened.");

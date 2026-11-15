@@ -46,14 +46,14 @@ describe('a layout file dropped on the canvas', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     openEditor();
     const backup = JSON.stringify({ pieces: [{ pieceId: 'a', partId: 'E', turn: 'left' }], welds: [], anchors: [] });
-    drop(new File([backup], 'choochoocad-layout.json', { type: 'application/json' }));
+    drop(new File([backup], 'the-nod-board-layout.json', { type: 'application/json' }));
     await waitFor(() => expect(location.hash).toMatch(/^#v1\./));
   });
 
   /*
    * MUTATION PROOF, run: the drop handing `openLayoutFile` a `say` that
    * shows nothing (`() => undefined` for `setFileSaid`): `Unable to find an
-   * element with the text: This file isn't a layout ChooChooCAD can open..`
+   * element with the text: This file isn't a layout The Nod Board can open..`
    */
   it('says why a bad file is refused, on the file row, and stays put', async () => {
     openEditor();

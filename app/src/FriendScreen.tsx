@@ -2,7 +2,7 @@
  * THE FRIEND'S SCREEN: a shared railway, read-only (share plan; design 1A,
  * 20A, 21A, 18A; eng D21).
  *
- *   ChooChooCAD · wooden railway layouts           (identity, 2A)
+ *   The Nod Board · wooden railway layouts           (identity, 2A)
  *   A wooden railway · 14 pieces                   (h1, focused on load)
  *   ┌─────────────────────────────────────────┐
  *   │  the plan, 2D first; 3D on request      │    (the anchor)

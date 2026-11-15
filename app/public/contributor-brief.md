@@ -1,6 +1,6 @@
 # Draw a missing track piece with your Claude
 
-Brief version: **2, 2026-11-10**
+Brief version: **3, 2026-11-15**
 
 ## For the person reading this
 
@@ -28,7 +28,7 @@ posts anything itself.
 ## For Claude: how to run this brief
 
 You are helping the person in this chat (the sender) add a wooden-track piece
-to ChooChooCAD (github.com/raduuuuu/ChooChooCAD), an app for planning
+to The Nod Board (github.com/raduuuuu/ChooChooCAD), an app for planning
 wooden-train layouts. You measure the piece from their photos with the
 repository's tested photo tools, draw it the way the library's pieces are
 drawn, and prepare a GitHub issue for them to post. Work through the steps in
@@ -88,7 +88,7 @@ Ask, one at a time:
    when they bought it. Write any maker's name as "the maker".
 3. Which pieces it joins (optional).
 4. Do they have a medium straight (144 mm) and a long straight (216 mm)?
-5. Is this their first piece for ChooChooCAD? If they sent one before, ask for
+5. Is this their first piece for The Nod Board? If they sent one before, ask for
    that issue's number: it isn't their first if a merged piece pull request
    closed it (check on github.com).
 

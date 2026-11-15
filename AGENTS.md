@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Rules for any AI agent (Claude Code, Codex, others) working on ChooChooCAD.
+Rules for any AI agent (Claude Code, Codex, others) working on The Nod Board.
 This file is the one source of the maintainer's working rules (community-pieces
 plan, eng D2): a new rule is added here by pull request, never kept only in an
 agent's private memory. How to run and write tests is in [CLAUDE.md](CLAUDE.md);

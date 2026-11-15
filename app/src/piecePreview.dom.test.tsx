@@ -100,7 +100,7 @@ describe('opening a piece preview', () => {
   /*
    * MUTATION PROOF, run: PreviewScreen showing the shared screen's catalogue
    * line (`<p>{CATALOGUE_SIZES}</p>` after the standing line): `expected
-   * 'ChooChooCADwooden railway layoutsPiec…' not to contain 'Checked with
+   * 'The Nod Boardwooden railway layoutsPiec…' not to contain 'Checked with
    * catalogue sizes.'`.
    */
   it('shows no verdict: no strip, no glyph, no catalogue line (D10)', async () => {

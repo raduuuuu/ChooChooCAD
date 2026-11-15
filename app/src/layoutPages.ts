@@ -34,13 +34,13 @@ import { seamLines, segmentPath } from './trackPath.js';
 export const SITE = 'https://woodentrain.world';
 
 /** The home page's title and description (`app/index.html` carries the same words; the test compares them). */
-export const HOME_TITLE = 'ChooChooCAD: will your wooden train track layout close?';
+export const HOME_TITLE = 'The Nod Board: will your wooden train track layout close?';
 export const HOME_DESCRIPTION =
   'A free planner for wooden toy-train track. Lay out the pieces and it says whether the loop closes, before you build it on the floor.';
 
 /** What the app is, in words a page can carry with no script. One copy, used by every page. */
 export const EXPLANATION: readonly string[] = [
-  'ChooChooCAD is a free planner for wooden toy-train track. You lay pieces out on a canvas, and on every change it says whether the layout will work: whether each loop closes, whether it closes only by using the play in the joints, and whether any track overlaps.',
+  'The Nod Board is a free planner for wooden toy-train track. You lay pieces out on a canvas, and on every change it says whether the layout will work: whether each loop closes, whether it closes only by using the play in the joints, and whether any track overlaps.',
   'A loop is checked with exact arithmetic, not by eye. "Closes exactly" means the two ends meet with nothing to force, in the piece sizes the check used. When a size has not been measured, the app says so.',
   'It also handles ramps and bridges, counts the pieces you own, shows the layout in 3D, and steps through the build piece by piece.',
 ];
@@ -134,7 +134,7 @@ function shell(title: string, description: string, path: string, body: string): 
 <link rel="canonical" href="${SITE}${path}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="ChooChooCAD">
+<meta property="og:site_name" content="The Nod Board">
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:image" content="${SITE}/og.png">
@@ -143,7 +143,7 @@ function shell(title: string, description: string, path: string, body: string): 
 </head>
 <body>
 <main class="page">
-<div class="identity"><a href="/">ChooChooCAD</a><span>wooden railway layouts</span></div>
+<div class="identity"><a href="/">The Nod Board</a><span>wooden railway layouts</span></div>
 ${body}
 </main>
 </body>
@@ -158,7 +158,7 @@ function pageHtml(label: string, slug: string, graph: Graph, pieces: ReadonlyMap
   const rows = [...pieces]
     .map(([id, n]) => `<li><span class="num">${n}</span> × ${esc(resolve(id).name)} (<span class="num">${esc(id)}</span>)</li>`)
     .join('\n');
-  const title = `${label}: a wooden train track layout that closes | ChooChooCAD`;
+  const title = `${label}: a wooden train track layout that closes | The Nod Board`;
   const description = `${label}: ${count} pieces of wooden toy-train track in a loop that closes exactly. See the pieces it takes and open it in the planner.`;
   return shell(
     title,
@@ -187,7 +187,7 @@ function indexHtml(pages: readonly LayoutPage[], drawings: ReadonlyMap<string, s
     )
     .join('\n');
   return shell(
-    'Wooden train track layouts that close | ChooChooCAD',
+    'Wooden train track layouts that close | The Nod Board',
     'Wooden toy-train track layouts checked to close exactly, each with the pieces it takes. Open any of them in the planner and change it.',
     '/layouts/',
     `<h1>Wooden train track layouts that close</h1>

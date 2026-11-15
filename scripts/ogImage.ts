@@ -76,14 +76,14 @@ console.log(`<!doctype html>
   html, body { margin: 0; width: 1200px; height: 630px; background: ${token('paper')}; color: ${token('ink')}; font-family: Plex, sans-serif; overflow: hidden; }
   main { display: flex; align-items: center; height: 100%; padding: 0 72px; gap: 56px; box-sizing: border-box; }
   .words { flex: 1; }
-  .name { display: flex; align-items: center; gap: 18px; font-size: 56px; font-weight: 600; letter-spacing: -0.01em; }
-  .name svg { width: 64px; height: 64px; }
+  .name { display: flex; align-items: center; gap: 16px; font-size: 46px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; }
+  .name svg { width: 54px; height: 54px; flex: none; }
   .line { margin-top: 20px; font-size: 27px; line-height: 1.4; color: ${token('ink-soft')}; max-width: 22ch; text-wrap: balance; }
   .floor { background: ${token('floor')}; border: 1px solid ${token('rule')}; padding: 24px; display: flex; }
 </style></head>
 <body><main>
   <div class="words">
-    <div class="name">${logo}ChooChooCAD</div>
+    <div class="name">${logo}The Nod Board</div>
     <div class="line">Lay out the pieces and it says whether the loop closes, before you build it on the floor.</div>
   </div>
   <div class="floor">${svg}</div>

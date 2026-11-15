@@ -1,4 +1,4 @@
-# ChooChooCAD
+# The Nod Board
 
 @AGENTS.md
 

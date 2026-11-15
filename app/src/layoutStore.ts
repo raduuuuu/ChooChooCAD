@@ -580,7 +580,7 @@ export function loadGraph(
           ? // Reload is safe advice: nothing is saved over the stored layout
             // until the user edits or dismisses (`savesSuppressed`), and a
             // newer version that knows the part loads it whole (eng D11).
-            `Your saved track uses a part this version of ChooChooCAD doesn't have (${checked.partId}). ` +
+            `Your saved track uses a part this version of The Nod Board doesn't have (${checked.partId}). ` +
               'It may come from a newer version: reload the page before changing anything, and your track should come back. ' +
               'The canvas started empty because dropping one piece would have changed its shape.'
           : DISCARDED,

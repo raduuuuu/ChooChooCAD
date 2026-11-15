@@ -5,7 +5,7 @@
  * reader gets, and the logo mark beside it stays decorative
  * Value: fails_when=the name line is dropped, or the mark becomes announced or
  * focusable
- * Value: why_new="ChooChooCAD" was only in the tab title
+ * Value: why_new="The Nod Board" was only in the tab title
  * Value: seam=App mounted under jsdom
  * Value: no_claim=how the line or the favicon look, which were checked in a
  * browser
@@ -20,7 +20,7 @@ describe('the app name', () => {
   /*
    * MUTATION PROOFS, run:
    * - no `<AppName />` in App: fails with `Unable to find an element with the
-   *   text: ChooChooCAD`.
+   *   text: The Nod Board`.
    * - the mark announced (`aria-hidden` removed from AppName's svg): fails with
    *   `expected null to be 'true'`.
    */
@@ -30,11 +30,11 @@ describe('the app name', () => {
         <App />
       </StrictMode>,
     );
-    const title = screen.getByText('ChooChooCAD');
+    const title = screen.getByText('The Nod Board');
     const line = title.closest('.app-name')!;
     expect(line.closest('header.identity')).not.toBeNull();
     expect(line.closest('section.palette')).toBeNull();
-    expect(line.textContent).toBe('ChooChooCADwooden railway layouts');
+    expect(line.textContent).toBe('The Nod Boardwooden railway layouts');
     const mark = line.querySelector('svg')!;
     expect(mark.getAttribute('aria-hidden')).toBe('true');
     expect(mark.getAttribute('focusable')).toBe('false');
