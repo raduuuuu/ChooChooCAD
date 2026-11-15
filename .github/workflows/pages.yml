@@ -65,3 +65,37 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+  release:
+    # THE VERSION JUST DEPLOYED, TAGGED AND PUBLISHED (engine/tools/version.ts).
+    # After the deploy, so a release never names a version that is not live.
+    # The tag is `v` and package.json's number, on the commit that was built;
+    # the notes are that number's entry in CHANGELOG.md.
+    #
+    # A merge that did not raise the number (Dependabot's, which ci.yml lets
+    # through) finds its release already there and publishes nothing.
+    #
+    # This is the one job here that may write to the repository, and only
+    # tags and releases: nothing is committed to main.
+    needs: deploy
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - name: Tag and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(bun engine/tools/version.ts current)"
+          if gh release view "v$version" >/dev/null 2>&1; then
+            echo "v$version is already published; this merge did not raise the version."
+            exit 0
+          fi
+          bun engine/tools/version.ts notes > "$RUNNER_TEMP/notes.md"
+          gh release create "v$version" --target "$GITHUB_SHA" --title "v$version" --notes-file "$RUNNER_TEMP/notes.md"

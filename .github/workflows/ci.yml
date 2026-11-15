@@ -112,6 +112,24 @@ jobs:
       - name: Repo content checks
         run: bun run checkup --content
 
+      # EVERY MERGE GETS ITS OWN VERSION (engine/tools/version.ts). Always: the
+      # number in package.json is the first entry in CHANGELOG.md, with words.
+      # On a pull request also: the number is above the one on the branch it
+      # merges into. Dependabot's monthly pull requests cannot raise it, so they
+      # get the first check only; pages.yml then publishes no release for them.
+      # Both values arrive through `env`, never pasted into the script.
+      - name: Version
+        env:
+          BASE: ${{ github.base_ref }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          if [ -n "$BASE" ] && [ "$AUTHOR" != "dependabot[bot]" ]; then
+            git fetch --no-tags --depth=1 origin "$BASE"
+            bun run version:check --base FETCH_HEAD
+          else
+            bun run version:check
+          fi
+
       # Ordered cheapest-signal-first: types before tests before the bundle.
       - name: Typecheck
         run: bun run typecheck

@@ -88,6 +88,7 @@ import { boxWords, byBox } from './canBuild.js';
 import { FinishLoop } from './FillOffer.js';
 import { TrainControl, TrainMark } from './TrainControl.js';
 import type { TrainRun } from './trainRun.js';
+import { VersionLine } from './appVersion.js';
 import { JoinStart, VerdictCompact, VerdictLine, VerdictScope, type BridgeNote } from './VerdictLine.js';
 import { markLists } from './markLists.js';
 import { EMPTY_GRAPH, familyOf, ghostFit, joinRefusal, otherLevelEndNear, shiftMm, snapRunMove, swapPiece, swapsOf, woodOf, type JoinRefusal } from './layoutModel.js';
@@ -2309,6 +2310,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             <a className="more-row more-link" href={LAYOUT_PAGES_URL}>
               {LAYOUT_PAGES_WORDS}
             </a>
+            <VersionLine className="more-row more-link" />
           </div>
         }
       />
@@ -2455,6 +2457,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
           <a className="contribute-link" href={LAYOUT_PAGES_URL}>
             {LAYOUT_PAGES_WORDS}
           </a>
+          <VersionLine className="contribute-link" />
         </div>
 
         {fileControls}

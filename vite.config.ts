@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -11,6 +11,9 @@ import react from '@vitejs/plugin-react';
  * 'unknown' rather than to a plausible-looking number: a wrong version in a
  * crash report sends whoever reads it to the wrong source.
  */
+/** The app's version, from package.json (engine/tools/version.ts says how it moves). */
+const APP_NUMBER = (JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version;
+
 function buildVersion(): string {
   try {
     const sha = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
@@ -44,5 +47,6 @@ export default defineConfig({
   // The photo guide is a second page, served at /photo-guide.html with the
   // app's own tokens and fonts (community-pieces plan, design D11).
   build: { rollupOptions: { input: { index: 'app/index.html', guide: 'app/photo-guide.html', ...layoutInputs() } } },
-  define: { __APP_VERSION__: JSON.stringify(buildVersion()) },
+  // The number people see ("1.4.2"), and the number with its commit for a crash report ("1.4.2+e198b4d").
+  define: { __APP_NUMBER__: JSON.stringify(APP_NUMBER), __APP_VERSION__: JSON.stringify(`${APP_NUMBER}+${buildVersion()}`) },
 });
