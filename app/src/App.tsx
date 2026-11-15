@@ -71,7 +71,7 @@ import {
 import { dropRescueCopy, holdsOwnLayout, loadGraph, partialLoadNotice, rescueCopy, saveGraph, savesSuppressed, storedGraphOf } from './layoutStore.js';
 import { downloadBytes } from './downloadBytes.js';
 import { LayoutFileControls, openLayoutFile } from './LayoutFileControls.js';
-import { PHONE_SHELL_QUERY, PhoneEditor, SHORT_TOUCH_QUERY } from './phoneEditor.js';
+import { keepPhoneVerdict, PHONE_SHELL_QUERY, PhoneEditor, phoneVerdictWasOpen, SHORT_TOUCH_QUERY } from './phoneEditor.js';
 import type { PhonePanel, PhoneSheet } from './PhoneShell.js';
 import { PutAsideNotice } from './PutAsideNotice.js';
 import { keepBeforeReplacing } from './putAside.js';
@@ -395,6 +395,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
   const piecesScroll = useRef(0);
   const moreScroll = useRef(0);
   const [warningsOpen, setWarningsOpen] = useState(false);
+  const [verdictOpen, setVerdictOpen] = useState(phoneVerdictWasOpen);
   const [listOpen, setListOpen] = useState(false);
   const [selectionMore, setSelectionMore] = useState(false);
   const canEditNow = useRef(screen.canEdit);
@@ -2175,6 +2176,16 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         onWarnings={setWarningsOpen}
         stage={stage}
         verdict={<VerdictCompact.Provider value={true}>{verdictBlock}</VerdictCompact.Provider>}
+        verdictOpen={verdictOpen}
+        // Sideways the verdict has a column to itself, and an empty floor's is one line already.
+        onVerdict={
+          sideways || empty
+            ? null
+            : (open) => {
+                setVerdictOpen(open);
+                keepPhoneVerdict(open);
+              }
+        }
         // An empty floor has nothing to tap: no tip about pieces that are not there (design review 2026-11-15).
         strip={strip === hintStrip && graph.pieces.length === 0 ? null : (strip ?? (trainRun ? trainControl : null))}
         history={<UndoControl last={lastStep(editor)} next={nextStep(editor)} onUndo={undo} onRedo={redo} short />}

@@ -7,7 +7,8 @@
  *   | a warning, when there is   |   one line; "and 1 more" opens the rest (DD5)
  *   |          the plan          |   all the height that is left; never resized
  *   |                            |   by anything under it
- *   | O verdict           N notes|   the sentence and next step, whole (DD3)
+ *   | O verdict         Show less|   the sentence and next step, whole (DD3);
+ *   |                            |   "Show less" folds it to its first line
  *   | [ strip: Place Turn Cancel]|   always reserved, so the plan does not jump (DD2)
  *   |----------------------------|
  *   | [Pieces] [Undo][Redo][More]|   every target 44px or more
@@ -52,6 +53,10 @@ export interface PhoneShellProps {
   /** The plan: the canvas or the 3D view, with its corner. */
   readonly stage: ReactNode;
   readonly verdict: ReactNode;
+  /** False when the person folded the verdict to one line, to see more of the plan. */
+  readonly verdictOpen: boolean;
+  /** Folds and unfolds the verdict; null where there is nothing to fold or room for it all. */
+  readonly onVerdict: ((open: boolean) => void) | null;
   /** The placing, joining or selection strip, or the hint; null leaves the row empty. */
   readonly strip: ReactNode;
   /** Undo and Redo, as the wide editor draws them. */
@@ -71,6 +76,8 @@ export interface PhoneShellProps {
 export default function PhoneShell(props: PhoneShellProps) {
   const { warnings, panel, sheet, onSheet } = props;
   const [first, ...rest] = warnings;
+  const onVerdict = props.onVerdict;
+  const folded = onVerdict !== null && !props.verdictOpen;
   return (
     <div className={`phone${props.sideways ? ' is-sideways' : ''}`}>
       <div className="phone-top">
@@ -89,7 +96,22 @@ export default function PhoneShell(props: PhoneShellProps) {
       </div>
       <div className="phone-plan">{props.stage}</div>
       <div className="phone-controls">
-        <div className="phone-verdict">{props.verdict}</div>
+        {/*
+          * THE VERDICT FOLDS TO ONE LINE (owner, 2026-11-15). Whole, the
+          * sentence, the lines nobody may miss and the next step took a
+          * fifth of a phone's height from the plan. Folded, the mark and the
+          * start of the sentence stay, cut by the stylesheet only: every
+          * word is still in the markup, so a screen reader hears it whole.
+          * It starts whole, and only the person's own tap folds it.
+          */}
+        <div className={`phone-verdict${onVerdict ? ' can-fold' : ''}${folded ? ' is-folded' : ''}`}>
+          {props.verdict}
+          {onVerdict && (
+            <button className="phone-verdict-fold" aria-expanded={!folded} onClick={() => onVerdict(folded)}>
+              {folded ? 'Show all' : 'Show less'}
+            </button>
+          )}
+        </div>
         <div className="phone-strip">{props.strip}</div>
         <div className="phone-row" role="group" aria-label="Editing">
           <button className="phone-pieces" onClick={() => onSheet('pieces')}>
