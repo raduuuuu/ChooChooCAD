@@ -1861,6 +1861,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             // On a phone the strip has a row of its own under the verdict, so the plan never resizes (design DD2).
             strip={phone ? null : strip}
             onReachable={phone ? onReachable : undefined}
+            piecesFrom={phone ? 'Pieces' : undefined}
             ghost={ghostView ? { render: ghostView.render, red: ghostView.red, reach: ghostView.reach } : null}
             onRunMove={(d, radius) => moveRunBy(d.pieceId, d.dx, d.dy, d.turns, radius)}
             runOf={runOf}
@@ -2133,6 +2134,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
   );
   const listing = (
         <GraphListing
+          startOpen={phone}
           graph={graph}
           resolve={resolve}
           ports={ports}
@@ -2173,7 +2175,8 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         onWarnings={setWarningsOpen}
         stage={stage}
         verdict={<VerdictCompact.Provider value={true}>{verdictBlock}</VerdictCompact.Provider>}
-        strip={strip ?? (trainRun ? trainControl : null)}
+        // An empty floor has nothing to tap: no tip about pieces that are not there (design review 2026-11-15).
+        strip={strip === hintStrip && graph.pieces.length === 0 ? null : (strip ?? (trainRun ? trainControl : null))}
         history={<UndoControl last={lastStep(editor)} next={nextStep(editor)} onUndo={undo} onRedo={redo} short />}
         sheet={sheet}
         onSheet={setSheet}

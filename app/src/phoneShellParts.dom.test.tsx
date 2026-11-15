@@ -142,6 +142,35 @@ describe('a panel on a phone', () => {
   });
 });
 
+describe('what the design review of 2026-11-15 found', () => {
+  /*
+   * MUTATION PROOF, run: `startOpen` not passed to the list: `expected false
+   * to be true` (a full screen showing one closed line).
+   */
+  it('the layout list has a screen to itself, so it is drawn open', async () => {
+    const user = userEvent.setup();
+    open(straight(['m1', 'm2']));
+    await moreRow(user, 'This layout as a list');
+    const list = document.querySelector<HTMLDetailsElement>('.phone-panel-body details.graph-listing')!;
+    expect(list.open).toBe(true);
+  });
+
+  /*
+   * MUTATION PROOFS, run:
+   * - `piecesFrom` not passed on a phone: `expected 'Or place pieces one at a
+   *   time from the palette.' to be 'Or place pieces one at a time from
+   *   Pieces.'` (a phone has no palette, only the Pieces button).
+   * - the tip shown on an empty floor: `expected 'Tap a piece to select it;
+   *   Remove piece takes it out.' to be ''`.
+   */
+  it('an empty floor names Pieces, and gives no tip about a piece that is not there', async () => {
+    open({ pieces: [], welds: [], anchors: [] });
+    await screen.findByRole('button', { name: 'Pieces' });
+    expect(document.querySelector('.canvas-empty-hint')!.textContent!.trim()).toBe('Or place pieces one at a time from Pieces.');
+    expect(document.querySelector('.phone-strip')!.textContent).toBe('');
+  });
+});
+
 describe('warnings on a phone', () => {
   /*
    * MUTATION PROOFS, run:

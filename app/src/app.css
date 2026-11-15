@@ -476,6 +476,8 @@
 }
 .verdict-fold:hover { color: var(--ink); }
 @media (pointer: coarse) { .verdict-fold { min-height: 44px; min-width: 44px; } }
+/* A closed shelf's line is its button: a finger's size on a touch screen (rule 10; design review 2026-11-15). */
+@media (pointer: coarse) { .brand-group.is-collapsible > summary { min-height: 44px; align-content: center; } }
 
 /*
  * THE NOTES BLOCK (task X2a, Y1 decision 2).
@@ -2310,10 +2312,21 @@
   z-index: 2;
 }
 /* ALWAYS RESERVED (DD2): a sentence of two lines, and one row of 44px buttons. */
-.phone-strip { flex: none; height: 96px; overflow-y: auto; border-top: 1px solid var(--rule); }
+.phone-strip { flex: none; height: 100px; overflow-y: auto; border-top: 1px solid var(--rule); }
 .phone-strip .mode-strip { border-top: none; padding: var(--s1) var(--s3); gap: var(--s1) var(--s2); }
 .phone-strip .mode-strip-text { font-size: 14px; line-height: 1.35; min-height: 2.7em; }
-.phone-strip .mode-strip button { min-height: 44px; min-width: 44px; padding: 0 var(--s2); font-size: 14px; }
+/*
+ * ONE ROW OF BUTTONS, WHATEVER THEY SAY (design review 2026-11-15). Placing a
+ * curve has four ("Other end on", "Bend the other way", Cancel, Place) and
+ * "Next end" makes five: at their natural widths Place wrapped to a second
+ * row, the row grew past its reserved height, and the sentence saying whether
+ * the piece fits scrolled out of sight. The buttons now share the row equally
+ * and a long label wraps inside its own button, two lines in 44px.
+ */
+.phone-strip .mode-strip button { flex: 1 1 0; min-width: 44px; min-height: 44px; padding: 0 var(--s1); font-size: 14px; line-height: 1.15; white-space: normal; overflow-wrap: anywhere; }
+/* The four arrows keep their own size; they are a pad, not a sentence. */
+.phone-strip .move-run { flex: none; display: flex; gap: var(--s1); }
+.phone-strip .move-run button { flex: none; width: 44px; }
 .phone-strip .train-run { padding: var(--s1) var(--s3); }
 .phone-row {
   flex: none;
@@ -2365,7 +2378,14 @@
 .phone-panel-body .inventory-head { display: none; }
 .phone-panel-body :is(.inventory, .submit) { border: none; padding: 0; margin: 0; }
 .phone-panel-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--s3); }
+/* The layout list on a phone: its buttons are for a finger (DESIGN.md rule 10). */
+.phone-panel-body .graph-listing button { min-height: 44px; padding: 0 var(--s3); background: transparent; border: 1px solid var(--rule); border-radius: 3px; color: var(--ink); font: inherit; font-size: 14px; }
+.phone-panel-body .graph-listing summary { min-height: 44px; display: flex; align-items: center; }
+/* In a panel the form sits on the page itself: no tinted block inside a full screen (design review 2026-11-15). */
+.phone-panel-body :is(.inventory, .submit) { background: transparent; }
 /* MORE (DD14): plain rows under three headings. */
+/* The put-aside line is a row among rows here, not a boxed notice. */
+.more .notice { margin: 0; padding: var(--s2) 0; border: none; border-bottom: 1px solid var(--rule); background: none; }
 .more-heading { margin: var(--s4) 0 var(--s1); font-size: 13px; font-weight: 600; color: var(--ink-soft); }
 .more-heading:first-child { margin-top: var(--s1); }
 .more-row {
