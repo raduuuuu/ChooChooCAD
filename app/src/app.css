@@ -2387,7 +2387,9 @@
 /* SIDEWAYS (DD9): the plan, and beside it one column with the controls. */
 .phone.is-sideways { grid-template-rows: auto minmax(0, 1fr); grid-template-columns: minmax(0, 1fr) minmax(260px, 42%); }
 .phone.is-sideways .phone-top { grid-column: 1 / -1; }
-.phone.is-sideways .phone-controls { border-top: none; border-left: 1px solid var(--rule); justify-content: flex-end; overflow-y: auto; }
+/* The verdict takes the height the strip and the buttons leave, and scrolls inside itself before it is ever cut (DD3). */
+.phone.is-sideways .phone-controls { border-top: none; border-left: 1px solid var(--rule); }
+.phone.is-sideways .phone-verdict { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .phone.is-sideways .sheet { inset: 0 0 0 auto; width: 42%; min-width: 260px; height: 100dvh; border-top: none; border-left: 1px solid var(--rule); }
 /* A FULL-SCREEN PANEL (DD10): its name and Done never scroll; the form does. */
 .phone-panel { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; background: var(--paper); }
