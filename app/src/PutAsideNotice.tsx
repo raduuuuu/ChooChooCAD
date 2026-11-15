@@ -10,8 +10,9 @@
  *     Discard ─▶ "Discard the put-aside layout (N pieces)? This can't be undone."
  *                [Discard] [Keep it] ─▶ the slot empties and the notice goes
  *
- * A copy that is the saved layout byte for byte is emptied, not offered:
- * restoring it would change nothing.
+ * A copy that is the saved layout byte for byte, or the layout on screen, or
+ * an empty floor, is emptied, not offered: restoring it would give nothing
+ * back (`dropSameCopy`).
  *
  * Restore reloads, so it waits for `allSaved`: a reload with an unsaved
  * change would lose it. Another tab putting a layout aside, or taking one
@@ -29,11 +30,25 @@ const download = (bytes: string) => downloadBytes(bytes, 'choochoocad-layout.jso
 
 const piecesOf = (s: Summary) => (s.kind === 'layout' ? s.pieces : null);
 
-export function PutAsideNotice({ allSaved }: { readonly allSaved: boolean }) {
+export interface PutAsideNoticeProps {
+  readonly allSaved: boolean;
+  /**
+   * The layout on screen, as it would be saved. The slot is read again when
+   * it changes: Clear in this tab puts a layout aside (eng ED10), and Undo
+   * brings it back, which leaves a copy of what is already on screen.
+   */
+  readonly current?: string;
+}
+
+export function PutAsideNotice({ allSaved, current }: PutAsideNoticeProps) {
   const [summary, setSummary] = useState(() => {
-    dropSameCopy();
+    dropSameCopy(current);
     return putAside();
   });
+  useEffect(() => {
+    dropSameCopy(current);
+    setSummary(putAside());
+  }, [current]);
   const [confirming, setConfirming] = useState(false);
   const [failed, setFailed] = useState(false);
   const [stranded, setStranded] = useState<string | null>(null);

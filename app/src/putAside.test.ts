@@ -226,6 +226,78 @@ describe('a copy that is the saved layout itself', () => {
   });
 });
 
+describe('a copy that gives nothing back', () => {
+  /*
+   * MUTATION PROOFS, run:
+   * - `current` ignored (the saved slot always compared): `expected { saved:
+   *   null, aside: '…' } to deeply equal { saved: null, aside: null }`, and
+   *   the "just put aside" spec fails the other way round.
+   * - the empty-floor test dropped: `expected { …(2) } to deeply equal
+   *   { …(2) }`, the empty copy still there.
+   */
+  it('the layout on screen, not saved yet, is emptied', () => {
+    data.set(GRAPH_PREVIOUS_KEY, MINE);
+    m.dropSameCopy(EARLIER);
+    expect(slots()).toEqual({ saved: null, aside: MINE });
+    m.dropSameCopy(MINE);
+    expect(slots()).toEqual({ saved: null, aside: null });
+  });
+
+  // Clear has put MINE aside and the save of the empty floor has not run yet.
+  it('a layout just put aside is kept while the saved slot still holds it', () => {
+    data.set(GRAPH_STORAGE_KEY, MINE);
+    data.set(GRAPH_PREVIOUS_KEY, MINE);
+    m.dropSameCopy(layout(0));
+    expect(slots()).toEqual({ saved: MINE, aside: MINE });
+  });
+
+  it('an empty floor is emptied', () => {
+    data.set(GRAPH_STORAGE_KEY, MINE);
+    data.set(GRAPH_PREVIOUS_KEY, layout(0));
+    m.dropSameCopy();
+    expect(slots()).toEqual({ saved: MINE, aside: null });
+  });
+});
+
+describe('keeping a layout before it is replaced (ED10)', () => {
+  /*
+   * MUTATION PROOFS, run:
+   * - nothing written (`put` skipped, 'kept' returned): `expected { saved:
+   *   null, aside: null } to deeply equal { saved: null, aside: '…' }`.
+   * - the empty-floor guard dropped: `expected 'kept' to be 'nothing'`.
+   */
+  it('goes in the empty slot; an empty floor and unreadable bytes do not', () => {
+    expect(m.keepBeforeReplacing(MINE)).toBe('kept');
+    expect(slots()).toEqual({ saved: null, aside: MINE });
+    data.delete(GRAPH_PREVIOUS_KEY);
+    expect(m.keepBeforeReplacing(layout(0))).toBe('nothing');
+    expect(m.keepBeforeReplacing('{not json')).toBe('nothing');
+    expect(slots()).toEqual({ saved: null, aside: null });
+  });
+
+  /*
+   * MUTATION PROOF, run: the `previous !== null` guard dropped (the newer
+   * layout replaces the older, unasked): `expected 'kept' to be 'occupied'`.
+   */
+  it('never replaces another layout already put aside (D29), and the same one is kept as it is', () => {
+    data.set(GRAPH_PREVIOUS_KEY, EARLIER);
+    expect(m.keepBeforeReplacing(MINE)).toBe('occupied');
+    expect(slots().aside).toBe(EARLIER);
+    expect(m.keepBeforeReplacing(EARLIER)).toBe('kept');
+    expect(slots().aside).toBe(EARLIER);
+  });
+
+  /*
+   * MUTATION PROOF, run: a failed write reported as kept (`put(…) || true`):
+   * `expected 'kept' to be 'failed'`.
+   */
+  it('a full storage is reported, and the slot is left empty', () => {
+    full.add(GRAPH_PREVIOUS_KEY);
+    expect(m.keepBeforeReplacing(MINE)).toBe('failed');
+    expect(slots().aside).toBeNull();
+  });
+});
+
 describe('Discard and the summary', () => {
   it('discard empties the put-aside slot', () => {
     data.set(GRAPH_PREVIOUS_KEY, MINE);

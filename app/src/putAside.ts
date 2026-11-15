@@ -119,13 +119,51 @@ export function summaryOf(bytes: string | null): Summary {
 }
 
 /**
- * A put-aside copy byte for byte the same as the saved layout gives nothing
- * back: Restore would swap a layout with itself. Empty that slot. Such copies
- * were made by opening your own layout's link before `openInEditor` skipped it.
+ * A put-aside copy that gives nothing back is emptied, not offered:
+ *
+ * - byte for byte the saved layout, or `current` (the layout on screen, which
+ *   may not be saved yet): Restore would swap a layout with itself. Opening
+ *   your own layout's link made such copies before `openInEditor` skipped it;
+ *   Undo after Clear makes one now.
+ * - an empty floor: what Restore leaves behind after Clear, since the two
+ *   slots are swapped.
  */
-export function dropSameCopy(): void {
+export function dropSameCopy(current?: string): void {
   const previous = read(GRAPH_PREVIOUS_KEY);
-  if (previous !== null && previous === read(GRAPH_STORAGE_KEY)) put(GRAPH_PREVIOUS_KEY, null);
+  if (previous === null) return;
+  const s = summaryOf(previous);
+  // With the layout on screen known, IT is what Restore would replace: the saved
+  // slot may still hold the layout Clear has just put aside, until the next save.
+  const shown = current ?? read(GRAPH_STORAGE_KEY);
+  if (previous === shown || (s.kind === 'layout' && s.pieces === 0)) put(GRAPH_PREVIOUS_KEY, null);
+}
+
+/**
+ * KEEP A LAYOUT BEFORE IT IS REPLACED (plan 2026-11-14, eng ED10; owner: "Put
+ * the old layout aside first"). Clear and the ready layouts replace the whole
+ * layout with only Undo as the way back, and Undo's history is gone when a
+ * phone discards the tab. So the layout goes in the put-aside slot first.
+ *
+ *   an empty floor, or bytes that are no layout ─▶ 'nothing' (nothing to keep)
+ *   the slot already holds these bytes ─▶ 'kept'
+ *   the slot holds ANOTHER layout ─▶ 'occupied': it is left alone. Replacing a
+ *     put-aside layout is asked first everywhere else (D29), and Clear asks
+ *     nothing (design DD14), so the older one wins.
+ *   the slot is empty ─▶ written and read back: 'kept', or 'failed' with the
+ *     slot empty again
+ *
+ * Never blocks the caller: whatever this returns, Clear still clears.
+ */
+export type KeepResult = 'kept' | 'nothing' | 'occupied' | 'failed';
+export function keepBeforeReplacing(bytes: string): KeepResult {
+  const s = summaryOf(bytes);
+  if (s.kind !== 'layout' || s.pieces === 0) return 'nothing';
+  const previous = read(GRAPH_PREVIOUS_KEY);
+  if (previous === bytes) return 'kept';
+  if (previous !== null) return 'occupied';
+  if (put(GRAPH_PREVIOUS_KEY, bytes)) return 'kept';
+  put(GRAPH_PREVIOUS_KEY, null);
+  return 'failed';
 }
 
 export const putAside = (): Summary => summaryOf(read(GRAPH_PREVIOUS_KEY));

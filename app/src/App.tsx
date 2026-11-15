@@ -72,6 +72,7 @@ import { dropRescueCopy, holdsOwnLayout, loadGraph, partialLoadNotice, rescueCop
 import { downloadBytes } from './downloadBytes.js';
 import { LayoutFileControls, openLayoutFile } from './LayoutFileControls.js';
 import { PutAsideNotice } from './PutAsideNotice.js';
+import { keepBeforeReplacing } from './putAside.js';
 import { ShareControl } from './ShareControl.js';
 import { rescueCopyLine, saveFailureNotice, type SavedStore } from './saveNotice.js';
 import { bridgeNotesOf, buildingClashSentence, buildingWord, supportNoteOf, tunnelNotesOf, viewOf } from './verdictView.js';
@@ -938,8 +939,21 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
       : null,
   });
   const breakJoint = (a: PortRef, b: PortRef) => dispatch({ kind: 'breakWeld', a, b });
-  const clear = () => dispatch({ kind: 'clear' });
+  /*
+   * CLEAR AND THE READY LAYOUTS KEEP WHAT THEY REPLACE (plan 2026-11-14, eng
+   * ED10). Your own layout goes in the put-aside slot first, so it outlives
+   * Undo's history. Not the example: it is not yours, and comes back by itself.
+   */
+  const layoutBytes = useMemo(() => JSON.stringify(storedGraphOf(graph)), [graph]);
+  const keepFirst = () => {
+    if (screen.mode === 'edit') keepBeforeReplacing(layoutBytes);
+  };
+  const clear = () => {
+    keepFirst();
+    dispatch({ kind: 'clear' });
+  };
   const preset = (p: Preset) => {
+    keepFirst();
     countAction('preset');
     dispatch(presetAction(p));
   };
@@ -1694,7 +1708,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     return (
       <FriendScreen
         {...shared}
-        linkBytes={JSON.stringify(storedGraphOf(graph))}
+        linkBytes={layoutBytes}
         exitLabel={exitLabel(ownLayout)}
         onExit={leaveLink}
       />
@@ -1710,7 +1724,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         */}
       <header className="identity">
         <AppName />
-        <PutAsideNotice allSaved={allSaved} />
+        <PutAsideNotice allSaved={allSaved} current={screen.mode === 'edit' ? layoutBytes : undefined} />
         {screen.mode === 'example' && (
           /*
            * THE FIRST-VISIT EXAMPLE (design 3A): labelled as one, with its
