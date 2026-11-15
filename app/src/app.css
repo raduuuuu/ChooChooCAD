@@ -2309,3 +2309,107 @@
   cursor: pointer;
 }
 .sheet-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--s2) var(--s3) var(--s4); }
+
+/*
+ * THE PHONE'S EDITOR (plan 2026-11-14, design DD1, DD2, DD3, DD5, DD9, DD10,
+ * DD14): one screen that never scrolls. The plan takes the height that is
+ * left; everything under it has a fixed or reserved height, so the plan does
+ * not jump when a strip appears. Styled by its class, never by a media query
+ * of its own (eng ED2): App chooses the shell, and `is-sideways` with it.
+ */
+.phone {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--paper);
+}
+.phone-plan { min-height: 0; min-width: 0; display: flex; }
+.phone-plan .stage { flex: 1; min-width: 0; }
+.phone-controls { display: flex; flex-direction: column; min-width: 0; min-height: 0; border-top: 1px solid var(--rule); }
+/* The verdict sentence and the next step wrap freely and are never cut (DD3). */
+.phone-verdict { position: relative; }
+/* The notes open OVER the plan and close again: they never push it (DD3). */
+.phone-verdict .verdict-folded:not([hidden]) {
+  position: absolute;
+  inset: auto 0 100% 0;
+  max-height: 45dvh;
+  overflow-y: auto;
+  padding: var(--s2) var(--s3);
+  background: var(--paper-sunk);
+  border-top: 1px solid var(--rule);
+  z-index: 2;
+}
+/* ALWAYS RESERVED (DD2): a sentence of two lines, and one row of 44px buttons. */
+.phone-strip { flex: none; height: 96px; overflow-y: auto; border-top: 1px solid var(--rule); }
+.phone-strip .mode-strip { border-top: none; padding: var(--s1) var(--s3); gap: var(--s1) var(--s2); }
+.phone-strip .mode-strip-text { font-size: 14px; line-height: 1.35; min-height: 2.7em; }
+.phone-strip .mode-strip button { min-height: 44px; min-width: 44px; padding: 0 var(--s2); font-size: 14px; }
+.phone-strip .train-run { padding: var(--s1) var(--s3); }
+.phone-row {
+  flex: none;
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr 1fr;
+  gap: var(--s2);
+  padding: var(--s2) var(--s3) calc(var(--s2) + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--rule);
+}
+.phone-row button {
+  min-height: 48px;
+  padding: 0 var(--s1);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.15;
+}
+.phone-row button:disabled { color: var(--ink-soft); }
+/* The heaviest button in its row, by weight and never by colour (rule 1). */
+.phone-row .phone-pieces { border: 2px solid var(--ink); font-weight: 600; font-size: 16px; }
+/* One warning under the identity line; "and 1 more" opens the rest (DD5). */
+.phone-warnings { border-top: 1px solid var(--rule); max-height: 40dvh; overflow-y: auto; }
+.phone-warnings .notice { margin: 0; padding: var(--s1) var(--s3); font-size: 14px; }
+.phone-warnings .shortfall { margin: 0; padding: var(--s1) var(--s3); font-size: 14px; }
+.phone-warnings-more {
+  min-height: 44px;
+  padding: 0 var(--s3);
+  background: none;
+  border: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* SIDEWAYS (DD9): the plan, and beside it one column with the controls. */
+.phone.is-sideways { grid-template-rows: auto minmax(0, 1fr); grid-template-columns: minmax(0, 1fr) minmax(260px, 42%); }
+.phone.is-sideways .phone-top { grid-column: 1 / -1; }
+.phone.is-sideways .phone-controls { border-top: none; border-left: 1px solid var(--rule); justify-content: flex-end; overflow-y: auto; }
+.phone.is-sideways .sheet { inset: 0 0 0 auto; width: 42%; min-width: 260px; height: 100dvh; border-top: none; border-left: 1px solid var(--rule); }
+/* A FULL-SCREEN PANEL (DD10): its name and Done never scroll; the form does. */
+.phone-panel { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; background: var(--paper); }
+.phone-panel-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--s3); }
+/* MORE (DD14): plain rows under three headings. */
+.more-heading { margin: var(--s4) 0 var(--s1); font-size: 13px; font-weight: 600; color: var(--ink-soft); }
+.more-heading:first-child { margin-top: var(--s1); }
+.more-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  padding: var(--s2) 0;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink);
+  font: inherit;
+  text-align: start;
+}
+.more-row:disabled { color: var(--ink-soft); }
+.more-note { font-size: 13px; color: var(--ink-soft); }
+.phone-wait { display: grid; place-content: center; justify-items: center; gap: var(--s3); height: 100dvh; padding: var(--s4); text-align: center; color: var(--ink); }
