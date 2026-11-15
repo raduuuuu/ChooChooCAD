@@ -78,13 +78,13 @@ console.log(`<!doctype html>
   .words { flex: 1; }
   .name { display: flex; align-items: center; gap: 18px; font-size: 56px; font-weight: 600; letter-spacing: -0.01em; }
   .name svg { width: 64px; height: 64px; }
-  .line { margin-top: 20px; font-size: 30px; line-height: 1.35; color: ${token('ink-soft')}; max-width: 18ch; }
+  .line { margin-top: 20px; font-size: 27px; line-height: 1.4; color: ${token('ink-soft')}; max-width: 22ch; text-wrap: balance; }
   .floor { background: ${token('floor')}; border: 1px solid ${token('rule')}; padding: 24px; display: flex; }
 </style></head>
 <body><main>
   <div class="words">
     <div class="name">${logo}ChooChooCAD</div>
-    <div class="line">Plan a wooden railway, check it fits, build it piece by piece.</div>
+    <div class="line">Lay out the pieces and it says whether the loop closes, before you build it on the floor.</div>
   </div>
   <div class="floor">${svg}</div>
 </main></body></html>`);
