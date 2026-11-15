@@ -10,7 +10,7 @@
  * the model decides what is valid, and nothing invalid reaches storage.
  */
 
-import { useState } from 'react';
+import { useDraft } from './useDraft.js';
 import { sanitizeSideCm, TABLE_MAX_CM, TABLE_MIN_CM, type Table } from './tableModel.js';
 
 export interface TablePanelProps {
@@ -22,10 +22,11 @@ export interface TablePanelProps {
 const asCm = (mm: number | undefined): string => (mm === undefined ? '' : String(mm / 10));
 
 export function TablePanel({ table, onChange, onClose }: TablePanelProps) {
-  const [width, setWidth] = useState(asCm(table?.widthMm));
-  const [depth, setDepth] = useState(asCm(table?.depthMm));
+  // Drafts, so a half-typed size outlives the screen being rearranged (eng ED7).
+  const [width, setWidth] = useDraft('table', 'width', asCm(table?.widthMm));
+  const [depth, setDepth] = useDraft('table', 'depth', asCm(table?.depthMm));
   // A blank field is not yet wrong; it becomes wrong once the user has typed in it.
-  const [touched, setTouched] = useState({ width: false, depth: false });
+  const [touched, setTouched] = useDraft('table', 'touched', { width: false, depth: false });
 
   const update = (nextWidth: string, nextDepth: string) => {
     const w = sanitizeSideCm(nextWidth);

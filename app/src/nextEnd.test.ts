@@ -21,7 +21,7 @@ import { portsOf, type Piece, type Port, type PortRef } from '../../engine/src/g
 import { describeAction } from './announce.js';
 import { reduce, type EditorAction, type EditorState } from './editorReducer.js';
 import { EMPTY_GRAPH } from './layoutModel.js';
-import { nextEndAfter } from './trackPath.js';
+import { endsWithinReach, nextEndAfter, ringFor, type ClickableEnd, type EndRing } from './trackPath.js';
 
 const ref = (pieceId: string): PortRef => ({ pieceId, port: 0 });
 
@@ -91,5 +91,45 @@ describe('choosing another end while joining', () => {
     expect(act(laid, { kind: 'armEnd', ref: { pieceId: q, port: 0 } }).armed).toBeNull();
     const armed = act(laid, { kind: 'clickPort', ref: { pieceId: q, port: 0 } });
     expect(act(armed, { kind: 'armEnd', ref: { pieceId: 'gone', port: 0 } })).toBe(armed);
+  });
+});
+
+describe('the ring Next end walks', () => {
+  const end = (pieceId: string, x: number, order: number): ClickableEnd => ({ ref: ref(pieceId), x, y: 0, order });
+  // a and b are 3mm apart; c is 20mm from a: all three within one tap of a.
+  const ENDS = [end('a', 0, 0), end('b', 3, 1), end('c', 20, 2)];
+  /** Press Next end `presses` times starting from a tap on `a`, as App does. */
+  const walk = (presses: number) => {
+    let ring: EndRing | null = null;
+    let chosen = ref('a');
+    const seen = [chosen.pieceId];
+    for (let i = 0; i < presses; i++) {
+      ring = ringFor(ring, chosen);
+      const next = nextEndAfter(chosen, endsWithinReach(ring.anchor, ENDS, 1))!;
+      ring = { anchor: ring.anchor, stepped: next };
+      chosen = next;
+      seen.push(chosen.pieceId);
+    }
+    return seen;
+  };
+
+  /*
+   * MUTATION PROOF, run: `ringFor` anchoring on the chosen end every time:
+   * `expected [ 'a', 'b', 'a', 'b' ] to deeply equal [ 'a', 'b', 'c', 'a' ]`
+   * (the two close ends hand the choice back and forth; c is never reached).
+   */
+  it('gives every end in reach its turn, then comes round', () => {
+    expect(walk(3)).toEqual(['a', 'b', 'c', 'a']);
+  });
+
+  /*
+   * MUTATION PROOF, run: `ringFor` always keeping the old ring: `expected
+   * { …(2) } to deeply equal { …(2) }` (a tap on c is still walked from a).
+   */
+  it('a tap on another end starts a new ring there', () => {
+    const stepped: EndRing = { anchor: ref('a'), stepped: ref('b') };
+    expect(ringFor(stepped, ref('b'))).toBe(stepped);
+    expect(ringFor(stepped, ref('c'))).toEqual({ anchor: ref('c'), stepped: null });
+    expect(ringFor(null, ref('c')).anchor).toEqual(ref('c'));
   });
 });

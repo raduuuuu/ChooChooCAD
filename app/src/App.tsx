@@ -52,7 +52,7 @@ import { placeAll } from '../../engine/src/graph/frames.js';
 import { levelOf, portsOf, type Graph, type Piece as GPiece, type Port, type PortRef } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
 import { bendRender, bentShifts } from '../../engine/src/graph/bendPose.js';
-import { joinSuggestions, type GapMark, seamLines, weldTargets, type JoinSuggestion } from './trackPath.js';
+import { endsWithinReach, joinSuggestions, nextEndAfter, ringFor, type ClickableEnd, type EndRing, type GapMark, seamLines, weldTargets, type JoinSuggestion } from './trackPath.js';
 import { useEditorKeys } from './useEditorKeys.js';
 import { usePaletteDrag, type CanvasProbe } from './usePaletteDrag.js';
 import { paletteSize, PieceShelves } from './Palette.js';
@@ -71,6 +71,8 @@ import {
 import { dropRescueCopy, holdsOwnLayout, loadGraph, partialLoadNotice, rescueCopy, saveGraph, savesSuppressed, storedGraphOf } from './layoutStore.js';
 import { downloadBytes } from './downloadBytes.js';
 import { LayoutFileControls, openLayoutFile } from './LayoutFileControls.js';
+import { PHONE_SHELL, PHONE_SHELL_QUERY, PhoneEditor, SHORT_TOUCH_QUERY } from './phoneEditor.js';
+import type { PhonePanel, PhoneSheet } from './PhoneShell.js';
 import { PutAsideNotice } from './PutAsideNotice.js';
 import { keepBeforeReplacing } from './putAside.js';
 import { ShareControl } from './ShareControl.js';
@@ -86,7 +88,7 @@ import { boxWords, byBox } from './canBuild.js';
 import { FinishLoop } from './FillOffer.js';
 import { TrainControl, TrainMark } from './TrainControl.js';
 import type { TrainRun } from './trainRun.js';
-import { JoinStart, VerdictLine, VerdictScope, type BridgeNote } from './VerdictLine.js';
+import { JoinStart, VerdictCompact, VerdictLine, VerdictScope, type BridgeNote } from './VerdictLine.js';
 import { markLists } from './markLists.js';
 import { EMPTY_GRAPH, familyOf, ghostFit, joinRefusal, otherLevelEndNear, shiftMm, snapRunMove, swapPiece, swapsOf, woodOf, type JoinRefusal } from './layoutModel.js';
 import { LIST_FROM, VersionList, type VersionRow } from './VersionList.js';
@@ -157,6 +159,8 @@ const NO_POINTS: readonly (readonly [number, number])[] = [];
  * opens on the first-visit example (design 3A). main.tsx passes it; a test
  * that wants the plain empty editor leaves it out.
  */
+const TRAIN_WHY_NOT = 'The track does not join up yet, so no train is run on it.';
+
 export function App({ link, offerExample = false }: { readonly link?: Graph; readonly offerExample?: boolean } = {}) {
   /*
    * ORDER MATTERS HERE. The library includes parts this user submitted, so it
@@ -377,7 +381,24 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
   const [exampleGraph] = useState(() => (hadLayout ? null : editor.graph));
   const [adopted, setAdopted] = useState(false);
   const narrow = useMatchMedia(NARROW_QUERY);
-  const screen = screenMode({ link: link !== undefined, stored: hadLayout, narrow, adopted });
+  /*
+   * THE PHONE'S EDITOR (plan 2026-11-14, eng ED2, ED9): the one read of its
+   * query. Built dark: `PHONE_SHELL.on` is false, so `phone` is false and a
+   * narrow screen gets what it gets today. Where it is on, the screen is not
+   * "narrow" to `screenMode`: your own layout and the example may be edited.
+   * A shared link is read-only on every screen (DESIGN.md rule 13).
+   */
+  const phoneWanted = useMatchMedia(PHONE_SHELL_QUERY);
+  const sideways = useMatchMedia(SHORT_TOUCH_QUERY);
+  const phone = PHONE_SHELL.on && phoneWanted && link === undefined;
+  const screen = screenMode({ link: link !== undefined, stored: hadLayout, narrow: narrow && !phone, adopted });
+  // Held here, above both shells, so turning the phone keeps them (eng ED7).
+  const [sheet, setSheet] = useState<PhoneSheet>(null);
+  const piecesScroll = useRef(0);
+  const moreScroll = useRef(0);
+  const [warningsOpen, setWarningsOpen] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
+  const [selectionMore, setSelectionMore] = useState(false);
   const canEditNow = useRef(screen.canEdit);
   canEditNow.current = screen.canEdit;
   /*
@@ -761,8 +782,9 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     if (back?.isConnected) back.focus();
   };
   const placeGhost = () => {
-    dispatch({ kind: 'placeGhost' });
-    returnFocus();
+    // On a phone the same piece stays ready and focus stays on Place (design DD6, eng ED3).
+    dispatch({ kind: 'placeGhost', again: phone });
+    if (!phone) returnFocus();
   };
   const cancelGhost = () => {
     dispatch({ kind: 'cancelGhost' });
@@ -919,8 +941,10 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     if (ghost && !hadGhost.current) placeButton.current?.focus();
     hadGhost.current = ghost !== null;
   }, [ghost]);
+  // A sheet or a full-screen panel is modal to the keyboard too (eng ED6).
+  const phonePanelOpen = phone && (inventoryOpen || tableOpen || submitOpen || listOpen);
   useEditorKeys({
-    enabled: !building,
+    enabled: !building && sheet === null && !phonePanelOpen,
     onUndo: undo,
     onRedo: redo,
     onEscape: () => {
@@ -1161,6 +1185,8 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
   }, [graph, selected]);
   const selectedPiece = selected === null ? undefined : graph.pieces.find((p) => p.pieceId === selected);
   const selectedPart = selectedPiece ? resolve(selectedPiece.partId) : undefined;
+  const selectionMain = !phone || !selectionMore;
+  const selectionExtra = !phone || selectionMore;
   const selectionStrip =
     selected !== null && graph.pieces.some((p) => p.pieceId === selected) ? (
       <div className="mode-strip" role="group" aria-label="Selected piece">
@@ -1199,17 +1225,24 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
           * MOVE AND ROTATE THE RUN WITHOUT A DRAG (decisions 2A, E6 keyboard
           * and touch parity): a centimetre a press, a sixteenth of a turn.
           */}
+        {/*
+          * ON A PHONE THE STRIP IS ONE LINE (plan 2026-11-14, design DD2): turn,
+          * flip and remove, and a More that swaps them for the arrows and the
+          * versions. Everywhere else all of it shows at once, as before.
+          */}
+        {selectionExtra && (
         <span className="move-run" role="group" aria-label="Move run">
           <button aria-label="Move run left 1 cm" onClick={() => moveRunBy(selected, -10, 0, 0)}>←</button>
           <button aria-label="Move run up 1 cm" onClick={() => moveRunBy(selected, 0, 10, 0)}>↑</button>
           <button aria-label="Move run down 1 cm" onClick={() => moveRunBy(selected, 0, -10, 0)}>↓</button>
           <button aria-label="Move run right 1 cm" onClick={() => moveRunBy(selected, 10, 0, 0)}>→</button>
         </span>
-        <button onClick={() => moveRunBy(selected, 0, 0, 1)}>{words.button('Rotate run', 'R')}</button>
+        )}
+        {selectionMain && <button onClick={() => moveRunBy(selected, 0, 0, 1)}>{words.button('Rotate run', 'R')}</button>}
         {/* A one-sided decorated piece: its decoration to the other side, ends unchanged (design 5A). */}
-        {selectedFlip && <button onClick={() => dispatch({ kind: 'flipPiece', pieceId: selected })}>{words.button(selectedFlip.label, 'F')}</button>}
+        {selectionMain && selectedFlip && <button onClick={() => dispatch({ kind: 'flipPiece', pieceId: selected })}>{words.button(selectedFlip.label, 'F')}</button>}
         {/* Dressed or plain, the joints kept (design 3A): one button per version, or from three the list (D4). */}
-        {selectedSwaps.length >= LIST_FROM && selectedPart ? (
+        {!selectionExtra ? null : selectedSwaps.length >= LIST_FROM && selectedPart ? (
           <VersionList
             key={selected}
             closeOn={graph}
@@ -1231,7 +1264,12 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             </button>
           ))
         )}
-        <button onClick={() => removePiece(selected)}>Remove piece</button>
+        {selectionMain && <button onClick={() => removePiece(selected)}>Remove piece</button>}
+        {phone && (
+          <button aria-expanded={selectionMore} onClick={() => setSelectionMore(!selectionMore)}>
+            {selectionMore ? 'Back' : 'More'}
+          </button>
+        )}
       </div>
     ) : null;
 
@@ -1516,6 +1554,41 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     ) : null;
 
   /*
+   * "NEXT END" (plan 2026-11-14, design DD7; eng ED4), on a phone: where free
+   * ends crowd under one fingertip, step the preview (or, while joining, the
+   * chosen end) round the ends within a tap's reach, nearest first.
+   *
+   *   chosen end ──▶ the ring: `endsWithinReach(anchor)` ──▶ `nextEndAfter(chosen)`
+   *   a tap, a pick, Place ──▶ the chosen end becomes the anchor of a new ring
+   *   Next end ────────────▶ the anchor stays, so every end in it gets its turn
+   *
+   * Measured from the anchor, not from each end in turn: from each end in
+   * turn, two ends 3mm apart would hand the choice back and forth and a third
+   * a little further off would never be reached. Moving the preview is not an
+   * edit: no Undo step.
+   */
+  const [reach, setReach] = useState<{ readonly ends: readonly ClickableEnd[]; readonly pxPerMm: number } | null>(null);
+  const onReachable = useCallback((ends: readonly ClickableEnd[], pxPerMm: number) => setReach({ ends, pxPerMm }), []);
+  const chosenEnd = ghost ? ghost.at : armed;
+  const ringOf = useRef<EndRing | null>(null);
+  const nextEnd = useMemo(() => {
+    if (!phone || !chosenEnd || !reach) return null;
+    const ring = ringFor(ringOf.current, chosenEnd);
+    ringOf.current = ring;
+    return nextEndAfter(chosenEnd, endsWithinReach(ring.anchor, reach.ends, reach.pxPerMm));
+  }, [phone, chosenEnd, reach]);
+  const nextEndButton = nextEnd ? (
+    <button
+      onClick={() => {
+        ringOf.current = { anchor: ringOf.current?.anchor ?? nextEnd, stepped: nextEnd };
+        dispatch(ghost ? { kind: 'moveGhost', ref: nextEnd } : { kind: 'armEnd', ref: nextEnd });
+      }}
+    >
+      Next end
+    </button>
+  ) : null;
+
+  /*
    * THE JOINING STRIP (design review 27A): what is happening and how to stop.
    * Escape cancels too (useEditorKeys).
    */
@@ -1534,6 +1607,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
       <p className="mode-strip-text">
         {armed ? words.joinNext(endWords(armed)) : words.joinFirst}
       </p>
+      {armed && nextEndButton}
       <button onClick={cancelJoin}>{words.button('Cancel', 'Esc')}</button>
     </div>
   ) : null;
@@ -1572,6 +1646,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
           {words.button(ghostView.keys.flip.label, 'F')}
         </button>
       )}
+      {nextEndButton}
       <button onClick={cancelGhost}>{words.button('Cancel', 'Esc')}</button>
       <button ref={placeButton} className="primary" onClick={placeGhost}>
         {words.button('Place', 'Enter')}
@@ -1646,8 +1721,8 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
    * showing the example or this browser's own layout. The editor is for a
    * tablet or computer.
    */
-  const phone = screen.mode === 'view' || (screen.mode === 'example' && narrow);
-  if (link || phone) {
+  const friendPhone = screen.mode === 'view' || (screen.mode === 'example' && narrow && !phone);
+  if (link || friendPhone) {
     const verdictLine = (
       <VerdictLine
         view={verdictView}
@@ -1715,16 +1790,13 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     );
   }
 
-  return (
-    <div className="shell">
-      {/*
-        * THE IDENTITY LINE (share plan, design 2A, 22A): the app's name at the
-        * top of the stage, where every screen has it, editor, friend's screen
-        * and first visit alike. A layout put aside is named right under it.
-        */}
+  const putAside = <PutAsideNotice allSaved={allSaved} current={screen.mode === 'edit' ? layoutBytes : undefined} />;
+  const strip = placingStrip ?? joinStrip ?? selectionStrip ?? dropStrip ?? lastStrip ?? hintStrip;
+  const identity = (
       <header className="identity">
         <AppName />
-        <PutAsideNotice allSaved={allSaved} current={screen.mode === 'edit' ? layoutBytes : undefined} />
+        {/* On a phone it is a row of More (eng ED10), not a line taken from the plan. */}
+        {!phone && putAside}
         {screen.mode === 'example' && (
           /*
            * THE FIRST-VISIT EXAMPLE (design 3A): labelled as one, with its
@@ -1743,17 +1815,8 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
           </div>
         )}
       </header>
-      {/*
-        * A LAYOUT FILE DROPPED ON THE CANVAS opens as "Open a layout file" does:
-        *
-        *   drag over ─▶ carries files? ─▶ no: left alone (the browser's default)
-        *                               └ yes: accepted as a drop
-        *   drop ─▶ first file ─▶ openLayoutFile ─▶ refused: said on the file row
-        *                                          └ ok: the address takes the fragment
-        *
-        * Only HTML drag events are taken, so the canvas's pointer handling (and
-        * the palette's pointer drag) never sees a difference.
-        */}
+  );
+  const stage = (
       <main
         className="stage"
         onDragOver={(e) => {
@@ -1807,7 +1870,9 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
               if (armed !== null || joiningStarted) cancelJoin();
             }}
             pieceName={canvasPieceName}
-            strip={placingStrip ?? joinStrip ?? selectionStrip ?? dropStrip ?? lastStrip ?? hintStrip}
+            // On a phone the strip has a row of its own under the verdict, so the plan never resizes (design DD2).
+            strip={phone ? null : strip}
+            onReachable={phone ? onReachable : undefined}
             ghost={ghostView ? { render: ghostView.render, red: ghostView.red, reach: ghostView.reach } : null}
             onRunMove={(d, radius) => moveRunBy(d.pieceId, d.dx, d.dy, d.turns, radius)}
             runOf={runOf}
@@ -1834,9 +1899,14 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
           />
         )}
       </main>
-
-      {staleTab && (
-        <div className="notice" role="alert">
+  );
+  /*
+   * THE NOTICES, as a list: the wide editor draws them all, in this order; a
+   * phone shows the most serious and folds the rest (design DD5).
+   */
+  const notices: ReactNode[] = [
+      staleTab && (
+        <div key="stale" className="notice" role="alert">
           <div>
             <p className="notice-line">{STALE_TAB}</p>
           </div>
@@ -1844,10 +1914,10 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             Reload
           </button>
         </div>
-      )}
+      ),
 
-      {unsavedNotice !== undefined && unsavedDismissed !== unsavedNotice && (
-        <div className="notice" role="status" aria-live="polite" aria-atomic="false">
+      unsavedNotice !== undefined && unsavedDismissed !== unsavedNotice && (
+        <div key="unsaved" className="notice" role="status" aria-live="polite" aria-atomic="false">
           <div>
             <p className="notice-line">{unsavedNotice}</p>
             {stuckRescue !== null && (
@@ -1882,10 +1952,10 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             Dismiss
           </button>
         </div>
-      )}
+      ),
 
-      {linkHeld && (
-        <div className="notice" role="status" aria-live="polite" aria-atomic="false">
+      linkHeld && (
+        <div key="link-held" className="notice" role="status" aria-live="polite" aria-atomic="false">
           <div>
             <p className="notice-line">{LINK_HELD}</p>
           </div>
@@ -1893,10 +1963,10 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             Dismiss
           </button>
         </div>
-      )}
+      ),
 
-      {layoutNotice !== undefined && !layoutDismissed && (
-        <div className="notice" role="status" aria-live="polite" aria-atomic="false">
+      layoutNotice !== undefined && !layoutDismissed && (
+        <div key="layout" className="notice" role="status" aria-live="polite" aria-atomic="false">
           <div>
             <p className="notice-line">{layoutNotice}</p>
           </div>
@@ -1904,10 +1974,10 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             Dismiss
           </button>
         </div>
-      )}
+      ),
 
-      {tableLoad.discarded !== undefined && !tableDismissed && (
-        <div className="notice" role="status" aria-live="polite" aria-atomic="false">
+      tableLoad.discarded !== undefined && !tableDismissed && (
+        <div key="table" className="notice" role="status" aria-live="polite" aria-atomic="false">
           <div>
             <p className="notice-line">{tableLoad.discarded}</p>
           </div>
@@ -1915,10 +1985,10 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             Dismiss
           </button>
         </div>
-      )}
+      ),
 
-      {inventoryLoad.discarded !== undefined && !inventoryDismissed && (
-        <div className="notice" role="status" aria-live="polite" aria-atomic="false">
+      inventoryLoad.discarded !== undefined && !inventoryDismissed && (
+        <div key="inventory" className="notice" role="status" aria-live="polite" aria-atomic="false">
           <div>
             <p className="notice-line">{inventoryLoad.discarded}</p>
           </div>
@@ -1926,16 +1996,16 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             Dismiss
           </button>
         </div>
-      )}
+      ),
 
-      {/*
+      /*
         * THE THIRD NOTICE, and the one with the most at stake. A dropped
         * submission is a measurement somebody took with calipers. It had no
         * notice at all until now, which also meant nothing held back the save
         * that overwrote it.
-        */}
-      {submissionsNotice !== undefined && !submissionsDismissed && (
-        <div className="notice" role="status" aria-live="polite" aria-atomic="false">
+        */
+      submissionsNotice !== undefined && !submissionsDismissed && (
+        <div key="submissions" className="notice" role="status" aria-live="polite" aria-atomic="false">
           <div>
             <p className="notice-line">{submissionsNotice}</p>
           </div>
@@ -1943,8 +2013,10 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
             Dismiss
           </button>
         </div>
-      )}
+      ),
 
+  ];
+  const verdictBlock = (
       <JoinStart.Provider value={!ghost && !joining && freeEnds >= 2 ? startJoin : null}>
       <VerdictScope.Provider value={ghost ? 'Placed track:' : null}>
         <VerdictLine
@@ -1956,14 +2028,9 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         />
       </VerdictScope.Provider>
       </JoinStart.Provider>
-
-      {/*
-        * FINISH THE LOOP (plan 2026-11-14, E3). Offered for a layout with
-        * exactly ONE joint that does not meet, whether its loop fails or only
-        * closes with the joints' give (owner, 2026-11-14): with two or more,
-        * which gap a fill belongs to would need saying, and it is not offered.
-        * Not while placing or joining, and never where the layout cannot change.
-        */}
+  );
+  const finishLoop = (
+    <>
       {finishGap && !ghost && !joining && screen.canEdit && (
         <FinishLoop
           key={`${finishGap.weld}`}
@@ -1979,29 +2046,23 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
           onFill={(plan, forGraph) => dispatch({ kind: 'fill', plan, graph: forGraph })}
         />
       )}
-
-      {/* Run a train (plan 2026-11-14, E5): not while placing or joining, and not on an empty floor. */}
+    </>
+  );
+  const trainControl = (
+    <>
       {graph.pieces.length > 0 && !ghost && !joining && (
         <TrainControl
           run={trainRun}
-          whyNot={canRunTrain ? null : 'The track does not join up yet, so no train is run on it.'}
+          whyNot={canRunTrain ? null : TRAIN_WHY_NOT}
           onRun={runTrain}
           onStop={stopTrain}
         />
       )}
-
-      <p className="sr-only" role="status" aria-live="polite" aria-atomic="false">
-        {said}
-      </p>
-
-      {/*
-        * The shortfall line sits with the verdict, not in the palette, because it
-        * answers the same question the verdict does: can I build this? It is a
-        * separate sentence rather than part of the verdict because it is about
-        * the BOX, not the geometry, and merging them would let a stock problem
-        * read as a layout problem. Advice, never a gate (D8).
-        */}
-      {/* Not under the example: it is not the user's layout, so their box says nothing about it (2026-11-05, seen on the live site). */}
+    </>
+  );
+  const hasShortfall = screen.mode !== 'example' && (shortfalls.length > 0 || adapterShort > 0);
+  const shortfallLine = (
+    <>
       {screen.mode !== 'example' && (shortfalls.length > 0 || adapterShort > 0) && (
         <p className="shortfall">
           Short by{' '}
@@ -2021,6 +2082,283 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
           against what you own. Still fine to draw.
         </p>
       )}
+    </>
+  );
+
+  const fileControls = (
+        <LayoutFileControls
+          graph={graph}
+          usesCorrections={usesCorrections}
+          announce={setSaid}
+          said={fileSaid}
+          setSaid={setFileSaid}
+        />
+  );
+  const submitPanel = (
+    <>
+        {submitOpen && (
+          <SubmitPart
+            existingIds={libraryIds}
+            notTwoEndedIds={notTwoEndedIds}
+            onSubmit={(sub) => {
+              countAction('add-part');
+              setSubmissionsActed(true);
+              setSubmissions((prev) => [...prev, sub]);
+              setSubmitOpen(false);
+            }}
+            onCancel={() => setSubmitOpen(false)}
+          />
+        )}
+    </>
+  );
+  const tablePanel = (
+    <>
+        {tableOpen && graph.pieces.length > 0 && (
+          <TablePanel
+            table={table}
+            onChange={(next) => {
+              setTableActed(true);
+              setTable(next);
+            }}
+            onClose={() => setTableOpen(false)}
+          />
+        )}
+    </>
+  );
+  const inventoryPanel = (
+    <>
+        {inventoryOpen && (
+          <InventoryPanel
+            library={library}
+            inventory={inventory}
+            used={counts}
+            adaptersUsed={adaptersUsed}
+            adapterShort={adapterShort}
+            onChange={(next) => {
+              setInventoryActed(true);
+              setInventory(next);
+            }}
+            onClose={() => setInventoryOpen(false)}
+          />
+        )}
+    </>
+  );
+  const listing = (
+        <GraphListing
+          graph={graph}
+          resolve={resolve}
+          ports={ports}
+          onPortClick={clickPort}
+          onBreak={breakJoint}
+          onRemove={removePiece}
+          armed={armed}
+          unjoinable={unjoinable}
+          cursor={cursor}
+        />
+  );
+
+  /*
+   * THE PHONE'S EDITOR (plan 2026-11-14, E4). The same plan, verdict, strip,
+   * notices and panels as the wide editor, from the same state, laid out by
+   * `PhoneShell`; only Pieces and More are put together here.
+   */
+  if (phone) {
+    const closeSheet = () => setSheet(null);
+    const empty = graph.pieces.length === 0;
+    // Most serious first: a save that failed, then a tab gone stale, then the rest (design DD5).
+    const warnings = [notices[1], notices[0], ...notices.slice(2), hasShortfall && shortfallLine].filter(Boolean);
+    const panel: PhonePanel | null = inventoryOpen
+      ? { title: 'Your box', body: inventoryPanel, onDone: () => setInventoryOpen(false) }
+      : tableOpen && !empty
+        ? { title: 'Your table', body: tablePanel, onDone: () => setTableOpen(false) }
+        : submitOpen
+          ? { title: 'Add a part', body: submitPanel, onDone: () => setSubmitOpen(false) }
+          : listOpen
+            ? { title: 'This layout as a list', body: listing, onDone: () => setListOpen(false) }
+            : null;
+    return (
+      <PhoneEditor
+        sideways={sideways}
+        identity={identity}
+        warnings={warnings}
+        warningsOpen={warningsOpen}
+        onWarnings={setWarningsOpen}
+        stage={stage}
+        verdict={<VerdictCompact.Provider value={true}>{verdictBlock}</VerdictCompact.Provider>}
+        strip={strip ?? (trainRun ? trainControl : null)}
+        history={<UndoControl last={lastStep(editor)} next={nextStep(editor)} onUndo={undo} onRedo={redo} />}
+        sheet={sheet}
+        onSheet={setSheet}
+        piecesScroll={piecesScroll}
+        moreScroll={moreScroll}
+        said={said}
+        panel={panel}
+        pieces={
+          // No drag: in the sheet a card is picked by a tap and nothing else (design DD13).
+          <PieceShelves
+            library={library}
+            resolve={resolve}
+            inventory={inventory}
+            counts={counts}
+            overLimit={overLimit}
+            pickedId={ghost?.partId ?? null}
+            onPick={(partId) => {
+              pick(partId, null);
+              closeSheet();
+            }}
+            onAdd={() => {}}
+          />
+        }
+        more={
+          <div className="more">
+            <h3 className="more-heading">This layout</h3>
+            {/* Remove last is repeatable, so the sheet stays; the plan is in view over it. */}
+            <button className="more-row" onClick={removeLast} disabled={empty}>
+              Remove last
+            </button>
+            <button
+              className="more-row"
+              onClick={() => {
+                clear();
+                closeSheet();
+              }}
+              disabled={empty}
+            >
+              Clear
+            </button>
+            {!empty && !trainRun && (
+              <button
+                className="more-row"
+                onClick={() => {
+                  runTrain();
+                  closeSheet();
+                }}
+                disabled={!canRunTrain}
+              >
+                Run a train
+                {!canRunTrain && <span className="more-note">{TRAIN_WHY_NOT}</span>}
+              </button>
+            )}
+            {finishLoop}
+            {fileControls}
+            {!empty && (
+              <button
+                className="more-row"
+                onClick={() => {
+                  setListOpen(true);
+                  closeSheet();
+                }}
+              >
+                This layout as a list
+              </button>
+            )}
+            {putAside}
+            <h3 className="more-heading">Your things</h3>
+            <button
+              className="more-row"
+              onClick={() => {
+                countAction('your-box');
+                setInventoryOpen(true);
+                closeSheet();
+              }}
+            >
+              Your box
+            </button>
+            {!empty && (
+              <button
+                className="more-row"
+                onClick={() => {
+                  setTableOpen(true);
+                  closeSheet();
+                }}
+              >
+                Your table
+              </button>
+            )}
+            {!empty && (
+              <button
+                className="more-row"
+                onClick={() => {
+                  setSubmitOpen(true);
+                  closeSheet();
+                }}
+              >
+                Add a part
+              </button>
+            )}
+            <h3 className="more-heading">Ready layouts</h3>
+            {byBox(PRESETS, inventory).map(({ preset: p, short }) => {
+              const box = boxWords(short, (id) => resolve(id).name);
+              return (
+                <button
+                  key={p.label}
+                  className="more-row"
+                  onClick={() => {
+                    preset(p);
+                    closeSheet();
+                  }}
+                >
+                  {p.label}
+                  <span className="more-note">{box ? `${p.note}. ${box.line}` : p.note}</span>
+                </button>
+              );
+            })}
+          </div>
+        }
+      />
+    );
+  }
+
+  return (
+    <div className="shell">
+      {/*
+        * THE IDENTITY LINE (share plan, design 2A, 22A): the app's name at the
+        * top of the stage, where every screen has it, editor, friend's screen
+        * and first visit alike. A layout put aside is named right under it.
+        */}
+      {identity}
+      {/*
+        * A LAYOUT FILE DROPPED ON THE CANVAS opens as "Open a layout file" does:
+        *
+        *   drag over ─▶ carries files? ─▶ no: left alone (the browser's default)
+        *                               └ yes: accepted as a drop
+        *   drop ─▶ first file ─▶ openLayoutFile ─▶ refused: said on the file row
+        *                                          └ ok: the address takes the fragment
+        *
+        * Only HTML drag events are taken, so the canvas's pointer handling (and
+        * the palette's pointer drag) never sees a difference.
+        */}
+      {stage}
+
+      {notices}
+
+      {verdictBlock}
+
+      {/*
+        * FINISH THE LOOP (plan 2026-11-14, E3). Offered for a layout with
+        * exactly ONE joint that does not meet, whether its loop fails or only
+        * closes with the joints' give (owner, 2026-11-14): with two or more,
+        * which gap a fill belongs to would need saying, and it is not offered.
+        * Not while placing or joining, and never where the layout cannot change.
+        */}
+      {finishLoop}
+
+      {/* Run a train (plan 2026-11-14, E5): not while placing or joining, and not on an empty floor. */}
+      {trainControl}
+
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="false">
+        {said}
+      </p>
+
+      {/*
+        * The shortfall line sits with the verdict, not in the palette, because it
+        * answers the same question the verdict does: can I build this? It is a
+        * separate sentence rather than part of the verdict because it is about
+        * the BOX, not the geometry, and merging them would let a stock problem
+        * read as a layout problem. Advice, never a gate (D8).
+        */}
+      {/* Not under the example: it is not the user's layout, so their box says nothing about it (2026-11-05, seen on the live site). */}
+      {shortfallLine}
 
       <section className="palette" aria-label="Track pieces">
         {/*
@@ -2109,13 +2447,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
           })}
         </div>
 
-        <LayoutFileControls
-          graph={graph}
-          usesCorrections={usesCorrections}
-          announce={setSaid}
-          said={fileSaid}
-          setSaid={setFileSaid}
-        />
+        {fileControls}
 
         {/*
           * YOUR BOX IS ALWAYS OFFERED (owner, 2026-11-05: "always reachable";
@@ -2145,62 +2477,18 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
           </div>
         )}
 
-        {submitOpen && (
-          <SubmitPart
-            existingIds={libraryIds}
-            notTwoEndedIds={notTwoEndedIds}
-            onSubmit={(sub) => {
-              countAction('add-part');
-              setSubmissionsActed(true);
-              setSubmissions((prev) => [...prev, sub]);
-              setSubmitOpen(false);
-            }}
-            onCancel={() => setSubmitOpen(false)}
-          />
-        )}
+        {submitPanel}
 
-        {tableOpen && graph.pieces.length > 0 && (
-          <TablePanel
-            table={table}
-            onChange={(next) => {
-              setTableActed(true);
-              setTable(next);
-            }}
-            onClose={() => setTableOpen(false)}
-          />
-        )}
+        {tablePanel}
 
-        {inventoryOpen && (
-          <InventoryPanel
-            library={library}
-            inventory={inventory}
-            used={counts}
-            adaptersUsed={adaptersUsed}
-            adapterShort={adapterShort}
-            onChange={(next) => {
-              setInventoryActed(true);
-              setInventory(next);
-            }}
-            onClose={() => setInventoryOpen(false)}
-          />
-        )}
+        {inventoryPanel}
 
         {/*
           * THE LAYOUT AS A LIST (task U7a). In the sidebar rather than a new
           * row of the shell grid, which would take height from the canvas.
           * Read-only until U7b; see GraphListing.tsx.
           */}
-        <GraphListing
-          graph={graph}
-          resolve={resolve}
-          ports={ports}
-          onPortClick={clickPort}
-          onBreak={breakJoint}
-          onRemove={removePiece}
-          armed={armed}
-          unjoinable={unjoinable}
-          cursor={cursor}
-        />
+        {listing}
 
         {/*
           * The provisional note used to sit here, under the palette, saying
