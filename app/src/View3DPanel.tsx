@@ -11,6 +11,8 @@
 import { Component, lazy, Suspense, useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import type { SceneInput } from '../../engine/src/view3d/mesh.js';
 import { PAINT_TOKENS } from '../../engine/data/library.js';
+import { TOUCH_QUERY } from './stripWords.js';
+import { useMatchMedia } from './useMatchMedia.js';
 import type { BuildView, Viewer3DProps } from './Viewer3D.js';
 
 /** Load the viewer; a fresh `lazy` per attempt, since React keeps a failed one failed. */
@@ -74,6 +76,8 @@ export interface View3DPanelProps {
   readonly sideSignal?: number;
   /** The 2D/3D switch, drawn in the frame's corner (design 1A). */
   readonly corner: ReactNode;
+  /** Fold the how-to behind one line: a phone, where it would lie over the scene. */
+  readonly foldHowTo?: boolean;
   /**
    * The Reset view button, shown before the switch only while a view is drawn:
    * on the empty, too-big and failed states there is nothing to reset
@@ -102,6 +106,7 @@ export interface View3DPanelProps {
 
 export function View3DPanel(props: View3DPanelProps) {
   const { input, pieceCount, segmentCount, ceiling, allSaved, emptyAction, tableNote, label, resetSignal, corner, reset } = props;
+  const touch = useMatchMedia(TOUCH_QUERY);
   const [attempt, setAttempt] = useState(0);
   const Viewer = useMemo(() => loadViewer(), [attempt]);
   const [failure, setFailure] = useState<{ kind: Failure; downloads: number } | null>(null);
@@ -204,17 +209,37 @@ export function View3DPanel(props: View3DPanelProps) {
     );
   }
 
+  // On a touch screen no sentence names a key (design DD8).
+  const howTo = (
+    <>
+      {touch ? '3D view: drag to turn, pinch to zoom. Reset view puts it back.' : '3D view: drag to turn, scroll or pinch to zoom. Keys: arrows turn, + and \u2212 zoom, 0 resets.'}
+      {/* Only where a pick does something: the friend's screen and a piece preview pick nothing. */}
+      {props.onPick && ' Pick a part to place it in 2D.'}
+    </>
+  );
+
   return (
     <div className="canvas-frame">
       <div className="canvas-area viewer3d-area">
         {body}
-        {live && (
-          <p className="viewer3d-howto" id={howToId}>
-            3D view: drag to turn, scroll or pinch to zoom. Keys: arrows turn, + and &minus; zoom, 0 resets.
-            {/* Only where a pick does something: the friend's screen and a piece preview pick nothing. */}
-            {props.onPick && ' Pick a part to place it in 2D.'}
-          </p>
-        )}
+        {/*
+          * ON A PHONE THE HOW-TO IS FOLDED (owner, 2026-11-15: "the notes, on the
+          * phone, should be collapsible, otherwise they go above the track
+          * itself in 3D"). Open, it lay over the scene and under the corner's
+          * buttons. It is one line to tap, closed until asked for; its words
+          * stay in the page either way, so the canvas is still described by them.
+          */}
+        {live &&
+          (props.foldHowTo ? (
+            <details className="viewer3d-howto is-folded">
+              <summary>How to move the view</summary>
+              <p id={howToId}>{howTo}</p>
+            </details>
+          ) : (
+            <p className="viewer3d-howto" id={howToId}>
+              {howTo}
+            </p>
+          ))}
         {tableNote && <p className={`table-caption${tableNote.fits ? '' : ' is-over'}`}>{tableNote.text}</p>}
         <div className="view-corner">
           {live && reset}

@@ -2033,6 +2033,26 @@
   border-radius: 3px;
 }
 
+/*
+ * FOLDED, ON A PHONE (owner, 2026-11-15): one line to tap at the plan's far
+ * corner from the buttons, closed until asked for, so nothing lies over the
+ * track. Open, it grows away from the edge it sits on. The table's caption
+ * keeps the near corner.
+ */
+.viewer3d-howto.is-folded {
+  inset-block-start: auto;
+  inset-inline-start: auto;
+  inset-block-end: var(--s3);
+  inset-inline-end: var(--s3);
+  max-width: 80%;
+  pointer-events: auto;
+}
+.viewer3d-howto.is-folded summary { display: flex; align-items: center; justify-content: flex-end; min-height: 44px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; list-style: none; }
+.viewer3d-howto.is-folded summary::-webkit-details-marker { display: none; }
+.viewer3d-howto.is-folded p { margin: 0 0 var(--s1); }
+/* The corner's buttons wrap on a phone and keep off the edge (Reset view, Share, Build it and the switch are wider than 390px). */
+.phone .view-corner { inset-inline-start: var(--s3); flex-wrap: wrap; justify-content: flex-end; }
+
 /* Build mode's close-up frame and its line to the piece (build mode plan, D34). */
 .viewer3d-inset {
   position: absolute;
