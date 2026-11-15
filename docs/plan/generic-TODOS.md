@@ -1103,3 +1103,25 @@ IP questions below should be settled before anything is published publicly
   so the link PR (step 6) makes it version 3, and every link added since
   2026-11-10 needs recounting. **Effort:** S (owner) + S (CC).
   **Priority:** P3.
+
+## Phone editor — deferred by the design review (2026-11-15)
+
+Found by `/design-review` on the live phone editor (390x844 and 844x390,
+headless, touch). Seven findings were fixed in the review's own pull request;
+these were left because each needs a decision or a real phone.
+
+- **A joint's tap area on the plan is 12 to 25px on a phone.** "Break this
+  joint" is drawn in millimetres, so on a fitted plan it is far under the 44px
+  floor (DESIGN.md rule 10). Free ends got a pixel floor (`endHitRadiusMm`);
+  joints did not. A bigger joint target competes with selecting the piece
+  under it, so which wins needs deciding first. The layout list breaks a
+  joint by name meanwhile. **Effort:** S. **Priority:** P2.
+- **Sideways, the verdict scrolls inside its column** on a 390px-tall screen
+  when it has a next step and a Join button. Nothing is cut, but a scroll
+  inside a column is easy to miss. **Effort:** S. **Priority:** P3.
+- **Card measurements in the Pieces sheet are 12px** ("216mm", "Raised
+  road"): at the floor for a label, small for a phone held at arm's length.
+  The same size as on a wide screen. **Effort:** S. **Priority:** P3.
+- **Not checked by the review, for the real-phone pass (T12):** Escape and
+  focus in the sheets, the keyboard over a panel's field, a screen reader,
+  a second phone browser, "Next end" at a real scale.
