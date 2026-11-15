@@ -5,6 +5,11 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.0.1 (2026-11-15)
+
+- A rule for whoever plans work on the app: every plan names the version it
+  will take the app to. Nothing in the app itself changed.
+
 ## 1.0.0 (2026-11-15)
 
 The first numbered version: the app as it stood, plus the number itself.

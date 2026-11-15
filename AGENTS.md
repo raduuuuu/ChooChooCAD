@@ -116,6 +116,11 @@ the design rules are in [DESIGN.md](DESIGN.md); how people contribute is in
   - **minor**: something new a person can do or see: a piece, a check, a
     control.
   - **patch**: everything else: a fix, wording, the look, docs, tests, tooling.
+- Every plan names the version it will take ChooChooCAD to, before any work
+  starts (owner, 2026-11-15): "this takes 1.4.2 to 1.5.0", with the part
+  that goes up and why. A plan that will land as several pull requests names
+  each one's number. If `main` has moved by the time the work is done, say
+  the new number; the part that goes up stays as planned.
 - When a pull request merged ahead of yours took the number you chose, bring
   `main` in and raise yours again. The tag and the GitHub release are made by
   the deploy; never tag by hand.
