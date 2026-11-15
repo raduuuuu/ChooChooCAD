@@ -10,6 +10,11 @@
  * here, and a live control that does nothing would read as broken.
  *
  * Separate from "Remove last", which works on any layout, history or not.
+ *
+ * `short` (the phone's bottom row, plan 2026-11-14, design DD1): a quarter of
+ * a 390px screen does not hold "Undo place and join" on one line, so the
+ * button shows the one word and the step it names is its accessible name,
+ * which still begins with the word shown.
  */
 
 import type { Step } from './editorReducer.js';
@@ -41,6 +46,7 @@ export function UndoControl({
   next,
   onUndo,
   onRedo,
+  short = false,
 }: {
   /** The step Undo would reverse (`lastStep`), or null. */
   last: Step | null;
@@ -48,6 +54,8 @@ export function UndoControl({
   next: Step | null;
   onUndo: () => void;
   onRedo: () => void;
+  /** Show only "Undo" and "Redo"; the step is in the accessible name. */
+  short?: boolean;
 }) {
   return (
     <>
@@ -55,17 +63,17 @@ export function UndoControl({
         onClick={onUndo}
         disabled={last === null}
         aria-disabled={last === null}
-        aria-label={last === null ? 'Nothing to undo' : undefined}
+        aria-label={last === null ? 'Nothing to undo' : short ? undoLabel(last) : undefined}
       >
-        {undoLabel(last)}
+        {short ? 'Undo' : undoLabel(last)}
       </button>
       <button
         onClick={onRedo}
         disabled={next === null}
         aria-disabled={next === null}
-        aria-label={next === null ? 'Nothing to redo' : undefined}
+        aria-label={next === null ? 'Nothing to redo' : short ? redoLabel(next) : undefined}
       >
-        {redoLabel(next)}
+        {short ? 'Redo' : redoLabel(next)}
       </button>
     </>
   );

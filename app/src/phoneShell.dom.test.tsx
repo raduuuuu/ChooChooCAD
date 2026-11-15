@@ -102,6 +102,13 @@ describe('the phone’s editor', () => {
     expect(document.querySelector('.phone-strip')!.textContent).toContain('Placing: Medium straight');
     await user.click(screen.getByRole('button', { name: 'Place' }));
     expect(stored()).toBe(3);
+    /*
+     * The bottom row keeps its one-word buttons, and the step is in the name.
+     * MUTATION PROOF, run: `short` not passed to UndoControl: `expected
+     * 'Undo place' to be 'Undo'` (a longer step wraps to three lines in a quarter of the row).
+     */
+    const undoButton = screen.getByRole('button', { name: /^Undo place/ });
+    expect(undoButton.textContent).toBe('Undo');
     expect(screen.queryByRole('button', { name: 'Place' })).not.toBeNull();
     await user.click(screen.getByRole('button', { name: 'Place' }));
     expect(stored()).toBe(4);

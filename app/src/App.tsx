@@ -2174,7 +2174,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         stage={stage}
         verdict={<VerdictCompact.Provider value={true}>{verdictBlock}</VerdictCompact.Provider>}
         strip={strip ?? (trainRun ? trainControl : null)}
-        history={<UndoControl last={lastStep(editor)} next={nextStep(editor)} onUndo={undo} onRedo={redo} />}
+        history={<UndoControl last={lastStep(editor)} next={nextStep(editor)} onUndo={undo} onRedo={redo} short />}
         sheet={sheet}
         onSheet={setSheet}
         piecesScroll={piecesScroll}
