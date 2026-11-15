@@ -103,8 +103,12 @@ export interface PieceShelvesProps {
   readonly overLimit: boolean;
   /** The part whose preview is out, or null. */
   readonly pickedId: string | null;
-  /** The drag handlers for a card (`usePaletteDrag`). */
-  readonly paletteDrag: ReturnType<typeof usePaletteDrag>['handlers'];
+  /**
+   * The drag handlers for a card (`usePaletteDrag`). Left out, a card is
+   * picked by a tap and nothing else: the phone's sheet, where a list that
+   * scrolls under the finger must never grab a piece (plan 2026-11-14, DD13).
+   */
+  readonly paletteDrag?: ReturnType<typeof usePaletteDrag>['handlers'];
   /** One click: the piece appears where it would go. */
   readonly onPick: (partId: string, from: HTMLElement | null) => void;
   /** A double-click or Shift+Enter: placed at once, in its first orientation. */
@@ -155,12 +159,14 @@ export function PieceShelves({ library, resolve, inventory, counts, overLimit, p
                  * orientation (decision 9A), which is how eight clicks still
                  * build a circle.
                  */
-                {...(({ swallowsClick, ...h }) => ({
-                  ...h,
-                  onClick: (e: React.MouseEvent<HTMLButtonElement>) => {
-                    if (!swallowsClick()) onPick(part.id, e.currentTarget);
-                  },
-                }))(paletteDrag(part.id))}
+                {...(paletteDrag
+                  ? (({ swallowsClick, ...h }) => ({
+                      ...h,
+                      onClick: (e: React.MouseEvent<HTMLButtonElement>) => {
+                        if (!swallowsClick()) onPick(part.id, e.currentTarget);
+                      },
+                    }))(paletteDrag(part.id))
+                  : { onClick: (e: React.MouseEvent<HTMLButtonElement>) => onPick(part.id, e.currentTarget) })}
                 onDoubleClick={() => onAdd(part.id)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && e.shiftKey) {

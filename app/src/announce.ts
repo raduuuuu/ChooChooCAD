@@ -219,6 +219,11 @@ export function describeAction(
       if (prev.armed && !next.armed) return 'Selection cleared.';
       return null;
     }
+    case 'armEnd':
+      // "Next end" while joining: the choice moved, nothing was built.
+      return next.armed && !same(prev.armed, next.armed)
+        ? `Selected ${where(next.graph, next.armed)}. Choose another free end to join it to.`
+        : null;
     case 'joinEnds': {
       if (next.graph.welds.length > prev.graph.welds.length) {
         const made = next.graph.welds[next.graph.welds.length - 1]!;
