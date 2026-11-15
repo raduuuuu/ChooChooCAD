@@ -285,8 +285,14 @@ export type EditorAction =
    * points (a palette drag over open floor, decision E6).
    */
   | { readonly kind: 'floatGhost'; readonly pos: Cyc }
-  /** Place the pending piece as shown. */
-  | { readonly kind: 'placeGhost' }
+  /**
+   * Place the pending piece as shown. With `again` (the phone's editor, plan
+   * 2026-11-14 design DD6, eng ED3) the same part is previewed straight away
+   * on the placed piece's own free end, in this same step, so laying six
+   * straights is six presses of Place. Only while that piece HAS a free end:
+   * a closed loop, a buffer or a pier leaves nothing previewed.
+   */
+  | { readonly kind: 'placeGhost'; readonly again?: boolean }
   /**
    * The end of a palette drag (decisions E6, 6A): place the pending piece if
    * it fits clean, else leave it pending, red, for Place or Cancel.
@@ -610,14 +616,28 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
         : addPiece(state.graph, g.partId, g.turn, count, null, ports, { port: 0, turn: g.turn }, g.frame!);
       const newId = next.graph.pieces[next.graph.pieces.length - 1]!.pieceId;
       const placed = autoJoin(next.graph, ports, newId);
+      /*
+       * THE SAME PIECE AGAIN (eng ED3): on the end the cursor would go to, or
+       * failing that (a join took it) another free end of the piece just
+       * placed. Never on some other piece's end: the next piece continues
+       * the run being laid or nothing is previewed.
+       */
+      const onward =
+        action.again && count > 0
+          ? (stillFree(placed.graph, next.select) ?? freeEnds(placed.graph, ports).find((e) => e.pieceId === newId) ?? null)
+          : null;
       return {
         graph: placed.graph,
         // A join can consume the far end the cursor would go to (Codex, OV5).
         // A piece with no ends (a pier) leaves the cursor where it was and stays selected, to be moved (design 3A).
-        cursor: count === 0 ? stillFree(placed.graph, state.cursor) : stillFree(placed.graph, next.select) ?? resumeCursor(placed.graph, ports),
+        cursor:
+          count === 0
+            ? stillFree(placed.graph, state.cursor)
+            : (onward ?? stillFree(placed.graph, next.select) ?? resumeCursor(placed.graph, ports)),
         armed: null,
         selected: count === 0 ? newId : null,
-        ghost: null,
+        // The way it bends is kept, as moving a preview keeps it (`ghostAt`).
+        ghost: onward ? ghostAt(placed.graph, ports, g.partId, onward, g.turn) : null,
         ...remember(state, placed.joined > 0 ? 'placeJoin' : 'place'),
       };
     }
