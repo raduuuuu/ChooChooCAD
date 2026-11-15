@@ -7,7 +7,9 @@
  * rearranged and is gone after a real close; with two warnings live the
  * failed save shows first, "and 1 more" opens the other, and each keeps its
  * button; "Next end" moves the preview (or, while joining, the chosen end) to
- * the other end in reach and back, and makes no Undo step
+ * the other end in reach and back, and makes no Undo step; the verdict
+ * starts whole, folds to one line on "Show less" with every word still in
+ * the markup, and stays folded for the session
  * Value: fails_when=Done scrolls away with the form, turning the phone
  * empties a field, a failed save is hidden behind another warning or loses
  * its button, or "Next end" is missing where two ends share a spot
@@ -258,5 +260,62 @@ describe('"Next end", where two free ends share a spot', () => {
     expect(stored().welds.length).toBe(7);
     await user.click(screen.getByRole('button', { name: 'Next end' }));
     expect(strip()).toBe(from);
+  });
+});
+
+describe('the verdict on a phone folds to one line (owner, 2026-11-15)', () => {
+  const css = readFileSync(join(import.meta.dirname, 'app.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const box = () => document.querySelector('.phone-verdict')!;
+  const fold = () => document.querySelector<HTMLButtonElement>('.phone-verdict-fold');
+
+  /*
+   * MUTATION PROOFS, run:
+   * - the verdict starting folded (`phoneVerdictWasOpen` false with nothing
+   *   kept): `expected 'Show all' to be 'Show less'`.
+   * - the button calling `onVerdict(!folded)`: `expected 'Show less' to be
+   *   'Show all'` (a tap that changes nothing).
+   * - the verdict not drawn while folded: `Cannot read properties of null
+   *   (reading 'textContent')`, so a screen reader would lose the sentence.
+   * - `keepPhoneVerdict` not called: after the remount `expected false to be
+   *   true` (folded again on every turn of the session).
+   * - the `.is-folded .verdict-notes` rule removed from the stylesheet:
+   *   `expected null not to be null` (folded in name, as tall as before).
+   */
+  it('starts whole; "Show less" folds it, keeps every word in the markup, and is remembered', async () => {
+    const user = userEvent.setup();
+    const first = open(straight(['m1', 'm2']));
+    await screen.findByRole('button', { name: 'Pieces' });
+    expect(fold()!.textContent).toBe('Show less');
+    expect(fold()!.getAttribute('aria-expanded')).toBe('true');
+    expect(box().classList.contains('is-folded')).toBe(false);
+    const whole = box().querySelector('.verdict-text')!.textContent;
+
+    await user.click(fold()!);
+    expect(fold()!.textContent).toBe('Show all');
+    expect(fold()!.getAttribute('aria-expanded')).toBe('false');
+    expect(box().classList.contains('is-folded')).toBe(true);
+    expect(box().querySelector('.verdict-text')!.textContent).toBe(whole);
+    expect(box().querySelector('.verdict-notes .verdict-action')).not.toBeNull();
+    expect(/\.phone-verdict\.is-folded \.verdict-notes\s*\{\s*display:\s*none;?\s*\}/.exec(css)).not.toBeNull();
+    expect(/\.phone-verdict\.is-folded \.verdict-text\s*\{[^}]*text-overflow:\s*ellipsis/.exec(css)).not.toBeNull();
+
+    first.unmount();
+    open(straight(['m1', 'm2']));
+    await screen.findByRole('button', { name: 'Pieces' });
+    expect(box().classList.contains('is-folded')).toBe(true);
+    await user.click(fold()!);
+    expect(box().classList.contains('is-folded')).toBe(false);
+  });
+
+  /*
+   * MUTATION PROOF, run: `onVerdict` given on an empty floor: `expected
+   * 'Nothing to check yet.Show less' to be 'Nothing to check yet.'` (a
+   * button folding a single line).
+   */
+  it('an empty floor has one line already, and nothing to fold', async () => {
+    open({ pieces: [], welds: [], anchors: [] });
+    await screen.findByRole('button', { name: 'Pieces' });
+    expect(box().textContent).toBe('Nothing to check yet.');
+    expect(fold()).toBeNull();
   });
 });

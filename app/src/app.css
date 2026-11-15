@@ -2334,6 +2334,29 @@
   border-top: 1px solid var(--rule);
   z-index: 2;
 }
+/*
+ * FOLDED TO ONE LINE (owner, 2026-11-15): the mark and the start of the
+ * sentence; the notes and the next step wait behind "Show all". The plan
+ * gets the height back.
+ */
+.phone-verdict.can-fold .verdict { padding-inline-end: 104px; }
+.phone-verdict-fold {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: var(--s2);
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 var(--s2);
+  background: none;
+  border: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.phone-verdict.is-folded .verdict-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.phone-verdict.is-folded .verdict-notes { display: none; }
 /* ALWAYS RESERVED (DD2): a sentence of two lines, and one row of 44px buttons. */
 .phone-strip { flex: none; height: 100px; overflow-y: auto; border-top: 1px solid var(--rule); }
 .phone-strip .mode-strip { border-top: none; padding: var(--s1) var(--s3); gap: var(--s1) var(--s2); }

@@ -336,6 +336,10 @@ neither is ever cut. Everything else (trust lines, limits, train fit) is
 behind "N notes", which opens over the plan and closes again. A physical
 requirement the user must act on belongs in the sentence or the next step,
 not only in a note.
+Added by the owner on 2026-11-15, after using it on a phone: the person may
+fold the verdict to one line ("Show less"), which hides the rest of the
+sentence, the lines that are never folded into notes, and the next step
+until "Show all". It starts whole.
 
 **DD4. The Pieces sheet (owner: "Half height, plan visible").** The sheet
 covers the lower half of the screen over the verdict, the strip row and the

@@ -62,3 +62,20 @@ export function PhoneEditor(props: PhoneShellProps) {
     </LoadFailure>
   );
 }
+
+/** Whether the phone's verdict is whole, kept for the session like the notes' fold: it starts whole. */
+const VERDICT_OPEN_KEY = 'generic.verdict.phone.open';
+export const phoneVerdictWasOpen = () => {
+  try {
+    return sessionStorage.getItem(VERDICT_OPEN_KEY) !== '0';
+  } catch {
+    return true;
+  }
+};
+export const keepPhoneVerdict = (open: boolean) => {
+  try {
+    sessionStorage.setItem(VERDICT_OPEN_KEY, open ? '1' : '0');
+  } catch {
+    // The fold still works; it just forgets on reload.
+  }
+};

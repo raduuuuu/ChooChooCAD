@@ -326,8 +326,12 @@ things sit differs.
 - **The plan never moves while you aim.** The row for the placing, joining
   and selection strips is always reserved, so a strip appearing does not
   resize the plan. The notes open over the plan and close again.
-- **The verdict sentence and the next step are never cut.** Anything a person
-  must act on is in one of those two, never only in a note.
+- **The verdict sentence and the next step are never cut, unless the person
+  folds them.** Anything a person must act on is in one of those two, never
+  only in a note. "Show less" folds the verdict to its mark and the start of
+  its sentence, so the plan gets the height; "Show all" brings it back
+  (owner, 2026-11-15). It starts whole, the choice lasts the session, and
+  folded it is cut by the stylesheet only, so a screen reader hears it whole.
 - **Pieces and More are sheets:** the browser's own dialog over the controls,
   with the plan still in view, a name and Close in a first row that does not
   scroll, and no motion (rule 8). In the Pieces sheet a card is picked by a
