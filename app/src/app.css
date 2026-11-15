@@ -2367,7 +2367,14 @@
 }
 /* SIDEWAYS (DD9): the plan, and beside it one column with the controls. */
 .phone.is-sideways { grid-template-rows: auto minmax(0, 1fr); grid-template-columns: minmax(0, 1fr) minmax(260px, 42%); }
-.phone.is-sideways .phone-top { grid-column: 1 / -1; }
+/*
+ * The controls take the column's whole height; the identity line sits over the
+ * plan only. Under a full-width identity line the verdict had 138px on a 390px
+ * screen and scrolled inside itself (design review 2026-11-15).
+ */
+.phone.is-sideways .phone-top { grid-column: 1; grid-row: 1; }
+.phone.is-sideways .phone-plan { grid-column: 1; grid-row: 2; }
+.phone.is-sideways .phone-controls { grid-column: 2; grid-row: 1 / -1; }
 /* The verdict takes the height the strip and the buttons leave, and scrolls inside itself before it is ever cut (DD3). */
 .phone.is-sideways .phone-controls { border-top: none; border-left: 1px solid var(--rule); }
 .phone.is-sideways .phone-verdict { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
@@ -2405,4 +2412,8 @@
 }
 .more-row:disabled { color: var(--ink-soft); }
 .more-note { font-size: 13px; color: var(--ink-soft); }
+/* The one row of More that goes somewhere else: underlined, as every link here is. */
+.more-link { text-decoration: underline; text-underline-offset: 3px; border-bottom: none; }
+/* In the sheet a card's size and note are read at arm's length: one step over the rail's 12px (design review 2026-11-15). */
+.sheet .piece-dim, .sheet .piece-note { font-size: 13px; }
 .phone-wait { display: grid; place-content: center; justify-items: center; gap: var(--s3); height: 100dvh; padding: var(--s4); text-align: center; color: var(--ink); }
