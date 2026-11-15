@@ -18,6 +18,8 @@
  * the phone layout (CSS, checked in a browser)
  */
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { StrictMode, useEffect } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -174,8 +176,23 @@ describe('Open in editor', () => {
     expect(everything()).toEqual(before);
   });
 
-  it('a phone is told where to change it (18A)', async () => {
+  /*
+   * A PHONE HAS THE SAME EXIT (plan 2026-11-14, design DD12). It used to be
+   * told to open the link on a tablet or computer, and the stylesheet hid
+   * Open in editor and its ask-before-replacing step under 620px.
+   *
+   * MUTATION PROOFS, run:
+   * - `.friend-open, .friend-ask { display: none; }` back in the 620px block:
+   *   `expected '…display: none…' not to match /friend-open|friend-ask/`.
+   * - the old sentence drawn again: `expected <p …> to be null`.
+   */
+  it('a phone is offered the same way into the editor, and is not sent elsewhere (DD12)', async () => {
     await openLink();
-    expect(screen.getByText('Open this link on a tablet or computer to change it.')).toBeTruthy();
+    expect(screen.queryByText(/on a tablet or computer/)).toBeNull();
+    const css = readFileSync(join(__dirname, 'app.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const narrow = [...css.matchAll(/@media \(max-width: 620px\)\s*\{((?:[^{}]*\{[^{}]*\})*)\s*\}/g)].map((m) => m[1]!).join('\n');
+    expect(narrow).toMatch(/friend-build/);
+    expect(narrow).not.toMatch(/friend-open|friend-ask/);
+    expect(css).not.toMatch(/needs a larger screen/);
   });
 });

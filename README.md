@@ -44,7 +44,8 @@ bun try.ts           # one layout from the command line; edit PIECES at the top
   anything shipped.
 - **Share a layout** as a link; it opens read-only, on a phone too.
 
-Phones get a read-only view; editing needs a screen at least 620px wide.
+A phone edits too, in a layout of its own: the plan, the verdict, and the
+pieces in a sheet that opens over the controls.
 
 ## The pieces and their sizes
 

@@ -71,7 +71,7 @@ import {
 import { dropRescueCopy, holdsOwnLayout, loadGraph, partialLoadNotice, rescueCopy, saveGraph, savesSuppressed, storedGraphOf } from './layoutStore.js';
 import { downloadBytes } from './downloadBytes.js';
 import { LayoutFileControls, openLayoutFile } from './LayoutFileControls.js';
-import { PHONE_SHELL, PHONE_SHELL_QUERY, PhoneEditor, SHORT_TOUCH_QUERY } from './phoneEditor.js';
+import { PHONE_SHELL_QUERY, PhoneEditor, SHORT_TOUCH_QUERY } from './phoneEditor.js';
 import type { PhonePanel, PhoneSheet } from './PhoneShell.js';
 import { PutAsideNotice } from './PutAsideNotice.js';
 import { keepBeforeReplacing } from './putAside.js';
@@ -101,9 +101,9 @@ import { View3DPanel } from './View3DPanel.js';
 import { BuildModeLoader } from './BuildModeLoader.js';
 import { loadView, openingView, saveView, type View } from './viewChoice.js';
 import { countAction, routeOf } from './linkFragment.js';
-import { EXAMPLE_PRESET, exampleTitle, exitLabel, LINK_HELD, ownTitle, STALE_TAB } from './linkWords.js';
+import { EXAMPLE_PRESET, exampleTitle, exitLabel, LINK_HELD, STALE_TAB } from './linkWords.js';
 import { screenMode } from './screenMode.js';
-import { NARROW_QUERY, useMatchMedia } from './useMatchMedia.js';
+import { useMatchMedia } from './useMatchMedia.js';
 import { HINT_MOUSE, HINT_TOUCH, hintSeen, rememberHintSeen } from './selectHint.js';
 import { stripWords, TOUCH_QUERY } from './stripWords.js';
 import { FriendScreen } from './FriendScreen.js';
@@ -380,18 +380,16 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
    */
   const [exampleGraph] = useState(() => (hadLayout ? null : editor.graph));
   const [adopted, setAdopted] = useState(false);
-  const narrow = useMatchMedia(NARROW_QUERY);
   /*
-   * THE PHONE'S EDITOR (plan 2026-11-14, eng ED2, ED9): the one read of its
-   * query. Built dark: `PHONE_SHELL.on` is false, so `phone` is false and a
-   * narrow screen gets what it gets today. Where it is on, the screen is not
-   * "narrow" to `screenMode`: your own layout and the example may be edited.
-   * A shared link is read-only on every screen (DESIGN.md rule 13).
+   * THE PHONE'S EDITOR (plan 2026-11-14, eng ED2): the one read of its query.
+   * It picks the shell and nothing else: what may be edited is `screenMode`'s
+   * to say, and it does not ask the screen's size. A shared link is read-only
+   * on every screen (DESIGN.md rule 13), so a link never gets this shell.
    */
   const phoneWanted = useMatchMedia(PHONE_SHELL_QUERY);
   const sideways = useMatchMedia(SHORT_TOUCH_QUERY);
-  const phone = PHONE_SHELL.on && phoneWanted && link === undefined;
-  const screen = screenMode({ link: link !== undefined, stored: hadLayout, narrow: narrow && !phone, adopted });
+  const phone = phoneWanted && link === undefined;
+  const screen = screenMode({ link: link !== undefined, stored: hadLayout, adopted });
   // Held here, above both shells, so turning the phone keeps them (eng ED7).
   const [sheet, setSheet] = useState<PhoneSheet>(null);
   const piecesScroll = useRef(0);
@@ -1716,13 +1714,8 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     );
   }
 
-  /*
-   * A PHONE WITH NO LINK (design 19A): the friend's composition, read-only,
-   * showing the example or this browser's own layout. The editor is for a
-   * tablet or computer.
-   */
-  const friendPhone = screen.mode === 'view' || (screen.mode === 'example' && narrow && !phone);
-  if (link || friendPhone) {
+  // A SHARED LINK: the friend's screen, read-only, on every screen (DESIGN.md rule 13).
+  if (link) {
     const verdictLine = (
       <VerdictLine
         view={verdictView}
@@ -1775,11 +1768,6 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
       onView: setViewState,
       onBuild: () => setBuilding(true),
     };
-    if (!link) {
-      const example = screen.mode === 'example';
-      const title = example ? exampleTitle(n) : ownTitle(n);
-      return <FriendScreen {...shared} own={{ title, build: example ? 'Build this' : 'Build it', status: `${title.replace(' · ', ', ')}.` }} />;
-    }
     return (
       <FriendScreen
         {...shared}

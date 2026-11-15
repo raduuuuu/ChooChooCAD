@@ -21,7 +21,6 @@ import {
   ASK_REPLACE,
   KEPT_BOTH,
   OPEN_IN_EDITOR,
-  PHONE_CANNOT_EDIT,
   piecesWord,
   PUT_ASIDE_FAILED,
   UNREADABLE_LAYOUT,
@@ -71,7 +70,6 @@ export function OpenInEditor({ linkBytes }: { readonly linkBytes: string }) {
       <button className="friend-open" onClick={() => open(false)} disabled={state.kind === 'ask'}>
         {OPEN_IN_EDITOR}
       </button>
-      <p className="friend-phone-note">{PHONE_CANNOT_EDIT}</p>
       {state.kind === 'ask' && (
         <div className="friend-ask" role="group" aria-labelledby="friend-ask-question">
           <p id="friend-ask-question" className="friend-ask-question" tabIndex={-1} ref={(el) => el?.focus()}>

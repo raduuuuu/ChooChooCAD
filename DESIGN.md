@@ -302,6 +302,38 @@ arrived before anything else:
   always shown under the verdict, never folded. When pieces nobody has
   measured are in the layout it says so: "and estimates for the pieces nobody
   has measured", or "estimated sizes" when that is every piece.
+- **Read-only on every screen, with the same way out on every screen:** a
+  phone is offered Open in editor, and its ask-before-replacing step, as a
+  wide screen is (plan 2026-11-14, design DD12).
+
+## 14. A phone edits on one screen that never scrolls
+
+A phone, and any touch screen under 500px tall, gets the editor in a layout
+of its own (plan 2026-11-14, E4; `docs/plan/2026-11-14-additions-eng.md`,
+design DD1 to DD14). It is the same editor, from the same state; only where
+things sit differs.
+
+- **Seen first: the plan. Second: the verdict. Third: Pieces.** Pieces is the
+  heaviest button in its row by weight, never by colour (rule 1).
+- **The plan never moves while you aim.** The row for the placing, joining
+  and selection strips is always reserved, so a strip appearing does not
+  resize the plan. The notes open over the plan and close again.
+- **The verdict sentence and the next step are never cut.** Anything a person
+  must act on is in one of those two, never only in a note.
+- **Pieces and More are sheets:** the browser's own dialog over the controls,
+  with the plan still in view, a name and Close in a first row that does not
+  scroll, and no motion (rule 8). In the Pieces sheet a card is picked by a
+  tap and nothing else, so scrolling never grabs a piece.
+- **The same piece stays ready after Place**, while the piece just placed has
+  a free end. Where free ends crowd under one fingertip, Next end steps the
+  choice round them.
+- **A warning takes one line** under the identity line, the most serious
+  first, with its own buttons; "and 1 more" opens the rest. A failed save is
+  never hidden.
+- **Panels are full screen** with their name and Done in a row that does not
+  scroll.
+- **On a touch screen no sentence names a key or a click** (design DD8):
+  "Tap another free end", "Place", "Cancel".
 
 ## What is NOT settled
 

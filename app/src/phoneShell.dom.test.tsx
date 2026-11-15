@@ -2,13 +2,13 @@
  * THE PHONE'S EDITOR (plan 2026-11-14, E4; design DD1, DD4, DD6, DD13, DD14;
  * eng ED2, ED3, ED6, ED9).
  *
- * Value: protects=with the switch on, a narrow screen gets the editor as one
- * screen with Pieces, Undo, Redo and More and no palette section; with the
- * switch off (as shipped) it gets what it got before; a card picked in the
+ * Value: protects=a narrow screen gets the editor as one screen with Pieces,
+ * Undo, Redo and More and no palette section; a wide screen gets the editor
+ * it always had; a card picked in the
  * Pieces sheet closes the sheet and is previewed; Place keeps the same piece
  * ready; a key pressed while a sheet is open edits nothing; Clear in More
  * clears, closes the sheet and can be undone
- * Value: fails_when=the shell shows without its switch, the sheet stays open
+ * Value: fails_when=a wide screen is given the phone's shell, the sheet stays open
  * over a picked piece, Place puts the preview away on a phone, Ctrl+Z inside
  * a sheet undoes track behind it, or More's Clear cannot be undone
  * Value: why_new=a phone never drew the editor at all
@@ -25,7 +25,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App.js';
-import { PHONE_SHELL, PHONE_SHELL_QUERY } from './phoneEditor.js';
+import { PHONE_SHELL_QUERY } from './phoneEditor.js';
 import { GRAPH_STORAGE_KEY } from './storageKeys.js';
 import { TOUCH_QUERY } from './stripWords.js';
 import { NARROW_QUERY } from './useMatchMedia.js';
@@ -53,20 +53,18 @@ const open = () =>
   );
 
 beforeEach(() => {
-  PHONE_SHELL.on = true;
   phoneScreen();
   localStorage.setItem(GRAPH_STORAGE_KEY, OWN);
 });
 afterEach(() => {
-  PHONE_SHELL.on = false;
   vi.unstubAllGlobals();
 });
 
 describe('the phone’s editor', () => {
   /*
    * MUTATION PROOFS, run:
-   * - `phone` not asking for `PHONE_SHELL.on`: the "switch off" spec fails
-   *   with `expected <button class="phone-pieces">…</button> to be null`.
+   * - `phone` true on every screen: the "wide screen" spec fails with
+   *   `expected <button class="phone-pieces"></button> to be null`.
    * - the phone path removed from App's render: `Unable to find role="button"
    *   and name "Pieces"`.
    */
@@ -79,11 +77,12 @@ describe('the phone’s editor', () => {
     expect(document.querySelector('.phone-verdict .verdict')).not.toBeNull();
   });
 
-  it('with its switch off, as shipped, a narrow screen does not get it', () => {
-    PHONE_SHELL.on = false;
+  it('a wide screen does not get it: the palette section, as always', () => {
+    vi.unstubAllGlobals();
     open();
     expect(screen.queryByRole('button', { name: 'Pieces' })).toBeNull();
     expect(document.querySelector('.phone')).toBeNull();
+    expect(document.querySelector('section.palette')).not.toBeNull();
   });
 
   /*

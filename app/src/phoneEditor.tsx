@@ -9,10 +9,8 @@
  *                     ├─ loading ─▶ "Opening the editor…"
  *                     └─ the chunk did not arrive ─▶ one sentence, and Reload
  *
- * BUILT DARK (ED9). `PHONE_SHELL.on` is false, and nothing in the app turns it
- * on: a phone still gets the screen it gets today. The tests turn it on to
- * drive the shell. The pull request that switches the phone's editor on
- * deletes this flag, and with it the stylesheet's "needs a larger screen" gate.
+ * A shared link never gets it: a link is read-only on every screen (DESIGN.md
+ * rule 13), and App looks at the link before it looks at the screen.
  */
 
 import { Component, lazy, Suspense, type ReactNode } from 'react';
@@ -23,8 +21,6 @@ import { NARROW_QUERY } from './useMatchMedia.js';
 export const SHORT_TOUCH_QUERY = '(max-height: 499px) and (pointer: coarse)';
 /** Every screen that gets the phone's editor: narrow, or short and touch. */
 export const PHONE_SHELL_QUERY = `${NARROW_QUERY}, ${SHORT_TOUCH_QUERY}`;
-/** Off until the switch-on pull request (ED9, step 4). */
-export const PHONE_SHELL = { on: false };
 
 export const PHONE_LOADING = 'Opening the editor…';
 export const PHONE_LOAD_FAILED = "The editor couldn't be loaded. Check your connection, then reload.";
