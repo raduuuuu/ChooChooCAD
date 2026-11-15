@@ -1819,6 +1819,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
       >
         {view === '3d' && sceneInput ? (
           <View3DPanel
+            foldHowTo={phone}
             input={sceneInput}
             pieceCount={graph.pieces.length}
             segmentCount={woodCount}
