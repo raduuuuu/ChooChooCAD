@@ -475,7 +475,7 @@
   cursor: pointer;
 }
 .verdict-fold:hover { color: var(--ink); }
-@media (pointer: coarse) { .verdict-fold { min-height: 44px; } }
+@media (pointer: coarse) { .verdict-fold { min-height: 44px; min-width: 44px; } }
 
 /*
  * THE NOTES BLOCK (task X2a, Y1 decision 2).
@@ -2393,6 +2393,9 @@
 .phone.is-sideways .sheet { inset: 0 0 0 auto; width: 42%; min-width: 260px; height: 100dvh; border-top: none; border-left: 1px solid var(--rule); }
 /* A FULL-SCREEN PANEL (DD10): its name and Done never scroll; the form does. */
 .phone-panel { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; background: var(--paper); }
+/* Each panel's own first row (its name and a close button) is the fixed row here. */
+.phone-panel-body .inventory-head { display: none; }
+.phone-panel-body :is(.inventory, .submit) { border: none; padding: 0; margin: 0; }
 .phone-panel-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--s3); }
 /* MORE (DD14): plain rows under three headings. */
 .more-heading { margin: var(--s4) 0 var(--s1); font-size: 13px; font-weight: 600; color: var(--ink-soft); }

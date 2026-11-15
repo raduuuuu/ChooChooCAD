@@ -669,3 +669,25 @@ export function nextEndAfter(chosen: PortRef, reach: readonly PortRef[]): PortRe
   const i = reach.findIndex((r) => r.pieceId === chosen.pieceId && r.port === chosen.port);
   return i === -1 ? null : reach[(i + 1) % reach.length]!;
 }
+
+/**
+ * THE RING "NEXT END" WALKS, AND WHAT IT IS MEASURED FROM.
+ *
+ *   a tap, a pick, Place ──▶ the chosen end becomes the anchor of a new ring
+ *   Next end ────────────▶ the anchor stays, so every end in the ring gets its turn
+ *
+ * Measured from the anchor, never from each end in turn: from each end in
+ * turn, two ends 3mm apart hand the choice back and forth, and a third a
+ * little further off is never reached.
+ */
+export interface EndRing {
+  readonly anchor: PortRef;
+  /** Where Next end last moved the choice to, or null when it has not been pressed on this ring. */
+  readonly stepped: PortRef | null;
+}
+
+/** The ring for the end now chosen: the old one if Next end is what chose it, else a new one anchored there. */
+export function ringFor(was: EndRing | null, chosen: PortRef): EndRing {
+  const kept = was !== null && was.stepped !== null && was.stepped.pieceId === chosen.pieceId && was.stepped.port === chosen.port;
+  return kept ? was : { anchor: chosen, stepped: null };
+}

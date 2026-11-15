@@ -20,7 +20,7 @@
  * version of this app silently destroyed a whole saved inventory.
  */
 
-import { useState } from 'react';
+import { useDraft } from './useDraft.js';
 import { newSubmissionId, RESERVED_ID_PREFIX, userMeasured, type Submission } from '../../engine/data/library.js';
 import { SYSTEM_NAME, type Brand, type Part, type Polarity } from '../../engine/src/parts/schema.js';
 
@@ -49,15 +49,15 @@ function parseMm(raw: string): number | null {
 }
 
 export function SubmitPart({ existingIds, notTwoEndedIds, onSubmit, onCancel }: SubmitPartProps) {
-  const [brand, setBrand] = useState<Brand>('IKEA');
-  const [name, setName] = useState('');
-  const [kind, setKind] = useState<'straight' | 'curve'>('straight');
-  const [lengthRaw, setLengthRaw] = useState('');
-  const [innerRadiusRaw, setInnerRadiusRaw] = useState('');
-  const [arcSteps, setArcSteps] = useState(2);
-  const [startEnd, setStartEnd] = useState<Polarity>('socket');
-  const [endEnd, setEndEnd] = useState<Polarity>('peg');
-  const [correcting, setCorrecting] = useState('');
+  const [brand, setBrand] = useDraft<Brand>('submit', 'brand', 'IKEA');
+  const [name, setName] = useDraft('submit', 'name', '');
+  const [kind, setKind] = useDraft<'straight' | 'curve'>('submit', 'kind', 'straight');
+  const [lengthRaw, setLengthRaw] = useDraft('submit', 'lengthRaw', '');
+  const [innerRadiusRaw, setInnerRadiusRaw] = useDraft('submit', 'innerRadiusRaw', '');
+  const [arcSteps, setArcSteps] = useDraft('submit', 'arcSteps', 2);
+  const [startEnd, setStartEnd] = useDraft<Polarity>('submit', 'startEnd', 'socket');
+  const [endEnd, setEndEnd] = useDraft<Polarity>('submit', 'endEnd', 'peg');
+  const [correcting, setCorrecting] = useDraft('submit', 'correcting', '');
 
   const lengthMm = parseMm(lengthRaw);
   const innerRadiusMm = parseMm(innerRadiusRaw);

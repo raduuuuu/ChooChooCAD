@@ -52,7 +52,7 @@ import { placeAll } from '../../engine/src/graph/frames.js';
 import { levelOf, portsOf, type Graph, type Piece as GPiece, type Port, type PortRef } from '../../engine/src/graph/model.js';
 import { renderGraph } from '../../engine/src/graph/render.js';
 import { bendRender, bentShifts } from '../../engine/src/graph/bendPose.js';
-import { endsWithinReach, joinSuggestions, nextEndAfter, type ClickableEnd, type GapMark, seamLines, weldTargets, type JoinSuggestion } from './trackPath.js';
+import { endsWithinReach, joinSuggestions, nextEndAfter, ringFor, type ClickableEnd, type EndRing, type GapMark, seamLines, weldTargets, type JoinSuggestion } from './trackPath.js';
 import { useEditorKeys } from './useEditorKeys.js';
 import { usePaletteDrag, type CanvasProbe } from './usePaletteDrag.js';
 import { paletteSize, PieceShelves } from './Palette.js';
@@ -1570,15 +1570,12 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
   const [reach, setReach] = useState<{ readonly ends: readonly ClickableEnd[]; readonly pxPerMm: number } | null>(null);
   const onReachable = useCallback((ends: readonly ClickableEnd[], pxPerMm: number) => setReach({ ends, pxPerMm }), []);
   const chosenEnd = ghost ? ghost.at : armed;
-  const ringOf = useRef<{ anchor: PortRef; stepped: PortRef | null } | null>(null);
+  const ringOf = useRef<EndRing | null>(null);
   const nextEnd = useMemo(() => {
     if (!phone || !chosenEnd || !reach) return null;
-    const samePort = (a: PortRef, b: PortRef) => a.pieceId === b.pieceId && a.port === b.port;
-    const was = ringOf.current;
-    const kept = was !== null && was.stepped !== null && samePort(was.stepped, chosenEnd);
-    const anchor = kept ? was.anchor : chosenEnd;
-    ringOf.current = { anchor, stepped: kept ? was.stepped : null };
-    return nextEndAfter(chosenEnd, endsWithinReach(anchor, reach.ends, reach.pxPerMm));
+    const ring = ringFor(ringOf.current, chosenEnd);
+    ringOf.current = ring;
+    return nextEndAfter(chosenEnd, endsWithinReach(ring.anchor, reach.ends, reach.pxPerMm));
   }, [phone, chosenEnd, reach]);
   const nextEndButton = nextEnd ? (
     <button
