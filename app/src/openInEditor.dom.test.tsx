@@ -84,19 +84,26 @@ describe('Open in editor', () => {
   });
 
   /*
-   * MUTATION PROOF, run: the `busy` guard removed: `expected <div
-   * class="friend-ask" …(2)>…(3)</div> to be null`, a second question about
-   * replacing what the first tap had just put aside.
+   * MUTATION PROOF, run: the `busy` guard removed: `expected [
+   * 'action/open-in-editor', …(1) ] to have a length of 1 but got 2`, the
+   * second tap counted and sent away again. (This pin used to record a
+   * second question about replacing the layout; since `openInEditor` treats a
+   * link already in the editor's slot as opened, that no longer happens, and
+   * the deep checkup of 2026-11-15 found the pin could not fail.)
    */
   it('a second tap before the reload writes nothing more (D27)', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     localStorage.setItem(GRAPH_STORAGE_KEY, OWN);
     const writes = vi.spyOn(Storage.prototype, 'setItem');
+    const counted: string[] = [];
+    window.goatcounter = { count: (v) => void counted.push(v.path) };
     const user = userEvent.setup();
     await openLink();
     const button = screen.getByRole('button', { name: 'Open in editor' });
     await user.click(button);
     await user.click(button);
+    delete window.goatcounter;
+    expect(counted.filter((p) => p.includes('open-in-editor'))).toHaveLength(1);
     expect(screen.queryByRole('group', { name: 'Replace the layout you put aside last time?' })).toBe(null);
     expect(writes.mock.calls.filter((c) => c[0] === GRAPH_PREVIOUS_KEY)).toHaveLength(1);
     expect(localStorage.getItem(GRAPH_PREVIOUS_KEY)).toBe(OWN);

@@ -146,11 +146,18 @@ describe('whole-layout refusals', () => {
     ],
   ];
 
+  /*
+   * MUTATION PROOF, run: a refused layout reported with no sentence
+   * (`refuse` returning `discarded: undefined`): `expected undefined to be
+   * 'Your saved track could not be read, s…'`.
+   */
+  const UNREADABLE = 'Your saved track could not be read, so the canvas started empty.';
   for (const [name, value] of cases) {
     it(`${name} clears the layout and says so`, () => {
       const r = load(blob(value));
       expect(r.value.pieces).toHaveLength(0);
-      expect(r.discarded).toBeDefined();
+      // The sentence itself, not that there is one (CLAUDE.md: never `toBeDefined`).
+      expect(r.discarded).toBe(UNREADABLE);
       expect(r.droppedAnchors).toBe(0);
     });
   }
@@ -158,7 +165,7 @@ describe('whole-layout refusals', () => {
   it('malformed JSON is caught rather than thrown', () => {
     const r = load({ [GRAPH_STORAGE_KEY]: '{not json' });
     expect(r.value.pieces).toHaveLength(0);
-    expect(r.discarded).toBeDefined();
+    expect(r.discarded).toBe(UNREADABLE);
   });
 
   it('an unknown partId names the part, because a generic message is not actionable', () => {
