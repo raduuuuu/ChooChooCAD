@@ -476,6 +476,8 @@
 }
 .verdict-fold:hover { color: var(--ink); }
 @media (pointer: coarse) { .verdict-fold { min-height: 44px; min-width: 44px; } }
+/* A closed shelf's line is its button: a finger's size on a touch screen (rule 10; design review 2026-11-15). */
+@media (pointer: coarse) { .brand-group.is-collapsible > summary { min-height: 44px; } }
 
 /*
  * THE NOTES BLOCK (task X2a, Y1 decision 2).
@@ -2379,7 +2381,11 @@
 /* The layout list on a phone: its buttons are for a finger (DESIGN.md rule 10). */
 .phone-panel-body .graph-listing button { min-height: 44px; }
 .phone-panel-body .graph-listing summary { min-height: 44px; display: flex; align-items: center; }
+/* In a panel the form sits on the page itself: no tinted block inside a full screen (design review 2026-11-15). */
+.phone-panel-body :is(.inventory, .submit) { background: transparent; }
 /* MORE (DD14): plain rows under three headings. */
+/* The put-aside line is a row among rows here, not a boxed notice. */
+.more .notice { margin: 0; padding: var(--s2) 0; border: none; border-bottom: 1px solid var(--rule); background: none; }
 .more-heading { margin: var(--s4) 0 var(--s1); font-size: 13px; font-weight: 600; color: var(--ink-soft); }
 .more-heading:first-child { margin-top: var(--s1); }
 .more-row {
