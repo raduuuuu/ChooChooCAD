@@ -23,13 +23,46 @@ const ports = (p: Piece) => portsOf(resolve(p.partId), p.turn);
 const drawn = (graph: Graph) => renderGraph(graph, ports, resolve, placeAll(graph, ports));
 const route = (graph: Graph, index: number, port = 0, open: readonly Opening[] = []) =>
   walkRoute(graph, ports, drawn(graph), { pieceId: graph.pieces[index]!.pieceId, port }, open);
-const plan = (graph: Graph, selected: string | null = null) => {
+const plan = (graph: Graph, selected: string | null = null, seed?: number) => {
   const render = drawn(graph);
   const slop = new Map(graph.pieces.map((p) => [p.pieceId, resolve(p.partId).slop.axialMm]));
   const result = solveGraph(graph, ports, resolve, (id: string) => slop.get(id) ?? 0, placeAll(graph, ports), { parts: BUILT_IN, brandFit }, render.segments, render.bodies);
-  return planRun({ graph, ports, resolve, drawn: render, result, selected });
+  return planRun({ graph, ports, resolve, drawn: render, result, selected, ...(seed === undefined ? {} : { seed }) });
 };
 const CIRCLE_MM = 2 * Math.PI * (182 + 20);
+
+describe('one run, one journey', () => {
+  /** A straight into a switch, then a long straight on its main road: the two roads end in different places. */
+  const forked = () => run(['A', 'L', 'D']);
+  /** Where the engine has stopped, long after the run began. */
+  const endOf = (seed?: number) => {
+    const at = plan(forked(), null, seed)!.at(60_000)!;
+    return `${at.pieceId}@${Math.round(at.pose.x)},${Math.round(at.pose.y)}`;
+  };
+
+  /*
+   * A NEW JOURNEY EACH PRESS; ONE JOURNEY A RUN (owner, 2026-11-15).
+   *
+   * MUTATION PROOFS, run:
+   * - the seed not handed to the dice (`dice(1)` whatever `input.seed`):
+   *   `expected 1 to be 2` (twenty seeds, one journey).
+   * - the run asked twice gives two journeys (a fresh journey per `carsAt`
+   *   call): `expected 'p2@…' to be 'p3@…'`-like, the plan and the 3D view
+   *   shown different trains.
+   */
+  it('a seed fixes where the train goes, and other seeds send it the other way', () => {
+    expect(endOf(11)).toBe(endOf(11));
+    expect(new Set(Array.from({ length: 20 }, (_, seed) => endOf(seed))).size).toBe(2);
+    const one = plan(forked(), null, 3)!;
+    const early = one.carsAt(60_000).map((c) => c.pieceId);
+    expect(one.carsAt(60_000).map((c) => c.pieceId)).toEqual(early);
+    expect(one.at(60_000)!.done).toBe(true);
+  });
+
+  it('with no seed given, rolls its own: twenty presses do not all go one way', () => {
+    expect(new Set(Array.from({ length: 20 }, () => endOf())).size).toBe(2);
+  });
+});
 
 describe('the clock of a run', () => {
   /*
@@ -189,12 +222,21 @@ describe('what a run says', () => {
   });
 
   /*
-   * Fails when: the switch sentence is shown on a layout with no switch, or
-   * left out on one with (the `> 2` test on a piece's ends changed). Run.
+   * A RUN TAKES ANY ROAD AT A SWITCH (owner, 2026-11-15), so it never says it
+   * keeps to the main one; `runWords`, the fixed route's sentences, still does.
+   *
+   * Fails when: the chance sentence is shown on a layout with no switch, or
+   * the main-road sentence is said of a run (`journeyWords` handing on
+   * `runWords` unfiltered). Run: `expected [ …(3) ] to include 'At a switch
+   * it takes any road, …'`.
    */
-  it('says it keeps to the main road only when it meets a switch', () => {
-    expect(words(run(['A', 'L']))).toContain('It keeps to the main road at switches.');
-    expect(words(run(['A', 'D']))).not.toContain('It keeps to the main road at switches.');
+  it('says a run takes any road at a switch, only when it meets one with a choice', () => {
+    const chance = 'At a switch it takes any road, each with the same chance, so no two runs need be alike.';
+    expect(words(run(['A', 'L']))).toContain(chance);
+    expect(words(run(['A', 'L']))).not.toContain('It keeps to the main road at switches.');
+    expect(words(run(['A', 'D']))).not.toContain(chance);
+    const fixed = runWords({ route: route(run(['A', 'L']), 0), openings: [], trainMm: 55, trainMeasured: true, numberOf: () => 1, nameOf: () => 'x', endsOf: () => 3 });
+    expect(fixed).toContain('It keeps to the main road at switches.');
   });
 
   it('says the other ways a run ends, and when the train is an estimate', () => {

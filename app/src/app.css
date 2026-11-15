@@ -1853,8 +1853,9 @@
 /*
  * A TRAIN RUN (plan 2026-11-14, E5). The button and its sentences are ink and
  * paper: a run is not a verdict (DESIGN.md rule 1). The train on the plan is
- * a solid ink lozenge lying along the track with a paper edge: the one mark
- * that lies along the plank and the one that moves (rules 8 and 11). 44px on
+ * an engine and two wagons, solid ink with a paper edge, lying along the
+ * track: the marks that lie along the plank and the ones that move (rules 8
+ * and 11). 44px on
  * a finger (rule 10).
  */
 .train-run { padding: 0 var(--s4) var(--s3); display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s2) var(--s3); }
@@ -1876,7 +1877,10 @@
   .train-button { min-height: 44px; }
 }
 .train-mark { pointer-events: none; }
-.train-mark rect { fill: var(--ink); stroke: var(--paper); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+/* Ink bodies with a paper edge; the parts on top are drawn by paper lines on the ink, the chimney by a paper disc. */
+.train-body { fill: var(--ink); stroke: var(--paper); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.train-part { fill: var(--ink); stroke: var(--paper); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.train-light { fill: var(--paper); }
 
 /*
  * THE 3D VIEW (docs/plan/2026-10-31-3d-viewer.md).
