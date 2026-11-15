@@ -1,6 +1,7 @@
 # Publish the built app to GitHub Pages at woodentrain.world.
 #
-# The app is a static SPA with no backend and no network calls of any kind, so
+# The app is a static SPA with no backend (its one network call is the usage
+# counter, app/public/count.js), so
 # "deploy" is literally: build, upload `app/dist`, serve it. 372 KB.
 #
 # THE GATE IS ci.yml ITSELF, called as a reusable workflow. This file used to

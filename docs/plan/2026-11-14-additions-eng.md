@@ -808,47 +808,47 @@ Nothing deferred: every finding was decided and is a task below.
 Synthesized from the design review's findings. Each task derives from a
 decision above. These replace E4's steps 2 to 4; step 1 is done.
 
-- [ ] **T1 (P1, human: ~3 days / CC: ~2 h)** — phone shell — One screen that never scrolls: identity line, warning line, view corner, plan, verdict, reserved strip row, bottom row of Pieces, Undo, Redo, More
+- [x] **T1 (P1, human: ~3 days / CC: ~2 h; done in #286)** — phone shell — One screen that never scrolls: identity line, warning line, view corner, plan, verdict, reserved strip row, bottom row of Pieces, Undo, Redo, More
   - Surfaced by: DD1, DD2, DD3 (the controls had no home; strips moved the plan; the verdict's room was unsaid)
   - Files: `app/src/App.tsx`, `app/src/app.css`, a new `app/src/PhoneShell.tsx`, `app/src/VerdictLine.tsx`
   - Verify: `bun run test`; DOM test that the shell renders the four buttons and no palette section when narrow; screenshots at 390x844
-- [ ] **T2 (P1, human: ~2 days / CC: ~1 h)** — sheet — A half-height sheet on the browser's `<dialog>`: Close row, closes on pick, Close, backdrop tap and Escape; remembers scroll; no motion; holds `PieceShelves`; tap only
+- [x] **T2 (P1, human: ~2 days / CC: ~1 h; done in #284, #286)** — sheet — A half-height sheet on the browser's `<dialog>`: Close row, closes on pick, Close, backdrop tap and Escape; remembers scroll; no motion; holds `PieceShelves`; tap only
   - Surfaced by: DD4, DD11, DD13
   - Files: a new `app/src/Sheet.tsx`, `app/src/Palette.tsx`, `app/src/app.css`
   - Verify: DOM tests for open, pick-closes, Close, Escape, focus in and focus back; a check that `<dialog>` works under jsdom before the tests rely on it
-- [ ] **T3 (P1, human: ~1 day / CC: ~45 min)** — More — The same sheet with three headed groups and the eight ready layouts with their box notes
+- [x] **T3 (P1, human: ~1 day / CC: ~45 min; done in #286)** — More — The same sheet with three headed groups and the eight ready layouts with their box notes
   - Surfaced by: DD14
   - Files: `app/src/PhoneShell.tsx`, `app/src/App.tsx`
   - Verify: DOM test that each row reaches its action and that Clear is undoable
-- [ ] **T4 (P1, human: ~1 day / CC: ~45 min)** — gate — `screenMode` allows editing when narrow for your own layout and the example; the dispatch guard and stylesheet follow; one exported query for "narrow, or short and coarse", pinned like `NARROW_QUERY`; the sideways arrangement
+- [x] **T4 (P1, human: ~1 day / CC: ~45 min; done in #287)** — gate — `screenMode` allows editing when narrow for your own layout and the example; the dispatch guard and stylesheet follow; one exported query for "narrow, or short and coarse", pinned like `NARROW_QUERY`; the sideways arrangement
   - Surfaced by: DD9, and E4's step 3
   - Files: `app/src/screenMode.ts`, `app/src/useMatchMedia.ts`, `app/src/App.tsx`, `app/src/app.css`, their tests
   - Verify: the `screenMode` truth table; a shared link still refuses edits when narrow; turning keeps the picked piece
-- [ ] **T5 (P1, human: ~1 day / CC: ~45 min)** — crowded ends — "Next end" in the strip row when other free ends are within the tap's reach
+- [x] **T5 (P1, human: ~1 day / CC: ~45 min; done in #282, #283, #286)** — crowded ends — "Next end" in the strip row when other free ends are within the tap's reach
   - Surfaced by: DD7 (both outside reviews: bigger rings do not make close ends choosable)
   - Files: `app/src/trackPath.ts`, `app/src/App.tsx`, `app/src/editorReducer.ts`
   - Verify: unit test on which ends are within reach and their order; DOM test that Next end moves the preview
-- [ ] **T6 (P2, human: ~4 h / CC: ~30 min)** — placing — In the phone shell the same piece stays ready after Place
+- [x] **T6 (P2, human: ~4 h / CC: ~30 min; done in #281, #286)** — placing — In the phone shell the same piece stays ready after Place
   - Surfaced by: DD6
   - Files: `app/src/editorReducer.ts`, `app/src/App.tsx`
   - Verify: reducer test; a wide screen's behaviour unchanged
-- [ ] **T7 (P2, human: ~4 h / CC: ~30 min)** — copy — Touch wording for every strip sentence and button, with no key names
+- [x] **T7 (P2, human: ~4 h / CC: ~30 min; done in #279)** — copy — Touch wording for every strip sentence and button, with no key names
   - Surfaced by: DD8
   - Files: `app/src/App.tsx`, a words file beside `selectHint.ts`
   - Verify: a test for each wording; `copyPosition.test.ts` stays green
-- [ ] **T8 (P2, human: ~4 h / CC: ~30 min)** — warnings — One wrapping line under the identity line, most serious first, "and 1 more"
+- [x] **T8 (P2, human: ~4 h / CC: ~30 min; done in #286)** — warnings — One wrapping line under the identity line, most serious first, "and 1 more"
   - Surfaced by: DD5 (the phone stylesheet hides a failed save today)
   - Files: `app/src/App.tsx`, `app/src/app.css`
   - Verify: `saveFailure.dom.test.tsx` extended to the narrow screen
-- [ ] **T9 (P2, human: ~1 day / CC: ~45 min)** — panels — Full screen with a fixed first row (name and Done), a form that scrolls by itself, number pads
+- [x] **T9 (P2, human: ~1 day / CC: ~45 min; done in #286)** — panels — Full screen with a fixed first row (name and Done), a form that scrolls by itself, number pads
   - Surfaced by: DD10
   - Files: `app/src/Inventory.tsx`, `app/src/TablePanel.tsx`, `app/src/SubmitPart.tsx`, `app/src/app.css`
   - Verify: DOM test that Done is outside the scrolling form; a real-phone check with the keyboard up
-- [ ] **T10 (P2, human: ~3 h / CC: ~20 min)** — friend's screen — The editor exit on a phone; delete `PHONE_CANNOT_EDIT`, `PHONE_DESIGN_ELSEWHERE` and the stylesheet's fallback sentence
+- [x] **T10 (P2, human: ~3 h / CC: ~20 min; done in #287)** — friend's screen — The editor exit on a phone; delete `PHONE_CANNOT_EDIT`, `PHONE_DESIGN_ELSEWHERE` and the stylesheet's fallback sentence
   - Surfaced by: DD12
   - Files: `app/src/OpenInEditor.tsx`, `app/src/linkWords.ts`, `app/src/FriendScreen.tsx`, `app/src/app.css`
   - Verify: `friendScreen.dom.test.tsx` and `openInEditor.dom.test.tsx` at the narrow width
-- [ ] **T11 (P2, human: ~3 h / CC: ~20 min)** — rings — The visible end rings get the pixel floor the hit areas have
+- [x] **T11 (P2, human: ~3 h / CC: ~20 min; done in #278)** — rings — The visible end rings get the pixel floor the hit areas have
   - Surfaced by: E4's step 4
   - Files: `app/src/TrackCanvas.tsx`, `app/src/trackPath.ts`
   - Verify: unit test on the ring's radius at a small scale
