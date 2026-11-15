@@ -6,15 +6,16 @@
  * labelled as an example, and writes no layout until it is edited; a stored
  * layout or a rescue copy means no example; Start my own clears to an empty
  * editor and writes nothing; the example blocks only the layout key, so the
- * table still saves; on a phone the example and your own layout are shown
- * read-only in the friend's composition; turning across 620px keeps the
- * layout and its permissions follow; build progress goes to the slot of
+ * table still saves; on a phone the example and your own layout open in the
+ * phone's editor and can be edited there; turning across 620px keeps the
+ * layout and swaps the editor's shell; build progress goes to the slot of
  * whoever owns the layout, whatever the width
  * Value: fails_when=the example is saved on mount, shown over a stored
- * layout, blocks the other stores, can be edited on a phone, loses the
+ * layout, blocks the other stores, cannot be edited on a phone, loses the
  * layout on rotation, or a build of your own layout lands in the link slot
- * Value: why_new=the first visit was a blank floor and a phone saw only "needs
- * a larger screen"
+ * Value: why_new=the first visit was a blank floor; a phone saw "needs a
+ * larger screen", then a read-only screen, and now the editor (plan
+ * 2026-11-14, E4)"
  * Value: seam=App mounted under jsdom with `offerExample`, as main.tsx mounts
  * it; `matchMedia` stubbed with a width the test can turn; `Viewer3D.js`
  * mocked as build mode's own test does (jsdom has no WebGL)
@@ -28,7 +29,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { place } from '../test/place.js';
 import { App } from './App.js';
-import { PHONE_DESIGN_ELSEWHERE } from './linkWords.js';
+import { PHONE_SHELL_QUERY } from './phoneEditor.js';
 import { BUILD_LINK_STORAGE_KEY, BUILD_STORAGE_KEY, GRAPH_RESCUE_KEY, GRAPH_STORAGE_KEY, TABLE_STORAGE_KEY } from './storageKeys.js';
 import { NARROW_QUERY } from './useMatchMedia.js';
 
@@ -56,13 +57,13 @@ const button = (name: string | RegExp) => screen.getAllByRole('button', { name }
 const storedPieces = () => (JSON.parse(localStorage.getItem(GRAPH_STORAGE_KEY) ?? 'null') as { pieces: unknown[] } | null)?.pieces.length;
 const FOUR = JSON.stringify({ pieces: ['a', 'b', 'c', 'd'].map((pieceId) => ({ pieceId, partId: 'A' })), welds: [], anchors: [] });
 
-/** A window whose width the test can turn across NARROW_QUERY. */
+/** A window whose width the test can turn across 620px: narrow, it gets the phone's editor. */
 function width(narrow: boolean) {
   let isNarrow = narrow;
   const listeners = new Set<() => void>();
   vi.stubGlobal('matchMedia', (q: string) => ({
     get matches() {
-      return q === NARROW_QUERY && isNarrow;
+      return (q === NARROW_QUERY || q === PHONE_SHELL_QUERY) && isNarrow;
     },
     media: q,
     addEventListener: (_: string, f: () => void) => listeners.add(f),
@@ -148,48 +149,64 @@ describe('the first-visit example (3A, D66, D68)', () => {
   });
 });
 
-describe('a phone with no link (19A, D65, D70)', () => {
+describe('a phone with no link (plan 2026-11-14, E4; D70)', () => {
+  const pieces = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
+    await user.click(await screen.findByRole('button', { name: 'Pieces' }));
+    await user.click(screen.getByRole('dialog', { name: 'Pieces' }).querySelector<HTMLButtonElement>(`button.piece-main[aria-label^="Add ${name}"]`)!);
+    await user.click(screen.getByRole('button', { name: /^Place/ }));
+  };
+
   /*
-   * MUTATION PROOF, run: `phone` set to `screen.mode === 'view'` only:
-   * `Unable to find an accessible element with the role "heading"`, the
-   * editor shown instead.
+   * MUTATION PROOF, run: the example read-only again (`canEdit: false` for
+   * it in `screenMode`): `expected <div class="example-line" …(2)>…(3)</div>
+   * to be null`, the piece refused and the example still an example.
    */
-  it('nothing stored: the example, read-only, with Build this', () => {
+  it('nothing stored: the example in the phone’s editor, and the first piece makes it yours', async () => {
     width(true);
+    const user = userEvent.setup();
     visit();
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('An example · 10 pieces');
+    expect(await screen.findByRole('button', { name: 'Pieces' })).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'An example' }).textContent).toContain('An example · 10 pieces');
     expect(button('Build this')).toBeTruthy();
-    expect(screen.getByText(PHONE_DESIGN_ELSEWHERE)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Open in editor' })).toBe(null);
-    expect(screen.queryByText('Checked with catalogue sizes.')).toBe(null);
     expect(storedPieces()).toBe(undefined);
+    await pieces(user, 'Large curve');
+    expect(screen.queryByRole('group', { name: 'An example' })).toBe(null);
+    expect(storedPieces()).toBe(11);
   });
 
-  it('a stored layout: yours, read-only, with Build it', () => {
+  /*
+   * MUTATION PROOF, run: `phone` in App.tsx always false (the wide editor
+   * drawn on a narrow screen): `Unable to find role="button" and name
+   * "Pieces"`.
+   */
+  it('a stored layout: yours, in the phone’s editor, with Build it', async () => {
     width(true);
     localStorage.setItem(GRAPH_STORAGE_KEY, FOUR);
     visit();
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Your railway · 4 pieces');
+    expect(await screen.findByRole('button', { name: 'Pieces' })).toBeTruthy();
     expect(button('Build it')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /^Add / })).toBe(null);
+    expect(document.querySelector('section.palette')).toBe(null);
   });
 
   /*
-   * MUTATION PROOF, run: `canEditNow.current` frozen at its first value
-   * (`useRef(screen.canEdit)` without the per-render assignment): the
-   * widened editor refused the piece, `expected 4 to be 5`.
+   * MUTATION PROOF, run: `canEditNow.current` frozen at false: `expected 4
+   * to be 5`, the piece refused on either screen.
    */
-  it('turning across 620px keeps the layout, and editing follows the width (D70)', async () => {
+  it('turning across 620px keeps the layout, and it can be edited on both sides (D70)', async () => {
     const turn = width(true);
     localStorage.setItem(GRAPH_STORAGE_KEY, FOUR);
     const user = userEvent.setup();
     visit();
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Your railway · 4 pieces');
-    turn(false);
-    await place(user, screen.getAllByRole('button', { name: 'Add Large curve' })[0]!);
+    await pieces(user, 'Large curve');
     expect(storedPieces()).toBe(5);
+    turn(false);
+    expect(document.querySelector('.phone')).toBe(null);
+    await user.click(screen.getByRole('button', { name: /^Cancel/ }));
+    await place(user, screen.getAllByRole('button', { name: 'Add Large curve' })[0]!);
+    expect(storedPieces()).toBe(6);
     turn(true);
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Your railway · 5 pieces');
+    expect(await screen.findByRole('button', { name: 'Pieces' })).toBeTruthy();
+    expect(storedPieces()).toBe(6);
   });
 });
 
@@ -222,7 +239,7 @@ describe('build progress follows ownership, not width (D71)', () => {
    * BUILD_LINK_STORAGE_KEY : undefined`): `expected null not to be null`,
    * the phone's progress in the link slot.
    */
-  it('3 steps on the phone view of your layout, widen, and it resumes at 3', async () => {
+  it('3 steps on a phone with your layout, widen, and it resumes at 3', async () => {
     const turn = width(true);
     localStorage.setItem(GRAPH_STORAGE_KEY, FOUR);
     const user = userEvent.setup();

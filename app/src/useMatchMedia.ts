@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 
 /**
- * Below this width the editor is not offered: phones view and build (share
- * plan, design 18A, 19A; eng D67). The CSS gate marked `/* gate:
- * NARROW_QUERY *\/` in app.css must use exactly this query, and
- * `narrowQuery.test.ts` reads the stylesheet to hold it there.
+ * A narrow screen: at or under this width the editor is the phone's (plan
+ * 2026-11-14, E4; `PHONE_SHELL_QUERY` in phoneEditor.tsx adds short touch
+ * screens). It gates nothing by itself any more: the stylesheet's "needs a
+ * larger screen" block went when a phone got its own editor.
  */
 export const NARROW_QUERY = '(max-width: 620px)';
 

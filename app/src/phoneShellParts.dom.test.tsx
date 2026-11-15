@@ -28,7 +28,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App.js';
 import { STALE_TAB } from './linkWords.js';
-import { PHONE_SHELL, PHONE_SHELL_QUERY } from './phoneEditor.js';
+import { PHONE_SHELL_QUERY } from './phoneEditor.js';
 import { GRAPH_STORAGE_KEY } from './storageKeys.js';
 import { TOUCH_QUERY } from './stripWords.js';
 import { NARROW_QUERY } from './useMatchMedia.js';
@@ -86,11 +86,9 @@ const pickFromSheet = async (user: ReturnType<typeof userEvent.setup>, name: str
 
 let turn: (phone: boolean) => void;
 beforeEach(() => {
-  PHONE_SHELL.on = true;
   turn = phoneScreen();
 });
 afterEach(() => {
-  PHONE_SHELL.on = false;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });

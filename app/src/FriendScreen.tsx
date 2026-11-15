@@ -20,19 +20,17 @@
  * screen reader by `planLabel` instead.
  *
  * Under 620px the same order stacks in one column (app.css, the phone friend
- * screen, design 18A); the editor's "needs a larger screen" message is not
- * shown for a link.
+ * screen, design 18A), with every way out a wide screen has: Open in editor
+ * and its ask-before-replacing step included (plan 2026-11-14, design DD12).
  *
- * THE SAME COMPOSITION ON A PHONE WITH NO LINK (design 19A, eng D65): `own`
- * swaps the title, the build label and the announcement, drops the catalogue
- * line, Open in editor and the exit, and says where to design instead. It
- * shows the first-visit example, or the user's own layout read-only.
+ * Only a link draws this. A phone with no link used to (your own layout or
+ * the example, read-only); it has the editor now.
  */
 
 import { useEffect, useRef, type ReactNode } from 'react';
 import { codeOf } from '../../engine/src/parts/schema.js';
 import { AppName } from './AppName.js';
-import { linkTitle, PHONE_DESIGN_ELSEWHERE, sizesLine } from './linkWords.js';
+import { linkTitle, sizesLine } from './linkWords.js';
 import { OpenInEditor } from './OpenInEditor.js';
 
 export interface FriendPartRow {
@@ -62,19 +60,7 @@ export interface FriendScreenProps {
   readonly onExit: () => void;
 }
 
-/** The phone screen for this browser's own layout or the example (19A). */
-export interface OwnScreenWords {
-  readonly title: string;
-  readonly build: string;
-  readonly status: string;
-}
-
-export type PhoneScreenProps = Omit<FriendScreenProps, 'linkBytes' | 'exitLabel' | 'onExit'> & { readonly own: OwnScreenWords };
-
-const isOwn = (p: FriendScreenProps | PhoneScreenProps): p is PhoneScreenProps => 'own' in p;
-
-export function FriendScreen(props: FriendScreenProps | PhoneScreenProps) {
-  const own = isOwn(props) ? props.own : null;
+export function FriendScreen(props: FriendScreenProps) {
   const title = useRef<HTMLHeadingElement | null>(null);
   // Focus starts at the title, so a screen reader arriving from a chat hears what this is (20A).
   useEffect(() => title.current?.focus(), []);
@@ -86,7 +72,7 @@ export function FriendScreen(props: FriendScreenProps | PhoneScreenProps) {
       </header>
       <main className="friend-main">
         <h1 className="friend-title" ref={title} tabIndex={-1}>
-          {own ? own.title : linkTitle(props.pieces)}
+          {linkTitle(props.pieces)}
         </h1>
         <div className="friend-picture" role="img" aria-label={props.planLabel}>
           <div className="friend-picture-inner" inert>
@@ -95,13 +81,13 @@ export function FriendScreen(props: FriendScreenProps | PhoneScreenProps) {
         </div>
         <div className="friend-verdict">
           {props.verdict}
-          {!own && <p className="friend-sizes">{sizesLine(props.unmeasured, props.pieces)}</p>}
+          <p className="friend-sizes">{sizesLine(props.unmeasured, props.pieces)}</p>
         </div>
         <div className="friend-actions">
           <button className="friend-build" onClick={props.onBuild}>
-            {own ? own.build : 'Build it'}
+            Build it
           </button>
-          {isOwn(props) ? <p className="friend-own-note">{PHONE_DESIGN_ELSEWHERE}</p> : <OpenInEditor linkBytes={props.linkBytes} />}
+          <OpenInEditor linkBytes={props.linkBytes} />
           <details className="friend-parts">
             <summary>
               Parts: <span className="num">{total}</span> {total === 1 ? 'piece' : 'pieces'}
@@ -129,13 +115,13 @@ export function FriendScreen(props: FriendScreenProps | PhoneScreenProps) {
             <button onClick={() => props.onView(props.view === '2d' ? '3d' : '2d')}>
               {props.view === '2d' ? 'See it in 3D' : 'Back to the plan'}
             </button>
-            {!isOwn(props) && <button onClick={props.onExit}>{props.exitLabel}</button>}
+            <button onClick={props.onExit}>{props.exitLabel}</button>
           </div>
         </div>
       </main>
       <p className="sr-only" role="status" aria-live="polite">
         {/* The verdict line announces itself in its own region; this names what arrived. */}
-        {own ? own.status : `Shared railway, ${props.pieces} ${props.pieces === 1 ? 'piece' : 'pieces'}.`}
+        {`Shared railway, ${props.pieces} ${props.pieces === 1 ? 'piece' : 'pieces'}.`}
       </p>
     </div>
   );

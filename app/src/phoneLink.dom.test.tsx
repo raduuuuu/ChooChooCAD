@@ -2,8 +2,7 @@
  * A SHARED LINK STAYS READ-ONLY ON A PHONE (DESIGN.md rule 13; plan
  * 2026-11-14, design DD12, eng ED2).
  *
- * Value: protects=with the phone's editor switched on, a shared link on a
- * narrow screen still opens the friend's read-only screen: no Pieces, no
+ * Value: protects=a shared link on a narrow screen opens the friend's read-only screen: no Pieces, no
  * shell, nothing of the friend's own layout written
  * Value: fails_when=the phone's editor is drawn over somebody else's layout
  * Value: why_new=the phone's editor is chosen by screen size, and a link is
@@ -18,7 +17,7 @@ import { render, screen } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { startReadOnlySession } from '../../engine/data/storage.js';
 import { LinkRoute } from './LinkRoute.js';
-import { PHONE_SHELL, PHONE_SHELL_QUERY } from './phoneEditor.js';
+import { PHONE_SHELL_QUERY } from './phoneEditor.js';
 import { BUILD_LINK_STORAGE_KEY, GRAPH_STORAGE_KEY } from './storageKeys.js';
 import { TOUCH_QUERY } from './stripWords.js';
 import { NARROW_QUERY } from './useMatchMedia.js';
@@ -38,16 +37,14 @@ const OWN = JSON.stringify({ pieces: [{ pieceId: 'mine', partId: 'A', turn: 'lef
 
 beforeAll(() => startReadOnlySession([BUILD_LINK_STORAGE_KEY]));
 beforeEach(() => {
-  PHONE_SHELL.on = true;
   const yes = new Set([PHONE_SHELL_QUERY, NARROW_QUERY, TOUCH_QUERY]);
   vi.stubGlobal('matchMedia', (q: string) => ({ matches: yes.has(q), media: q, addEventListener: () => {}, removeEventListener: () => {} }));
 });
 afterEach(() => {
-  PHONE_SHELL.on = false;
   vi.unstubAllGlobals();
 });
 
-describe('a shared link on a phone, with the phone’s editor on', () => {
+describe('a shared link on a phone', () => {
   /*
    * MUTATION PROOF, run: the phone's editor chosen before the link is looked
    * at (`phone` without `link === undefined`, and the friend's screen skipped
