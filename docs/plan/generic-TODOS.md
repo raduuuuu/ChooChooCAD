@@ -1116,12 +1116,9 @@ these were left because each needs a decision or a real phone.
   joints did not. A bigger joint target competes with selecting the piece
   under it, so which wins needs deciding first. The layout list breaks a
   joint by name meanwhile. **Effort:** S. **Priority:** P2.
-- **Sideways, the verdict scrolls inside its column** on a 390px-tall screen
-  when it has a next step and a Join button. Nothing is cut, but a scroll
-  inside a column is easy to miss. **Effort:** S. **Priority:** P3.
-- **Card measurements in the Pieces sheet are 12px** ("216mm", "Raised
-  road"): at the floor for a label, small for a phone held at arm's length.
-  The same size as on a wide screen. **Effort:** S. **Priority:** P3.
+- **Done since:** the sideways verdict no longer scrolls inside its column
+  (the controls take the column's whole height), and a card's size and note
+  are 13px in the Pieces sheet.
 - **Not checked by the review, for the real-phone pass (T12):** Escape and
   focus in the sheets, the keyboard over a panel's field, a screen reader,
   a second phone browser, "Next end" at a real scale.

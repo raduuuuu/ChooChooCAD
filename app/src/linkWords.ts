@@ -57,6 +57,13 @@ export const exitLabel = (holdsOwn: boolean) => (holdsOwn ? 'Back to my layout' 
  * Here, not in previewWords.ts, because the editor shows it: a word from that
  * module would pull the whole preview's table into the editor's chunk.
  */
+/**
+ * The way from the app to the ready layouts' own pages (`/layouts/`, written
+ * by scripts/layoutPages.ts): each layout that closes, with the pieces it
+ * takes. A search engine could reach them and a person in the app could not.
+ */
+export const LAYOUT_PAGES_WORDS = 'Layouts that close, with the pieces each takes';
+export const LAYOUT_PAGES_URL = '/layouts/';
 export const CONTRIBUTE_WORDS = 'Missing a piece? Have your Claude draw it for the library';
 /** Opening a link in the editor (design doc step 3; eng D23, D29, D72; design 11A, 18A). */
 export const OPEN_IN_EDITOR = 'Open in editor';

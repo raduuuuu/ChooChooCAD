@@ -101,7 +101,7 @@ import { View3DPanel } from './View3DPanel.js';
 import { BuildModeLoader } from './BuildModeLoader.js';
 import { loadView, openingView, saveView, type View } from './viewChoice.js';
 import { countAction, routeOf } from './linkFragment.js';
-import { EXAMPLE_PRESET, exampleTitle, exitLabel, LINK_HELD, STALE_TAB } from './linkWords.js';
+import { EXAMPLE_PRESET, exampleTitle, exitLabel, LAYOUT_PAGES_URL, LAYOUT_PAGES_WORDS, LINK_HELD, STALE_TAB } from './linkWords.js';
 import { screenMode } from './screenMode.js';
 import { useMatchMedia } from './useMatchMedia.js';
 import { HINT_MOUSE, HINT_TOUCH, hintSeen, rememberHintSeen } from './selectHint.js';
@@ -2294,6 +2294,9 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
                 </button>
               );
             })}
+            <a className="more-row more-link" href={LAYOUT_PAGES_URL}>
+              {LAYOUT_PAGES_WORDS}
+            </a>
           </div>
         }
       />
@@ -2436,6 +2439,10 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
               </button>
             );
           })}
+          {/* The same layouts as pages of their own, each with its pieces (linkWords.ts). */}
+          <a className="contribute-link" href={LAYOUT_PAGES_URL}>
+            {LAYOUT_PAGES_WORDS}
+          </a>
         </div>
 
         {fileControls}
