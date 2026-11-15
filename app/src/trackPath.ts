@@ -626,3 +626,34 @@ export function clickableEndsOf(ports: readonly RenderedPort[], hidden: Readonly
 /** An end's click radius in mm: 26, and on a touch screen never under 44px across (design DR9, rule 10). */
 export const endHitRadiusMm = (coarse: boolean, pxPerMm: number): number =>
   coarse ? Math.max(END_HIT_MM, 22 / pxPerMm) : END_HIT_MM;
+
+/**
+ * WHICH ENDS "NEXT END" STEPS THROUGH (plan 2026-11-14, design DD7; eng ED4,
+ * the owner's rule: "ends near the chosen end").
+ *
+ * Where free ends crowd together a fingertip covers several, and the one a
+ * tap chose may not be the one meant. These are the ends one tap could have
+ * meant instead: every reachable free end within a tap's radius of the chosen
+ * one, the chosen end first, then nearest first; ends the same distance away
+ * keep the order they were laid in. Measured from the END, not from where the
+ * finger came down, so the list is the same after the phone is turned or the
+ * plan is zoomed to the same scale.
+ *
+ *   chosen ●──r──┐      r = a tap's radius at this scale (`endHitRadiusMm`)
+ *          ● a   │      result: [chosen, a, b]   (c is out of reach)
+ *            ● b │   ● c
+ *
+ * `ends` is `clickableEndsOf`'s list, so a floor end under raised wood is
+ * already left out. Fewer than two ends back means there is nothing to step
+ * to; an empty list means the chosen end is no longer a reachable free end.
+ */
+export function endsWithinReach(chosen: PortRef, ends: readonly ClickableEnd[], pxPerMm: number): PortRef[] {
+  const from = ends.find((e) => e.ref.pieceId === chosen.pieceId && e.ref.port === chosen.port);
+  if (!from) return [];
+  const radiusMm = endHitRadiusMm(true, pxPerMm);
+  return ends
+    .map((e) => ({ e, d: e === from ? 0 : Math.hypot(e.x - from.x, e.y - from.y) }))
+    .filter(({ d }) => d <= radiusMm)
+    .sort((p, q) => Number(q.e === from) - Number(p.e === from) || p.d - q.d || p.e.order - q.e.order)
+    .map(({ e }) => e.ref);
+}

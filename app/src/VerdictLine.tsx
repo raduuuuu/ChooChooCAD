@@ -41,6 +41,8 @@ import {
   isFailure,
   uncheckedSentence,
 } from './verdictAction.js';
+import { stripWords, TOUCH_QUERY } from './stripWords.js';
+import { useMatchMedia } from './useMatchMedia.js';
 
 /*
  * The copy table and the predicate moved to `verdictAction.ts`, which is a
@@ -149,11 +151,14 @@ function Fold({ count, children }: { count: number; children: ReactNode }) {
  */
 function Action({ action }: { action: string | null }) {
   const startJoin = useContext(JoinStart);
+  const touch = useMatchMedia(TOUCH_QUERY);
   if (!action) return null;
+  // The one action that says how to point: a touch screen has nothing to click (design DD8).
+  const shown = touch && action === ACTION_FOR_FAILURE.NO_CYCLE ? stripWords(true).joinTwoEnds : action;
   // The join instruction is also the control that starts one (design review 28A).
   return (
     <p className="verdict-action">
-      {action}
+      {shown}
       {startJoin && isJoinAction(action) && (
         <button type="button" className="verdict-join" onClick={startJoin}>
           Join two ends

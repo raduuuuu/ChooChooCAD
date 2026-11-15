@@ -79,6 +79,12 @@ describe('a drop onto track (the crossing bug, 2026-10-23)', () => {
     expect(describeAction(floated, { kind: 'dropGhost' }, dropped, resolve)).toBe(
       "Didn't place it: it doesn't fit there. Enter places it anyway, Escape cancels.",
     );
+    // On a touch screen the same refusal names the buttons, not keys (design DD8).
+    // MUTATION PROOF, run: `touch` not passed on to `stripWords` in describeAction: this
+    // fails with the Enter/Escape sentence received.
+    expect(describeAction(floated, { kind: 'dropGhost' }, dropped, resolve, true)).toBe(
+      "Didn't place it: it doesn't fit there. Place puts it down anyway, Cancel stops.",
+    );
   });
 
   it('beside a placed straight, edges touching, places it', () => {

@@ -36,6 +36,7 @@
  * guidance attached.
  */
 
+import { stripWords } from './stripWords.js';
 import type { VerdictKind } from './verdictView.js';
 
 type OutcomeKind = Extract<VerdictKind, 'IMPOSSIBLE' | 'EXACT' | 'NEEDS_GIVE' | 'EXCEEDS'>;
@@ -166,7 +167,8 @@ export function uncheckedSentence(detail: string): string | null {
 }
 
 export const ACTION_FOR_FAILURE: Record<FailureKind, string> = {
-  NO_CYCLE: 'Click the two free ends you want joined.',
+  // The keyboard's wording; a touch screen is shown `stripWords(true).joinTwoEnds` in its place (VerdictLine `Action`).
+  NO_CYCLE: stripWords(false).joinTwoEnds,
   TOO_MANY_LOOPS: 'Break this into fewer loops, or check them a few at a time.',
   /*
    * ONLY LEVERS THAT EXIST. This said "or split this into separate layouts",
