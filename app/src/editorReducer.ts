@@ -251,6 +251,12 @@ export type EditorAction =
    */
   | { readonly kind: 'joinEnds'; readonly a: PortRef; readonly b: PortRef }
   /**
+   * Choose a different end to join FROM, while one is already chosen ("Next
+   * end" in join mode; plan 2026-11-14, eng ED4). Unlike `clickPort` it never
+   * joins: it only moves the choice. No Undo step, since nothing was built.
+   */
+  | { readonly kind: 'armEnd'; readonly ref: PortRef }
+  /**
    * Break the weld between these two ends (task U5). Ports, not a weld index
    * (finding E4): breaking reorders `graph.welds`, so an index read from one
    * render and applied to a newer graph breaks the wrong weld.
@@ -747,6 +753,11 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
       }
       // Arming an end and selecting a piece are never on at once.
       return { ...state, cursor: ref, armed: ref, selected: null };
+    }
+
+    case 'armEnd': {
+      if (state.ghost || state.armed === null || stillFree(state.graph, action.ref) === null) return state;
+      return { ...state, cursor: action.ref, armed: action.ref };
     }
 
     case 'joinEnds': {

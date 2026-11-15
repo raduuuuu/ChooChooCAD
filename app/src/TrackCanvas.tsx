@@ -38,6 +38,7 @@ import {
   gridPath,
   gridStep,
   clickableEndsOf,
+  type ClickableEnd,
   endHitRadiusMm,
   labelSpot,
   pickEnd,
@@ -309,6 +310,13 @@ export interface TrackCanvasProps {
   readonly suggestionName?: (s: JoinSuggestion) => string;
   /** Clicking a free end. This is the whole editing interaction (D5). */
   readonly onPortClick?: (ref: PortRef) => void;
+  /**
+   * Told the free ends a pointer can reach and the scale they are drawn at
+   * (CSS pixels per millimetre), whenever either changes (plan 2026-11-14,
+   * eng ED4). Only the canvas knows them, and "Next end" is worked out from
+   * them outside it (`endsWithinReach`).
+   */
+  readonly onReachable?: (ends: readonly ClickableEnd[], pxPerMm: number) => void;
   /** Every joint, resolved to the canvas by `weldTargets` (task U5). */
   readonly welds?: readonly WeldTarget[];
   /** Clicking a joint breaks it. Undo is the path back; there is no confirm. */
@@ -384,6 +392,7 @@ export function TrackCanvas({
   onSuggest,
   suggestionName,
   onPortClick,
+  onReachable,
   welds = [],
   onWeldClick,
   seams = [],
@@ -713,6 +722,11 @@ export function TrackCanvas({
    * raised wood is not here: the wood takes that click, as it always did.
    */
   const clickableEnds = useMemo(() => clickableEndsOf(renderedPorts, hiddenEndKeys), [renderedPorts, hiddenEndKeys]);
+  // The same fallback scale the hit areas use before the drawing is measured.
+  const reachScale = shown.pxPerMm ?? 1;
+  useEffect(() => {
+    onReachable?.(clickableEnds, reachScale);
+  }, [onReachable, clickableEnds, reachScale]);
   const dragPivot = useMemo(() => {
     if (!drag) return null;
     const p = renderedPorts.find((rp) => rp.pieceId === drag.pieceId && rp.port === 0);

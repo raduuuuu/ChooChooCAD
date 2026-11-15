@@ -657,3 +657,15 @@ export function endsWithinReach(chosen: PortRef, ends: readonly ClickableEnd[], 
     .sort((p, q) => Number(q.e === from) - Number(p.e === from) || p.d - q.d || p.e.order - q.e.order)
     .map(({ e }) => e.ref);
 }
+
+/**
+ * The end "Next end" moves to: the one after `chosen` in `reach`
+ * (`endsWithinReach`'s list), and round to the first again after the last.
+ * Null when there is nowhere else to go: fewer than two ends, or `chosen` is
+ * not among them.
+ */
+export function nextEndAfter(chosen: PortRef, reach: readonly PortRef[]): PortRef | null {
+  if (reach.length < 2) return null;
+  const i = reach.findIndex((r) => r.pieceId === chosen.pieceId && r.port === chosen.port);
+  return i === -1 ? null : reach[(i + 1) % reach.length]!;
+}
