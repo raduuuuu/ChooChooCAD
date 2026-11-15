@@ -59,7 +59,7 @@ describe('run a train, in the app', () => {
     expect(await said('A train gets all the way round.')).toBeTruthy();
     expect(document.body.textContent).toContain('This is the 55mm train the app measures with');
     expect(stopButton()).not.toBe(null);
-    expect(mark()?.getAttribute('transform')).toMatch(/^translate\(/);
+    expect(mark()?.querySelector('.train-car')?.getAttribute('transform')).toMatch(/^translate\(/);
 
     await user.click(preset('Circle'));
     expect(mark()).toBe(null);
@@ -168,20 +168,39 @@ describe('run a train, in the app', () => {
 
 describe('the train mark', () => {
   const at = (x: number, done = false) => ({ pose: { x, y: 5, h: Math.PI / 2 }, level: 0, pieceId: 'p', on: null, t: 0, done });
-  const inSvg = (run: TrainRun) => render(<svg><TrainMark run={run} /></svg>);
+  const inSvg = (run: Pick<TrainRun, 'carsAt'>) => render(<svg><TrainMark run={run} /></svg>);
+  const cars = () => [...mark()!.querySelectorAll('.train-car')];
 
   /*
-   * ONE ELEMENT, PLACED BY THE RUN. MUTATION PROOF, run: the `setAttribute`
-   * in `TrainMark` removed: the mark has no transform.
+   * AN ENGINE AND TWO WAGONS, EACH PLACED BY THE RUN. MUTATION PROOFS, run:
+   * - the `setAttribute` in `TrainMark` removed: `expected [ null, null,
+   *   null ] to deeply equal [ 'translate(120 5) rotate(90)', … ]` here, and
+   *   the app spec above fails on a mark with no place.
+   * - every car given the engine's place (`cars[0]` for all): `expected
+   *   [ 'translate(120 5) rotate(90)', …(2) ] to deeply equal …` with the two
+   *   wagons on the engine.
+   * - a car left hidden once placed (`removeAttribute('visibility')`
+   *   dropped): `expected [ 'hidden', 'hidden', 'hidden' ] to deeply equal
+   *   [ null, null, null ]`.
    */
-  it('is put where the run says, facing the way it says', () => {
-    inSvg({ route: { lead: [], loop: [], end: 'loop' }, words: [], trainMm: 55, at: () => at(120) });
-    expect(mark()!.getAttribute('transform')).toBe('translate(120 5) rotate(90)');
-    expect(mark()!.querySelectorAll('rect')).toHaveLength(1);
+  it('is three cars, each put where the run says, facing the way it says', () => {
+    inSvg({ carsAt: () => [at(120), at(58), at(6)] });
+    expect(cars().map((c) => c.getAttribute('class'))).toEqual(['train-car is-engine', 'train-car is-wagon', 'train-car is-wagon']);
+    expect(cars().map((c) => c.getAttribute('transform'))).toEqual(['translate(120 5) rotate(90)', 'translate(58 5) rotate(90)', 'translate(6 5) rotate(90)']);
+    expect(cars().map((c) => c.getAttribute('visibility'))).toEqual([null, null, null]);
+    // The engine is told from a wagon by its chimney, the one paper disc.
+    expect(cars().map((c) => c.querySelectorAll('.train-light').length)).toEqual([1, 0, 0]);
+  });
+
+  it('shows no car before it has a place', () => {
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    inSvg({ carsAt: () => [] });
+    expect(cars().map((c) => c.getAttribute('visibility'))).toEqual(['hidden', 'hidden', 'hidden']);
   });
 
   /*
-   * NOTHING KEEPS RUNNING. MUTATION PROOF, run: the `if (!at?.done)` test
+   * NOTHING KEEPS RUNNING. MUTATION PROOF, run: the `if (!cars[0]?.done)` test
    * removed, so a finished run asks for frames for ever; and the cleanup's
    * `cancelAnimationFrame` removed, so an unmounted mark's frame still fires.
    */
@@ -191,11 +210,11 @@ describe('the train mark', () => {
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => asked.push(cb));
     vi.stubGlobal('cancelAnimationFrame', (id: number) => void cancelled.push(id));
 
-    const done = inSvg({ route: { lead: [], loop: [], end: 'open end' }, words: [], trainMm: 55, at: () => at(504, true) });
+    const done = inSvg({ carsAt: () => [at(504, true)] });
     expect(asked).toHaveLength(0);
     done.unmount();
 
-    const going = inSvg({ route: { lead: [], loop: [], end: 'loop' }, words: [], trainMm: 55, at: () => at(10) });
+    const going = inSvg({ carsAt: () => [at(10)] });
     expect(asked).toHaveLength(1);
     going.unmount();
     expect(cancelled).toEqual([1]);

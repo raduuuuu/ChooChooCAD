@@ -27,7 +27,8 @@ import { walkRoute } from '../../engine/src/graph/route.js';
 import { buildScene } from '../../engine/src/view3d/mesh.js';
 import { run } from '../test/trainSentences.js';
 import { trainAt } from './playback.js';
-import { disposeChildren, driveTrain, placeTrain, trainObject, TRAIN_LENGTH_MM, TRAIN_WIDTH_MM, type SceneColors, type TrainSpot } from './Viewer3D.js';
+import { TRAIN_CARS, TRAIN_WIDTH_MM } from './trainShape.js';
+import { disposeChildren, driveTrain, placeTrain, trainCars, type SceneColors, type TrainSpot } from './Viewer3D.js';
 
 const resolve = makeResolver(BUILT_IN);
 const ports = (p: Piece) => portsOf(resolve(p.partId), p.turn);
@@ -98,25 +99,49 @@ describe('where the train stands in 3D', () => {
 });
 
 describe('the train itself', () => {
+  const boxOf = (o: Group) => new Box3().setFromObject(o);
+
   /*
-   * As tall as the train the verdict measures with, standing on its
-   * underside. MUTATION PROOF, run: the box not lifted by half its height
-   * (`box.translate` removed): `expected -27.5 to be +0`.
+   * AN ENGINE AND TWO WAGONS. The engine's chimney top is as high as the
+   * train the verdict measures with, and every car stands on its underside.
+   *
+   * MUTATION PROOFS, run:
+   * - the chimney stopped short (`trainMm - base` made `trainMm * 0.5 -
+   *   base`): `expected 46.2… to be close to 55` (the cab is then the tallest part).
+   * - a wagon as tall as the engine (`trainMm * 0.6` made `trainMm`):
+   *   `expected 55 to be less than 55`.
+   * - one car made for the whole train (`TRAIN_CARS.slice(0, 1)`): `expected
+   *   [ Group ] to have a length of 3 but got 1`.
    */
-  it('is the measured train\'s height, from where it stands upward', () => {
-    const train = trainObject(55, C);
-    const box = new Box3().setFromObject(train.children[0]!);
-    expect([box.min.z, box.max.z]).toEqual([0, 55]);
-    expect([box.max.x - box.min.x, box.max.y - box.min.y]).toEqual([TRAIN_LENGTH_MM, TRAIN_WIDTH_MM]);
+  it('is three cars; the engine is the measured train\'s height and the wagons are lower', () => {
+    const cars = trainCars(55, C);
+    expect(cars).toHaveLength(TRAIN_CARS.length);
+    const boxes = cars.map(boxOf);
+    expect(boxes[0]!.max.z).toBeCloseTo(55, 6);
+    for (const b of boxes) expect(b.min.z).toBeGreaterThanOrEqual(0);
+    expect(boxes[1]!.max.z).toBeLessThan(55);
+    expect(boxes[2]!.max.z).toBeLessThan(55);
+  });
+
+  /*
+   * MUTATION PROOF, run: a car twice its length (`box(l, w, …)` made `box(2 *
+   * l, w, …)` for the footplate): `expected 128 to be close to 64`.
+   */
+  it('each car is as long as the plan draws it, and inside the gauge but for its wheels', () => {
+    trainCars(55, C).forEach((car, i) => {
+      const b = boxOf(car);
+      expect(b.max.x - b.min.x).toBeCloseTo(TRAIN_CARS[i]!.lengthMm, 6);
+      expect(b.max.y - b.min.y).toBeLessThanOrEqual(TRAIN_WIDTH_MM + 3);
+    });
   });
 
   /*
    * MUTATION PROOF, run: `disposeChildren` skips geometries
-   * (`g.dispose()` removed): `expected 2 to be +0`.
+   * (`g.dispose()` removed): the count left is not 0.
    */
   it('is freed when the run is over', () => {
     const group = new Group();
-    group.add(trainObject(55, C));
+    for (const car of trainCars(55, C)) group.add(car);
     const live = new Set<object>();
     group.traverse((o) => {
       const m = o as Mesh;
@@ -128,7 +153,7 @@ describe('the train itself', () => {
         p.addEventListener('dispose', () => live.delete(p));
       }
     });
-    expect(live.size).toBe(4);
+    expect(live.size).toBeGreaterThan(20);
     disposeChildren(group);
     expect(live.size).toBe(0);
     expect(group.children).toHaveLength(0);
@@ -163,7 +188,7 @@ describe('the frames of a run', () => {
 
   /*
    * MUTATION PROOF, run: `driveTrain` asks for the next frame whatever `done`
-   * says (`if (!at?.done)` removed): `expected true to be false`.
+   * says (`if (!cars[0]?.done)` removed): `expected true to be false`.
    */
   it('places and draws each frame, and asks for no more once the route has ended', () => {
     const f = frames();
@@ -171,9 +196,9 @@ describe('the frames of a run', () => {
     const placed: number[] = [];
     let drawn = 0;
     driveTrain({
-      train: { trainMm: 55, at: (ms) => spot(ms, ms >= 200) },
+      train: { trainMm: 55, carsAt: (ms) => [spot(ms, ms >= 200), spot(ms - 60)] },
       startedMs: 1000,
-      place: (at) => placed.push(at.pose.x),
+      place: (cars) => placed.push(cars[0]!.pose.x),
       draw: () => (drawn += 1),
       now: () => now,
       request: f.request,
@@ -199,7 +224,7 @@ describe('the frames of a run', () => {
   it('counts from when the run began', () => {
     const f = frames();
     const placed: number[] = [];
-    driveTrain({ train: { trainMm: 55, at: (ms) => spot(ms) }, startedMs: 1000, place: (at) => placed.push(at.pose.x), draw: () => {}, now: () => 5000, request: f.request, cancel: f.cancel });
+    driveTrain({ train: { trainMm: 55, carsAt: (ms) => [spot(ms)] }, startedMs: 1000, place: (cars) => placed.push(cars[0]!.pose.x), draw: () => {}, now: () => 5000, request: f.request, cancel: f.cancel });
     expect(placed).toEqual([4000]);
   });
 
@@ -211,7 +236,7 @@ describe('the frames of a run', () => {
   it('stopped, cancels the frame it asked for and draws nothing more', () => {
     const f = frames();
     let drawn = 0;
-    const stop = driveTrain({ train: { trainMm: 55, at: (ms) => spot(ms) }, startedMs: 0, place: () => {}, draw: () => (drawn += 1), now: () => 10, request: f.request, cancel: f.cancel });
+    const stop = driveTrain({ train: { trainMm: 55, carsAt: (ms) => [spot(ms)] }, startedMs: 0, place: () => {}, draw: () => (drawn += 1), now: () => 10, request: f.request, cancel: f.cancel });
     expect(f.waiting()).toBe(true);
     stop();
     expect(f.cancelled).toEqual([1]);
@@ -221,14 +246,14 @@ describe('the frames of a run', () => {
 
   /*
    * MUTATION PROOF, run: `driveTrain` draws whether or not there is a place
-   * (`opts.draw()` moved out of `if (at)`): `expected [ +0, 2 ] to
+   * (`opts.draw()` moved out of `if (cars.length > 0)`): `expected [ +0, 2 ] to
    * deeply equal [ +0, +0 ]`.
    */
   it('places nothing when the run has nowhere to be', () => {
     const f = frames();
     let placed = 0;
     let drawn = 0;
-    const stop = driveTrain({ train: { trainMm: 55, at: () => null }, startedMs: 0, place: () => (placed += 1), draw: () => (drawn += 1), now: () => 10, request: f.request, cancel: f.cancel });
+    const stop = driveTrain({ train: { trainMm: 55, carsAt: () => [] }, startedMs: 0, place: () => (placed += 1), draw: () => (drawn += 1), now: () => 10, request: f.request, cancel: f.cancel });
     f.tick();
     expect([placed, drawn]).toEqual([0, 0]);
     stop();

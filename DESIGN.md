@@ -199,14 +199,22 @@ nothing else uses:
   tapering from its low end to its high end; floor track casts none. Depth,
   not hue, because colour is spent on verdicts. Where raised track crosses
   floor track, a gap in the floor plank (the bridge casing) says it too.
-- **A solid ink lozenge lying ALONG the track, with a paper edge, is the
-  train** of a run (rule 8). It is the only mark that lies along the plank
-  and the only one that moves; it is there only while a run is, and it is no
-  part of the layout. The buffer's beam, the other solid ink block, lies
-  across the plank at an end and never moves.
-  In the 3D view the same train is an ink box with paper edges, as long and
-  as wide as the lozenge and as tall as the train the verdict measures with,
-  standing on the road: ink and paper only, like the lozenge.
+- **Solid ink cars lying ALONG the track, each with a paper edge, are the
+  train** of a run (rule 8): an engine, told by its chimney (the one paper
+  disc), and two wagons behind it (owner, 2026-11-15). They are the only
+  marks that lie along the plank and the only ones that move; each is placed
+  by its own middle, so the train bends where the road does. It is there
+  only while a run is, and it is no part of the layout. The buffer's beam,
+  the other solid ink block, lies across the plank at an end and never moves.
+  In the 3D view the same train is ink shapes with paper edges: the engine
+  has a cab, a boiler and a chimney whose top is as high as the train the
+  verdict measures with, and the wagons are lower. Ink and paper only, like
+  the plan's.
+- **At a switch a run takes any road, each with the same chance** (owner,
+  2026-11-15), and each press of Run a train rolls its own dice. So the
+  sentences beside a run say what CAN happen, worked out before any dice
+  (rule 3): that it keeps running whichever road it takes, or where the
+  roads that end stop it. They never report one journey's luck.
 - **A solid ink block across the plank means a buffer stop**: the beam at
   its far end, 6mm deep, in the wood's millimetres. Ends are circles and
   seams hairlines, so nothing else on the canvas is a filled bar; round

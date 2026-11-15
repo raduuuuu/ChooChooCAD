@@ -9,10 +9,15 @@
  *        │
  *        └── how it ends ──▶ "A train gets all the way round." / where it stops, and why
  *
- * THE SAME RUN EVERY TIME, ON EVERY MACHINE. Time is cut into fixed steps
- * (`STEP_MS`) and the train moves a fixed distance per step, so its place at
- * 2.5 seconds is the same number whatever the frame rate, and a test can ask
- * for it with no clock.
+ * THE SAME PLACE AT THE SAME MOMENT, ON EVERY MACHINE. Time is cut into fixed
+ * steps (`STEP_MS`) and the train moves a fixed distance per step, so its
+ * place at 2.5 seconds is the same number whatever the frame rate, and a test
+ * can ask for it with no clock.
+ *
+ * A RUN ROLLS ITS OWN DICE (owner, 2026-11-15). At a switch the train takes
+ * any road, each with the same chance, so two runs of one layout differ. One
+ * run does not: its dice are a seeded sequence (`dice`), so the plan and the
+ * 3D view, asking in any order, are shown the same journey.
  *
  * THE WORDS ARE THE VERDICT'S. Where a train does not fit, the run says it in
  * the verdict line's own phrases ("may not pass under", "may not fit
@@ -28,7 +33,8 @@ import type { FPose, Segment } from '../../engine/src/geom/fk.js';
 import type { PortsOf } from '../../engine/src/graph/frames.js';
 import type { Graph, PortRef } from '../../engine/src/graph/model.js';
 import type { Opening } from '../../engine/src/graph/openings.js';
-import { levelAlong, poseAlong, spotAlong, type Leg, type Route } from '../../engine/src/graph/route.js';
+import { levelAlong, poseAlong, spotAlong, type Journey, type JourneyEnds, type JourneyStop, type Leg, type Route } from '../../engine/src/graph/route.js';
+import { TRAIN_CARS, TRAIN_HEAD_MM } from './trainShape.js';
 
 /** One step of the run's clock, in milliseconds: a sixtieth of a second. */
 export const STEP_MS = 1000 / 60;
@@ -126,6 +132,9 @@ export interface RunWordsInput {
   readonly endsOf: (pieceId: string) => number;
 }
 
+/** What `walkRoute`'s fixed rule is, said beside a route walked by it. A journey takes any road and never says this. */
+export const MAIN_ROAD_LINE = 'It keeps to the main road at switches.';
+
 /** What the run says: how it ends, then what it rests on. One sentence each. */
 export function runWords(input: RunWordsInput): readonly string[] {
   const { route, numberOf, nameOf } = input;
@@ -169,6 +178,118 @@ export function runWords(input: RunWordsInput): readonly string[] {
   );
   const on = new Set(legs.map((l) => l.pieceId));
   if (input.openings.some((o) => o.estimated && on.has(o.under))) out.push('An opening on its way is an estimate.');
-  if (legs.some((l) => input.endsOf(l.pieceId) > 2)) out.push('It keeps to the main road at switches.');
+  if (legs.some((l) => input.endsOf(l.pieceId) > 2)) out.push(MAIN_ROAD_LINE);
+  return out;
+}
+
+/**
+ * The dice for one run: whole numbers from 0 to n - 1, each as likely as the
+ * next, from a seed (mulberry32). The same seed gives the same sequence, so
+ * one run is one journey however often it is asked about.
+ */
+export function dice(seed: number): (choices: number) => number {
+  let a = seed >>> 0;
+  return (choices) => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return Math.floor((((t ^ (t >>> 14)) >>> 0) / 4294967296) * choices);
+  };
+}
+
+/**
+ * Where each car of the train is once the ENGINE has run `mm` along the
+ * journey, engine first. The journey is walked on as far as that needs. A
+ * wagon rides its own distance behind the engine along the track, and waits
+ * at the start while the track behind it has not been run yet. Empty when
+ * the journey has nowhere to be.
+ */
+export function carsOn(journey: Journey): (mm: number) => readonly TrainAt[] {
+  /** Where each leg ends, along the journey: filled as the legs appear. */
+  const ends: number[] = [];
+  const spot = (d: number, done: boolean): TrainAt | null => {
+    let lo = 0;
+    let hi = ends.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (ends[mid]! >= d) hi = mid;
+      else lo = mid + 1;
+    }
+    const leg = journey.legs[lo];
+    if (!leg) return null;
+    const at = Math.max(0, Math.min(leg.lengthMm, d - (ends[lo - 1] ?? 0)));
+    const on = spotAlong(leg, at);
+    return { pose: poseAlong(leg, at), level: levelAlong(leg, at), pieceId: leg.pieceId, on: on?.segment ?? null, t: on?.t ?? 0, done };
+  };
+  return (mm) => {
+    const asked = Math.max(0, mm) + TRAIN_HEAD_MM;
+    journey.extendTo(asked);
+    for (let i = ends.length; i < journey.legs.length; i++) ends.push((ends[i - 1] ?? 0) + journey.legs[i]!.lengthMm);
+    if (journey.legs.length === 0) return [];
+    const engine = Math.min(asked, journey.lengthMm);
+    const done = journey.stop !== null && asked >= journey.lengthMm;
+    const out: TrainAt[] = [];
+    for (const car of TRAIN_CARS) {
+      const at = spot(Math.max(0, engine - car.behindMm), done);
+      if (at) out.push(at);
+    }
+    return out;
+  };
+}
+
+export interface JourneyWordsInput extends Omit<RunWordsInput, 'route'> {
+  /** The main-road route, which is the whole story when no switch offers a choice. */
+  readonly route: Route;
+  /** Every way a journey can go (`journeyEnds`). */
+  readonly ends: JourneyEnds;
+}
+
+/** At most this many of the ways a journey can stop are named; the rest are counted. */
+const STOPS_NAMED = 2;
+
+/**
+ * What a run says BEFORE the dice are rolled: every way it can go, never one
+ * journey's luck (DESIGN.md rule 3).
+ *
+ *   no switch offers a choice ─▶ the fixed route's own sentences (`runWords`)
+ *   it can never stop ─────────▶ "A train keeps running, whichever road it takes at a switch."
+ *   it can stop, and can run on ▶ "A train runs until a switch sends it down a road that ends." + where
+ *   every road ends ───────────▶ "Whichever road a train takes at a switch, it comes to a stop." + where
+ */
+export function journeyWords(input: JourneyWordsInput): readonly string[] {
+  const { ends, numberOf, nameOf } = input;
+  if (!ends.choices) return runWords(input).filter((line) => line !== MAIN_ROAD_LINE);
+  const where = (s: JourneyStop): string => {
+    const piece = s.pieceId === undefined ? 'the start' : `piece ${numberOf(s.pieceId)}`;
+    switch (s.end) {
+      case 'open end':
+        return `the track ends at ${piece}`;
+      case 'buffer':
+        return `there is a buffer after ${piece}`;
+      case 'step':
+        return `the joint after ${piece} is a step between levels`;
+      case 'no road':
+        return `there is no road to take at ${piece}`;
+      case 'blocked': {
+        const o = s.blockedBy!;
+        // The verdict line's own phrases for the same opening (VerdictLine.tsx `TrainFit`).
+        const why = o.kind === 'tunnel' ? `fit through the ${nameOf(o.over)}` : o.kind === 'bridge' ? `pass under the ${nameOf(o.over)}` : 'pass under raised track';
+        return `it may not ${why} at ${piece}`;
+      }
+    }
+  };
+  const out: string[] = [];
+  if (ends.stops.length === 0) out.push('A train keeps running, whichever road it takes at a switch.');
+  else {
+    out.push(ends.runsOn ? 'A train runs until a switch sends it down a road that ends.' : 'Whichever road a train takes at a switch, it comes to a stop.');
+    const named = ends.stops.slice(0, STOPS_NAMED).map(where);
+    const more = ends.stops.length - named.length;
+    const list = named.join('; ');
+    out.push(`It stops where ${list}${more > 0 ? `, and in ${more} more ${more === 1 ? 'place' : 'places'}` : ''}.`);
+  }
+  out.push('At a switch it takes any road, each with the same chance, so no two runs need be alike.');
+  out.push(`This is the ${input.trainMm}mm train the app measures with${input.trainMeasured ? '' : ', whose height is an estimate'}; another train may differ.`);
+  if (input.openings.some((o) => o.estimated && ends.pieces.has(o.under))) out.push('An opening on its way is an estimate.');
   return out;
 }

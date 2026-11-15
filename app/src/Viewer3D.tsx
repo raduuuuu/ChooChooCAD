@@ -31,8 +31,8 @@
  * cables among them, are never picked (eng Y3).
  *
  * A TRAIN RUN (plan 2026-11-14, E5; DESIGN.md rule 8's second motion). The
- * train is one box as tall as the app's measured train, standing on the road
- * as drawn, in a group of its own beside the layout's: a new layout never
+ * train is an engine and two wagons (`trainCars`), the engine's chimney as
+ * tall as the app's measured train, each car standing on the road as drawn, in a group of its own beside the layout's: a new layout never
  * disposes it by accident, and a pick never hits it.
  *
  *   train (from the panel) ──▶ driveTrain: each frame ──▶ placeTrain ──▶ render()
@@ -48,6 +48,8 @@ import {
   BufferAttribute,
   BufferGeometry,
   CanvasTexture,
+  CylinderGeometry,
+  EdgesGeometry,
   Color,
   GreaterDepth,
   Group,
@@ -69,6 +71,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
+import { TRAIN_CARS, TRAIN_WIDTH_MM } from './trainShape.js';
 import { buildScene, roadTopAt, type Box, type Mesh as MeshArrays, type PlacedMark, type SceneArrays, type SceneInput } from '../../engine/src/view3d/mesh.js';
 
 /** Thrown when the browser cannot make a WebGL context; the panel says so (eng D9). */
@@ -409,10 +412,6 @@ export function syncScene(group: Group, arrays: SceneArrays, c: SceneColors, dpr
   if (levelLines.length > 0) haloed(new Float32Array(levelLines), c.fail, LEVEL_LINE_PX, false, 9);
 }
 
-/** The train's length and width in the 3D view, in millimetres: the plan's own mark (`TrainControl.tsx`). */
-export const TRAIN_LENGTH_MM = 64;
-export const TRAIN_WIDTH_MM = 22;
-
 /** Where a train is at a moment, as the viewer needs it (`playback.ts` `TrainAt` is one of these). */
 export interface TrainSpot {
   readonly pose: { readonly x: number; readonly y: number; readonly h: number };
@@ -427,28 +426,71 @@ export interface TrainSpot {
 export interface TrainIn3d {
   /** How tall the train is, in millimetres. */
   readonly trainMm: number;
-  readonly at: (elapsedMs: number) => TrainSpot | null;
+  /** Where each car is at a moment, engine first (`trainShape.ts`). Empty when there is nowhere to be. */
+  readonly carsAt: (elapsedMs: number) => readonly TrainSpot[];
 }
 
 /**
- * The train: an ink box with paper edges, `trainMm` tall, its origin at the
- * middle of its underside so it is placed by where it stands. Ink and paper
- * only: a run is not a verdict (DESIGN.md rule 1).
+ * The train: an engine and two wagons (owner, 2026-11-15), one Group a car,
+ * each with its origin at the middle of its underside so it is placed by
+ * where it stands. Ink shapes with paper edges, as the box before them was:
+ * a run is not a verdict (DESIGN.md rule 1), and unlit ink needs its edges
+ * drawn to be read as a shape.
+ *
+ *            chimney: its top is `trainMm` up, the height the fit checks use
+ *      cab ┌──┐  ┴
+ *          │  ├──────╮ boiler
+ *      ────┴──┴──────┴──  footplate, on six wheels      wagons: a low box and its load
  */
-export function trainObject(trainMm: number, c: SceneColors): Group {
-  const train = new Group();
-  const [l, w, h] = [TRAIN_LENGTH_MM / 2, TRAIN_WIDTH_MM / 2, trainMm];
-  const box = new BoxGeometry(TRAIN_LENGTH_MM, TRAIN_WIDTH_MM, trainMm);
-  box.translate(0, 0, trainMm / 2);
-  train.add(new Mesh(box, flat(c.ink)));
-  const corners: [number, number][] = [[-l, -w], [l, -w], [l, w], [-l, w]];
-  const edges: number[] = [];
-  corners.forEach(([x, y], i) => {
-    const [nx, ny] = corners[(i + 1) % 4]!;
-    edges.push(x, y, 0, nx, ny, 0, x, y, h, nx, ny, h, x, y, 0, x, y, h);
+export function trainCars(trainMm: number, c: SceneColors): Group[] {
+  const ink = flat(c.ink);
+  const add = (car: Group, g: BufferGeometry) => {
+    car.add(new Mesh(g, ink));
+    const edges = new EdgesGeometry(g, 30);
+    car.add(lines(new Float32Array(edges.getAttribute('position').array), c.paper, DETAIL_PX));
+    edges.dispose();
+  };
+  const box = (lx: number, ly: number, z0: number, z1: number, x = 0) => {
+    const g = new BoxGeometry(lx, ly, z1 - z0);
+    g.translate(x, 0, (z0 + z1) / 2);
+    return g;
+  };
+  /** A cylinder standing up (`axis` z) or lying along the track (x) or across it (y), centred at the point given. */
+  const rod = (r: number, length: number, axis: 'x' | 'y' | 'z', x: number, y: number, z: number) => {
+    const g = new CylinderGeometry(r, r, length, 16);
+    if (axis === 'x') g.rotateZ(Math.PI / 2);
+    if (axis === 'z') g.rotateX(Math.PI / 2);
+    g.translate(x, y, z);
+    return g;
+  };
+  const w = TRAIN_WIDTH_MM;
+  const wheel = Math.min(6, trainMm * 0.12);
+  const wheels = (car: Group, xs: readonly number[]) => {
+    for (const x of xs) for (const side of [-1, 1]) add(car, rod(wheel, 1.5, 'y', x, side * (w / 2 + 0.75), wheel));
+  };
+  return TRAIN_CARS.map((shape) => {
+    const car = new Group();
+    const l = shape.lengthMm;
+    const deck = trainMm * 0.2;
+    if (shape.kind === 'engine') {
+      const boiler = Math.min(w / 2 - 2, trainMm * 0.17);
+      add(car, box(l, w, wheel * 0.6, deck));
+      // The cab at the back, the boiler from it to the front.
+      add(car, box(22, w, deck, trainMm * 0.84, -l / 2 + 11));
+      add(car, rod(boiler, l - 24, 'x', 11, 0, deck + boiler));
+      add(car, rod(boiler * 0.45, trainMm * 0.1, 'z', 4, 0, deck + 2 * boiler + trainMm * 0.05 - 1));
+      // The chimney: from inside the boiler to the train's full height.
+      const base = deck + boiler;
+      add(car, rod(boiler * 0.4, trainMm - base, 'z', l / 2 - 11, 0, (base + trainMm) / 2));
+      wheels(car, [-l / 2 + 10, 0, l / 2 - 10]);
+    } else {
+      add(car, box(l, w, wheel * 0.6, trainMm * 0.5));
+      // What it carries, standing a little proud of the sides.
+      add(car, box(l - 10, w - 8, trainMm * 0.5, trainMm * 0.6));
+      wheels(car, [-l / 2 + 9, l / 2 - 9]);
+    }
+    return car;
   });
-  train.add(lines(new Float32Array(edges), c.paper, DETAIL_PX));
-  return train;
 }
 
 /** Stand the train where the run says it is: on the top of the road as drawn, facing along it. */
@@ -465,7 +507,8 @@ export function placeTrain(train: Object3D, at: TrainSpot, riseMm: number, plank
 export function driveTrain(opts: {
   readonly train: TrainIn3d;
   readonly startedMs: number;
-  readonly place: (at: TrainSpot) => void;
+  /** Stand every car where it is, engine first. */
+  readonly place: (cars: readonly TrainSpot[]) => void;
   readonly draw: () => void;
   readonly now: () => number;
   readonly request: (fn: () => void) => number;
@@ -476,13 +519,13 @@ export function driveTrain(opts: {
   const step = () => {
     frame = null;
     if (over) return;
-    const at = opts.train.at(opts.now() - opts.startedMs);
-    if (at) {
-      opts.place(at);
+    const cars = opts.train.carsAt(opts.now() - opts.startedMs);
+    if (cars.length > 0) {
+      opts.place(cars);
       opts.draw();
     }
-    // A route that ends leaves the train where it stopped; a loop keeps going until the run is over.
-    if (!at?.done) frame = opts.request(step);
+    // A journey that stops leaves the train where it stopped; one that runs on keeps going until the run is over.
+    if (!cars[0]?.done) frame = opts.request(step);
   };
   step();
   return () => {
@@ -933,20 +976,26 @@ export default function Viewer3D({ input, label, resetSignal, sideSignal = 0, on
     (world.current as unknown as { setArrays?: (a: SceneArrays) => void } | null)?.setArrays?.(arrays);
   }, [arrays]);
 
-  // A train run: one box, moved and drawn each frame while the run lasts (see A TRAIN RUN).
+  // A train run: an engine and two wagons, moved and drawn each frame while the run lasts (see A TRAIN RUN).
   const { riseMm, plankMm } = input;
   useEffect(() => {
     const w = world.current;
     if (!w || !train) return;
-    const box = trainObject(train.run.trainMm, w.colors);
-    box.visible = false;
-    w.trainGroup.add(box);
+    const cars = trainCars(train.run.trainMm, w.colors);
+    for (const car of cars) {
+      car.visible = false;
+      w.trainGroup.add(car);
+    }
     const stop = driveTrain({
       train: train.run,
       startedMs: train.startedMs,
-      place: (at) => {
-        placeTrain(box, at, riseMm, plankMm);
-        box.visible = true;
+      place: (spots) => {
+        spots.forEach((at, i) => {
+          const car = cars[i];
+          if (!car) return;
+          placeTrain(car, at, riseMm, plankMm);
+          car.visible = true;
+        });
       },
       draw: () => world.current?.render(),
       now: () => performance.now(),

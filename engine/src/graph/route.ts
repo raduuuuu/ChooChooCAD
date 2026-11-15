@@ -15,9 +15,20 @@
  * on the track drawn bent follows the bends, and a hump climbs where it was
  * drawn climbing. Nothing here works a shape out again from the catalogue.
  *
- * AT A SWITCH THE TRAIN KEEPS TO THE MAIN ROAD (owner, choice C4): of the
- * roads leaving the end it came in by, the first as the piece lists them.
- * One fixed rule, so the same layout gives the same run every time.
+ * AT A SWITCH, TWO WALKS. `walkRoute` keeps to the main road (owner, choice
+ * C4): of the roads leaving the end it came in by, the first as the piece
+ * lists them. One fixed rule, so the same layout gives the same route. It is
+ * what a layout with no choice to make is described by, and what the tests
+ * of fit and of loops stand on.
+ *
+ * `startJourney` is what a run shows since 2026-11-15 (owner: "a
+ * probabilistic model that decides where the train goes"; an even chance
+ * each time): at a switch it takes any of the roads leaving that end, each
+ * with the same chance, decided afresh every time the train arrives. A
+ * journey has no `lead` and `loop`: it is walked a leg at a time, for as far
+ * as the run has got. `journeyEnds` says, before the dice are rolled, every
+ * way such a journey CAN end, so the run's sentence never claims more than
+ * was checked (DESIGN.md rule 3).
  *
  * IT ALWAYS STOPS (finding 6). "Back at the start" is not the test: a train
  * that enters a loop through a switch's tail never returns to where it
@@ -288,4 +299,231 @@ export function walkRoute(
     if (!next) return { lead: legs, loop: [], end: 'open end' };
     at = next;
   }
+}
+
+/** The roads a train may take from the end it entered by: the ends it can leave by. More than one is a switch. */
+export function roadsFrom(local: ReturnType<PortsOf>, port: number): readonly number[] {
+  const along = local[port]?.along;
+  if (along && along.length > 0) return along;
+  return local.length === 2 ? [1 - port] : [];
+}
+
+/** How a journey stopped, and where. */
+export interface JourneyStop {
+  readonly end: Exclude<RouteEnd, 'loop'>;
+  /** The piece it stopped on or after. Absent when it never got onto one. */
+  readonly pieceId?: string;
+  readonly blockedBy?: Opening;
+}
+
+/**
+ * A JOURNEY: the legs a train has run so far, and how to run the next.
+ *
+ *   legs so far ── extendTo(mm) ──▶ more legs, one at a time, until `mm` is covered or the journey stops
+ *                       │
+ *                       └─ at a switch: `pick(n)` chooses one of its n roads
+ *
+ * `pick(n)` returns a whole number from 0 to n - 1. The caller owns the
+ * dice, so a test hands in its own and a run hands in a seeded source: the
+ * same seed gives the same journey, whoever asks first or how often.
+ */
+export interface Journey {
+  /** The legs run so far, in order. It grows; a leg once there never changes. */
+  readonly legs: readonly Leg[];
+  /** How it stopped; null while there is still track ahead. */
+  readonly stop: JourneyStop | null;
+  /** How far along the LAST leg it gets, when it stopped part-way (an opening it does not fit). */
+  readonly stopAtMm?: number;
+  /** The length of the legs so far, cut short at `stopAtMm`. */
+  readonly lengthMm: number;
+  /** Walk on until the journey is at least `mm` long, or has stopped. */
+  extendTo(mm: number): void;
+}
+
+/** A leg cap for one `extendTo`: a layout of zero-length roads must not spin for ever. */
+const LEGS_PER_EXTEND = 10_000;
+
+export function startJourney(
+  graph: Graph,
+  ports: PortsOf,
+  render: GraphRender,
+  start: PortRef,
+  openings: readonly Opening[],
+  pick: (choices: number) => number,
+): Journey {
+  const pieceOf = new Map<string, Piece>(graph.pieces.map((p) => [p.pieceId, p]));
+  const across = new Map<string, PortRef>();
+  for (const w of graph.welds) {
+    across.set(`${w.a.pieceId}#${w.a.port}`, w.b);
+    across.set(`${w.b.pieceId}#${w.b.port}`, w.a);
+  }
+  const legs: Leg[] = [];
+  let at: PortRef = start;
+  let stop: JourneyStop | null = null;
+  let stopAtMm: number | undefined;
+  let lengthMm = 0;
+
+  const step = (): void => {
+    const last = legs[legs.length - 1];
+    const piece = pieceOf.get(at.pieceId);
+    if (!piece) return void (stop = { end: 'no road', ...(last ? { pieceId: last.pieceId } : {}) });
+    const local = ports(piece);
+    if (local.length === 1) return void (stop = { end: 'buffer', ...(last ? { pieceId: last.pieceId } : {}) });
+    const outs = roadsFrom(local, at.port);
+    if (outs.length === 0) return void (stop = { end: 'no road', pieceId: at.pieceId });
+    const chosen = outs.length === 1 ? 0 : Math.max(0, Math.min(outs.length - 1, Math.floor(pick(outs.length))));
+    const out = outs[chosen]!;
+    const road = render.roads.find(
+      (r) => r.pieceId === at.pieceId && ((r.from === at.port && r.to === out) || (r.from === out && r.to === at.port)),
+    );
+    if (!road) return void (stop = { end: 'no road', pieceId: at.pieceId });
+    const drawn = render.segments.slice(road.start, road.start + road.count);
+    const path = road.from === at.port ? drawn : [...drawn].reverse().map(turnedAbout);
+    const leg: Leg = { pieceId: at.pieceId, from: at.port, to: out, path, lengthMm: path.reduce((mm, s) => mm + segmentLength(s), 0) };
+    if (!sameLevel(last, path)) return void (stop = { end: 'step', ...(last ? { pieceId: last.pieceId } : {}) });
+    legs.push(leg);
+    const block = firstBlock(leg, openings);
+    if (block) {
+      stopAtMm = block.atMm;
+      lengthMm += Math.min(block.atMm, leg.lengthMm);
+      return void (stop = { end: 'blocked', pieceId: leg.pieceId, blockedBy: block.opening });
+    }
+    lengthMm += leg.lengthMm;
+    const next = across.get(`${at.pieceId}#${out}`);
+    if (!next) return void (stop = { end: 'open end', pieceId: leg.pieceId });
+    at = next;
+  };
+
+  return {
+    legs,
+    get stop() {
+      return stop;
+    },
+    get stopAtMm() {
+      return stopAtMm;
+    },
+    get lengthMm() {
+      return lengthMm;
+    },
+    extendTo(mm: number) {
+      for (let n = 0; n < LEGS_PER_EXTEND && stop === null && lengthMm < mm; n++) step();
+    },
+  };
+}
+
+/** Every way a journey from `start` can go, whatever the dice say. */
+export interface JourneyEnds {
+  /** Whether any switch on the way offers more than one road. */
+  readonly choices: boolean;
+  /** Each distinct way it can stop, in the order found. Empty: it can never stop. */
+  readonly stops: readonly JourneyStop[];
+  /** Whether it can run for ever (some road it can take comes round again). */
+  readonly runsOn: boolean;
+  /** Every piece it can reach. */
+  readonly pieces: ReadonlySet<string>;
+}
+
+/**
+ * WHAT CAN HAPPEN, BEFORE ANY DICE (DESIGN.md rule 3). Every (piece, end) a
+ * train from `start` can enter by is visited once, taking every road at
+ * every switch. So the stops listed are all of them, and `runsOn` is true
+ * exactly when some entry can be met twice.
+ *
+ * A stop at a step between levels is found from each side that reaches it,
+ * as the walks find it.
+ */
+export function journeyEnds(graph: Graph, ports: PortsOf, render: GraphRender, start: PortRef, openings: readonly Opening[] = []): JourneyEnds {
+  const pieceOf = new Map<string, Piece>(graph.pieces.map((p) => [p.pieceId, p]));
+  const across = new Map<string, PortRef>();
+  for (const w of graph.welds) {
+    across.set(`${w.a.pieceId}#${w.a.port}`, w.b);
+    across.set(`${w.b.pieceId}#${w.b.port}`, w.a);
+  }
+  const stops: JourneyStop[] = [];
+  const seenStop = new Set<string>();
+  const note = (s: JourneyStop) => {
+    const key = `${s.end}|${s.pieceId ?? ''}|${s.blockedBy ? `${s.blockedBy.kind}:${s.blockedBy.over}` : ''}`;
+    if (!seenStop.has(key)) {
+      seenStop.add(key);
+      stops.push(s);
+    }
+  };
+  const pieces = new Set<string>();
+  /** 1 while an entry is on the path being walked, 2 once everything beyond it is known. */
+  const state = new Map<string, 1 | 2>();
+  let choices = false;
+  let runsOn = false;
+
+  // Depth first, with its own stack: a long layout must not overflow the call stack.
+  type Frame = { readonly key: string; readonly nexts: { readonly to: PortRef }[]; i: number };
+  const open = (at: PortRef, last: Leg | undefined): Frame | null => {
+    const key = `${at.pieceId}#${at.port}`;
+    const st = state.get(key);
+    if (st === 1) {
+      runsOn = true;
+      return null;
+    }
+    if (st === 2) return null;
+    state.set(key, 1);
+    const frame: Frame = { key, nexts: [], i: 0 };
+    const piece = pieceOf.get(at.pieceId);
+    if (!piece) {
+      note({ end: 'no road', ...(last ? { pieceId: last.pieceId } : {}) });
+      return frame;
+    }
+    const local = ports(piece);
+    if (local.length === 1) {
+      note({ end: 'buffer', ...(last ? { pieceId: last.pieceId } : {}) });
+      return frame;
+    }
+    const outs = roadsFrom(local, at.port);
+    if (outs.length === 0) note({ end: 'no road', pieceId: at.pieceId });
+    if (outs.length > 1) choices = true;
+    for (const out of outs) {
+      const road = render.roads.find(
+        (r) => r.pieceId === at.pieceId && ((r.from === at.port && r.to === out) || (r.from === out && r.to === at.port)),
+      );
+      if (!road) {
+        note({ end: 'no road', pieceId: at.pieceId });
+        continue;
+      }
+      const drawn = render.segments.slice(road.start, road.start + road.count);
+      const path = road.from === at.port ? drawn : [...drawn].reverse().map(turnedAbout);
+      const leg: Leg = { pieceId: at.pieceId, from: at.port, to: out, path, lengthMm: 0 };
+      if (!sameLevel(last, path)) {
+        note({ end: 'step', ...(last ? { pieceId: last.pieceId } : {}) });
+        continue;
+      }
+      pieces.add(at.pieceId);
+      const block = firstBlock({ ...leg, lengthMm: path.reduce((mm, s) => mm + segmentLength(s), 0) }, openings);
+      if (block) {
+        note({ end: 'blocked', pieceId: at.pieceId, blockedBy: block.opening });
+        continue;
+      }
+      const next = across.get(`${at.pieceId}#${out}`);
+      if (!next) {
+        note({ end: 'open end', pieceId: at.pieceId });
+        continue;
+      }
+      frame.nexts.push({ to: next });
+      lastLeg.set(`${key}>${next.pieceId}#${next.port}`, leg);
+    }
+    return frame;
+  };
+  const lastLeg = new Map<string, Leg>();
+  const stack: Frame[] = [];
+  const first = open(start, undefined);
+  if (first) stack.push(first);
+  while (stack.length > 0) {
+    const top = stack[stack.length - 1]!;
+    const next = top.nexts[top.i++];
+    if (!next) {
+      state.set(top.key, 2);
+      stack.pop();
+      continue;
+    }
+    const frame = open(next.to, lastLeg.get(`${top.key}>${next.to.pieceId}#${next.to.port}`));
+    if (frame) stack.push(frame);
+  }
+  return { choices, stops, runsOn, pieces };
 }
