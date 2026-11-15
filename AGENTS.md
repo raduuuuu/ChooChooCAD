@@ -106,6 +106,19 @@ the design rules are in [DESIGN.md](DESIGN.md); how people contribute is in
   based on its branch, and GitHub doesn't retarget it. Wait for the first to
   merge, or rebase the second onto `main`.
 - Don't commit `tsconfig.tsbuildinfo`.
+- Every pull request raises `"version"` in `package.json` and adds its entry
+  first in [CHANGELOG.md](CHANGELOG.md), as `## 1.4.2 (2026-11-15)` and what
+  changed in a person's words; the checks refuse one that does not (owner,
+  2026-11-15; `engine/tools/version.ts`). Every merge deploys, so every merge
+  is a version. Which part goes up:
+  - **major**: something people rely on stops working: a saved layout, a
+    shared link or a layout file no longer opens, or a thing they use is gone.
+  - **minor**: something new a person can do or see: a piece, a check, a
+    control.
+  - **patch**: everything else: a fix, wording, the look, docs, tests, tooling.
+- When a pull request merged ahead of yours took the number you chose, bring
+  `main` in and raise yours again. The tag and the GitHub release are made by
+  the deploy; never tag by hand.
 - Every test pin records the change that makes it fail, and that change is
   actually run (CLAUDE.md).
 - Maintainer only: when the Repo checkup issue says a deep checkup is due,

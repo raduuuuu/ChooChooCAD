@@ -140,6 +140,14 @@ docs/
   calibration-sheet.html, and plan/: plans, reviews, the TODO list and its archive
 ```
 
+## Versions
+
+Every merge to `main` is deployed and is a version: `package.json` holds the
+number, [CHANGELOG.md](CHANGELOG.md) says what changed in each, and the
+deploy tags it and publishes it under
+[Releases](https://github.com/raduuuuu/ChooChooCAD/releases). The app shows
+the version it is running.
+
 ## Licence, and what it does and does not cover
 
 The source code is MIT licensed. See `LICENSE`.

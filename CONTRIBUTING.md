@@ -115,3 +115,8 @@ address, location data or anything private):
 Pull requests are welcome. Run `bun run test` and `bun run typecheck` first;
 [CLAUDE.md](CLAUDE.md) explains the test rules (every test records the change
 that makes it fail) and [DESIGN.md](DESIGN.md) the design rules.
+
+Every merge is a version. Raise `"version"` in `package.json` and add your
+entry first in [CHANGELOG.md](CHANGELOG.md), saying what changed;
+`bun run version:check` tells you if either is missing, and
+[AGENTS.md](AGENTS.md) says which part of the number goes up.
