@@ -111,23 +111,17 @@ none stacked. The version numbers assume this order and nothing merged in
 between; if `main` has moved, the part that goes up stays and the number
 follows (AGENTS.md).
 
-## P2 — Several saved layouts (S1 is done, 1.1.2; S2 takes 1.1.2 to 1.2.0, minor)
+## P2 — After My layouts shipped (1.2.0)
 
-**What:** "My layouts": name a layout, keep several in the browser, reopen
-any of them.
-**Why:** Today the browser keeps one layout and one put aside
-(`app/src/storageKeys.ts:38,87`); a second layout pushes the first out
-unless it is saved to a file by hand.
-**Planned 2026-11-16:** `docs/plan/2026-11-16-saved-layouts.md` holds the
-owner's seven decisions, the design, the storage design (one key per layout,
-no index), the tests and the outside review. Two pull requests: S1, the
-store and `openInEditor` made safe to reuse, with nothing a visitor can
-reach; S2, the panel and the crash screen's two answers, switched on.
-**For the owner in S2:** the crash screen's first answer keeps saved layouts
-and removes added parts, so a saved layout that uses one will not open until
-the part is added again (the plan, "A saved layout can outlive a piece it
-uses").
-**Effort:** human ~1.5 weeks / CC ~4.5 h. **Depends on:** nothing.
+- **`/design-review` on the live panel,** and the owner's look on a real
+  phone with the rest of the real-phone pass. Open questions the plan left
+  for it: whether rows need a small drawing to be recognised, whether "kept
+  14 Nov" should be "2 days ago", how fifty rows scroll on a phone.
+- **Confirm or change the plan's choices C1 to C7** (default names, the
+  40-character limit, duplicate names allowed, what a row shows, where Keep
+  is offered, no counter action, the wording).
+
+**Effort:** owner ~20 min, then CC as found. **Depends on:** nothing.
 
 ---
 

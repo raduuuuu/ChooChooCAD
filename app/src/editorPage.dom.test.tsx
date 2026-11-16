@@ -52,14 +52,20 @@ describe('the wide editor’s page', () => {
   });
 
   /*
+   * THE BOX IS THERE EVEN WHEN EMPTY. Its row in the wide grid must be held,
+   * or the grid places the next unplaced block in it: from 1.0.3 to 1.1.2
+   * "Run a train" sat over the plan whenever no notice was showing.
+   *
    * MUTATION PROOFS, run:
    * - the wrapper removed (notices loose again): `expected null not to be null`.
-   * - the wrapper always drawn: `expected <div class="notices"> to be null`.
+   * - the wrapper drawn only with a notice in it: `expected null not to be null`
+   *   on the first expectation, before any notice exists.
    */
-  it('draws every notice inside one box, and no box when there is none', () => {
+  it('draws every notice inside one box, which is there, empty, when there is none', () => {
     localStorage.setItem(GRAPH_STORAGE_KEY, OWN);
     render(<App />);
-    expect(document.querySelector('.notices')).toBeNull();
+    expect(document.querySelector('.shell > .notices')).not.toBeNull();
+    expect(document.querySelector('.notices')!.childElementCount).toBe(0);
     act(() => {
       window.dispatchEvent(new StorageEvent('storage', { key: GRAPH_STORAGE_KEY }));
     });

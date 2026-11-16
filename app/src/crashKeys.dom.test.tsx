@@ -22,7 +22,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SUBMISSIONS_STORAGE_KEY } from '../../engine/data/library.js';
-import { CLEAR_CONFIRM, ErrorBoundary } from './ErrorBoundary.js';
+import { CLEAR_CONFIRM, CLEAR_EVERYTHING, CLEAR_KEEPS_SAVED, ErrorBoundary } from './ErrorBoundary.js';
 import * as keys from './storageKeys.js';
 
 const KEPT = [...Object.values(keys), SUBMISSIONS_STORAGE_KEY].filter((v): v is string => typeof v === 'string');
@@ -80,5 +80,66 @@ describe('the crash screen', () => {
     expect(KEPT.filter((k) => localStorage.getItem(k) !== null)).toEqual([]);
     expect(localStorage.getItem('someone.elses')).toBe('kept');
     expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  /*
+   * SAVED LAYOUTS (owner, 2026-11-16, D4): kept by the first answer, removed
+   * by the second, in the report either way.
+   *
+   * MUTATION PROOFS, run:
+   * - the saved layouts left out of the report: `expected [
+   *   'generic.layouts.v1.a', … ] to deeply equal []`.
+   * - the first answer removing them too: `expected [] to deeply equal [
+   *   'generic.layouts.v1.a', 'generic.layouts.v1.b' ]`.
+   * - the second answer removing ONLY them (the crash left in place):
+   *   `expected [ 'generic.chain.v0', …(10) ] to deeply equal []`.
+   * - the sentence about added parts not shown: `expected null not to be null`.
+   */
+  const SAVED = ['generic.layouts.v1.a', 'generic.layouts.v1.b'];
+  const withSaved = () => {
+    for (const k of SAVED) localStorage.setItem(k, `bytes-of-${k}`);
+    crash();
+  };
+  const left = (keys: readonly string[]) => keys.filter((k) => localStorage.getItem(k) !== null);
+
+  it('carries the saved layouts in the report, and the first answer keeps them', async () => {
+    const reload = vi.fn();
+    vi.stubGlobal('location', { ...window.location, reload });
+    withSaved();
+    const report = (screen.getByLabelText('Crash details to copy') as HTMLTextAreaElement).value;
+    expect(SAVED.filter((k) => !report.includes(`bytes-of-${k}`))).toEqual([]);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Clear saved data' }));
+    // Said before anything is pressed: what is kept, and what that costs.
+    expect(screen.queryByText(CLEAR_KEEPS_SAVED)).not.toBeNull();
+    await user.click(screen.getByRole('button', { name: CLEAR_CONFIRM }));
+    expect(left(KEPT)).toEqual([]);
+    expect(left(SAVED)).toEqual(SAVED);
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('the second answer removes everything, the saved layouts too, and still nothing that is not the app’s', async () => {
+    const reload = vi.fn();
+    vi.stubGlobal('location', { ...window.location, reload });
+    withSaved();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Clear saved data' }));
+    await user.click(screen.getByRole('button', { name: CLEAR_EVERYTHING }));
+    expect(left(KEPT)).toEqual([]);
+    expect(left(SAVED)).toEqual([]);
+    expect(localStorage.getItem('someone.elses')).toBe('kept');
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  /*
+   * MUTATION PROOF, run: the second answer always offered: `expected <button>
+   * to be null` (a button about saved layouts for someone who has none).
+   */
+  it('with no saved layouts there is one answer, and nothing is said about them', async () => {
+    crash();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Clear saved data' }));
+    expect(screen.queryByRole('button', { name: CLEAR_EVERYTHING })).toBeNull();
+    expect(screen.queryByText(CLEAR_KEEPS_SAVED)).toBeNull();
   });
 });

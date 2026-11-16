@@ -5,6 +5,29 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.2.0 (2026-11-16)
+
+**My layouts.** Keep several layouts in this browser, each under a name, and
+open any of them again.
+
+- **Keep this layout** saves a copy of what is on screen. A saved layout
+  changes only when you press **Update**; after changing one you opened, you
+  can update it or keep the change as a new layout.
+- **Open** brings a saved layout back. The layout on screen is put aside
+  first, so nothing is lost; if another layout is already put aside and kept
+  nowhere else, the app asks before replacing it.
+- **Rename** and **Remove** on each row. A removed layout can be put back
+  until you close the panel.
+- The layout the app has put aside for you shows as the first row.
+- It is a button on a wide screen and a row in More on a phone. Nothing
+  leaves your browser, and Your box and Your table stay shared by every
+  layout.
+- If the app ever crashes, "Clear saved data" now keeps your saved layouts;
+  a second button deletes everything.
+
+Fixed: on a wide screen "Run a train" sat over the plan when no notice was
+showing (since 1.0.3). It is back under the verdict.
+
 ## 1.1.2 (2026-11-16)
 
 - **Opening a shared layout in the editor is safer.** When it asks whether

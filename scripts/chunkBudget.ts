@@ -44,7 +44,15 @@
  * owner's call: plan 2026-11-14-additions-eng.md, choice C7 and ED8, "yes
  * re-measure at the first step"). The phone editor's own screen loads as a
  * separate file and is not in this figure; what it must add to the editor
- * itself is. It may grow by at most 5 kB from there. And Three.js must not
+ * itself is. The phone editor's wiring, the version line, the hardening
+ * fixes, the two buttons in Your box and then My layouts' button, loader and
+ * crash-screen answers spent that allowance, so it was re-measured again:
+ * 172.24 kB (2026-11-16, the My layouts PR; the owner's call, asked at the
+ * moment the plan said to stop: "Re-measure the baseline"). About 0.5 kB of
+ * that is not code: My layouts' own file shares some modules with the
+ * editor, so the bundler split one shared file in two. The panel itself and
+ * its store load when it is first opened and are not in this figure. It may
+ * grow by at most 5 kB from there. And Three.js must not
  * be in any of it: its
  * renderer's name in a first-load file means a stray import pulled it in,
  * which `app/src/view3dImports.test.ts` also guards from the source side.
@@ -56,7 +64,7 @@ import { gzipSync } from 'node:zlib';
 
 const DIST = join(import.meta.dir, '..', 'app', 'dist');
 const ASSETS = join(DIST, 'assets');
-const BASELINE_KB = 166.9;
+const BASELINE_KB = 172.24;
 const ALLOWANCE_KB = 5;
 
 const fail = (msg: string): never => {

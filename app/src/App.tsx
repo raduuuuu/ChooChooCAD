@@ -68,7 +68,8 @@ import {
   type EditorAction,
   type EditorState,
 } from './editorReducer.js';
-import { dropRescueCopy, holdsOwnLayout, loadGraph, partialLoadNotice, rescueCopy, saveGraph, savesSuppressed, storedGraphOf } from './layoutStore.js';
+import { checkStored, dropRescueCopy, holdsOwnLayout, loadGraph, partialLoadNotice, rescueCopy, saveGraph, savesSuppressed, storedGraphOf } from './layoutStore.js';
+import { MyLayoutsPanel } from './myLayoutsLoader.js';
 import { downloadBytes } from './downloadBytes.js';
 import { LayoutFileControls, openLayoutFile } from './LayoutFileControls.js';
 import { keepPhoneVerdict, PHONE_SHELL_QUERY, PhoneEditor, phoneVerdictWasOpen, SHORT_TOUCH_QUERY } from './phoneEditor.js';
@@ -398,6 +399,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
   const [warningsOpen, setWarningsOpen] = useState(false);
   const [verdictOpen, setVerdictOpen] = useState(phoneVerdictWasOpen);
   const [listOpen, setListOpen] = useState(false);
+  const [layoutsOpen, setLayoutsOpen] = useState(false);
   const [selectionMore, setSelectionMore] = useState(false);
   const canEditNow = useRef(screen.canEdit);
   canEditNow.current = screen.canEdit;
@@ -2117,6 +2119,34 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         )}
     </>
   );
+  /*
+   * MY LAYOUTS (plan 2026-11-16, saved layouts). The panel is told the layout
+   * ON SCREEN, never the saved slot's bytes, and asks this editor's own loader
+   * whether a saved layout would open, before anything is replaced.
+   */
+  const layoutsPanel = (
+    <>
+        {layoutsOpen && (
+          <MyLayoutsPanel
+            layoutBytes={layoutBytes}
+            pieces={graph.pieces.length}
+            own={screen.mode === 'edit'}
+            allSaved={allSaved}
+            check={(bytes) => {
+              let parsed: unknown;
+              try {
+                parsed = JSON.parse(bytes);
+              } catch {
+                return { ok: false, reason: 'unreadable' };
+              }
+              const r = checkStored(parsed, libraryIds, ports);
+              return r.ok ? { ok: true } : r.reason === 'unknown-part' ? { ok: false, reason: 'unknown-part', partId: r.partId } : { ok: false, reason: 'unreadable' };
+            }}
+            onClose={() => setLayoutsOpen(false)}
+          />
+        )}
+    </>
+  );
   const inventoryPanel = (
     <>
         {inventoryOpen && (
@@ -2160,7 +2190,9 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
     const empty = graph.pieces.length === 0;
     // Most serious first: a save that failed, then a tab gone stale, then the rest (design DD5).
     const warnings = [notices[1], notices[0], ...notices.slice(2), hasShortfall && shortfallLine].filter(Boolean);
-    const panel: PhonePanel | null = inventoryOpen
+    const panel: PhonePanel | null = layoutsOpen
+      ? { title: 'My layouts', body: layoutsPanel, onDone: () => setLayoutsOpen(false) }
+      : inventoryOpen
       ? { title: 'Your box', body: inventoryPanel, onDone: () => setInventoryOpen(false) }
       : tableOpen && !empty
         ? { title: 'Your table', body: tablePanel, onDone: () => setTableOpen(false) }
@@ -2257,6 +2289,15 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
               </button>
             )}
             {putAside}
+            <button
+              className="more-row"
+              onClick={() => {
+                setLayoutsOpen(true);
+                closeSheet();
+              }}
+            >
+              My layouts
+            </button>
             <h3 className="more-heading">Your things</h3>
             <button
               className="more-row"
@@ -2342,8 +2383,14 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         * One box for every notice, so the wide grid can give them a row of
         * their own next to the plan (app.css, `.notices`). Loose in the grid
         * they fell to a row under the palette, at the foot of the screen.
+        *
+        * ALWAYS DRAWN, EMPTY WHEN THERE IS NONE. From 1.0.3 to 1.1.2 it was
+        * drawn only with a notice in it, and its row then stood empty: the
+        * grid put the next unplaced block there, so "Run a train" sat over
+        * the plan (seen 2026-11-16). An empty box holds the row and has no
+        * height.
         */}
-      {notices.some(Boolean) && <div className="notices">{notices}</div>}
+      <div className="notices">{notices}</div>
 
       {verdictBlock}
 
@@ -2473,6 +2520,14 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
           * layout existed; that still holds for Your table and Add a part, which
           * only mean something once there is track.
           */}
+        {/* My layouts (plan 2026-11-16, D3): a panel like Your box, opened from its own row. */}
+        {!layoutsOpen && (
+          <div className="palette-row palette-controls">
+            <button className="layouts-open" onClick={() => setLayoutsOpen(true)}>
+              My layouts
+            </button>
+          </div>
+        )}
         {!inventoryOpen && (
           <div className="palette-row palette-controls">
             <button
@@ -2500,6 +2555,8 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         {tablePanel}
 
         {inventoryPanel}
+
+        {layoutsPanel}
 
         {/*
           * THE LAYOUT AS A LIST (task U7a). In the sidebar rather than a new
