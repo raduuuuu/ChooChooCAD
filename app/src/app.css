@@ -1232,6 +1232,11 @@
   cursor: pointer;
 }
 .inventory-fills button:hover { border-color: var(--ink-soft); }
+/* What "These are mine" and "Copy what is short" did. An empty line takes no room. */
+.inventory-said { margin: 0; font-size: 14px; color: var(--ink); }
+.inventory-said:empty { display: none; }
+/* The list, when the browser would not copy it: on screen to select by hand. */
+.inventory-list { width: 100%; max-width: 44ch; padding: var(--s2); font-size: 13px; line-height: 1.5; color: var(--ink); background: var(--paper-sunk); border: 1px solid var(--rule); border-radius: 3px; resize: vertical; }
 
 /*
  * `.provisional` lived here. The paragraph it styled moved into the verdict's

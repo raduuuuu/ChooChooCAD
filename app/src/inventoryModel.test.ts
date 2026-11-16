@@ -10,7 +10,11 @@ import { describe, expect, it } from 'vitest';
 import { GENERIC_PARTS } from '../../engine/data/generic.js';
 import { BUILT_IN } from '../../engine/data/library.js';
 import {
+  ADAPTER_INVENTORY_KEY,
+  BUY_LIST_HEAD,
+  buyListText,
   loadInventory,
+  raiseToLayout,
   sanitizeCount,
   saveInventory,
   shortfalls,
@@ -240,5 +244,54 @@ describe('saveInventory is read back by the real loader', () => {
     expect(r.stored).toBeUndefined();
     expect(r.load.value).toBeNull();
     expect(r.load.discarded).toBeUndefined();
+  });
+});
+
+describe('"These are mine" (plan 2026-11-16, A3)', () => {
+  /*
+   * MUTATION PROOFS, run:
+   * - the count SET to what the layout uses (`next[key] = n` unguarded):
+   *   `expected { A: 2, E: 8, D: 4 } to deeply equal { A: 9, E: 8, D: 4 }`
+   *   (a box of nine straights cut to two by one tap).
+   * - adapters left out of `wanted`: `expected { A: 2 } to deeply equal
+   *   { A: 2, __adapter_male_male: 1 }`.
+   */
+  it('raises what the layout uses more of, lowers nothing, and leaves other pieces alone', () => {
+    const r = raiseToLayout({ A: 9, E: 3, D: 4 }, { A: 2, E: 8 }, 0);
+    expect(r.next).toEqual({ A: 9, E: 8, D: 4 });
+    expect(r.raised).toEqual([{ key: 'E', from: 3, to: 8 }]);
+    const withAdapter = raiseToLayout({ A: 2 }, { A: 2 }, 1);
+    expect(withAdapter.next).toEqual({ A: 2, [ADAPTER_INVENTORY_KEY]: 1 });
+    expect(withAdapter.raised).toEqual([{ key: ADAPTER_INVENTORY_KEY, from: 0, to: 1 }]);
+  });
+
+  /*
+   * MUTATION PROOF, run: an undeclared box left undeclared (`inventory ===
+   * null` returning no raises): `expected [] to deeply equal [ { key: 'A', … } ]`.
+   */
+  it('declares an undeclared box with exactly this layout, and a second press raises nothing', () => {
+    const first = raiseToLayout(null, { A: 2 }, 0);
+    expect(first.next).toEqual({ A: 2 });
+    expect(first.raised).toEqual([{ key: 'A', from: 0, to: 2 }]);
+    const again = raiseToLayout(first.next, { A: 2 }, 0);
+    expect(again.raised).toEqual([]);
+    expect(again.next).toEqual(first.next);
+    expect(raiseToLayout(null, {}, 0).raised).toEqual([]);
+  });
+});
+
+describe('the list of what is short, as text (plan 2026-11-16, A3)', () => {
+  /*
+   * MUTATION PROOFS, run:
+   * - the adapter line dropped: `expected 'Still needed for this layout:\n2 x
+   *   Large curve (E)' to be 'Still needed … (E)\n1 x male-male adapter'`.
+   * - a layout short of adapters alone treated as short of nothing (the
+   *   `adapterShort <= 0` test dropped from the early return): `expected null
+   *   to be 'Still needed for this layout:\n2 x male-male adapters'`.
+   */
+  it('one piece a line with its name and code, then the adapters, which can be the only line', () => {
+    expect(buyListText([{ name: 'Large curve', code: 'E', shortBy: 2 }], 1)).toBe(`${BUY_LIST_HEAD}\n2 x Large curve (E)\n1 x male-male adapter`);
+    expect(buyListText([], 2)).toBe(`${BUY_LIST_HEAD}\n2 x male-male adapters`);
+    expect(buyListText([], 0)).toBeNull();
   });
 });

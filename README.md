@@ -39,7 +39,9 @@ bun try.ts           # one layout from the command line; edit PIECES at the top
 - **Build mode.** Step through the layout piece by piece, with a pull list of
   what to take out of the box.
 - **What you own.** Count your pieces; the palette marks what you would run
-  out of, and the layout says what it is short of.
+  out of, and the layout says what it is short of. "These are mine" raises your counts to the layout
+  on screen in one tap, and "Copy what is short" gives the pieces and
+  adapters a layout still needs as text.
 - **Add or correct a piece** you have measured yourself; your figure outranks
   anything shipped.
 - **Share a layout** as a link; it opens read-only, on a phone too.

@@ -1092,3 +1092,31 @@ From the deep checkup of 2026-11-15 (issue #209):
   The owner decides key by key, in the pull request.
 
 **Effort:** human ~1 d / CC ~1 h. **Depends on:** nothing.
+
+
+## DONE 2026-11-16 (version 1.1.0) — A buy list, and "These are mine"
+
+**Done 2026-11-16 (branch buy-list).** In Your box, before the rows: "These
+are mine" raises each count to what the layout on screen uses, adapters
+included, never lowers one, says how many rose and offers "Put it back" until
+a count is typed (`raiseToLayout`, app/src/inventoryModel.ts). "Copy what is
+short" copies the pieces and adapters the layout still needs, one a line
+(`buyListText`); when the browser refuses, the list is shown to copy by hand.
+No shops, links or sets. Not sent to the usage counter: no action was added.
+Still open from the same list: an owned-only palette filter (part 3, "Ideas").
+
+**What:** In Your box: copy the list of pieces the layout on screen is short
+of, as text; and one tap that raises each count to what the layout on screen
+uses. No shops, no links, no sets.
+**Why:** Filling the box piece by piece is the most tedious step for a new
+user, and the shortfall is read and then retyped by hand.
+**Context:** The owner's own "later" list of 2026-11-05 (the old inventory
+entry, in the archive). Ready layouts and "your box can build" shipped on
+2026-11-14 (`app/src/canBuild.ts`). Still not chosen from that list: an
+owned-only palette filter. The copied text must name no brand (AGENTS.md).
+Needs its place and words on the phone as well as the wide editor.
+Adapters count too: the adapter shortfall is worked out apart from the
+pieces, under a reserved key (`app/src/inventoryModel.ts:38`), and a layout
+can be short of adapters alone. Both the copied list and "These are mine"
+must include them, with a test for the adapter-only case.
+**Effort:** human ~3 d / CC ~1.5 h. **Depends on:** nothing.
