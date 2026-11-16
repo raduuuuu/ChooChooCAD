@@ -1618,8 +1618,15 @@
      * line landed under the palette in its 320px column. Both now sit in the
      * plan's column: a notice over the plan, the shortfall under the verdict.
      * An empty row has no height.
+     *
+     * FINISH THE LOOP AND RUN A TRAIN HAVE ROWS TOO (1.2.3). The palette
+     * spans the rows NAMED here (`1 / -1`), and a block without one is placed
+     * in a row made after them, which the palette does not reach: with "Run
+     * a train" showing, the palette stopped 48px above the foot of the
+     * screen. Every block of the editor has a row here; editorPage.dom.test
+     * fails for one that does not.
      */
-    grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto auto auto auto;
   }
   .identity      { grid-column: 1; grid-row: 1; }
   .notices       { grid-column: 1; grid-row: 2; }
@@ -1627,6 +1634,8 @@
   .verdict       { grid-column: 1; grid-row: 4; }
   .verdict-notes { grid-column: 1; grid-row: 5; }
   .shortfall     { grid-column: 1; grid-row: 6; }
+  .finish-loop   { grid-column: 1; grid-row: 7; }
+  .train-run     { grid-column: 1; grid-row: 8; }
   .palette {
     grid-column: 2;
     grid-row: 1 / -1;

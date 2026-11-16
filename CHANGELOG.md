@@ -5,6 +5,12 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.2.3 (2026-11-16)
+
+On a wide screen, the column of pieces now reaches the foot of the screen in
+every state. With a note under the verdict and a "short by" line both
+showing, it stopped 48px short, leaving an empty strip beside "Run a train".
+
 ## 1.2.2 (2026-11-16)
 
 The README now says what the site sends and what it never does: what stays
