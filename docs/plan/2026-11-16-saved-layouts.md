@@ -266,9 +266,14 @@ real tabs, a real phone.
 
 ## Tasks
 
-- [ ] **S1 (human: ~3 d / CC: ~1.5 h)** — the store with its node tests;
+- [x] **S1 (human: ~3 d / CC: ~1.5 h)** — the store with its node tests;
   `openInEditor`'s checked roll-back and bound confirmation, for links too,
   with their tests. No reader of the store. 1.1.1 to 1.1.2.
+  Built 2026-11-16: `app/src/savedLayouts.ts`; `openInEditor` takes the two
+  layouts the question showed, and the layout on screen; a layout left in
+  neither slot is offered as a file. For S2 to know: the store's functions
+  take the layout's bytes and piece count from the caller, and `savedKeys()`
+  is the prefix scan the crash screen needs.
 - [ ] **S2 (human: ~1 week / CC: ~3 h)** — the panel, lazy, on both screens;
   opening, Update and Keep as new, Rename, Remove and Put it back, the
   put-aside row; the kept-keys function and the crash screen's two answers

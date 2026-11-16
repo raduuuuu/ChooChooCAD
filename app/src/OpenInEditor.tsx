@@ -23,15 +23,19 @@ import {
   OPEN_IN_EDITOR,
   piecesWord,
   PUT_ASIDE_FAILED,
+  STRANDED_OPENING,
   UNREADABLE_LAYOUT,
 } from './linkWords.js';
+import { downloadBytes } from './downloadBytes.js';
 import { openInEditor, summaryOf } from './putAside.js';
 import { countAction } from './linkFragment.js';
 
 type State =
   | { kind: 'idle' }
   | { kind: 'ask'; previous: string; current: string }
-  | { kind: 'said'; sentence: string };
+  | { kind: 'said'; sentence: string }
+  /** A layout that is in neither slot now: offered as a file (plan 2026-11-16, O2). */
+  | { kind: 'stranded'; bytes: string };
 
 function Row({ label, bytes }: { label: string; bytes: string }) {
   const s = summaryOf(bytes);
@@ -55,14 +59,15 @@ export function OpenInEditor({ linkBytes }: { readonly linkBytes: string }) {
   const open = (replace: boolean) => {
     if (busy.current) return;
     busy.current = true;
-    const r = openInEditor(linkBytes, replace);
+    // "Replace it" answers the question that was shown: the two layouts go with it (O3).
+    const r = openInEditor(linkBytes, replace && state.kind === 'ask' ? { previous: state.previous, current: state.current } : false);
     if (r.kind === 'opened') {
       countAction('open-in-editor');
       leaveLink();
       return; // The guard stays up until the reload.
     }
     busy.current = false;
-    setState(r.kind === 'ask' ? r : { kind: 'said', sentence: PUT_ASIDE_FAILED });
+    setState(r.kind === 'ask' || r.kind === 'stranded' ? r : { kind: 'said', sentence: PUT_ASIDE_FAILED });
   };
 
   return (
@@ -88,6 +93,14 @@ export function OpenInEditor({ linkBytes }: { readonly linkBytes: string }) {
             </button>
           </div>
         </div>
+      )}
+      {state.kind === 'stranded' && (
+        <p className="friend-said" role="alert">
+          {STRANDED_OPENING}{' '}
+          <button className="friend-ask-keep" onClick={() => downloadBytes(state.bytes, 'choochoocad-layout.json')}>
+            Download a copy
+          </button>
+        </p>
       )}
       {state.kind === 'said' && (
         <p className="friend-said" role="status">

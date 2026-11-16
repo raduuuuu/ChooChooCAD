@@ -127,6 +127,56 @@ describe('Open in editor', () => {
     expect(document.activeElement?.textContent).toBe('Replace the layout you put aside last time?');
   });
 
+  /*
+   * "REPLACE IT" ANSWERS THE QUESTION ON SCREEN (plan 2026-11-16, O3). While
+   * it is asked, another tab puts a three-piece layout aside.
+   *
+   * MUTATION PROOF, run: any yes accepted in `openInEditor` (`answered =
+   * replace !== false`): `expected '{"pieces":[{"pieceId":"mine"…' to be
+   * '{"pieces":[{"pieceId":"o1"…'`, the other tab's layout replaced unseen.
+   */
+  it('a yes does not replace a layout another tab put aside meanwhile: it asks again', async () => {
+    const OTHER = JSON.stringify({ pieces: ['o1', 'o2', 'o3'].map((pieceId) => ({ pieceId, partId: 'A', turn: 'left' })), welds: [], anchors: [] });
+    localStorage.setItem(GRAPH_STORAGE_KEY, OWN);
+    localStorage.setItem(GRAPH_PREVIOUS_KEY, EARLIER);
+    const user = userEvent.setup();
+    await openLink();
+    await user.click(screen.getByRole('button', { name: 'Open in editor' }));
+    localStorage.setItem(GRAPH_PREVIOUS_KEY, OTHER);
+    await user.click(screen.getByRole('button', { name: 'Replace it' }));
+    expect(localStorage.getItem(GRAPH_PREVIOUS_KEY)).toBe(OTHER);
+    expect(localStorage.getItem(GRAPH_STORAGE_KEY)).toBe(OWN);
+    const ask = screen.getByRole('group', { name: 'Replace the layout you put aside last time?' });
+    expect(ask.textContent).toContain('Put aside earlier (will be replaced): 3 pieces');
+  });
+
+  /*
+   * A LAYOUT IN NEITHER SLOT IS OFFERED AS A FILE (O2). The put-aside slot
+   * takes the friend's layout, the saved slot refuses the link's, and the
+   * put-aside slot then refuses the roll-back.
+   *
+   * MUTATION PROOF, run: `stranded` shown as the plain failure sentence:
+   * `Unable to find an accessible element with the role "alert"`.
+   */
+  it('when a failed open cannot be undone, the layout left in neither slot can be downloaded', async () => {
+    localStorage.setItem(GRAPH_STORAGE_KEY, OWN);
+    localStorage.setItem(GRAPH_PREVIOUS_KEY, EARLIER);
+    const user = userEvent.setup();
+    await openLink();
+    await user.click(screen.getByRole('button', { name: 'Open in editor' }));
+    const realSet = Storage.prototype.setItem;
+    let asideWrites = 0;
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, k: string, v: string) {
+      if (k === GRAPH_STORAGE_KEY || (k === GRAPH_PREVIOUS_KEY && ++asideWrites > 1)) throw new DOMException('quota', 'QuotaExceededError');
+      realSet.call(this, k, v);
+    });
+    await user.click(screen.getByRole('button', { name: 'Replace it' }));
+    expect(screen.getByRole('alert').textContent).toContain('one of your layouts is only in this tab now');
+    expect(screen.getByRole('button', { name: 'Download a copy' })).toBeTruthy();
+    // The friend's own layout is safe in both slots; the earlier one is the one offered.
+    expect(localStorage.getItem(GRAPH_STORAGE_KEY)).toBe(OWN);
+  });
+
   it('an unreadable layout put aside is named in words and not drawn (D72)', async () => {
     localStorage.setItem(GRAPH_STORAGE_KEY, OWN);
     localStorage.setItem(GRAPH_PREVIOUS_KEY, '{not json');

@@ -88,6 +88,9 @@ export const discardQuestion = (pieces: number | null) =>
     ? "Discard the put-aside layout that couldn't be read? This can't be undone."
     : `Discard the put-aside layout (${piecesWord(pieces)})? This can't be undone.`;
 export const RESTORE_FAILED = "Storage is full, so your layouts couldn't be swapped. Both are as they were.";
+/** Opening failed part-way and one layout is in neither slot (plan 2026-11-16, O2). */
+export const STRANDED_OPENING =
+  'Storage is full, so one of your layouts is only in this tab now. Download a copy to keep it safe: Open a layout file brings it back.';
 export const STRANDED =
   'Storage is full, so your previous layout is only in this tab now. Download a copy to keep it safe: Open a layout file brings it back.';
 export const RESTORE_WAITS = "Restore waits until your changes are saved.";

@@ -111,7 +111,7 @@ none stacked. The version numbers assume this order and nothing merged in
 between; if `main` has moved, the part that goes up stays and the number
 follows (AGENTS.md).
 
-## P2 — Several saved layouts (S1 takes 1.1.1 to 1.1.2, patch; S2 takes 1.1.2 to 1.2.0, minor)
+## P2 — Several saved layouts (S1 is done, 1.1.2; S2 takes 1.1.2 to 1.2.0, minor)
 
 **What:** "My layouts": name a layout, keep several in the browser, reopen
 any of them.
