@@ -5,6 +5,17 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.1.2 (2026-11-16)
+
+- **Opening a shared layout in the editor is safer.** When it asks whether
+  to replace a layout you put aside earlier, your yes now applies only to
+  the layouts it showed: if another tab changed one meanwhile, it asks
+  again. And if storage fills part-way and a layout ends up saved nowhere,
+  it is offered as a file to download, where before the screen said nothing
+  had changed.
+- Groundwork for keeping several named layouts: the code that stores them,
+  with nothing to see yet.
+
 ## 1.1.1 (2026-11-16)
 
 - A plan for keeping several named layouts in the browser

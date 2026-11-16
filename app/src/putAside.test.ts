@@ -88,7 +88,7 @@ describe('opening a link in the editor', () => {
   });
 
   /*
-   * MUTATION PROOF, run: the `previous !== current && !replace` ask removed:
+   * MUTATION PROOF, run: the ask removed (the `if (!answered) return` line):
    * `expected { kind: 'opened' } to deeply equal { kind: 'ask', …(2) }`.
    */
   it('a different layout already put aside is never replaced without asking (D29)', () => {
@@ -96,8 +96,51 @@ describe('opening a link in the editor', () => {
     data.set(GRAPH_PREVIOUS_KEY, EARLIER);
     expect(m.openInEditor(LINK)).toEqual({ kind: 'ask', previous: EARLIER, current: MINE });
     expect(slots()).toEqual({ saved: MINE, aside: EARLIER });
-    expect(m.openInEditor(LINK, true)).toEqual({ kind: 'opened' });
+    expect(m.openInEditor(LINK, { previous: EARLIER, current: MINE })).toEqual({ kind: 'opened' });
     expect(slots()).toEqual({ saved: LINK, aside: MINE });
+  });
+
+  /*
+   * THE YES ANSWERS THE QUESTION THAT WAS SHOWN (plan 2026-11-16, O3). While
+   * the question is on screen another tab puts a different layout aside, or
+   * changes the saved one. A bare yes replaced a layout the person never saw.
+   *
+   * MUTATION PROOFS, run:
+   * - any yes accepted (`answered = replace !== false`): `expected { kind:
+   *   'opened' } to deeply equal { kind: 'ask', …(2) }`, and the other tab's
+   *   layout is gone from both slots.
+   * - only the put-aside half compared: the second case fails the same way.
+   */
+  it('a yes to one question does not replace a layout that arrived after it', () => {
+    const OTHER = layout(3);
+    data.set(GRAPH_STORAGE_KEY, MINE);
+    data.set(GRAPH_PREVIOUS_KEY, EARLIER);
+    const asked = m.openInEditor(LINK);
+    if (asked.kind !== 'ask') throw new Error('expected a question');
+    // Another tab puts something else aside before the answer.
+    data.set(GRAPH_PREVIOUS_KEY, OTHER);
+    expect(m.openInEditor(LINK, asked)).toEqual({ kind: 'ask', previous: OTHER, current: MINE });
+    expect(slots()).toEqual({ saved: MINE, aside: OTHER });
+    // Or it changes the saved layout: what would go into the slot is no longer what was shown.
+    data.set(GRAPH_PREVIOUS_KEY, EARLIER);
+    data.set(GRAPH_STORAGE_KEY, OTHER);
+    expect(m.openInEditor(LINK, asked)).toEqual({ kind: 'ask', previous: EARLIER, current: OTHER });
+    expect(slots()).toEqual({ saved: OTHER, aside: EARLIER });
+  });
+
+  /*
+   * WHAT IS PUT ASIDE IS THE LAYOUT ON SCREEN (O1), when the caller has one:
+   * the editor's saved slot is behind whenever saving is blocked.
+   *
+   * MUTATION PROOF, run: `onScreen` ignored (`current = saved`): `expected {
+   * …(2) } to deeply equal { …(2) }` (the older saved bytes put aside, and
+   * the screen's layout lost).
+   */
+  it('puts aside the layout on screen, not the older bytes in the saved slot', () => {
+    const ON_SCREEN = layout(3);
+    data.set(GRAPH_STORAGE_KEY, MINE);
+    expect(m.openInEditor(LINK, false, ON_SCREEN)).toEqual({ kind: 'opened' });
+    expect(slots()).toEqual({ saved: LINK, aside: ON_SCREEN });
   });
 
   it('the same layout already put aside needs no question', () => {
@@ -140,6 +183,57 @@ describe('opening a link in the editor', () => {
     full.add(GRAPH_STORAGE_KEY);
     expect(m.openInEditor(LINK)).toEqual({ kind: 'failed' });
     expect(slots()).toEqual({ saved: MINE, aside: null });
+  });
+});
+
+describe('a failed open says what is true (plan 2026-11-16, O2)', () => {
+  /** A storage whose `nth` and later writes to `key` throw, as one that filled part-way. */
+  const fillAfter = (key: string, nth: number) => {
+    const real = globalThis.localStorage as unknown as { setItem: (k: string, v: string) => void; removeItem: (k: string) => void };
+    const set = real.setItem, del = real.removeItem;
+    let writes = 0;
+    const guard = <T extends unknown[]>(f: (...a: T) => void) => (...a: T) => {
+      if (a[0] === key && ++writes >= nth) throw new DOMException('quota', 'QuotaExceededError');
+      f(...a);
+    };
+    real.setItem = guard(set);
+    real.removeItem = guard(del);
+  };
+
+  /*
+   * The put-aside write lands, the saved-slot write fails, and the roll-back
+   * of the put-aside slot fails too. The earlier put-aside layout is then in
+   * NEITHER slot. This used to return `failed`, which the screen reads as
+   * "nothing changed".
+   *
+   * MUTATION PROOFS, run:
+   * - `settle` returning `failed` without looking: `expected { kind: 'failed' }
+   *   to deeply equal { kind: 'stranded', bytes: … }`.
+   * - the lost layout looked for among the wrong bytes (`atStake` holding only
+   *   the current layout): the same failure.
+   */
+  it('when the roll-back fails too, the layout that is in neither slot comes back', () => {
+    data.set(GRAPH_STORAGE_KEY, MINE);
+    data.set(GRAPH_PREVIOUS_KEY, EARLIER);
+    full.add(GRAPH_STORAGE_KEY);
+    // The put-aside slot takes its first write (MINE), then refuses the roll-back to EARLIER.
+    fillAfter(GRAPH_PREVIOUS_KEY, 2);
+    expect(m.openInEditor(LINK, { previous: EARLIER, current: MINE })).toEqual({ kind: 'stranded', bytes: EARLIER });
+    // Nothing of the friend's own is lost: it is in both slots.
+    expect(slots()).toEqual({ saved: MINE, aside: MINE });
+  });
+
+  /*
+   * MUTATION PROOF, run: `stranded` returned whenever a write fails:
+   * `expected { kind: 'stranded', … } to deeply equal { kind: 'failed' }`
+   * (a download offered for a layout that is safe where it was).
+   */
+  it('a write that simply fails still reports failed, with both slots as they were', () => {
+    data.set(GRAPH_STORAGE_KEY, MINE);
+    data.set(GRAPH_PREVIOUS_KEY, EARLIER);
+    full.add(GRAPH_STORAGE_KEY);
+    expect(m.openInEditor(LINK, { previous: EARLIER, current: MINE })).toEqual({ kind: 'failed' });
+    expect(slots()).toEqual({ saved: MINE, aside: EARLIER });
   });
 });
 
