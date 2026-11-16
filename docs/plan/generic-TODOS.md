@@ -189,6 +189,17 @@ same review: the sideways verdict's column, the Pieces sheet's 13px notes,
 the verdict's fold and the 3D view's how-to line.
 **Effort:** human ~1 d / CC ~1 h. **Depends on:** the decision.
 
+## P3 — On a wide screen the palette stops short of the foot when "Run a train" shows
+
+**What:** At 1000px and up the palette spans the grid's named rows, and the
+"Run a train" control (and Finish the loop) are placed in a row after them,
+in the plan's column only. So the palette ends about 48px above the foot of
+the screen and the strip beside the control is empty.
+**Why not yet:** nothing is hidden (the palette scrolls) and no one has
+asked. Seen while fixing the notice's place on 2026-11-16 (#300), which gave
+notices and the shortfall rows of their own and left this as it was.
+**Effort:** human ~2 h / CC ~20 min. **Depends on:** nothing.
+
 ## P2 — Checkup: three things offered on 2026-11-16 and not chosen
 
 - **README says nothing about the usage counter.** One short section saying
