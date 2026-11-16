@@ -123,6 +123,49 @@ The open readings are on the printable calibration sheet
 `bun run calibration` shows what each answer changes. What is planned is in
 `docs/plan/generic-TODOS.md`.
 
+## What the site sends, and what it never does
+
+There is no account and no server of mine. A layout, your saved layouts, your
+box, your table and the parts you add are kept in your own browser and are
+never sent anywhere. A shared link holds its layout after the `#` in the
+address, which browsers do not send to any server.
+
+The editor counts visits with [GoatCounter](https://www.goatcounter.com),
+through a copy of its script that is kept in this repository
+(`app/public/count.js`). It sets no cookie and stores nothing in your browser.
+
+**For each visit**, one request carries:
+
+- the page's path, or just `/shared-link` or `/piece-preview` when the address
+  holds a shared layout or a piece preview, whatever it holds;
+- the page's title, which is the same for everyone;
+- the address of the page you came from, when your browser gives one;
+- the width of your screen in pixels;
+- whether the browser looks automated;
+- anything after a `?` in the address. The site puts nothing there itself, so
+  this is empty unless the link you followed added something.
+
+**For each of these ten actions**, one request carries the action's name and
+nothing else about the page: no layout, no piece count, nothing you typed.
+
+- Shared a link
+- Opened build mode
+- Switched to 3D
+- Placed a preset
+- Opened Your box
+- Added a part
+- Saved to a file
+- Opened a layout file
+- Opened a link in the editor
+- Own layout first said "This works"
+
+Like any request, these reach GoatCounter's servers from your IP address with
+your browser's name; what is kept of those is GoatCounter's to say. The same
+is true of the host that serves the pages, GitHub Pages.
+
+To leave your own visits out, use a content blocker, or set `skipgc` to `t`
+in this site's local storage: the script then sends nothing.
+
 ## Where things are
 
 ```
