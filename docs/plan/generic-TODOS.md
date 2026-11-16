@@ -111,24 +111,6 @@ none stacked. The version numbers assume this order and nothing merged in
 between; if `main` has moved, the part that goes up stays and the number
 follows (AGENTS.md).
 
-## P2 — A buy list, and "These are mine" (takes 1.0.4 to 1.1.0, minor)
-
-**What:** In Your box: copy the list of pieces the layout on screen is short
-of, as text; and one tap that raises each count to what the layout on screen
-uses. No shops, no links, no sets.
-**Why:** Filling the box piece by piece is the most tedious step for a new
-user, and the shortfall is read and then retyped by hand.
-**Context:** The owner's own "later" list of 2026-11-05 (the old inventory
-entry, in the archive). Ready layouts and "your box can build" shipped on
-2026-11-14 (`app/src/canBuild.ts`). Still not chosen from that list: an
-owned-only palette filter. The copied text must name no brand (AGENTS.md).
-Needs its place and words on the phone as well as the wide editor.
-Adapters count too: the adapter shortfall is worked out apart from the
-pieces, under a reserved key (`app/src/inventoryModel.ts:38`), and a layout
-can be short of adapters alone. Both the copied list and "These are mine"
-must include them, with a test for the adapter-only case.
-**Effort:** human ~3 d / CC ~1.5 h. **Depends on:** nothing.
-
 ## P2 — Several saved layouts (its plan takes 1.1.0 to 1.1.1; the feature 1.1.1 to 1.2.0, minor)
 
 **What:** "My layouts": name a layout, keep several in the browser, reopen

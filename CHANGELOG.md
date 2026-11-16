@@ -5,6 +5,17 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.1.0 (2026-11-16)
+
+Two new buttons in Your box.
+
+- **These are mine.** One tap raises your counts to the pieces of the layout
+  on screen, adapters included, so you do not count track by hand. It only
+  ever raises a count, says how many it raised, and "Put it back" undoes it.
+- **Copy what is short.** When a layout needs more than your box holds, this
+  copies the list (pieces and adapters, one a line) to paste into a note or
+  a search. If the browser will not copy, the list is shown to copy by hand.
+
 ## 1.0.4 (2026-11-16)
 
 - **If the app crashes,** its report now shows everything the app keeps, and

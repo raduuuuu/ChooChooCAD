@@ -13,7 +13,16 @@
 
 import { useState } from 'react';
 import { codeOf, type Part } from '../../engine/src/parts/schema.js';
-import { ADAPTER_INVENTORY_KEY, sanitizeCount, type Inventory as InventoryCounts } from './inventoryModel.js';
+import {
+  ADAPTER_INVENTORY_KEY,
+  BUY_LIST_COPIED,
+  BUY_LIST_BY_HAND,
+  buyListText,
+  raiseToLayout,
+  sanitizeCount,
+  shortfalls,
+  type Inventory as InventoryCounts,
+} from './inventoryModel.js';
 
 export interface InventoryPanelProps {
   /** The resolved library: built-ins, seeds, and this user's submissions. */
@@ -56,7 +65,45 @@ export function InventoryPanel({
    * right. A rejected keystroke is also shown rather than swallowed, so the
    * field does not just appear to ignore you. See `invalid` below.
    */
+  /*
+   * "THESE ARE MINE" AND THE LIST OF WHAT IS SHORT (plan 2026-11-16, A3).
+   *
+   *   layout uses more than the box holds ─▶ [These are mine]  raises those
+   *        │                                   counts, says how many, and
+   *        │                                   offers [Put it back] (one step)
+   *        └─ and the box is declared ──────▶ [Copy what is short]  the list
+   *                                            as text; refused by the
+   *                                            browser ─▶ shown to copy by hand
+   *
+   * `putBack` is the box as it was before the last "These are mine". Typing a
+   * count, or forgetting the box, ends the offer: it would undo that too.
+   */
+  const [putBack, setPutBack] = useState<{ readonly box: InventoryCounts; readonly raised: number } | null>(null);
+  const [copy, setCopy] = useState<{ readonly said: string; readonly byHand: string | null }>({ said: '', byHand: null });
+  const mine = raiseToLayout(inventory, used, adaptersUsed);
+  const nameOf = new Map(library.map((p) => [p.id, p.name]));
+  const short = buyListText(
+    shortfalls(inventory, used).map((s) => ({ name: nameOf.get(s.partId) ?? s.partId, code: codeOf(s.partId), shortBy: s.shortBy })),
+    adapterShort,
+  );
+  const takeAsMine = () => {
+    setPutBack({ box: inventory, raised: mine.raised.length });
+    setCopy({ said: '', byHand: null });
+    onChange(mine.next);
+  };
+  const copyShort = async () => {
+    if (short === null) return;
+    try {
+      await navigator.clipboard.writeText(short);
+      setCopy({ said: BUY_LIST_COPIED, byHand: null });
+    } catch {
+      // Never silent: the list is put on screen to select and copy by hand.
+      setCopy({ said: BUY_LIST_BY_HAND, byHand: short });
+    }
+  };
+
   const setOne = (partId: string, raw: string) => {
+    setPutBack(null);
     const value = sanitizeCount(raw);
     if (value === null) {
       setInvalid((prev) => ({ ...prev, [partId]: raw }));
@@ -87,6 +134,61 @@ export function InventoryPanel({
         </p>
       )}
 
+      {/*
+        * BEFORE THE ROWS, not after them: the list is some seventy pieces
+        * long, and "These are mine" is what saves typing into it.
+        */}
+      {(declared || mine.raised.length > 0 || putBack !== null) && (
+        <div className="inventory-fills">
+          {mine.raised.length > 0 && (
+            <button onClick={takeAsMine} title="Raise each count to what this layout uses">
+              These are mine
+            </button>
+          )}
+          {short !== null && <button onClick={() => void copyShort()}>Copy what is short</button>}
+          {putBack !== null && (
+            <button
+              onClick={() => {
+                onChange(putBack.box);
+                setPutBack(null);
+              }}
+            >
+              Put it back
+            </button>
+          )}
+          {declared && (
+            <button
+              onClick={() => {
+                setPutBack(null);
+                onChange(null);
+              }}
+              title="Back to not saying what you own"
+            >
+              Forget this
+            </button>
+          )}
+        </div>
+      )}
+      {/* What the two buttons did, said in words and read out (never colour, never silence). */}
+      <p className="inventory-said" role="status" aria-live="polite">
+        {putBack !== null && (
+          <>
+            <span className="num">{putBack.raised}</span> {putBack.raised === 1 ? 'count' : 'counts'} raised to match this
+            layout.{' '}
+          </>
+        )}
+        {copy.said}
+      </p>
+      {copy.byHand !== null && (
+        <textarea
+          className="inventory-list num"
+          readOnly
+          rows={copy.byHand.split('\n').length}
+          value={copy.byHand}
+          aria-label="What this layout is short of"
+          onFocus={(e) => e.currentTarget.select()}
+        />
+      )}
       <div className="inventory-rows">
         {library.map((part) => {
           const owned = inventory?.[part.id];
@@ -160,13 +262,6 @@ export function InventoryPanel({
         </label>
       </div>
 
-      {declared && (
-        <div className="inventory-fills">
-          <button onClick={() => onChange(null)} title="Back to not saying what you own">
-            Forget this
-          </button>
-        </div>
-      )}
     </section>
   );
 }

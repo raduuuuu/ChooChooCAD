@@ -108,6 +108,75 @@ export function shortfalls(inventory: Inventory, used: Readonly<Record<string, n
   return out.sort((a, b) => a.partId.localeCompare(b.partId));
 }
 
+/** One count that "These are mine" raised: a part id, or the adapters' reserved key. */
+export interface Raise {
+  readonly key: string;
+  readonly from: number;
+  readonly to: number;
+}
+
+/**
+ * "THESE ARE MINE" (plan 2026-11-16, A3): the box with every count raised to
+ * what the layout on screen uses, adapters included, and which counts moved.
+ *
+ * IT ONLY RAISES. A count already at or over what the layout uses is left
+ * exactly as it was, and a piece the layout does not use is not touched: the
+ * person may own more than is on the floor, and one tap must never take a
+ * counted box apart. Pressed twice, the second press raises nothing.
+ *
+ * An UNDECLARED box becomes a declared one holding this layout's pieces,
+ * which is what the person just said.
+ */
+export function raiseToLayout(
+  inventory: Inventory,
+  used: Readonly<Record<string, number>>,
+  adaptersUsed: number,
+): { readonly next: Readonly<Record<string, number>>; readonly raised: readonly Raise[] } {
+  const next: Record<string, number> = { ...(inventory ?? {}) };
+  const raised: Raise[] = [];
+  const wanted: [string, number][] = [...Object.entries(used), [ADAPTER_INVENTORY_KEY, adaptersUsed]];
+  for (const [key, n] of wanted) {
+    const from = next[key] ?? 0;
+    if (n > from) {
+      next[key] = n;
+      raised.push({ key, from, to: n });
+    }
+  }
+  return { next, raised };
+}
+
+/** One line of the list: how many more of a named piece. */
+export interface BuyLine {
+  readonly name: string;
+  readonly code: string;
+  readonly shortBy: number;
+}
+
+/*
+ * Said after "Copy what is short". Words of their own, not the piece
+ * preview's: importing those pulled that screen's whole word list into the
+ * first load (1.6 kB of a 1.9 kB allowance, measured 2026-11-16).
+ */
+export const BUY_LIST_COPIED = 'Copied.';
+export const BUY_LIST_BY_HAND = "Couldn't copy. The list is here to select and copy by hand.";
+
+/** The first line of the copied list. */
+export const BUY_LIST_HEAD = 'Still needed for this layout:';
+
+/**
+ * THE SHORTFALL AS TEXT, to paste into a note or a shop's search (plan
+ * 2026-11-16, A3). One piece a line, its name as the palette says it and its
+ * code; then the adapters, which are counted apart from the pieces and can be
+ * the only thing a layout is short of. Null when nothing is short. It names
+ * no maker and no shop (AGENTS.md): names come from the library.
+ */
+export function buyListText(lines: readonly BuyLine[], adapterShort: number): string | null {
+  if (lines.length === 0 && adapterShort <= 0) return null;
+  const out = [BUY_LIST_HEAD, ...lines.map((l) => `${l.shortBy} x ${l.name} (${l.code})`)];
+  if (adapterShort > 0) out.push(`${adapterShort} x male-male ${adapterShort === 1 ? 'adapter' : 'adapters'}`);
+  return out.join('\n');
+}
+
 /**
  * Whether one more of this part would exceed what is owned.
  *

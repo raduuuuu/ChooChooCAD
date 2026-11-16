@@ -598,7 +598,7 @@ assume this order and nothing merged in between.
   - Surfaced by: NEXT (D2); Section 3; the deep checkup of 2026-11-15
   - Files: `.github/workflows/*.yml`, `engine/src/geom/fk.ts`, `engine/data/generic.ts`, `engine/data/sources.ts`, `engine/src/graph/edit.ts`, `app/src/VerdictLine.tsx`, `app/src/ErrorBoundary.tsx`
   - Verify: a text test that every `uses:` is a 40-character commit with its version in a comment; typecheck and the suite with the six exports gone; the owner's answer on which of the five uncarried keys a crash report holds and "clear" removes, then a test naming every key in `storageKeys.ts`
-- [ ] **T4 (P2, human: ~3 d / CC: ~1.5 h)** — app — A buy list and "These are mine" (1.0.4 to 1.1.0)
+- [x] **T4 (P2, human: ~3 d / CC: ~1.5 h)** — app — A buy list and "These are mine" (1.0.4 to 1.1.0)
   - Surfaced by: A3 (D5); Sections 2, 4, 11; outside finding O5
   - Files: `app/src/Inventory.tsx`, `app/src/inventoryModel.ts`
   - Verify: counts only rise, the change is said and can be put back in one step; twice is once; adapters in both; the refused-clipboard path; the first-load budget holds; looked at on both screens
