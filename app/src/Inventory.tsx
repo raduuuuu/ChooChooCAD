@@ -38,8 +38,13 @@ export function InventoryPanel({
   onClose,
 }: InventoryPanelProps) {
   const declared = inventory !== null;
-  /** Part ids whose last keystroke was refused. Per-field, not global. */
-  const [invalid, setInvalid] = useState<Record<string, boolean>>({});
+  /**
+   * What was typed into each field whose last keystroke was refused, by part
+   * id. Per-field, not global. The text is kept so the field goes on showing
+   * what the person typed beside the sentence that refuses it; the stored
+   * count is untouched until the field holds a number again.
+   */
+  const [invalid, setInvalid] = useState<Record<string, string>>({});
 
   /*
    * THE GUARD. `Math.max(0, Math.floor(value))` passes NaN and Infinity straight
@@ -54,11 +59,11 @@ export function InventoryPanel({
   const setOne = (partId: string, raw: string) => {
     const value = sanitizeCount(raw);
     if (value === null) {
-      setInvalid((prev) => ({ ...prev, [partId]: true }));
+      setInvalid((prev) => ({ ...prev, [partId]: raw }));
       return;
     }
     setInvalid((prev) => {
-      if (!prev[partId]) return prev;
+      if (prev[partId] === undefined) return prev;
       const next = { ...prev };
       delete next[partId];
       return next;
@@ -87,7 +92,7 @@ export function InventoryPanel({
           const owned = inventory?.[part.id];
           const usedN = used[part.id] ?? 0;
           const short = declared && usedN > (owned ?? 0);
-          const bad = invalid[part.id] === true;
+          const bad = invalid[part.id] !== undefined;
           return (
             <label
               key={part.id}
@@ -97,13 +102,21 @@ export function InventoryPanel({
             >
               <span className="inventory-row-id num">{codeOf(part.id)}</span>
               <span className="inventory-row-name">{part.name}</span>
+              {/*
+                * A TEXT FIELD WITH THE NUMBER KEYPAD, not `type="number"`
+                * (hardening, 2026-11-16). A number field hands the page an
+                * empty string for anything it dislikes, and an empty field
+                * means zero here: a slip of the finger was stored as "I own
+                * none of these" with no word, the exact outcome the guard
+                * above exists to prevent, and "needs a number" could never be
+                * shown in a browser at all.
+                */}
               <input
                 className="inventory-row-input num"
-                type="number"
-                min={0}
-                step={1}
+                type="text"
                 inputMode="numeric"
-                value={owned ?? ''}
+                autoComplete="off"
+                value={invalid[part.id] ?? owned ?? ''}
                 placeholder="—"
                 aria-label={`How many ${part.name} you own`}
                 aria-invalid={bad}
@@ -128,23 +141,22 @@ export function InventoryPanel({
         * field, same guard, same "in use" figure as a part row.
         */}
       <div className="inventory-rows">
-        <label className={'inventory-row' + (declared && adapterShort > 0 ? ' is-short' : '') + (invalid[ADAPTER_INVENTORY_KEY] ? ' is-invalid' : '')}>
+        <label className={'inventory-row' + (declared && adapterShort > 0 ? ' is-short' : '') + (invalid[ADAPTER_INVENTORY_KEY] !== undefined ? ' is-invalid' : '')}>
           <span className="inventory-row-id num">MM</span>
           <span className="inventory-row-name">Male-male adapters</span>
           <input
             className="inventory-row-input num"
-            type="number"
-            min={0}
-            step={1}
+            type="text"
             inputMode="numeric"
-            value={inventory?.[ADAPTER_INVENTORY_KEY] ?? ''}
+            autoComplete="off"
+            value={invalid[ADAPTER_INVENTORY_KEY] ?? inventory?.[ADAPTER_INVENTORY_KEY] ?? ''}
             placeholder="—"
             aria-label="How many male-male adapters you own"
-            aria-invalid={invalid[ADAPTER_INVENTORY_KEY] === true}
+            aria-invalid={invalid[ADAPTER_INVENTORY_KEY] !== undefined}
             onChange={(e) => setOne(ADAPTER_INVENTORY_KEY, e.target.value)}
           />
           <span className="inventory-row-used num">{adaptersUsed > 0 ? `${adaptersUsed} in use` : ''}</span>
-          {invalid[ADAPTER_INVENTORY_KEY] && <span className="inventory-row-bad">needs a number</span>}
+          {invalid[ADAPTER_INVENTORY_KEY] !== undefined && <span className="inventory-row-bad">needs a number</span>}
         </label>
       </div>
 

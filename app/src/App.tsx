@@ -1784,7 +1784,7 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
   const strip = placingStrip ?? joinStrip ?? selectionStrip ?? dropStrip ?? lastStrip ?? hintStrip;
   const identity = (
       <header className="identity">
-        <AppName />
+        <AppName heading />
         {/* On a phone it is a row of More (eng ED10), not a line taken from the plan. */}
         {!phone && putAside}
         {screen.mode === 'example' && (
@@ -2338,7 +2338,12 @@ export function App({ link, offerExample = false }: { readonly link?: Graph; rea
         */}
       {stage}
 
-      {notices}
+      {/*
+        * One box for every notice, so the wide grid can give them a row of
+        * their own next to the plan (app.css, `.notices`). Loose in the grid
+        * they fell to a row under the palette, at the foot of the screen.
+        */}
+      {notices.some(Boolean) && <div className="notices">{notices}</div>}
 
       {verdictBlock}
 

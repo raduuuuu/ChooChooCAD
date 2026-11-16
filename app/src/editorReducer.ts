@@ -876,9 +876,11 @@ function step(state: EditorState, action: EditorAction, ports: PortsOf, geometry
     case 'removeLast': {
       const last = lastPieceId(state.graph);
       /*
-       * `=== null`, not `!last`. `loadGraph` validates a pieceId only as a
-       * string, so `""` survives a restore, and `!last` made Undo a silent
-       * permanent no-op on such a board while Add kept welding onto it.
+       * `=== null`, not `!last`. When this was written `loadGraph` took any
+       * string as a pieceId, so `""` survived a restore, and `!last` made
+       * Undo a silent permanent no-op on such a board while Add kept welding
+       * onto it. The loader refuses an empty id now (`isPieceId`); the
+       * comparison stays exact.
        * `resumeCursor` and `addPiece` both test against null; this was the
        * last loose comparison.
        */

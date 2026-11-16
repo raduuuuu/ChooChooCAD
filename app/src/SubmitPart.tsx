@@ -40,13 +40,25 @@ export interface SubmitPartProps {
   readonly onCancel: () => void;
 }
 
-/** A positive finite number, or null. Never NaN or Infinity into state. */
-function parseMm(raw: string): number | null {
-  if (raw.trim() === '') return null;
-  const n = Number(raw);
+/**
+ * A positive finite number, or null. Never NaN or Infinity into state.
+ *
+ * A DECIMAL COMMA IS A DECIMAL POINT (hardening, 2026-11-16). `12,5` is how
+ * much of the world writes twelve and a half, and it used to be refused with
+ * no word: the only sign was a greyed button. One comma and no point is read
+ * as the decimal mark. Anything with both, or two commas, could be a
+ * thousands separator and is not guessed at.
+ */
+export function parseMm(raw: string): number | null {
+  const t = raw.trim();
+  if (t === '') return null;
+  const n = Number(/^[^,.]*,[^,.]*$/.test(t) ? t.replace(',', '.') : t);
   if (!Number.isFinite(n) || n <= 0) return null;
   return n;
 }
+
+/** Said under a size field that holds something `parseMm` cannot read. */
+export const SIZE_REFUSED = 'Needs a number greater than zero, like 144 or 12.5.';
 
 export function SubmitPart({ existingIds, notTwoEndedIds, onSubmit, onCancel }: SubmitPartProps) {
   const [brand, setBrand] = useDraft<Brand>('submit', 'brand', 'IKEA');
@@ -63,6 +75,9 @@ export function SubmitPart({ existingIds, notTwoEndedIds, onSubmit, onCancel }: 
   const innerRadiusMm = parseMm(innerRadiusRaw);
 
   const dimensionOk = kind === 'straight' ? lengthMm !== null : innerRadiusMm !== null;
+  // Something typed that is not a size: said in words, never only a greyed button.
+  const lengthBad = lengthRaw.trim() !== '' && lengthMm === null;
+  const radiusBad = innerRadiusRaw.trim() !== '' && innerRadiusMm === null;
   const nameOk = name.trim().length > 0;
   const ready = dimensionOk && nameOk;
 
@@ -137,10 +152,19 @@ export function SubmitPart({ existingIds, notTwoEndedIds, onSubmit, onCancel }: 
         {kind === 'straight' ? (
           <label className="submit-field">
             <span>Length, mm</span>
+            {/*
+              * A text field with the decimal keypad, not `type="number"`: a
+              * number field hands the page an EMPTY string for anything it
+              * dislikes (a comma, in most browsers), so the page could neither
+              * read `12,5` nor say what was wrong with it.
+              */}
             <input
-              className="num" type="number" min={1} step={1} inputMode="numeric"
+              className="num" type="text" inputMode="decimal" autoComplete="off"
+              aria-invalid={lengthBad}
               value={lengthRaw} onChange={(e) => setLengthRaw(e.target.value)}
             />
+            {/* Inside the label, so it is read with the field's name. */}
+            {lengthBad && <span className="submit-field-bad">{SIZE_REFUSED}</span>}
           </label>
         ) : (
           <>
@@ -149,9 +173,11 @@ export function SubmitPart({ existingIds, notTwoEndedIds, onSubmit, onCancel }: 
                 Radius to the <strong>inner edge</strong>, mm
               </span>
               <input
-                className="num" type="number" min={1} step={1} inputMode="numeric"
+                className="num" type="text" inputMode="decimal" autoComplete="off"
+                aria-invalid={radiusBad}
                 value={innerRadiusRaw} onChange={(e) => setInnerRadiusRaw(e.target.value)}
               />
+              {radiusBad && <span className="submit-field-bad">{SIZE_REFUSED}</span>}
             </label>
             <label className="submit-field">
               <span>Turn</span>

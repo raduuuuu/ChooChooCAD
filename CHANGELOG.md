@@ -5,6 +5,26 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.0.3 (2026-11-16)
+
+Fixes only.
+
+- **Add a part** reads a decimal comma: `12,5` is 12.5. Anything it cannot
+  read as a size gets a sentence under the field; before, the only sign was
+  a greyed button.
+- **Your box** no longer turns a slip of the finger into "I own none". A
+  count that is not a number stays in the field with "needs a number" on a
+  line of its own, and the count you had is kept. The field is a finger's
+  size on every screen.
+- **On a wide screen** a notice (a layout that could not be saved, a change
+  in another tab) now sits over the plan, where it is seen. It used to fall
+  to the foot of the screen under the pieces. The "Short by" line sits under
+  the verdict.
+- **The editor has a first heading** for screen readers: the identity line.
+- **A saved layout, a link or a file with a malformed piece id** is refused
+  as unreadable and kept as a copy to download. No layout the app itself
+  wrote is affected.
+
 ## 1.0.2 (2026-11-16)
 
 - The backlog (`docs/plan/generic-TODOS.md`) lists only open work again.

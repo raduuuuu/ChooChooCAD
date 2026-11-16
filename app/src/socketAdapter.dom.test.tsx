@@ -130,7 +130,7 @@ describe('Your box counts male-male adapters', () => {
   it('typing a part count keeps the adapter count', async () => {
     const user = mount(START_TO_START, [['a', 0, 'r', 0]], { A: 2, __adapter_male_male: 2 });
     await user.click(button('Your box'));
-    const first = screen.getAllByRole('spinbutton')[0]!;
+    const first = document.querySelector<HTMLInputElement>('.inventory-row-input')!;
     await user.clear(first);
     await user.type(first, '4');
     const stored = JSON.parse(localStorage.getItem(INVENTORY_STORAGE_KEY)!) as Record<string, number>;
@@ -148,7 +148,7 @@ describe('Add a part refuses a reserved id', () => {
     await user.click(button('Add a part'));
     const form = screen.getByRole('region', { name: 'Submit a part' });
     await user.type(within(form).getByRole('textbox', { name: 'Name' }), 'Fake');
-    await user.type(within(form).getByRole('spinbutton', { name: 'Length, mm' }), '144');
+    await user.type(within(form).getByRole('textbox', { name: 'Length, mm' }), '144');
     await user.type(within(form).getByRole('textbox', { name: 'Correcting an existing part?' }), '__adapter_male_male');
     expect(form.textContent).toContain('Ids starting with __ are reserved.');
     expect((within(form).getByRole('button', { name: 'Add to the library' }) as HTMLButtonElement).disabled).toBe(true);

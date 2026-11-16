@@ -88,7 +88,15 @@ describe('the known false passes still FAIL', () => {
       ],
       closed: true,
     });
-    expect(clashes(g).length).toBeGreaterThan(0);
+    /*
+     * EXACTLY ONE, at the point where the two circles touch. It used to read
+     * "more than zero", which a checker reporting every end of the tangency
+     * (or every pair) would also pass. MUTATION PROOF, run:
+     * `findVertexClashes` returning every clash twice: `expected 2 to be 1`
+     * here and `expected 4 to be 2` in the two specs after it; "more than
+     * zero" passed all three.
+     */
+    expect(clashes(g).length).toBe(1);
   });
 
   /*
@@ -106,7 +114,8 @@ describe('the known false passes still FAIL', () => {
       welds: [],
     };
     // Both start at the identity frame, so all four ports coincide pairwise.
-    expect(clashes(g).length).toBeGreaterThan(0);
+    // Two spots, one at each end of the two pieces: exactly two, not "some".
+    expect(clashes(g).length).toBe(2);
   });
 });
 
@@ -205,7 +214,7 @@ describe('free ends meeting are an invitation, not a clash', () => {
       ],
       welds: [],
     };
-    expect(clashes(g).length).toBeGreaterThan(0);
+    expect(clashes(g).length).toBe(2);
   });
 
   /*
