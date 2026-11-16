@@ -25,7 +25,10 @@ import { findVertexClashes } from '../../engine/src/graph/feasible.js';
 import { portFrame } from '../../engine/src/graph/frames.js';
 import { fromInt, toXY } from '../../engine/src/geom/cyclotomic.js';
 import { placeAll } from '../../engine/src/graph/frames.js';
-import { portsOf, type Piece, type Port } from '../../engine/src/graph/model.js';
+import { chainPieceId } from '../../engine/src/graph/fromChain.js';
+import { portsOf, type Graph, type Piece, type Port } from '../../engine/src/graph/model.js';
+import { newPieceId } from './layoutModel.js';
+import { decodeLink, encodeLink } from './shareLink.js';
 import { CHAIN_STORAGE_KEY, GRAPH_RESCUE_KEY, GRAPH_STORAGE_KEY } from './storageKeys.js';
 import { loadGraph, partialLoadNotice, saveGraph, savesSuppressed, storedGraphOf } from './layoutStore.js';
 
@@ -1386,5 +1389,70 @@ describe('the stored format (build mode plan D26)', () => {
       expect(store.get(GRAPH_STORAGE_KEY)).toBe(golden);
     });
     expect(JSON.stringify(storedGraphOf(graph))).toBe(golden);
+  });
+});
+
+describe('a stored piece id is bounded (hardening, 2026-11-16)', () => {
+  const one = (pieceId: unknown) => blob({ pieces: [{ pieceId, partId: 'A' }], welds: [], anchors: [] });
+
+  /*
+   * EVERY PLACE AN ID COMES FROM, one id from each. The bound must never
+   * refuse a layout this app wrote.
+   *
+   * MUTATION PROOFS, run:
+   * - the pattern narrowed to `p` and digits only: `m1: expected 'Your saved
+   *   track could not be read…' to be undefined` here, and the older spec
+   *   whose piece is called `a` fails first with `expected 'Your saved track
+   *   could not be read…' to contain 'NOPE'` (hand-named ids refused).
+   * - the length bound cut to 4: `p12345: expected 'Your saved track could
+   *   not be read…' to be undefined` (a real id on a big floor).
+   */
+  it('takes every id the app can have written', async () => {
+    const written = [
+      newPieceId([]), //                                    the first piece placed
+      newPieceId(Array.from({ length: 12345 }, (_, i) => ({ pieceId: `p${i}`, partId: 'A' }))), // a big floor
+      chainPieceId(7), //                                   a layout from before the graph
+      'm1', //                                              a hand-named id, as fixtures and old files carry
+      'left_loop-2', //                                     the two marks the bound allows
+      'x'.repeat(64), //                                    exactly at the bound
+    ];
+    // A share link or a layout file rebuilds its ids on the way in (`storedOf`).
+    const g: Graph = { pieces: [{ pieceId: 'anything', partId: 'A' }], welds: [] };
+    const back = await decodeLink(await encodeLink(g));
+    if (!back.ok) throw new Error(back.reason);
+    written.push(back.graph.pieces[0]!.pieceId);
+    expect(written).toContain('p0');
+    for (const id of written) {
+      const r = load(one(id));
+      expect(r.discarded, id).toBeUndefined();
+      expect(r.value.pieces.map((p) => p.pieceId)).toEqual([id]);
+    }
+  });
+
+  /*
+   * MUTATION PROOFS, run:
+   * - `isPieceId` back to `typeof v === 'string'`: `expected undefined to be
+   *   'Your saved track could not be read…'` for each hostile id.
+   * - the refusal dropping the layout without a rescue copy (`refuse`
+   *   returning before `rescue`): `expected undefined to be '{"pieces":…'`.
+   */
+  it.each([
+    ['empty', ''],
+    ['one past the bound', 'x'.repeat(65)],
+    ['a megabyte', 'x'.repeat(1_000_000)],
+    ['a line break, which once put code in the crash report', 'p1\nconsole.log(1)//'],
+    ['a space', 'p 1'],
+    ['markup', '<b>'],
+    ['not a string', 7],
+  ])('refuses an id that is %s, and keeps the bytes', (_, id) => {
+    const seed = one(id);
+    const raw = seed[GRAPH_STORAGE_KEY]!;
+    withStore(seed, (store) => {
+      const r = loadGraph(KNOWN, ports);
+      expect(r.discarded).toBe(load(blob({ pieces: 'no', welds: [] })).discarded);
+      expect(r.value.pieces).toEqual([]);
+      expect(r.rescued).toBe(true);
+      expect(store.get(GRAPH_RESCUE_KEY)).toBe(raw);
+    });
   });
 });

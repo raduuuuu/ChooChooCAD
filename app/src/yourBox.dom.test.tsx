@@ -41,7 +41,7 @@ describe('Your box, on an empty canvas', () => {
     // Your table and Add a part still wait for track (D10 kept for them).
     expect(screen.queryByRole('button', { name: 'Add a part' })).toBeNull();
 
-    const first = screen.getAllByRole('spinbutton')[0]!;
+    const first = document.querySelector<HTMLInputElement>('.inventory-row-input')!;
     await user.type(first, '6');
     const stored = JSON.parse(localStorage.getItem(INVENTORY_STORAGE_KEY)!) as Record<string, number>;
     expect(Object.values(stored)).toContain(6);

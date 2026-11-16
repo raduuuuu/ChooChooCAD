@@ -586,11 +586,11 @@ Synthesized from this review's findings. Each task derives from a specific
 finding above. Run with Claude Code or Codex; checkbox as you ship. Versions
 assume this order and nothing merged in between.
 
-- [ ] **T1 (P1, human: ~1 h / CC: done in this PR)** — docs — Land this review, the cleaned backlog and README's licence wording (1.0.1 to 1.0.2)
+- [x] **T1 (P1, human: ~1 h / CC: done in this PR)** — docs — Land this review, the cleaned backlog and README's licence wording (1.0.1 to 1.0.2)
   - Surfaced by: the ask; ledger rows IP (D1) and the cleanup table
   - Files: `docs/plan/2026-11-16-whats-next.md`, `docs/plan/generic-TODOS.md`, `docs/plan/TODOS-archive.md`, `README.md`, `CHANGELOG.md`, `package.json`
   - Verify: `bun run version:check --base origin/main`; `bun run checkup --content`; every old heading is in one of the two backlog files
-- [ ] **T2 (P2, human: ~2 d / CC: ~3 h)** — app — Hardening (1.0.2 to 1.0.3)
+- [x] **T2 (P2, human: ~2 d / CC: ~3 h)** — app — Hardening (1.0.2 to 1.0.3)
   - Surfaced by: NEXT (D2); Sections 2, 3, 6; outside findings O1, O3, O4
   - Files: `app/src/layoutStore.ts`, `app/src/SubmitPart.tsx`, `app/src/app.css`, `app/src/AppName.tsx`, `engine/test/graphFeasible.test.ts`, `engine/test/cycles.test.ts`
   - Verify: the pull request lists every place a piece id can come from (the reducer's own ids, old stored spellings, a contributor link, a layout file; and Add a part, if a part's id can reach a piece's id, which the pull request must say either way) and tests one id from each against the bound; a stored blob from 1.0.2 still loads; a hostile id lands in the rescue copy; `12,5` gives a result or a sentence; the inventory row's message checked in a browser; each pin's mutation run

@@ -9,9 +9,16 @@
  * 1); the full-colour mark is the favicon, app/public/favicon.svg.
  */
 
-export function AppName() {
+/**
+ * `heading` makes the line the page's `<h1>`. The editor passes it: it had no
+ * first heading at all and jumped straight to `<h2>` (hardening, 2026-11-16;
+ * the review backlog's group E). A friend's screen, a piece preview and build
+ * mode have a title of their own as their `<h1>`, so there it stays a line.
+ */
+export function AppName({ heading = false }: { heading?: boolean }) {
+  const Line = heading ? 'h1' : 'p';
   return (
-    <p className="app-name">
+    <Line className="app-name">
       <svg className="app-name-mark" width="18" height="18" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
         <defs>
           <mask id="app-name-socket" maskUnits="userSpaceOnUse" x="0" y="0" width="200" height="200">
@@ -32,6 +39,6 @@ export function AppName() {
       </svg>
       <span className="app-name-title">ChooChooCAD</span>
       <span className="app-name-tag">wooden railway layouts</span>
-    </p>
+    </Line>
   );
 }

@@ -1014,3 +1014,54 @@ these were left because each needs a decision or a real phone.
 - **Not checked by the review, for the real-phone pass (T12):** Escape and
   focus in the sheets, the keyboard over a panel's field, a screen reader,
   a second phone browser, "Next end" at a real scale.
+
+
+## DONE 2026-11-16 (version 1.0.3) — Hardening: what was left of the review backlog of 2026-10-14
+
+**Done 2026-11-16 (branch hardening).** A piece id read from storage, a link
+or a file is letters, digits, `_` and `-`, one to 64 (`isPieceId`,
+app/src/layoutStore.ts); every id the app writes is `p` and a number, so
+nothing it wrote is refused, and a refused layout goes to the rescue copy.
+Add a part reads `12,5` as 12.5 and says why it refuses anything else. The
+count field in Your box is 44px on every screen, keeps a typo on screen and
+refuses it in words on a line of its own: in a browser the old number field
+turned a typo into "I own none" with no word, and its "needs a number" could
+never appear. On a wide screen a notice sits over the plan and the shortfall
+line under the verdict, each in a row of its own. The editor's identity line
+is its `<h1>`. The clash counts are pinned exactly and the wall-clock
+assertion is gone. No piece-count cap was added (see the canvas entry).
+
+What is still open of the review backlog filed 2026-10-14, re-checked against
+the tree on 2026-11-16. The original entry, groups A to F, is in the archive.
+
+- **Load bounds (group D).** Ports and coefficients are now bounded and a
+  weld keeps only its two fields (`app/src/layoutStore.ts:125,140,410,458`).
+  Still open: a `pieceId` has no length or character bound. The bound must
+  accept every id the app itself can have written, so no layout that loads
+  today is refused; only a hand-edited or hostile blob falls outside it, and
+  that one goes to the rescue copy with its notice. No piece-count cap is
+  added here: a cap that refuses layouts the editor can save is a breaking
+  change, and it stays with the canvas entry in part 3.
+- **Add a part refuses a decimal comma with no message (group E).**
+  `parseMm` (`app/src/SubmitPart.tsx:44`) returns null for `12,5` and the
+  only sign is a greyed button.
+- **A notice on a wide screen (group E).** At 1000px and up `.notice` has a
+  column and no row (`app/src/app.css:1593`), so a data-loss notice can sit
+  under the palette; `.shortfall` is not in that list.
+- **The inventory count field is 32px** until a coarse pointer
+  (`app/src/app.css:1193`); DESIGN.md rule 10 holds 44px on data entry.
+- **The inventory row's refusal message** can be clipped by the row's grid.
+  Re-check in a browser before fixing.
+- **The editor has no `<h1>` (group E).** The identity line is a paragraph
+  (`app/src/AppName.tsx:14`); the only `<h1>` in `app/index.html` is inside
+  `noscript`. Build mode, the friend screen and the crash screen have one.
+- **Tests pinned loosely (group C).** `engine/test/graphFeasible.test.ts`
+  asserts "more than zero" clashes where the counts are known (1, 2 and 9);
+  `engine/test/cycles.test.ts:192` asserts a wall-clock time.
+
+Fixed since it was filed, so not here: the duplicated brand labels (A), the
+armed port's focus ring (E), one placement shared by the drawing and the
+verdict (F), the differential test's verdict order (F), and the ready
+layouts' tests, which now take the path the app takes (C).
+
+**Effort:** human ~2 d / CC ~3 h. **Depends on:** nothing.

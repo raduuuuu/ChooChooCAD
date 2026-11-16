@@ -180,7 +180,6 @@ describe('T5: the rank ceiling', () => {
       a: { pieceId: 'p', port: 1 },
       b: { pieceId: 'p', port: 0 },
     }));
-    const started = performance.now();
     const a = analyse({ pieces, welds });
     // The CAUSE, not just the fact. There are two now, and this is the one
     // that refuses before any work; 'work' is pinned separately below.
@@ -188,8 +187,12 @@ describe('T5: the rank ceiling', () => {
     expect(a.cycles).toEqual([]);
     expect(a.worst).toBeNull();
     expect(a.rank).toBeGreaterThan(CYCLE_RANK_CEILING);
-    // Refused, not paid for: enumerating 2^25 subsets would not be instant.
-    expect(performance.now() - started).toBeLessThan(250);
+    /*
+     * Refused, not paid for. This used to be timed too (`< 250ms`): a clock
+     * on a shared CI runner turns a correct refusal into a red build, and the
+     * three lines above already prove no enumeration ran, since an
+     * enumeration would have produced cycles and a worst gap.
+     */
   });
 
   it('does not fall back to a basis cycle', () => {

@@ -349,6 +349,22 @@ export type StoredCheck =
 
 const UNREADABLE: StoredCheck = { ok: false, reason: 'unreadable' };
 
+/**
+ * WHAT A PIECE'S ID MAY BE (hardening, 2026-11-16; the review backlog's group
+ * D). It was any string at all: megabytes long, empty, or carrying a line
+ * break, which is what once put live code into the crash report's header
+ * (`repro.ts`). Now letters, digits, `_` and `-`, one to 64 of them.
+ *
+ * WIDE ENOUGH FOR EVERYTHING THE APP HAS WRITTEN. Every id this app makes is
+ * `p` and a number: `newPieceId` (placing, the ready layouts, Finish the
+ * loop), `chainPieceId` (a layout from before the graph) and a share link or
+ * layout file (`storedOf` in shareLink.ts). So no layout that loaded before
+ * this bound is refused by it; what falls outside was edited by hand or
+ * written to attack, and is refused whole like any other value this engine
+ * did not write, with the bytes kept in the rescue copy.
+ */
+export const isPieceId = (v: unknown): v is string => typeof v === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(v);
+
 export function checkStored(parsed: unknown, knownPartIds: ReadonlySet<string>, ports: PortsOf): StoredCheck {
   if (typeof parsed !== 'object' || parsed === null) return UNREADABLE;
   const { pieces, welds, anchors } = parsed as Partial<StoredGraph>;
@@ -361,7 +377,7 @@ export function checkStored(parsed: unknown, knownPartIds: ReadonlySet<string>, 
   for (const p of pieces) {
     if (typeof p !== 'object' || p === null) return UNREADABLE;
     const { pieceId, partId, turn } = p as Record<string, unknown>;
-    if (typeof pieceId !== 'string' || typeof partId !== 'string') {
+    if (!isPieceId(pieceId) || typeof partId !== 'string') {
       return UNREADABLE;
     }
     if (!knownPartIds.has(partId)) return { ok: false, reason: 'unknown-part', partId };
