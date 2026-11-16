@@ -5,6 +5,20 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.2.1 (2026-11-16)
+
+From a design review of My layouts on the live site.
+
+- **A panel you open now comes into view.** On a laptop-sized screen,
+  pressing My layouts opened the panel almost wholly off screen (4px of it
+  showed at 1280 by 800), so the press seemed to do nothing. My layouts, Your
+  box, Your table and Add a part are now scrolled into view when they open,
+  and the keyboard's place moves to the panel instead of being lost.
+- The put-aside row reads like every other row: its name, then its piece
+  count in the small number face, where the count used to sit in heavy type
+  inside the name.
+- Every row's buttons sit at the same edge, on a phone too.
+
 ## 1.2.0 (2026-11-16)
 
 **My layouts.** Keep several layouts in this browser, each under a name, and

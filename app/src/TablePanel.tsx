@@ -11,6 +11,7 @@
  */
 
 import { useDraft } from './useDraft.js';
+import { useArrival } from './useArrival.js';
 import { sanitizeSideCm, TABLE_MAX_CM, TABLE_MIN_CM, type Table } from './tableModel.js';
 
 export interface TablePanelProps {
@@ -37,8 +38,9 @@ export function TablePanel({ table, onChange, onClose }: TablePanelProps) {
   const badWidth = bad(width, touched.width);
   const badDepth = bad(depth, touched.depth);
 
+  const arrival = useArrival<HTMLElement>();
   return (
-    <section className="inventory" aria-label="Your table">
+    <section className="inventory" aria-label="Your table" ref={arrival} tabIndex={-1}>
       <header className="inventory-head">
         <h2 className="inventory-title">Your table</h2>
         <button className="inventory-close" onClick={onClose}>
