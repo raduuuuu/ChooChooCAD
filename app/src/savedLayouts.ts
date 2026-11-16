@@ -28,13 +28,13 @@
  * (`checkStored`) ever looks inside, when one is opened. So there is one
  * validator, and no second layout format.
  *
- * NOTHING READS THIS MODULE YET. The panel that does is the next pull request.
+ * Read by the My layouts panel (`MyLayouts.tsx`), and loaded with it.
  */
 
 import { remove, write } from '../../engine/data/storage.js';
+import { SAVED_PREFIX, savedKeys } from './savedKeys.js';
 
-/** Every saved layout's key starts with this. The crash screen will list them by it. */
-export const SAVED_PREFIX = 'generic.layouts.v1.';
+export { SAVED_PREFIX, savedKeys };
 
 export const NAME_MAX = 40;
 
@@ -123,20 +123,6 @@ const rowOf = (id: string, raw: string): Row => {
   const entry = parse(id, raw);
   return entry ? { kind: 'layout', ...entry } : { kind: 'unreadable', id, raw };
 };
-
-/** Every key the saved layouts hold, for the list and for the crash screen. */
-export function savedKeys(): string[] {
-  const keys: string[] = [];
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k !== null && k.startsWith(SAVED_PREFIX)) keys.push(k);
-    }
-  } catch {
-    // Storage that cannot be listed holds nothing this app can show.
-  }
-  return keys;
-}
 
 /**
  * The list: readable layouts newest first, then the entries that cannot be

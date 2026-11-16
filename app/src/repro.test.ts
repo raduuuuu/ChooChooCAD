@@ -480,11 +480,13 @@ describe('the crash screen knows every key the app writes', () => {
    * running screen in crashKeys.dom.test.tsx.
    *
    * MUTATION PROOF, run: the loop put back to a hand-written list of five:
-   * `expected 'private clearAndReload = () => {…' to contain 'for (const key of MOVED_KEYS)'`.
+   * `expected 'private clearAndReload = (savedToo = …' to contain 'savedToo ?
+   * [...MOVED_KEYS, ...savedKeys()] : MOVED_KEYS'`.
    */
   it('clears from the one list of kept keys', () => {
     const clearBlock = source.slice(source.indexOf('private clearAndReload'), source.indexOf('location.reload'));
-    expect(clearBlock).toContain('for (const key of MOVED_KEYS)');
+    // The fixed list always; the saved layouts' keys with it only for the second answer.
+    expect(clearBlock).toContain('savedToo ? [...MOVED_KEYS, ...savedKeys()] : MOVED_KEYS');
   });
 
   /*

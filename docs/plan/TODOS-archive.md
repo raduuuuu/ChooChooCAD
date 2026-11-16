@@ -1120,3 +1120,28 @@ pieces, under a reserved key (`app/src/inventoryModel.ts:38`), and a layout
 can be short of adapters alone. Both the copied list and "These are mine"
 must include them, with a test for the adapter-only case.
 **Effort:** human ~3 d / CC ~1.5 h. **Depends on:** nothing.
+
+
+## DONE 2026-11-16 (versions 1.1.1 to 1.2.0) — Several saved layouts ("My layouts")
+
+**Done 2026-11-16** in three pull requests: the plan (#303), the store and
+`openInEditor` made safe to reuse (#304), and the panel with the crash
+screen's two answers (the My layouts PR). `app/src/MyLayouts.tsx`,
+`app/src/savedLayouts.ts`, `app/src/savedKeys.ts`,
+`docs/plan/2026-11-16-saved-layouts.md`.
+
+**What:** "My layouts": name a layout, keep several in the browser, reopen
+any of them.
+**Why:** Today the browser keeps one layout and one put aside
+(`app/src/storageKeys.ts:38,87`); a second layout pushes the first out
+unless it is saved to a file by hand.
+**Planned 2026-11-16:** `docs/plan/2026-11-16-saved-layouts.md` holds the
+owner's seven decisions, the design, the storage design (one key per layout,
+no index), the tests and the outside review. Two pull requests: S1, the
+store and `openInEditor` made safe to reuse, with nothing a visitor can
+reach; S2, the panel and the crash screen's two answers, switched on.
+**For the owner in S2:** the crash screen's first answer keeps saved layouts
+and removes added parts, so a saved layout that uses one will not open until
+the part is added again (the plan, "A saved layout can outlive a piece it
+uses").
+**Effort:** human ~1.5 weeks / CC ~4.5 h. **Depends on:** nothing.

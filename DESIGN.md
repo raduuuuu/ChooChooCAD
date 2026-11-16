@@ -343,7 +343,10 @@ things sit differs.
   first, with its own buttons; "and 1 more" opens the rest. A failed save is
   never hidden.
 - **Panels are full screen** with their name and Done in a row that does not
-  scroll.
+  scroll. My layouts is one of them (plan 2026-11-16): a saved layout is a
+  copy that changes only by "Update"; opening one puts the layout on screen
+  aside first and asks before replacing a put-aside layout that is kept
+  nowhere else; a refusal is a sentence, never a colour.
 - **On a touch screen no sentence names a key or a click** (design DD8):
   "Tap another free end", "Place", "Cancel".
 

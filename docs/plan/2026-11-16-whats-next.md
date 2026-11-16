@@ -606,7 +606,7 @@ assume this order and nothing merged in between.
   - Surfaced by: A2 (D4); Sections 1, 2, 4, 9, 11; outside finding O2
   - Files: a plan under `docs/plan/`; no code
   - Verify: the plan answers, with the owner's word on each: where the list lives on both screens; what a row shows; how a layout is named, and whether it can be renamed, share a name or be removed; whether edits to a reopened layout change its entry; whether the box and the table belong to a layout or to the browser (today: the browser); what happens to put-aside; what the crash screen's "clear" removes; how many layouts fit and what a full store says. And the storage design: no shared record that two tabs can overwrite (any index must be rebuildable from the per-layout keys), and a blob written by the version before still opens
-- [ ] **T6 (P2, human: ~1 week / CC: ~3 h)** — app — Several saved layouts (1.1.1 to 1.2.0)
+- [x] **T6 (P2, human: ~1 week / CC: ~3 h)** — app — Several saved layouts (1.1.1 to 1.2.0)
   - Surfaced by: A2 (D4)
   - Files: to be determined by T5
   - Verify: T5's list, each with its test; a layout saved before the deploy opens after it

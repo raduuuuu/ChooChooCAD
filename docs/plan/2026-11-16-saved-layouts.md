@@ -274,11 +274,17 @@ real tabs, a real phone.
   neither slot is offered as a file. For S2 to know: the store's functions
   take the layout's bytes and piece count from the caller, and `savedKeys()`
   is the prefix scan the crash screen needs.
-- [ ] **S2 (human: ~1 week / CC: ~3 h)** — the panel, lazy, on both screens;
+- [x] **S2 (human: ~1 week / CC: ~3 h)** — the panel, lazy, on both screens;
   opening, Update and Keep as new, Rename, Remove and Put it back, the
   put-aside row; the kept-keys function and the crash screen's two answers
   and report; the owner's word on the added-parts consequence; looked at in
   a browser at wide and phone sizes. 1.1.2 to 1.2.0.
+  Built 2026-11-16. Decided on the way, by the owner: the crash reset
+  removes added parts as planned (a saved layout using one says why it will
+  not open and can be saved to a file); and the first-load baseline was
+  re-measured at 172.24 kB when the panel's wiring went 0.35 kB over the old
+  cap. Added beyond the plan: no question is asked when the put-aside layout
+  is also in the list, since replacing it loses nothing.
 - [ ] **After S2:** `/design-review` on the live panel, and the owner's look
   on a real phone with the rest of the real-phone pass.
 

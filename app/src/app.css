@@ -1232,6 +1232,30 @@
   cursor: pointer;
 }
 .inventory-fills button:hover { border-color: var(--ink-soft); }
+/*
+ * MY LAYOUTS (plan 2026-11-16, saved layouts). The panel is Your box's panel
+ * (`.inventory`), with a row per layout. No colour: a refusal is a sentence.
+ */
+.layouts-keep { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+.layouts-name { flex: 1 1 16ch; min-width: 0; max-width: 32ch; }
+/* 44px on every screen: a data-entry field has no smaller size (DESIGN.md rule 10). */
+.layouts-name input { width: 100%; min-height: 44px; padding: 0 var(--s2); background: var(--paper); border: 1px solid var(--rule); border-radius: 3px; color: var(--ink); font: inherit; font-size: 14px; }
+.my-layouts button { min-height: 36px; padding: 0 var(--s3); background: transparent; border: 1px solid var(--rule); border-radius: 3px; color: var(--ink); font: inherit; font-size: 14px; cursor: pointer; }
+.my-layouts button:hover { border-color: var(--ink-soft); }
+/* The one action: heavier by weight, never by colour (rule 1). */
+.my-layouts .layouts-primary { border: 2px solid var(--ink); font-weight: 600; }
+.my-layouts .inventory-close { border: none; }
+.layouts-said button { margin-inline-start: var(--s2); }
+.layouts-ask { padding: var(--s2) var(--s3); border: 1px solid var(--rule); border-radius: 3px; }
+.layouts-ask p, .layouts-ask ul { margin: 0 0 var(--s2); font-size: 14px; }
+.layouts-ask ul { padding-inline-start: var(--s4); }
+.layouts-rows { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--s2); }
+.layouts-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s3); min-height: 44px; padding: var(--s1) var(--s2); background: var(--paper); border: 1px solid var(--rule); border-radius: 3px; }
+.layouts-row-name { flex: 1 1 14ch; min-width: 0; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.layouts-row-facts { font-size: 13px; color: var(--ink-soft); }
+.layouts-row-buttons { display: flex; flex-wrap: wrap; gap: var(--s1); }
+@media (pointer: coarse) { .my-layouts button { min-height: 44px; } }
+@media (min-width: 1000px) { .palette-controls > .layouts-open { grid-column: span 6; } }
 /* What "These are mine" and "Copy what is short" did. An empty line takes no room. */
 .inventory-said { margin: 0; font-size: 14px; color: var(--ink); }
 .inventory-said:empty { display: none; }

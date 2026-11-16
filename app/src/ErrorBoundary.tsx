@@ -26,6 +26,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { SUBMISSIONS_STORAGE_KEY } from '../../engine/data/library.js';
 import { MOVED_KEYS } from './oldNames.js';
+import { savedKeys } from './savedKeys.js';
 import { reproText } from './repro.js';
 import { remove } from '../../engine/data/storage.js';
 import {
@@ -44,8 +45,19 @@ const PARSED_IN_REPORT: ReadonlySet<string> = new Set([
   SUBMISSIONS_STORAGE_KEY,
 ]);
 
-/** The button that removes everything the app keeps, saying all of what goes. */
+/** The button that removes everything the app keeps but the saved layouts, saying all of what goes. */
 export const CLEAR_CONFIRM = 'Yes, delete my track, the layout put aside, my box, my table and my added parts';
+/**
+ * SAVED LAYOUTS ARE KEPT BY THE FIRST ANSWER (owner, 2026-11-16, D4): they
+ * may be a family's whole collection, and the app never reads inside one
+ * until it is opened, so they cannot stop it starting. Said only when there
+ * are some, with the one consequence the owner accepted: the parts a person
+ * added are cleared, so a saved layout that uses one waits for it.
+ */
+export const CLEAR_KEEPS_SAVED =
+  'Your saved layouts are kept. One that uses a part you added will not open until you add that part again.';
+/** The second answer: everything, the saved layouts too. Without it, a crash the list itself caused would have no way out. */
+export const CLEAR_EVERYTHING = 'Delete everything, my saved layouts too';
 
 function read(key: string): string | null {
   try {
@@ -99,8 +111,9 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
    *
    * CHAIN_STORAGE_KEY stays as legacy cleanup.
    */
-  private clearAndReload = () => {
-    for (const key of MOVED_KEYS) {
+  private clearAndReload = (savedToo = false) => {
+    // The saved layouts' keys are a family, found by their prefix at this moment.
+    for (const key of savedToo ? [...MOVED_KEYS, ...savedKeys()] : MOVED_KEYS) {
       // A failure leaves nothing useful to do; the reload is still worth attempting.
       remove(key);
     }
@@ -125,7 +138,8 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
       chain: read(CHAIN_STORAGE_KEY),
       inventory: read(INVENTORY_STORAGE_KEY),
       submissions: read(SUBMISSIONS_STORAGE_KEY),
-      other: MOVED_KEYS.filter((k) => !PARSED_IN_REPORT.has(k)).map((k) => [k, read(k)] as const),
+      // The saved layouts ride along too, raw: whichever button is pressed, the report already holds them.
+      other: [...MOVED_KEYS.filter((k) => !PARSED_IN_REPORT.has(k)), ...savedKeys()].map((k) => [k, read(k)] as const),
       version: typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'unknown',
       userAgent: typeof navigator === 'undefined' ? 'unknown' : navigator.userAgent,
       error: { name: error.name, message: error.message },
@@ -145,9 +159,14 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
           </button>
           {confirmingClear ? (
             <>
-              <button onClick={this.clearAndReload}>
+              <button onClick={() => this.clearAndReload()}>
                 {CLEAR_CONFIRM}
               </button>
+              {savedKeys().length > 0 && (
+                <button onClick={() => this.clearAndReload(true)}>
+                  {CLEAR_EVERYTHING}
+                </button>
+              )}
               <button onClick={() => this.setState({ confirmingClear: false })}>
                 Cancel
               </button>
@@ -158,6 +177,8 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
             </button>
           )}
         </div>
+
+        {confirmingClear && savedKeys().length > 0 && <p className="crash-lead">{CLEAR_KEEPS_SAVED}</p>}
 
         <p className="crash-lead">
           This is what you were working on when it broke. Send it to whoever maintains
