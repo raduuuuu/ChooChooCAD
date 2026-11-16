@@ -5,6 +5,17 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.0.2 (2026-11-16)
+
+- The backlog (`docs/plan/generic-TODOS.md`) lists only open work again.
+  Finished, superseded and shelved entries moved word for word to the
+  archive; nothing was cut.
+- A plan for what comes next (`docs/plan/2026-11-16-whats-next.md`):
+  hardening, the checkup's leftovers, a buy list with "These are mine", and
+  several saved layouts.
+- README's licence section now says the maintainer considers the use of the
+  published piece sizes to raise no issue. Nothing in the app changed.
+
 ## 1.0.1 (2026-11-15)
 
 - A rule for whoever plans work on the app: every plan names the version it

@@ -152,12 +152,11 @@ the version it is running.
 
 The source code is MIT licensed. See `LICENSE`.
 
-**The MIT grant covers the code, not the part data.** Part dimensions in
-`engine/data/` are partly transcribed from a published track guide's tables.
-Individual measurements of physical objects are facts, but a curated
-compilation of them may be protected, and that question is open. It is not
-mine to grant until it is settled or the figures are re-derived from physical
-measurement.
+**The MIT grant covers the code.** Part dimensions in `engine/data/` are
+partly transcribed from a published track guide's tables. Individual
+measurements of physical objects are facts, and I consider their use here to
+raise no issue (2026-11-14). That is my own view as the maintainer, not legal
+advice.
 
 If you maintain that guide and object to this use, open an issue and I will
 take the data down.
