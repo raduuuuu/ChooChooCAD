@@ -24,7 +24,7 @@
  */
 
 import type { DimensionSource, Part, PartEnds, SlopBudget } from '../src/parts/schema.js';
-import { checkMeasurements, clearance, jointSlop } from './calibration.js';
+import { checkMeasurements, jointSlop } from './calibration.js';
 import { MEASUREMENTS } from './measurements.js';
 import { RAMP_SEEDS } from './rampSeeds.js';
 import { SWITCH_SEEDS } from './switchSeeds.js';
@@ -232,16 +232,3 @@ export function getPart(id: string): Part {
   return p;
 }
 
-/**
- * Vehicle scalars, used by the traversal checker for grade and clearance.
- *
- * Deliberately two numbers rather than a rolling-stock model: the checker
- * performs no derailment physics, so wheelbase, bogie pivot and coupler swing
- * are not required. Both are 'estimated' and must be measured alongside the
- * track corpus.
- */
-export const VEHICLE = {
-  heightMm: clearance(MEASUREMENTS).trainMm,
-  maxGradePercent: 30,
-  calibrationStatus: 'estimated' as const,
-};

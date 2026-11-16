@@ -561,12 +561,6 @@ function Unmarked({ n }: { n: number }) {
 /** The facts the raised-track note needs, or null when nothing is off the floor. */
 const raisedOf = (e: VerdictView, supports: SupportNote | null) => (e.raised ? { bridges: e.bridgeCount, supports } : null);
 
-export function adapterNote(n: number): string {
-  return n === 1
-    ? 'Needs 1 male-male adapter: two sockets meet at 1 joint.'
-    : `Needs ${n} male-male adapters: two sockets meet at ${n} joints.`;
-}
-
 /**
  * WHAT THE VERDICT RESTS ON, stated once (task T3b).
  *

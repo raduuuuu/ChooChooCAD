@@ -236,15 +236,18 @@ export const RESOLVED: readonly Citation[] = [
 /** Nothing is unresolved. Kept as a named empty set so its absence is explicit. */
 export const CONFLICTS: readonly Citation[] = [];
 
-/**
- * Two-ended pieces present in the source and NOT yet in the catalogue, with the
- * reason each is or is not addable as data.
+/*
+ * TWO-ENDED PIECES IN THE SOURCE AND NOT IN THE CATALOGUE, as first noted,
+ * with why each was or was not addable as data. A note, not data: it was an
+ * exported list nothing read (removed 2026-11-16, the checkup's leftovers).
+ * B, C, B1 and C1 have since been added.
+ *
+ *   B/C     Medium Straight polarity variants, 144mm. Addable but RETIRED;
+ *           1980s sets only.
+ *   B1/C1   Short Straight polarity variants, 108mm. Addable but RETIRED.
+ *   EE/EE1  Double curves. NOT addable as a two-ended part: two parallel
+ *           curves in one piece means four ends.
  */
-export const KNOWN_ABSENT = [
-  { id: 'B/C', name: 'Medium Straight polarity variants', lengthMm: 144, note: 'Addable but RETIRED; 1980s sets only.' },
-  { id: 'B1/C1', name: 'Short Straight polarity variants', lengthMm: 108, note: 'Addable but RETIRED.' },
-  { id: 'EE/EE1', name: 'Double curves', lengthMm: 0, note: 'NOT addable as a two-ended part: two parallel curves in one piece means four ends.' },
-] as const;
 
 /**
  * THE SWITCH: searched for, not found. Task T1, 2026-10-13.

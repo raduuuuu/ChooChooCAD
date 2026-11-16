@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../data/library.js';
-import { removePiece, removeWeld, weldsTouching } from '../src/graph/edit.js';
+import { removePiece, removeWeld } from '../src/graph/edit.js';
 import { placeAll, residuals, closesExactly } from '../src/graph/frames.js';
 import { graphFromChain } from '../src/graph/fromChain.js';
 import { portsOf, type Graph, type Piece, type Port } from '../src/graph/model.js';
@@ -120,7 +120,7 @@ describe('T11: deleting a piece takes its welds with it', () => {
       closed: true,
     });
     // p3 is interior: it carries two welds.
-    expect(weldsTouching(g, 'p3')).toHaveLength(2);
+    expect(g.welds.filter((w) => w.a.pieceId === 'p3' || w.b.pieceId === 'p3')).toHaveLength(2);
     const after = removePiece(g, ports, 'p3');
 
     const ids = new Set(after.pieces.map((p) => p.pieceId));

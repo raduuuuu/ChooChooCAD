@@ -1065,3 +1065,30 @@ verdict (F), the differential test's verdict order (F), and the ready
 layouts' tests, which now take the path the app takes (C).
 
 **Effort:** human ~2 d / CC ~3 h. **Depends on:** nothing.
+
+
+## DONE 2026-11-16 (version 1.0.4) — Checkup leftovers
+
+**Done 2026-11-16 (branch checkup-leftovers).** Every action in the three
+workflows is pinned to its full commit with its version in a comment. The six
+exports nothing called are gone (`KNOWN_ABSENT`'s content stays as a comment
+in sources.ts). The crash screen reports and clears every key the app keeps,
+from the one list of them (`MOVED_KEYS`, app/src/oldNames.ts), by the owner's
+decision of 2026-11-16: all six missing keys, both ways, the layout put aside
+included, and the confirming button says so.
+
+From the deep checkup of 2026-11-15 (issue #209):
+
+- **Actions are pinned by tag, not by commit,** in `ci.yml`, `checkup.yml`
+  and `pages.yml` (the security audit's one finding, low).
+- **Exports nothing calls:** `nominalFinalHeading` and `bounds`
+  (`engine/src/geom/fk.ts`), `VEHICLE` (`engine/data/generic.ts`),
+  `KNOWN_ABSENT` (`engine/data/sources.ts`), and two kept alive only by a
+  test: `weldsTouching` (`engine/src/graph/edit.ts`) and `adapterNote`
+  (`app/src/VerdictLine.tsx`).
+- **The crash screen's key list** covers 5 of the 10 stored keys
+  (`app/src/ErrorBoundary.tsx:81`, `app/src/storageKeys.ts`): decide which of
+  the other five a crash report should carry and which "clear" should remove.
+  The owner decides key by key, in the pull request.
+
+**Effort:** human ~1 d / CC ~1 h. **Depends on:** nothing.

@@ -162,39 +162,3 @@ export function walkFloat(
 
   return { poses, segments };
 }
-
-/** Nominal final heading in radians, with no slop applied. */
-export function nominalFinalHeading(
-  layout: Layout,
-  resolve: (id: string) => Part,
-): number {
-  let steps = 0;
-  for (const pl of layout.placements) {
-    const part = resolve(pl.partId);
-    if (part.kind === 'curve') {
-      steps += (pl.turn ?? 'left') === 'left' ? part.arcSteps : -part.arcSteps;
-    }
-  }
-  return (steps * Math.PI) / 8;
-}
-
-/** Bounding box of a configuration, in millimetres. */
-export function bounds(poses: readonly FPose[]): {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-} {
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  for (const p of poses) {
-    minX = Math.min(minX, p.x);
-    minY = Math.min(minY, p.y);
-    maxX = Math.max(maxX, p.x);
-    maxY = Math.max(maxY, p.y);
-  }
-  if (!Number.isFinite(minX)) return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
-  return { minX, minY, maxX, maxY };
-}

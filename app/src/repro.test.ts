@@ -17,6 +17,7 @@ const base: ReproInput = {
   chain: '[{"partId":"E","turn":"left"}]',
   inventory: '{"E":8}',
   submissions: '[]',
+  other: [],
   version: 'abc1234',
   userAgent: 'TestAgent/1.0',
   error: { name: 'TypeError', message: 'x is not a function' },
@@ -406,6 +407,7 @@ describe('the repro header cannot be escaped', () => {
     chain: null,
     inventory: null,
     submissions: null,
+    other: [],
     version: 'abc123',
     userAgent: 'UA',
     error: { name: 'Error', message: 'boom' },
@@ -470,29 +472,19 @@ describe('the repro header cannot be escaped', () => {
 describe('the crash screen knows every key the app writes', () => {
   const source = readFileSync(join(import.meta.dirname, 'ErrorBoundary.tsx'), 'utf8');
 
-  it('names every storage key in its clear list', () => {
-    const clearBlock = source.slice(
-      source.indexOf('private clearAndReload'),
-      source.indexOf('location.reload'),
-    );
-    const owned = [
-      'GRAPH_STORAGE_KEY',
-      'GRAPH_RESCUE_KEY',
-      'CHAIN_STORAGE_KEY',
-      'INVENTORY_STORAGE_KEY',
-      'SUBMISSIONS_STORAGE_KEY',
-    ];
-    const missing = owned.filter((name) => !clearBlock.includes(name));
-    expect(missing, `the clear list does not name: ${missing.join(', ')}`).toEqual([]);
-  });
-
-  it('clears the LIVE layout key, not only the retired one', () => {
-    const clearBlock = source.slice(
-      source.indexOf('private clearAndReload'),
-      source.indexOf('location.reload'),
-    );
-    // The specific regression: CHAIN was cleared and GRAPH was not.
-    expect(clearBlock).toContain('GRAPH_STORAGE_KEY');
+  /*
+   * THE CLEAR LIST IS THE APP'S ONE LIST OF KEYS, not a second list kept here.
+   * These two specs used to name five keys by hand, and so did the code: six
+   * newer keys were in neither, and both stayed green. What each key is, and
+   * that every one of them is reported and removed, is now asserted on the
+   * running screen in crashKeys.dom.test.tsx.
+   *
+   * MUTATION PROOF, run: the loop put back to a hand-written list of five:
+   * `expected 'private clearAndReload = () => {…' to contain 'for (const key of MOVED_KEYS)'`.
+   */
+  it('clears from the one list of kept keys', () => {
+    const clearBlock = source.slice(source.indexOf('private clearAndReload'), source.indexOf('location.reload'));
+    expect(clearBlock).toContain('for (const key of MOVED_KEYS)');
   });
 
   /*
@@ -523,6 +515,45 @@ describe('the crash screen knows every key the app writes', () => {
   });
 });
 
+describe('the repro carries every other stored value, raw', () => {
+  const base = { graph: null, rescue: null, chain: null, inventory: null, submissions: null, version: 't', userAgent: 't', error: { name: 'Error', message: 'm' } };
+
+  /*
+   * MUTATION PROOFS, run:
+   * - the line that prints them dropped: the text no longer contains
+   *   `console.log('other stored values', otherStored);`.
+   * - each value written between bare quotes in place of `JSON.stringify`:
+   *   the table's bytes are no longer found, because the quotes inside the
+   *   value are no longer escaped.
+   */
+  it('prints each key with its bytes, parsed or not, and says when a key was absent', () => {
+    const t = reproText({
+      ...base,
+      other: [
+        ['generic.table.v0', '{"widthMm":1200,"depthMm":800}'],
+        ['generic.build.v0', '{not json'],
+        ['generic.view.v0', null],
+      ],
+    });
+    expect(t).toContain('"generic.table.v0": "{\\"widthMm\\":1200,\\"depthMm\\":800}"');
+    expect(t).toContain('"generic.build.v0": "{not json"');
+    expect(t).toContain('"generic.view.v0": null');
+    expect(t).toContain("console.log('other stored values', otherStored);");
+  });
+
+  /*
+   * A stored value is attacker-chosen text going into a file the crash screen
+   * tells the reader to RUN. The same mutation as above (bare quotes in
+   * place of `JSON.stringify`) fails this spec too: the line break inside
+   * the value becomes a real one and `console.log(1)` starts a line.
+   */
+  it('cannot put a line of code into the file', () => {
+    const t = reproText({ ...base, other: [['generic.view.v0', '3d"\n};\nconsole.log(1)//']] });
+    expect(t).not.toMatch(/^console\.log\(1\)/m);
+    expect(t).toContain('"generic.view.v0": "3d\\"\\n};\\nconsole.log(1)//"');
+  });
+});
+
 describe('the repro carries the layout the app actually saved', () => {
   it('emits the graph blob rather than reporting an empty layout', () => {
     const t = reproText({
@@ -531,6 +562,7 @@ describe('the repro carries the layout the app actually saved', () => {
       chain: null,
       inventory: null,
       submissions: null,
+      other: [],
       version: 'abc123',
       userAgent: 'UA',
       error: { name: 'Error', message: 'boom' },
@@ -546,6 +578,7 @@ describe('the repro carries the layout the app actually saved', () => {
       chain: null,
       inventory: null,
       submissions: null,
+      other: [],
       version: 'abc123',
       userAgent: 'UA',
       error: { name: 'Error', message: 'boom' },

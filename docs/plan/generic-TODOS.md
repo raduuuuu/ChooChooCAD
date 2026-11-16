@@ -111,24 +111,6 @@ none stacked. The version numbers assume this order and nothing merged in
 between; if `main` has moved, the part that goes up stays and the number
 follows (AGENTS.md).
 
-## P2 — Checkup leftovers (takes 1.0.3 to 1.0.4, patch)
-
-From the deep checkup of 2026-11-15 (issue #209):
-
-- **Actions are pinned by tag, not by commit,** in `ci.yml`, `checkup.yml`
-  and `pages.yml` (the security audit's one finding, low).
-- **Exports nothing calls:** `nominalFinalHeading` and `bounds`
-  (`engine/src/geom/fk.ts`), `VEHICLE` (`engine/data/generic.ts`),
-  `KNOWN_ABSENT` (`engine/data/sources.ts`), and two kept alive only by a
-  test: `weldsTouching` (`engine/src/graph/edit.ts`) and `adapterNote`
-  (`app/src/VerdictLine.tsx`).
-- **The crash screen's key list** covers 5 of the 10 stored keys
-  (`app/src/ErrorBoundary.tsx:81`, `app/src/storageKeys.ts`): decide which of
-  the other five a crash report should carry and which "clear" should remove.
-  The owner decides key by key, in the pull request.
-
-**Effort:** human ~1 d / CC ~1 h. **Depends on:** nothing.
-
 ## P2 — A buy list, and "These are mine" (takes 1.0.4 to 1.1.0, minor)
 
 **What:** In Your box: copy the list of pieces the layout on screen is short
@@ -213,6 +195,10 @@ notices and the shortfall rows of their own and left this as it was.
 
 **Effort:** human ~3 h / CC ~30 min for the first; the other two are
 decisions. **Depends on:** nothing.
+
+Not stored across visits, so not part of the crash screen's list: the two
+fold states kept for a browser session (`generic.verdict.notes.open`,
+`generic.verdict.phone.open`). A crash report does not carry them.
 
 ## P2 — Works offline, installs to the home screen (deferred 2026-11-16)
 

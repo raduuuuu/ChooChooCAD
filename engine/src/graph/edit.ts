@@ -121,11 +121,3 @@ export function removePiece(graph: Graph, ports: PortsOf, pieceId: string): Grap
   );
   return { ...next, anchors: captureAnchors(graph, next, ports) };
 }
-
-/** Every weld that touches a piece. Useful before offering a delete. */
-export function weldsTouching(graph: Graph, pieceId: string): readonly number[] {
-  return graph.welds
-    .map((w, i) => ({ w, i }))
-    .filter(({ w }) => w.a.pieceId === pieceId || w.b.pieceId === pieceId)
-    .map(({ i }) => i);
-}

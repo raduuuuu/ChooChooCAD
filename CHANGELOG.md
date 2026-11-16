@@ -5,6 +5,18 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.0.4 (2026-11-16)
+
+- **If the app crashes,** its report now shows everything the app keeps, and
+  "Clear saved data" removes everything it keeps. Six things were missing
+  from both: your table, the 2D or 3D choice, where a build was left (yours
+  and a shared link's), the layout you put aside and the selection hint. A
+  crash one of them caused could not be reported, and clearing did not
+  recover from it. The button that confirms the clearing now names all of
+  what goes, the layout put aside included.
+- For the repository: every GitHub Action is pinned to an exact commit, and
+  six pieces of code nothing used are removed.
+
 ## 1.0.3 (2026-11-16)
 
 Fixes only.
