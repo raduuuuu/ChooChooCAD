@@ -21,6 +21,7 @@
  */
 
 import { useDraft } from './useDraft.js';
+import { useArrival } from './useArrival.js';
 import { newSubmissionId, RESERVED_ID_PREFIX, userMeasured, type Submission } from '../../engine/data/library.js';
 import { SYSTEM_NAME, type Brand, type Part, type Polarity } from '../../engine/src/parts/schema.js';
 
@@ -112,8 +113,9 @@ export function SubmitPart({ existingIds, notTwoEndedIds, onSubmit, onCancel }: 
     onSubmit({ part, submissionId: newSubmissionId(), at: new Date().toISOString() });
   };
 
+  const arrival = useArrival<HTMLElement>();
   return (
-    <section className="submit" aria-label="Submit a part">
+    <section className="submit" aria-label="Submit a part" ref={arrival} tabIndex={-1}>
       <header className="inventory-head">
         <h2 className="inventory-title">Add a part you own</h2>
         <button className="inventory-close" onClick={onCancel}>Cancel</button>

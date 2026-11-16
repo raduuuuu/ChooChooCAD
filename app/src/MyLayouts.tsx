@@ -47,6 +47,7 @@ import {
   type SavedLayout,
 } from './savedLayouts.js';
 import { GRAPH_PREVIOUS_KEY } from './storageKeys.js';
+import { useArrival } from './useArrival.js';
 
 export const MY_LAYOUTS = 'My layouts';
 export const LAYOUTS_FOR = 'Keep a layout here to come back to it. It stays in this browser.';
@@ -62,6 +63,7 @@ export const REMOVE_FAILED = "That layout couldn't be removed. It is still in th
 export const PUT_BACK_FAILED = "Couldn't put it back: the browser's storage is full. Save it to a file to keep it.";
 export const ONLY_HERE = 'Storage is full, so that layout is only in this tab now. Save it to a file to keep it.';
 export const UNREADABLE_ROW = "A layout that can't be read, kept exactly as saved";
+export const PUT_ASIDE_ROW = 'Put aside';
 export const asKept = (name: string) => `This is "${name}", as kept.`;
 export const removedLine = (name: string) => `Removed "${name}".`;
 /** The loader's two refusals, said for a saved layout. */
@@ -136,6 +138,7 @@ export default function MyLayouts({ layoutBytes, pieces, own, allSaved, check, o
   const [draft, setDraft] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<{ readonly id: string; readonly name: string } | null>(null);
   const [ask, setAsk] = useState<Ask>(null);
+  const arrival = useArrival<HTMLElement>();
   const refresh = () => {
     setRows(listSaved());
     setAside(putAside());
@@ -236,7 +239,7 @@ export default function MyLayouts({ layoutBytes, pieces, own, allSaved, check, o
   };
 
   return (
-    <section className="inventory my-layouts" aria-label={MY_LAYOUTS}>
+    <section className="inventory my-layouts" aria-label={MY_LAYOUTS} ref={arrival} tabIndex={-1}>
       <header className="inventory-head">
         <h2 className="inventory-title">{MY_LAYOUTS}</h2>
         <button className="inventory-close" onClick={onClose}>
@@ -327,9 +330,9 @@ export default function MyLayouts({ layoutBytes, pieces, own, allSaved, check, o
         {/* D2: the one put-aside slot, where people now look for layouts. */}
         {aside.kind !== 'none' && (
           <li className="layouts-row">
-            <span className="layouts-row-name">
-              Put aside, <span className="num">{aside.kind === 'layout' ? piecesWord(aside.pieces) : UNREADABLE_LAYOUT}</span>
-            </span>
+            {/* The same three parts as a kept row: a name, its facts, its buttons. */}
+            <span className="layouts-row-name">{PUT_ASIDE_ROW}</span>
+            <span className="layouts-row-facts">{aside.kind === 'layout' ? <span className="num">{piecesWord(aside.pieces)}</span> : UNREADABLE_LAYOUT}</span>
             <span className="layouts-row-buttons">
               <button onClick={restore}>Open</button>
               {aside.kind === 'layout' && <button onClick={keepAside}>Keep</button>}

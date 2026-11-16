@@ -1253,7 +1253,7 @@
 .layouts-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s3); min-height: 44px; padding: var(--s1) var(--s2); background: var(--paper); border: 1px solid var(--rule); border-radius: 3px; }
 .layouts-row-name { flex: 1 1 14ch; min-width: 0; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
 .layouts-row-facts { font-size: 13px; color: var(--ink-soft); }
-.layouts-row-buttons { display: flex; flex-wrap: wrap; gap: var(--s1); }
+.layouts-row-buttons { display: flex; flex-wrap: wrap; gap: var(--s1); margin-inline-start: auto; }
 @media (pointer: coarse) { .my-layouts button { min-height: 44px; } }
 @media (min-width: 1000px) { .palette-controls > .layouts-open { grid-column: span 6; } }
 /* What "These are mine" and "Copy what is short" did. An empty line takes no room. */

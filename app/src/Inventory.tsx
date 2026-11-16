@@ -12,6 +12,7 @@
  */
 
 import { useState } from 'react';
+import { useArrival } from './useArrival.js';
 import { codeOf, type Part } from '../../engine/src/parts/schema.js';
 import {
   ADAPTER_INVENTORY_KEY,
@@ -119,8 +120,9 @@ export function InventoryPanel({
     onChange({ ...base, [partId]: value });
   };
 
+  const arrival = useArrival<HTMLElement>();
   return (
-    <section className="inventory" aria-label="What you own">
+    <section className="inventory" aria-label="What you own" ref={arrival} tabIndex={-1}>
       <header className="inventory-head">
         <h2 className="inventory-title">What you own</h2>
         <button className="inventory-close" onClick={onClose}>

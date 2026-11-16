@@ -190,7 +190,8 @@ describe('opening a saved layout', () => {
     await reloadInto(user);
     // The editor's own serialization of what it loaded is the entry's bytes: the kept layout is recognised.
     expect(panel().textContent).toContain('This is "Rug loop", as kept.');
-    expect(rowNames()[0]).toBe('Put aside, 2 pieces');
+    expect(rowNames()[0]).toBe('Put aside');
+    expect(inRow('Put aside').getByText('2 pieces')).toBeTruthy();
   });
 
   /*
@@ -355,7 +356,9 @@ describe('tidying the list', () => {
 describe('the put-aside layout, in the list (D2)', () => {
   /*
    * MUTATION PROOFS, run:
-   * - the row drawn when nothing is put aside: `expected [ 'Put aside, …' ] to deeply equal []`.
+   * - the row drawn when nothing is put aside: `expected [ 'Put aside' ] to deeply equal []`.
+   * - its count taken out of the number face: `Cannot read properties of null
+   *   (reading 'textContent')`.
    * - its Keep emptying the slot: `expected null to be '{"pieces":[…'`.
    * - its Open going through `openInEditor` (which would ask to overwrite the
    *   slot being opened): `expected false to be true`, no reload.
@@ -366,11 +369,13 @@ describe('the put-aside layout, in the list (D2)', () => {
     cleanup();
     localStorage.setItem(GRAPH_PREVIOUS_KEY, THREE);
     await reloadInto(user);
-    expect(rowNames()).toEqual(['Put aside, 3 pieces']);
+    expect(rowNames()).toEqual(['Put aside']);
+    // Its count is the row's facts, in the number face, as on a kept row (design review, 2026-11-16).
+    expect(panel().querySelector('.layouts-row .layouts-row-facts .num')!.textContent).toBe('3 pieces');
     await user.click(inRow('Put aside').getByRole('button', { name: 'Keep' }));
     expect(localStorage.getItem(GRAPH_PREVIOUS_KEY)).toBe(THREE);
     expect(entry(savedIds()[0]!)).toMatchObject({ name: 'Layout 1', pieces: 3, layout: THREE });
-    expect(rowNames()).toEqual(['Put aside, 3 pieces', 'Layout 1']);
+    expect(rowNames()).toEqual(['Put aside', 'Layout 1']);
   });
 
   it('its Open swaps the two layouts, as Restore does, and reloads', async () => {
@@ -447,5 +452,40 @@ describe('the list itself', () => {
     expect([...phonePanel.querySelectorAll('.layouts-row-name')].map((e) => e.textContent)).toEqual(['Rug loop']);
     await user.click(phonePanel.querySelector<HTMLButtonElement>('.sheet-head .sheet-close')!);
     expect(document.querySelector('.phone-panel')).toBeNull();
+  });
+});
+
+describe('a panel that opens arrives where the person is looking (design review, 2026-11-16)', () => {
+  /*
+   * MUTATION PROOFS, run:
+   * - `scrollIntoView` dropped from `useArrival`: `expected [] to deeply equal
+   *   [ 'My layouts' ]`.
+   * - the focus not taken: `expected 'BODY' to be 'SECTION'`.
+   * - the arrival on every render (the effect's `[]` removed): typing a name
+   *   scrolls again, `expected [ 'My layouts', 'My layouts', … ] to deeply
+   *   equal [ 'My layouts' ]`.
+   * - `useArrival` taken out of Your box: `expected [ 'My layouts' ] to deeply
+   *   equal [ 'My layouts', 'What you own' ]`.
+   */
+  it('My layouts and Your box are scrolled into view once and take the focus the press left nowhere', async () => {
+    const arrived: (string | null)[] = [];
+    // jsdom has no layout and no scrollIntoView: this records who asked.
+    Element.prototype.scrollIntoView = function (this: Element) {
+      arrived.push(this.getAttribute('aria-label'));
+    };
+    try {
+      const user = await open(TWO);
+      expect(arrived).toEqual(['My layouts']);
+      // The button that was pressed is gone, so the focus would be the page's.
+      expect(document.activeElement!.tagName).toBe('SECTION');
+      expect(document.activeElement).toBe(panel());
+      // A later render does not pull the page back.
+      await user.type(within(panel()).getByRole('textbox', { name: 'A name for this layout' }), 'x');
+      expect(arrived).toEqual(['My layouts']);
+      await user.click(screen.getAllByRole('button', { name: 'Your box' })[0]!);
+      expect(arrived).toEqual(['My layouts', 'What you own']);
+    } finally {
+      delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+    }
   });
 });
