@@ -5,6 +5,11 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.1.1 (2026-11-16)
+
+- A plan for keeping several named layouts in the browser
+  (`docs/plan/2026-11-16-saved-layouts.md`). Nothing in the app changed.
+
 ## 1.1.0 (2026-11-16)
 
 Two new buttons in Your box.

@@ -602,7 +602,7 @@ assume this order and nothing merged in between.
   - Surfaced by: A3 (D5); Sections 2, 4, 11; outside finding O5
   - Files: `app/src/Inventory.tsx`, `app/src/inventoryModel.ts`
   - Verify: counts only rise, the change is said and can be put back in one step; twice is once; adapters in both; the refused-clipboard path; the first-load budget holds; looked at on both screens
-- [ ] **T5 (P1 for T6, human: ~1 d / CC: ~1 h)** — design and engineering — Review A2 before any code (a documents pull request, 1.1.0 to 1.1.1)
+- [x] **T5 (P1 for T6, human: ~1 d / CC: ~1 h)** — design and engineering — Review A2 before any code (a documents pull request, 1.1.0 to 1.1.1)
   - Surfaced by: A2 (D4); Sections 1, 2, 4, 9, 11; outside finding O2
   - Files: a plan under `docs/plan/`; no code
   - Verify: the plan answers, with the owner's word on each: where the list lives on both screens; what a row shows; how a layout is named, and whether it can be renamed, share a name or be removed; whether edits to a reopened layout change its entry; whether the box and the table belong to a layout or to the browser (today: the browser); what happens to put-aside; what the crash screen's "clear" removes; how many layouts fit and what a full store says. And the storage design: no shared record that two tabs can overwrite (any index must be rebuildable from the per-layout keys), and a blob written by the version before still opens
