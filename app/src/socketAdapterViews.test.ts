@@ -35,7 +35,7 @@ import { addPiece, EMPTY_GRAPH } from './layoutModel.js';
 import { loadGraph, saveGraph } from './layoutStore.js';
 import { PRESETS } from './presets.js';
 import { INVENTORY_STORAGE_KEY } from './storageKeys.js';
-import { adapterNote, VerdictLine } from './VerdictLine.js';
+import { VerdictLine } from './VerdictLine.js';
 import { viewOf } from './verdictView.js';
 
 const resolve = makeResolver(BUILT_IN);
@@ -116,8 +116,15 @@ describe('the verdict keeps its kind and adds the note', () => {
   });
 
   it('the note reads in the singular and the plural, and nothing is said on an empty floor', () => {
-    expect(adapterNote(1)).toBe('Needs 1 male-male adapter: two sockets meet at 1 joint.');
-    expect(adapterNote(3)).toBe('Needs 3 male-male adapters: two sockets meet at 3 joints.');
+    // Read off the verdict itself. This used to test `adapterNote`, a second
+    // copy of the sentence that nothing drew (removed 2026-11-16).
+    // MUTATION PROOF, run: the plural dropped in `AdapterNote`: `expected
+    // '?Not a loop yet. 2 pieces, open at bo…' to contain 'Needs 3 male-male
+    // adapters: two socke…'`.
+    const one = viewOf(solve(startToStart()));
+    const said = (view: typeof one) => renderToStaticMarkup(createElement(VerdictLine, { view })).replace(/<[^>]+>/g, '');
+    expect(said(one)).toContain('Needs 1 male-male adapter: two sockets meet at 1 joint.');
+    expect(said({ ...one, adapterCount: 3 })).toContain('Needs 3 male-male adapters: two sockets meet at 3 joints.');
     expect(renderToStaticMarkup(createElement(VerdictLine, { view: viewOf(null) }))).not.toContain('male-male');
   });
 });

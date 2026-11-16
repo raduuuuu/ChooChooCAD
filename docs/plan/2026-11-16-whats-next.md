@@ -594,7 +594,7 @@ assume this order and nothing merged in between.
   - Surfaced by: NEXT (D2); Sections 2, 3, 6; outside findings O1, O3, O4
   - Files: `app/src/layoutStore.ts`, `app/src/SubmitPart.tsx`, `app/src/app.css`, `app/src/AppName.tsx`, `engine/test/graphFeasible.test.ts`, `engine/test/cycles.test.ts`
   - Verify: the pull request lists every place a piece id can come from (the reducer's own ids, old stored spellings, a contributor link, a layout file; and Add a part, if a part's id can reach a piece's id, which the pull request must say either way) and tests one id from each against the bound; a stored blob from 1.0.2 still loads; a hostile id lands in the rescue copy; `12,5` gives a result or a sentence; the inventory row's message checked in a browser; each pin's mutation run
-- [ ] **T3 (P2, human: ~1 d / CC: ~1 h)** — repo — Checkup leftovers (1.0.3 to 1.0.4)
+- [x] **T3 (P2, human: ~1 d / CC: ~1 h)** — repo — Checkup leftovers (1.0.3 to 1.0.4)
   - Surfaced by: NEXT (D2); Section 3; the deep checkup of 2026-11-15
   - Files: `.github/workflows/*.yml`, `engine/src/geom/fk.ts`, `engine/data/generic.ts`, `engine/data/sources.ts`, `engine/src/graph/edit.ts`, `app/src/VerdictLine.tsx`, `app/src/ErrorBoundary.tsx`
   - Verify: a text test that every `uses:` is a 40-character commit with its version in a comment; typecheck and the suite with the six exports gone; the owner's answer on which of the five uncarried keys a crash report holds and "clear" removes, then a test naming every key in `storageKeys.ts`

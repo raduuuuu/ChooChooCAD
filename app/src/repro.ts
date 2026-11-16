@@ -48,6 +48,16 @@ export interface ReproInput {
   readonly rescue: string | null;
   readonly inventory: string | null;
   readonly submissions: string | null;
+  /**
+   * EVERY OTHER KEY THE APP KEEPS, raw, as `[key, bytes]` (owner, 2026-11-16).
+   * The table, the 2D or 3D choice, where a build was left (the user's own
+   * and a shared link's), the layout put aside and the selection hint. They
+   * were left out, so a crash one of them caused could not be reported: the
+   * dump described a layout that was not the problem. Printed raw and never
+   * parsed here, because nothing below needs their shape and a blob that
+   * broke the app must not be able to break this file too.
+   */
+  readonly other: readonly (readonly [key: string, raw: string | null])[];
   /** Build identifier, injected at build time. */
   readonly version: string;
   readonly userAgent: string;
@@ -137,6 +147,11 @@ ${guardedBlob('submissions', input.submissions)}
 ${guardedBlob('chain', input.chain)}
 ${guardedBlob('inventory', input.inventory)}
 
+// Everything else the app had stored, as raw text: the table, the view, where
+// a build was left, a layout put aside, the selection hint. Any of them may
+// be what broke.
+const otherStored: Record<string, string | null> = ${JSON.stringify(Object.fromEntries(input.other), null, 2)};
+
 // PRINTED FIRST, BEFORE ANYTHING CAN THROW. The guarded parses above stop an
 // unparseable blob from killing this file, but a blob that PARSES into the
 // wrong shape still throws: resolveLibrary on a submissions value of 7, or of
@@ -144,6 +159,7 @@ ${guardedBlob('inventory', input.inventory)}
 // nothing, the same "printed nothing at all" failure the guards were added to
 // end. The payload is these two lines, so they go out first.
 console.log('inventory', inventory);
+console.log('other stored values', otherStored);
 // The RAW bytes, deliberately. The parsed form is null whenever the parse
 // failed, which is the case this key exists for, so the bytes are the
 // payload. The guarded parse above already reports a failure separately.

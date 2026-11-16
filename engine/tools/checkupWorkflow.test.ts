@@ -110,3 +110,32 @@ describe("ci.yml's content step (C6)", () => {
     expect(block(ci, 'permissions')).toEqual(['permissions:', 'contents: read']);
   });
 });
+
+describe('every action is pinned to a commit (the deep checkup of 2026-11-15)', () => {
+  /*
+   * A tag can be moved to other code after it was reviewed; a commit cannot.
+   * It matters more since pages.yml has a job that may write tags and
+   * releases. The version stays beside each pin as a comment, which is the
+   * form Dependabot reads and updates with the commit.
+   *
+   * MUTATION PROOFS, run:
+   * - one pin put back to its tag (`actions/checkout@v7` in ci.yml):
+   *   `expected [ 'ci.yml: actions/checkout@v7' ] to deeply equal []`.
+   * - the version comment taken off one pin: `expected [ 'pages.yml:
+   *   actions/deploy-pages@368f…' ] to deeply equal []`.
+   */
+  it('by its full commit, with the version it is in a comment', () => {
+    const files = ['ci.yml', 'pages.yml', 'checkup.yml'];
+    const uses = files.flatMap((file) =>
+      readFileSync(new URL(`../../.github/workflows/${file}`, import.meta.url), 'utf8')
+        .split('\n')
+        .map((l) => /^\s*(?:-\s+)?uses:\s*(.+)$/.exec(l)?.[1])
+        .filter((u): u is string => u !== undefined)
+        .map((u) => ({ file, u })),
+    );
+    const outside = uses.filter(({ u }) => !u.startsWith('./'));
+    // Nine today; fewer would mean the pattern above stopped matching.
+    expect(outside.length).toBeGreaterThanOrEqual(9);
+    expect(outside.filter(({ u }) => !/^[\w.-]+\/[\w.-]+@[0-9a-f]{40} # v\d+\.\d+\.\d+$/.test(u)).map(({ file, u }) => `${file}: ${u}`)).toEqual([]);
+  });
+});

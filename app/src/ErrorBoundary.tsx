@@ -25,6 +25,7 @@
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { SUBMISSIONS_STORAGE_KEY } from '../../engine/data/library.js';
+import { MOVED_KEYS } from './oldNames.js';
 import { reproText } from './repro.js';
 import { remove } from '../../engine/data/storage.js';
 import {
@@ -33,6 +34,18 @@ import {
   GRAPH_STORAGE_KEY,
   INVENTORY_STORAGE_KEY,
 } from './storageKeys.js';
+
+/** The five blobs the report parses and solves; every other kept key rides along raw. */
+const PARSED_IN_REPORT: ReadonlySet<string> = new Set([
+  GRAPH_STORAGE_KEY,
+  GRAPH_RESCUE_KEY,
+  CHAIN_STORAGE_KEY,
+  INVENTORY_STORAGE_KEY,
+  SUBMISSIONS_STORAGE_KEY,
+]);
+
+/** The button that removes everything the app keeps, saying all of what goes. */
+export const CLEAR_CONFIRM = 'Yes, delete my track, the layout put aside, my box, my table and my added parts';
 
 function read(key: string): string | null {
   try {
@@ -61,6 +74,16 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   }
 
   /*
+   * EVERY KEY THE APP KEEPS, FROM THE ONE LIST OF THEM (owner, 2026-11-16).
+   * `MOVED_KEYS` is that list: oldNames.dom.test.tsx fails when a key in
+   * storageKeys.ts is missing from it. This used a list of its own, five
+   * keys long, and six newer ones were never added: the table, the view, the
+   * two build positions, the layout put aside and the selection hint. A
+   * crash that one of those caused survived "Clear saved data", so the app
+   * stayed dead on every reload. The layout put aside goes too, on the
+   * owner's word: the report under the buttons shows it first, and the
+   * button says so. What follows is the older history of this list.
+   *
    * EVERY KEY THE APP WRITES, and the list was wrong in the way that mattered.
    *
    * It cleared CHAIN_STORAGE_KEY -- the retired key storageKeys.ts says nothing
@@ -77,13 +100,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
    * CHAIN_STORAGE_KEY stays as legacy cleanup.
    */
   private clearAndReload = () => {
-    for (const key of [
-      GRAPH_STORAGE_KEY,
-      GRAPH_RESCUE_KEY,
-      CHAIN_STORAGE_KEY,
-      INVENTORY_STORAGE_KEY,
-      SUBMISSIONS_STORAGE_KEY,
-    ]) {
+    for (const key of MOVED_KEYS) {
       // A failure leaves nothing useful to do; the reload is still worth attempting.
       remove(key);
     }
@@ -108,6 +125,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
       chain: read(CHAIN_STORAGE_KEY),
       inventory: read(INVENTORY_STORAGE_KEY),
       submissions: read(SUBMISSIONS_STORAGE_KEY),
+      other: MOVED_KEYS.filter((k) => !PARSED_IN_REPORT.has(k)).map((k) => [k, read(k)] as const),
       version: typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'unknown',
       userAgent: typeof navigator === 'undefined' ? 'unknown' : navigator.userAgent,
       error: { name: error.name, message: error.message },
@@ -128,7 +146,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
           {confirmingClear ? (
             <>
               <button onClick={this.clearAndReload}>
-                Yes, delete my track, inventory and submitted parts
+                {CLEAR_CONFIRM}
               </button>
               <button onClick={() => this.setState({ confirmingClear: false })}>
                 Cancel
