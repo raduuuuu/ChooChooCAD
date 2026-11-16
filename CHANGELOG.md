@@ -5,6 +5,13 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.2.2 (2026-11-16)
+
+The README now says what the site sends and what it never does: what stays
+in your browser, what the visit counter is given for a visit and for each of
+the ten counted actions, and how to leave your own visits out. The counter
+itself is unchanged.
+
 ## 1.2.1 (2026-11-16)
 
 From a design review of My layouts on the live site.

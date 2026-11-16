@@ -17,12 +17,14 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { countAction, counterPath } from './linkFragment.js';
+import { ACTIONS, countAction, counterPath } from './linkFragment.js';
 
 const COUNT_JS = readFileSync(join(process.cwd(), 'app/public/count.js'), 'utf8');
+const README = readFileSync(join(process.cwd(), 'README.md'), 'utf8');
 const LAYOUT = 'ZQX7layoutTEXTnotToLeave';
 
 afterEach(() => {
+  localStorage.removeItem('skipgc');
   delete window.goatcounter;
   document.querySelector('script[data-goatcounter]')?.remove();
   history.replaceState(null, '', '/');
@@ -80,5 +82,62 @@ describe('the counter on a shared layout', () => {
     expect(url.searchParams.get('e')).toBe('true');
     expect(url.searchParams.get('t')).toBe('Shared a link');
     expect([sent[0]!.includes('%23'), sent[0]!.includes(LAYOUT), sent[0]!.includes('pieces')]).toEqual([false, false, false]);
+  });
+});
+
+describe('what the README says the site sends (owner, 2026-11-16)', () => {
+  /** Run the committed count.js for one visit and hand back what it sent. */
+  function visit(address: string): URL[] {
+    history.replaceState(null, '', address);
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    const sent: string[] = [];
+    Object.defineProperty(navigator, 'sendBeacon', { value: (url: string) => (sent.push(url), true), configurable: true });
+    const tag = document.createElement('script');
+    tag.dataset.goatcounter = 'https://woodentrain.goatcounter.com/count';
+    document.head.appendChild(tag);
+    window.goatcounter = { path: counterPath, allow_local: true } as typeof window.goatcounter;
+    new Function(COUNT_JS)();
+    return sent.map((u) => new URL(u));
+  }
+
+  /*
+   * MUTATION PROOFS, run:
+   * - a field added to count.js's `get_data` (`w: window.innerWidth`): `expected
+   *   [ 'b', 'p', 'q', 'rnd', 's', 't', 'w' ] to deeply equal [ 'b', 'p', 'q', 'rnd', 's', 't' ]`.
+   * - the `?` part no longer sent (`q: ''`): `expected [ 'b', 'p', 'rnd', 's', 't' ]
+   *   to deeply equal [ 'b', 'p', 'q', 'rnd', 's', 't' ]`.
+   */
+  it('a visit sends the fields the README lists, and no others', () => {
+    const [url] = visit('/?from=a-friend');
+    // automated, path, query, a random string against caching, screen width, title. The page it came
+    // from (`r`) joins them when the browser gives one, which jsdom does not; `e` marks an action.
+    expect([...url!.searchParams.keys()].sort()).toEqual(['b', 'p', 'q', 'rnd', 's', 't']);
+    expect(url!.searchParams.get('p')).toBe('/');
+    expect(url!.searchParams.get('q')).toBe('?from=a-friend');
+    expect(url!.searchParams.get('s')).toBe(String(window.screen.width));
+  });
+
+  /*
+   * MUTATION PROOF, run: count.js's `skipgc` check taken out of `filter`:
+   * `expected [ …(1) ] to deeply equal []`.
+   */
+  it('with skipgc set to t in local storage, nothing is sent', () => {
+    localStorage.setItem('skipgc', 't');
+    expect(visit('/')).toEqual([]);
+  });
+
+  /*
+   * MUTATION PROOFS, run:
+   * - an action added to ACTIONS and not to the README (`kept: 'Kept a
+   *   layout'`): `expected [ 'Kept a layout' ] to deeply equal []`.
+   * - the README's count left at ten with an eleventh action listed: `expected 10 to be 11`.
+   * - a README line removed ("- Switched to 3D"): `expected [ 'Switched to 3D' ]
+   *   to deeply equal []`.
+   */
+  it('the README names every action that is counted, and how many', () => {
+    const labels = Object.values(ACTIONS);
+    expect(labels.filter((label) => !README.includes(`\n- ${label}\n`))).toEqual([]);
+    const said = /each of these (\w+) actions/.exec(README)![1];
+    expect(['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'].indexOf(said!)).toBe(labels.length);
   });
 });
