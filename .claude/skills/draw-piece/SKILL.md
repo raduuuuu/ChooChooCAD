@@ -370,9 +370,11 @@ images). Set `piece: needs info` (maintainer). Stop.
 
 - Read each line with `^([A-Z]\d+):\s*(\d+(\.\d+)?)\s*mm$`; ask again for a
   line that doesn't match.
-- A reading counts only from an account other than the submitter's, with a
-  photo of the ruler against the piece. The maintainer checks each photo and
-  account before counting it.
+- A reading counts only from an account other than the submitter's, typed,
+  with the markings on the piece's underside (CONTRIBUTING.md, "Confirm sizes
+  with a ruler"). No photo is asked for and none is posted: photos never go
+  on GitHub (owner, 2026-11-17). The maintainer checks each account before
+  counting its reading.
 - Two readers disagreeing beyond the figure's stated reading error: ask a third,
   and count nothing until two agree.
 
@@ -464,9 +466,14 @@ images). Set `piece: needs info` (maintainer). Stop.
 
 ```bash
 bun run typecheck && bun run test && bun run build && bun scripts/chunkBudget.ts
+git add -A && bun run checkup --content && bun run version:check
 ```
 
-All must pass. A test that times out only under the full run: rerun it alone,
+All must pass. Before them, raise `"version"` in `package.json` and add the
+piece's entry first in `CHANGELOG.md` (AGENTS.md, "Git and pull requests"): a
+new piece is something new a person can see, so the middle number goes up
+(1.2.5 to 1.3.0). If `main` took that number first, bring `main` in and raise
+it again. A test that times out only under the full run: rerun it alone,
 and say so in the pull request.
 
 ## 11. Pull request
@@ -474,6 +481,7 @@ and say so in the pull request.
 - Commit (never `tsconfig.tsbuildinfo`), push, then open the pull request with
   `gh pr create`. Its description:
   - `Closes #N` only on the maintainer's run; a builder writes `For #N`;
+  - the version it takes the app to;
   - "Thanks @<sender> for drawing it.";
   - every figure, its source, and which are still unverified;
   - **Colours added**: each new paint token, its value (and the issue's
@@ -544,7 +552,8 @@ The templates below are said to the sender in the chat by the brief's Claude
 > how the roof rises>. Could you add a photo of the piece's end? No paper or ruler needed:
 > stand it on a table, hold the phone level with it, about 30 to 40 cm away,
 > and keep the whole piece in the picture
-> ([photo guide](https://woodentrain.world/photo-guide.html), step 3).
+> (taken the way the [photo guide](https://woodentrain.world/photo-guide.html)'s
+> step 3 takes the side photo, turned to face the end).
 
 **Another top view**
 > Thanks! The two top views read <figure> <a> mm and <b> mm, too far apart to
