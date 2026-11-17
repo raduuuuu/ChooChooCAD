@@ -21,9 +21,9 @@ Download [the contributor brief](https://woodentrain.world/contributor-brief.md)
 (the same file as [app/public/contributor-brief.md](app/public/contributor-brief.md)
 here), upload it into a new chat on claude.ai with **code execution** turned
 on (in Claude's settings), and say "follow this brief". Its first section says
-what to have ready: the piece, one medium straight (144 mm), white, blue or
-pink millimetre or graph paper, and about an hour. To post the result you need
-a free GitHub account.
+what to have ready: the piece, one medium straight (144 mm) and, for your
+first piece, a long straight (216 mm), white, blue or pink millimetre or graph
+paper, and about an hour. To post the result you need a free GitHub account.
 
 - **You check the drawing before sending it.** Your Claude gives you a
   preview link that opens your piece in the app, on your phone or computer;
@@ -32,6 +32,9 @@ a free GitHub account.
   the **Drawn piece** form with most of it filled in, and a file to paste into
   its last box. A colour the app doesn't have yet is listed in it, and added
   when the piece is drawn into the library.
+- **A piece the app can't hold yet still gets an issue.** If your Claude finds
+  the piece's shape is one the app can't hold, it fills in the shorter **Piece
+  the app can't hold** form instead, and nothing is drawn.
 
 - **Take the photos with your phone's own camera app**, at its normal lens
   (1x), then attach them in the chat. Your Claude asks which focal length the
@@ -54,8 +57,7 @@ Each piece issue carries one label:
 - `piece: reviewing`: someone is reviewing it and drawing it into the library.
   You'll get a comment saying so.
 - `piece: needs info`: a question is waiting for you, usually whether a render
-  matches your piece, or a figure to read with a ruler. With no reply in 30
-  days the issue closes; any reply reopens it.
+  matches your piece, or a figure to read with a ruler.
 - `piece: unsupported`: the app can't hold this piece's shape yet (its angles
   or ends don't fit the steps the layout check uses). The reply says why and
   names the closest piece the app already has.
@@ -87,7 +89,8 @@ library. You need Claude Code, [bun](https://bun.sh) and a browser that draws
 3D (for the render). Read [AGENTS.md](AGENTS.md) first.
 
 1. Pick an issue labelled `piece: waiting` from the pinned "Pieces wanted and
-   in progress" issue.
+   in progress" issue, and comment "reviewing this" on it before you start, so
+   nobody does it twice.
 2. In Claude Code, in its default permission mode (you approve each step), run
    `/draw-piece <issue number>`. Other agents can follow
    [the same steps](.claude/skills/draw-piece/SKILL.md).
@@ -112,7 +115,10 @@ address, location data or anything private):
 
 ## Code changes
 
-Pull requests are welcome. Run `bun run test` and `bun run typecheck` first;
+Pull requests are welcome. Run `bun run test`, `bun run typecheck` and
+`bun run build` first: the checks on a pull request run all three, plus
+`bun scripts/chunkBudget.ts` (how much the page loads at first) and
+`bun run checkup --content` (names, links and committed images).
 [CLAUDE.md](CLAUDE.md) explains the test rules (every test records the change
 that makes it fail) and [DESIGN.md](DESIGN.md) the design rules.
 
