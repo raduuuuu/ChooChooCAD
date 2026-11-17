@@ -3,7 +3,7 @@
   "labels": [
     { "name": "piece: waiting", "description": "A drawn piece sent; nobody is reviewing it yet." },
     { "name": "piece: reviewing", "description": "Someone is reviewing it and drawing it into the library." },
-    { "name": "piece: needs info", "description": "Waiting on the person who sent it; closes after 30 days without a reply, any reply reopens it." },
+    { "name": "piece: needs info", "description": "Waiting on the person who sent it: a question, or a figure to read with a ruler." },
     { "name": "piece: unsupported", "description": "The app can't hold this piece's shape yet; the issue says why." }
   ]
 }

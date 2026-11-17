@@ -5,6 +5,13 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.2.5 (2026-11-17)
+
+The steps for drawing a sent piece into the library are current: they now
+raise the version and add the changelog entry, a ruler reading from another
+owner is typed and never needs a photo, and the `piece: needs info` label no
+longer says its issue closes after 30 days.
+
 ## 1.2.4 (2026-11-17)
 
 The contributing guide matches the project again: a first piece also needs a
