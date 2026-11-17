@@ -224,6 +224,11 @@ verdict caveat (its T8), "confirmed by N readers" (T9), and the pilot's
 second half, one outside contributor (T6).
 **Why not yet:** they matter once an outside piece exists. The only two
 piece issues so far were the owner's dry runs.
+**Promised already (owner, 2026-11-17):** CONTRIBUTING.md tells ruler readers
+a piece "shows 'Sizes from two readers'" once two owners of the same version
+agree. The app has no such line yet (only "Unverified size."). Asked whether
+to reword the guide or keep the promise, the owner kept it, so T9 is owed
+before the first outside ruler reading is answered.
 **Context:** This replaces the "Community custom-part registry" entry of
 2026-10-06 (in the archive): intake by GitHub issue and the contributor
 brief is built.

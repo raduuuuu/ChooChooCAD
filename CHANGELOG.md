@@ -5,6 +5,14 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.2.4 (2026-11-17)
+
+The contributing guide matches the project again: a first piece also needs a
+long straight (216 mm), the second issue form is named, a reviewer comments
+before starting, and the checks a pull request runs are all listed. It no
+longer says an unanswered question closes its issue after 30 days: nothing
+did that.
+
 ## 1.2.3 (2026-11-16)
 
 On a wide screen, the column of pieces now reaches the foot of the screen in
