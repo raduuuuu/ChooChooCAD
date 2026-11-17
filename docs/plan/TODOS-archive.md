@@ -1145,3 +1145,25 @@ and removes added parts, so a saved layout that uses one will not open until
 the part is added again (the plan, "A saved layout can outlive a piece it
 uses").
 **Effort:** human ~1.5 weeks / CC ~4.5 h. **Depends on:** nothing.
+
+## P3 — On a wide screen the palette stops short of the foot when "Run a train" shows
+
+**What:** At 1000px and up the palette spans the grid's named rows, and the
+"Run a train" control (and Finish the loop) are placed in a row after them,
+in the plan's column only. So the palette ends about 48px above the foot of
+the screen and the strip beside the control is empty.
+**Why not yet:** nothing is hidden (the palette scrolls) and no one has
+asked. Seen while fixing the notice's place on 2026-11-16 (#300), which gave
+notices and the shortfall rows of their own and left this as it was.
+**Effort:** human ~2 h / CC ~20 min. **Depends on:** nothing.
+
+**Done 2026-11-16 (1.2.3):** Finish the loop and Run a train have rows of their own in the wide grid. The gap showed only with the verdict's notes and the shortfall line both on screen; with either row free the control was placed in it and the palette reached the foot.
+
+## P2 — README says nothing about the usage counter
+
+One short section saying
+what `count.js` sends (the page title, the referrer, the screen width, the
+query string and the ten action names; never the layout), in the plain
+words README uses for sizes.
+
+**Done 2026-11-16 (1.2.2):** README, "What the site sends, and what it never does", held to the code by counter.dom.test.tsx.

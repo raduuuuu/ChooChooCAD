@@ -91,4 +91,27 @@ describe('the wide editor’s page', () => {
     expect(field.at(-1)).toBe('44px');
     expect(field.every((v) => v === '44px')).toBe(true);
   });
+  /*
+   * MUTATION PROOFS, run:
+   * - `.train-run` given no row: `expected [ 'train-run' ] to deeply equal []`.
+   * - the eighth row taken out of `grid-template-rows`: `expected 8 to be less
+   *   than or equal to 7`.
+   * - `.finish-loop` given no row: `expected null not to be null`.
+   */
+  it('names a row for every block of the wide editor, so the palette reaches the foot of the screen', () => {
+    localStorage.setItem(GRAPH_STORAGE_KEY, OWN);
+    render(<App />);
+    // The palette spans the rows named here (`1 / -1`); a block in a row made after them sits past its foot.
+    const tracks = /\.shell\s*\{[^}]*grid-template-rows:\s*([^;]+);/.exec(wide)![1]!.replace(/minmax\([^)]*\)/g, 'x').trim().split(/\s+/).length;
+    const rowOf = (cls: string) => Number(new RegExp(`\\.${cls}\\s*\\{[^}]*grid-row:\\s*(\\d+)`).exec(wide)?.[1] ?? NaN);
+    // The live region is taken out of the flow (`sr-only`), so the grid gives it no row.
+    const blocks = [...document.querySelectorAll('.shell > *')].filter((e) => !e.classList.contains('sr-only'));
+    const rows = blocks.map((e) => [...e.classList].map(rowOf).find((r) => !Number.isNaN(r)));
+    expect(blocks.filter((_, i) => rows[i] === undefined).map((e) => e.className)).toEqual([]);
+    expect(blocks.map((e) => e.className)).toContain('train-run');
+    expect(Math.max(...rows.map((r) => r!))).toBeLessThanOrEqual(tracks);
+    // Finish the loop is drawn only for a layout with one open joint; its row is read from the stylesheet.
+    expect(/\.finish-loop\s*\{\s*grid-column:\s*1;\s*grid-row:\s*7;\s*\}/.exec(wide)).not.toBeNull();
+    expect(/\.palette\s*\{[^}]*grid-row:\s*1\s*\/\s*-1/.exec(wide)).not.toBeNull();
+  });
 });

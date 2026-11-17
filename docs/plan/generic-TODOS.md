@@ -31,8 +31,8 @@ Offline use, kid mode and the swap suggestion were all deferred on
 **Context:** Built and kept as it is (decision D9, 2026-11-14): ten fixed
 action names in `app/src/linkFragment.ts`, never the layout. The script also
 sends the page title, the referrer, the screen width and the query string
-with each visit (`app/public/count.js:25-30`); README does not yet say so
-(part 3, "Checkup: three things").
+with each visit (`app/public/count.js:25-30`); README has said so since
+1.2.2 ("What the site sends, and what it never does").
 **Effort:** owner, about 10 minutes. **Depends on:** nothing.
 
 ## P1 — The floor afternoon (calibration readings still open)
@@ -142,23 +142,8 @@ same review: the sideways verdict's column, the Pieces sheet's 13px notes,
 the verdict's fold and the 3D view's how-to line.
 **Effort:** human ~1 d / CC ~1 h. **Depends on:** the decision.
 
-## P3 — On a wide screen the palette stops short of the foot when "Run a train" shows
+## P2 — Checkup: two things offered on 2026-11-16 and not chosen
 
-**What:** At 1000px and up the palette spans the grid's named rows, and the
-"Run a train" control (and Finish the loop) are placed in a row after them,
-in the plan's column only. So the palette ends about 48px above the foot of
-the screen and the strip beside the control is empty.
-**Why not yet:** nothing is hidden (the palette scrolls) and no one has
-asked. Seen while fixing the notice's place on 2026-11-16 (#300), which gave
-notices and the shortfall rows of their own and left this as it was.
-**Effort:** human ~2 h / CC ~20 min. **Depends on:** nothing.
-
-## P2 — Checkup: three things offered on 2026-11-16 and not chosen
-
-- **README says nothing about the usage counter.** One short section saying
-  what `count.js` sends (the page title, the referrer, the screen width, the
-  query string and the ten action names; never the layout), in the plain
-  words README uses for sizes.
 - **No linter and no dead-code check** run in CI (`/health` scored on
   typecheck and tests alone). Decide whether one earns its place.
 - **The remote branch `photo-guide-2x`** is merged and can go
