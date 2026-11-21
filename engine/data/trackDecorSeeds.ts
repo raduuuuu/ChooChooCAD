@@ -22,7 +22,7 @@
 
 import { add, fromInt, scale, zetaPow, type Cyc } from '../src/geom/cyclotomic.js';
 import { domeBarrel, domeTop } from '../src/parts/dome.js';
-import type { DecorDome, DecorShape, DecorSlab, MultiRoadPart, Paint, SlopBudget, StraightPart } from '../src/parts/schema.js';
+import type { DecorDome, DecorPrism, DecorShape, DecorSlab, MultiRoadPart, Paint, SlopBudget, StraightPart } from '../src/parts/schema.js';
 
 const ESTIMATED_SLOP: SlopBudget = { axialMm: 0.8, angularDeg: 1.5, calibrationStatus: 'estimated' };
 const PROFILE = { heightMm: 0, gaugeWidthMm: 26, plankWidthMm: 40, plankThicknessMm: 12, grooveWidthMm: 6 } as const;
@@ -290,6 +290,155 @@ export const DOUBLE_ARCH_BRIDGE: StraightPart = {
   slop: ESTIMATED_SLOP, ...PROFILE,
 };
 
+/*
+ * TWO PRINTED STATIONS (2026-11-21), each one print: a long straight (216)
+ * with a station on a base beside it, read off the printable design's own
+ * mesh. Where each comes from is in engine/data/origins.ts.
+ *
+ *   seen along the track, from its start        across in mm, the road's middle at 0
+ *
+ *                       /\  roof                 the building stands to the LEFT of
+ *              canopy  /  \                      the road as it runs from its start
+ *   ====|     ___|____|walls|__ trees
+ *   road| 24 |      base, 15 tall     |
+ *  -20  20   24  26..48  50 ..... 118 120 (Gstaad)   24 ..... 165 (Lausanne)
+ *
+ * - The road is a plain long straight on the floor. Past its edge the print
+ *   runs on 4 more at the road's own height, then the base, 15 tall.
+ * - Nothing stands closer than 24 to the road's middle at any height, so a
+ *   train passes; a second track cannot lie on the base.
+ * - One colour, as printed: every shape wears the same grey, and the road is
+ *   beech, as all track is drawn.
+ *
+ * READ OFF THE MESH, to the millimetre, but for the platform canopies'
+ * posts, whose places under the canopy a view from above does not show:
+ * those are spaced evenly. Not measured on a printed one.
+ */
+const PRINT: Paint = GREY;
+const ST_LEN = 216;
+/** A point of the design, whose own origin is the road's middle: along from the piece's start. */
+const sx = (x: number) => x + ST_LEN / 2;
+const BASE_TOP = 15;
+/** A box of the design: from x0 to x1 along (its own origin) and y0 to y1 across, between two heights. */
+const box = (x0: number, x1: number, y0: number, y1: number, bottomMm: number, topMm: number, noun: string): DecorSlab =>
+  slab(sx((x0 + x1) / 2), (y0 + y1) / 2, x1 - x0, y1 - y0, bottomMm, topMm, noun, PRINT);
+/** A fir tree: a cone, drawn as three steps. */
+const fir = (x: number, y: number, acrossMm: number, topMm: number): DecorSlab[] =>
+  [1, 0.65, 0.3].map((f, k) => {
+    const step = (topMm - BASE_TOP) / 3;
+    return slab(sx(x), y, Math.round(acrossMm * f), Math.round(acrossMm * f), BASE_TOP + k * step, BASE_TOP + (k + 1) * step, 'tree', PRINT);
+  });
+/** A name sign at a platform's end: a board on two posts. */
+const nameSign = (x0: number, x1: number, y: number, topMm: number): DecorSlab[] => [
+  box(x0, x1, y - 2, y + 2, topMm - 9, topMm, 'sign'),
+  box(x0, x0 + 3, y - 2, y + 2, BASE_TOP, topMm - 9, 'sign'),
+  box(x1 - 3, x1, y - 2, y + 2, BASE_TOP, topMm - 9, 'sign'),
+];
+/** A platform canopy: a flat roof 4 thick on posts 3 square along its track side, evenly spaced (their places are not read). */
+const platformCanopy = (x0: number, x1: number, y0: number, y1: number, posts: number): DecorSlab[] => [
+  box(x0, x1, y0, y1, 44, 48, 'canopy'),
+  ...Array.from({ length: posts }, (_, k) => {
+    const x = x0 + 2 + (k * (x1 - x0 - 4)) / (posts - 1);
+    return box(x - 1.5, x + 1.5, y0 + 1, y0 + 4, BASE_TOP, 44, 'canopy');
+  }),
+];
+const prism = (x0: number, x1: number, sectionMm: readonly (readonly [number, number])[], noun: string): DecorPrism =>
+  ({ kind: 'prism', fromMm: sx(x0), toMm: sx(x1), sectionMm, noun, paint: PRINT });
+const printedStation = (what: string): StraightPart['dimensions'] => ({
+  status: 'unverified',
+  source: "a printable design's own mesh, read on 2026-11-21",
+  note: `${what} The canopy's posts are spaced evenly, not read. Unverified until a printed one is measured.`,
+});
+
+/*
+ * THE GSTAAD STATION: a chalet. Walls 120 by 68 to 83, a balcony 8 deep and
+ * 55 up at each gable, and a separate roof that drops on: 140 along and 88
+ * across, its eaves at 84 and its ridge at 117 along the track, two
+ * chimneys to 120 and a clock turret to 139 under a spire to 143. A
+ * platform canopy 108 by 22, lamps, name signs, benches and eight firs.
+ * Socket at its start, peg at its end.
+ */
+export const GSTAAD_STATION: StraightPart = {
+  id: 'GS', brand: 'GENERIC', kind: 'straight', name: 'Gstaad station',
+  lengthMm: ST_LEN, ends: { start: 'socket', end: 'peg' },
+  decor: [
+    box(-108, 108, 20, 24, 0, 12, 'base'),
+    box(-108, 108, 24, 120, 0, BASE_TOP, 'base'),
+    box(-60, 60, 50, 118, BASE_TOP, 83, 'station'),
+    box(-68, -60, 56, 112, BASE_TOP, 55, 'balcony'),
+    box(60, 68, 56, 112, BASE_TOP, 55, 'balcony'),
+    // The roof: a gable, its ridge along the track over the walls' middle.
+    prism(-70, 70, [[40, 84], [128, 84], [84, 117]], 'roof'),
+    box(-42, -34, 92, 100, 108, 120, 'chimney'),
+    box(34, 42, 92, 100, 108, 120, 'chimney'),
+    box(-7, 7, 77, 91, 111, 139, 'clock'),
+    box(-2, 2, 82, 86, 139, 143, 'clock'),
+    ...platformCanopy(-54, 54, 26, 48, 4),
+    box(-63, -57, 32, 36, BASE_TOP, 52, 'lamp'),
+    box(57, 63, 32, 36, BASE_TOP, 52, 'lamp'),
+    ...nameSign(-94, -70, 28, 47),
+    ...nameSign(70, 94, 28, 47),
+    box(-99, -81, 36, 42, BASE_TOP, 27, 'bench'),
+    box(81, 99, 36, 42, BASE_TOP, 27, 'bench'),
+    ...fir(-94, 80, 16, 45), ...fir(92, 84, 14, 43), ...fir(-90, 108, 12, 38), ...fir(96, 110, 10, 36),
+    ...fir(-73, 66, 6, 39), ...fir(73, 70, 6, 37), ...fir(74, 104, 8, 39), ...fir(-74, 104, 7, 36),
+  ],
+  dimensions: printedStation('A 216 straight beside a base 216 by 96 and 15 tall, 24 from the road\'s middle: walls 120 by 68 to 83 under a gable roof 140 by 88, eaves 84 and ridge 117, a clock turret to 143; a platform canopy 108 by 22 at 48.'),
+  slop: ESTIMATED_SLOP, ...PROFILE,
+};
+
+/*
+ * THE LAUSANNE STATION: a long front in five parts, all 58 or so deep. A
+ * hall in the middle (58 along, walls to 69, a mansard to 82, a lantern to
+ * 104 and its finial to 111), a wing either side (50 along, to 64, two
+ * chimneys each to 75) and a corner pavilion at each end (26 along, walls
+ * to 61 under a mansard to 83). A platform canopy 148 by 29, a departure
+ * board, name signs; on the town side benches, lamps, a fountain, a kiosk
+ * and seven trees. Both ends are sockets: it joins through an adapter.
+ */
+const mansard = (y0: number, y1: number, wallMm: number, kneeMm: number, topMm: number, inMm: number, kneeInMm: number): readonly (readonly [number, number])[] =>
+  [[y0, wallMm], [y1, wallMm], [y1 - kneeInMm, kneeMm], [y1 - inMm, topMm], [y0 + inMm, topMm], [y0 + kneeInMm, kneeMm]];
+export const LAUSANNE_STATION: StraightPart = {
+  id: 'LS', brand: 'GENERIC', kind: 'straight', name: 'Lausanne station',
+  lengthMm: ST_LEN, ends: { start: 'socket', end: 'socket' },
+  decor: [
+    box(-108, 108, 20, 24, 0, 12, 'base'),
+    box(-108, 108, 24, 165, 0, BASE_TOP, 'base'),
+    // The corner pavilions.
+    ...[[-105, -79], [79, 105]].flatMap(([x0, x1]): DecorShape[] => [
+      box(x0!, x1!, 53, 111, BASE_TOP, 61, 'station'),
+      prism(x0!, x1!, mansard(53, 111, 61, 74, 83, 11, 4), 'roof'),
+    ]),
+    // The wings, two chimneys on each.
+    ...[[-79, -29], [29, 79]].flatMap(([x0, x1]): DecorShape[] => [
+      box(x0!, x1!, 55, 109, BASE_TOP, 56, 'station'),
+      prism(x0!, x1!, [[55, 56], [109, 56], [107, 64], [57, 64]], 'roof'),
+      box(x0! + 10, x0! + 16, 77, 83, 64, 75, 'chimney'),
+      box(x1! - 16, x1! - 10, 77, 83, 64, 75, 'chimney'),
+    ]),
+    // The hall, its lantern and the clock's gable over the platform.
+    box(-29, 29, 51, 113, BASE_TOP, 69, 'station'),
+    prism(-29, 29, [[51, 69], [113, 69], [104, 82], [60, 82]], 'roof'),
+    box(-10, 10, 54, 58, 69, 85, 'clock'),
+    box(-7, 7, 75, 89, 82, 104, 'roof'),
+    box(-2, 2, 80, 84, 104, 111, 'roof'),
+    ...platformCanopy(-74, 74, 26, 55, 5),
+    box(-81, -76, 38, 50, BASE_TOP, 55, 'sign'),
+    ...nameSign(-107, -75, 28, 45),
+    ...nameSign(75, 107, 28, 45),
+    // The town side.
+    box(-93, -79, 115, 121, BASE_TOP, 26, 'bench'),
+    box(77, 91, 115, 121, BASE_TOP, 26, 'bench'),
+    ...[[-62, 122], [62, 122], [-12, 124], [12, 124]].map(([x, y]) => box(x! - 3, x! + 3, y! - 3, y! + 3, BASE_TOP, 53, 'lamp')),
+    box(-33, -15, 127, 145, BASE_TOP, 25, 'fountain'),
+    box(34, 60, 126, 140, BASE_TOP, 31, 'kiosk'),
+    ...fir(-96, 152, 16, 44), ...fir(-50, 152, 16, 44), ...fir(96, 152, 16, 44),
+    ...fir(26, 155, 14, 40), ...fir(-74, 156, 14, 40), ...fir(-28, 157, 12, 39), ...fir(74, 157, 12, 39),
+  ],
+  dimensions: printedStation('A 216 straight, a socket at both ends, beside a base 216 by 141 and 15 tall, 24 from the road\'s middle: a hall to 82 under a lantern to 111, two wings to 64 and two corner pavilions to 83, 210 along in all; a platform canopy 148 by 29 at 48.'),
+  slop: ESTIMATED_SLOP, ...PROFILE,
+};
+
 export const CRANE_SEEDS: readonly MultiRoadPart[] = [CARGO_CRANE];
 /** Straights with their own decoration that work like no standard part. */
-export const TRACK_DECOR_SEEDS: readonly StraightPart[] = [ACTION_TUNNEL_STATION, DOUBLE_ARCH_BRIDGE];
+export const TRACK_DECOR_SEEDS: readonly StraightPart[] = [ACTION_TUNNEL_STATION, DOUBLE_ARCH_BRIDGE, GSTAAD_STATION, LAUSANNE_STATION];

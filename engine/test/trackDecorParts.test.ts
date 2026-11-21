@@ -17,7 +17,8 @@
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, decorBoxesOf, makeResolver } from '../data/library.js';
 import { CLEARANCE } from '../data/rampSeeds.js';
-import { ACTION_TUNNEL_STATION, DOUBLE_ARCH_BRIDGE } from '../data/trackDecorSeeds.js';
+import { originOf, originUrl } from '../data/origins.js';
+import { ACTION_TUNNEL_STATION, DOUBLE_ARCH_BRIDGE, GSTAAD_STATION, LAUSANNE_STATION } from '../data/trackDecorSeeds.js';
 import { add, fromInt, scale, zetaPow, type Cyc } from '../src/geom/cyclotomic.js';
 import { connectorSites } from '../src/graph/feasible.js';
 import { placeAll } from '../src/graph/frames.js';
@@ -235,5 +236,77 @@ describe('the double-arch bridge\'s arches (issue #231)', () => {
     expect(clashes('DA', [], [['over', 'A', { ...at(120, -72, 4), level: 1 }]])).toEqual(['over p']);
     expect(clashes('DA', [], [['end', 'A', { ...at(6, -72, 4), level: 1 }]])).toEqual(['end p']);
     expect(clashes('DA', [], [['high', 'A', { ...at(120, -72, 4), level: 3 }]])).toEqual([]);
+  });
+});
+
+/**
+ * THE TWO PRINTED STATIONS (2026-11-21): a long straight with a station on a
+ * base beside it, read off the printable design's mesh.
+ *
+ * Value: protects=each is a 216 straight a train can pass (nothing above the
+ * road's top closer than 24 to its middle), joined at both ends clear of its
+ * own base; floor track cannot lie on the base, the far side of the road
+ * stays free, raised track cannot cross the building; each links to its own
+ * model page
+ * Value: fails_when=a shape drifts over the road, the base or the walls stop
+ * colliding, the station swaps sides, or a model number is wrong
+ * Value: why_new=neither piece existed
+ * Value: seam=the real library, `renderGraph`, `findPlankOverlaps`, `originOf`
+ * Value: no_claim=how close the figures are to a printed one (unverified),
+ * and how they look (the renders in the pull request)
+ */
+describe('the two printed stations', () => {
+  const stations = [GSTAAD_STATION, LAUSANNE_STATION] as const;
+
+  it('each is a 216 straight; Gstaad socket to peg, Lausanne a socket at both ends', () => {
+    expect(stations.map((s) => [s.id, s.lengthMm, s.ends.start, s.ends.end])).toEqual([['GS', 216, 'socket', 'peg'], ['LS', 216, 'socket', 'socket']]);
+  });
+
+  /*
+   * MUTATION PROOF, run: Gstaad's platform canopy from 20 across, not 26:
+   * `GS: expected 20 to be greater than or equal to 24`.
+   */
+  it('nothing above the road\'s top stands closer than 24 to its middle, so a train passes', () => {
+    for (const s of stations) {
+      const nearest = Math.min(...s.decor!.flatMap((d) => {
+        if (d.kind === 'slab') return d.topMm > 12 ? [d.atMm[1] - d.widthMm / 2] : [];
+        if (d.kind === 'prism') return d.sectionMm.map(([y]) => y);
+        throw new Error(`${s.id}: a ${d.kind} this test does not read`);
+      }));
+      expect(nearest, s.id).toBeGreaterThanOrEqual(24);
+    }
+  });
+
+  /*
+   * MUTATION PROOFS, run:
+   * - none of the stations' shapes solid (`box`, `fir` and `prism`): `GS:
+   *   expected [] to deeply equal [ 'on p' ]`. The base alone is not pinned:
+   *   trees and walls stand everywhere a straight could lie on it.
+   * - the station on the other side of the road (every across negated in
+   *   `box`): `GS: expected [ 'far p' ] to deeply equal []`.
+   * - Gstaad's walls, roof, chimneys and turret not solid: `GS: expected []
+   *   to deeply equal [ 'over p' ]`.
+   */
+  it('floor track cannot lie on the base, the far side of the road is free, raised track cannot cross the building', () => {
+    for (const s of stations) {
+      expect(clashes(s.id, [['A', 0], ['A', 1]]), s.id).toEqual([]);
+      // Along the road, 70 to its left: on the base, under the walls.
+      expect(clashes(s.id, [], [['on', 'A', at(36, 70, 0)]]), s.id).toEqual(['on p']);
+      // The same distance to its right: bare floor.
+      expect(clashes(s.id, [], [['far', 'A', at(36, -70, 0)]]), s.id).toEqual([]);
+      // One level up, along the middle of the building.
+      expect(clashes(s.id, [], [['over', 'A', { ...at(36, 82, 0), level: 1 }]]), s.id).toEqual(['over p']);
+    }
+  });
+
+  /*
+   * MUTATION PROOF, run: the two model numbers swapped in origins.ts:
+   * `expected [ …(2) ] to deeply equal [ …(2) ]`.
+   */
+  it('each links to its own model page', () => {
+    expect(stations.map((s) => originUrl(originOf(resolve(s.id))!))).toEqual([
+      'https://makerworld.com/en/models/3655001',
+      'https://makerworld.com/en/models/3652791',
+    ]);
   });
 });
