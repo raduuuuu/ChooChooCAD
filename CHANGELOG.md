@@ -5,6 +5,16 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.3.0 (2026-11-21)
+
+Two new pieces: the Gstaad station and the Lausanne station, each a long
+straight (216 mm) with a station on a base beside it. Both are printable
+designs, and each piece links to its model page. A second track cannot lie
+on the base, and raised track cannot cross the building. Lausanne has a
+socket at both ends, so the app asks for an adapter where it joins. Their
+sizes are read off the design's files, not measured on a printed one, so
+both show "Unverified size".
+
 ## 1.2.5 (2026-11-17)
 
 The steps for drawing a sent piece into the library are current: they now
