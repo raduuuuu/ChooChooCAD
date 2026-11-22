@@ -5,6 +5,12 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.3.2 (2026-11-22)
+
+Nothing changes in the app. The site now carries the small file a search
+engine's console asks for to prove whose site it is, so its owner can see
+which pages are indexed and what people searched for.
+
 ## 1.3.1 (2026-11-22)
 
 The pages of ready layouts are easier for a search engine to place. Each

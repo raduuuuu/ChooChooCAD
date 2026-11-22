@@ -233,4 +233,16 @@ describe('layout pages', () => {
     expect(addressesIn(sitemap(all.pages))).toEqual(all.pages.map((p) => p.path));
     expect(addressesIn('<loc>https://elsewhere.example/x</loc>')).toEqual([]);
   });
+
+  /*
+   * THE FILE THAT PROVES THE SITE IS OURS TO A SEARCH CONSOLE (owner,
+   * 2026-11-22). The console checks for it again from time to time, so it
+   * stays for good: removing it un-verifies the site.
+   * Fails when: the file is deleted or its one line is changed: `ENOENT: no
+   * such file or directory` (deleted, run).
+   */
+  it('keeps the search console’s ownership file, word for word', () => {
+    const name = 'google806ff9dd19cd1bff.html';
+    expect(readFileSync(join(appDir, 'public', name), 'utf8')).toBe(`google-site-verification: ${name}`);
+  });
 });
