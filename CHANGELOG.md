@@ -5,6 +5,21 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.3.1 (2026-11-22)
+
+The pages of ready layouts are easier for a search engine to place. Each
+one's title and heading now say how many pieces it takes ("a 10-piece
+layout"), the list shows the layouts fewest pieces first, and the sitemap
+gives each page the date its words last changed. The home page, the list and
+each layout page describe themselves to search engines in the standard way.
+
+These pages now count their visits, as the editor already did, with the same
+script and nothing new sent; the README's "What the site sends" says so.
+
+Nothing changes in the editor. Behind it, an address the site has published
+can no longer disappear without a check failing, and every address in the
+sitemap is checked to exist in the built site.
+
 ## 1.3.0 (2026-11-21)
 
 Two new pieces: the Gstaad station and the Lausanne station, each a long

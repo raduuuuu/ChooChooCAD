@@ -143,6 +143,10 @@ jobs:
       - name: Chunk budget
         run: bun scripts/chunkBudget.ts
 
+      # Every address the sitemap names is a file in the built site (owner, 2026-11-22).
+      - name: Site check
+        run: bun scripts/siteCheck.ts
+
       # Only when Pages asked for it: the artifact the deploy job publishes is
       # the one this exact run built and tested.
       - name: Upload Pages artifact

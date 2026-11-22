@@ -130,7 +130,8 @@ box, your table and the parts you add are kept in your own browser and are
 never sent anywhere. A shared link holds its layout after the `#` in the
 address, which browsers do not send to any server.
 
-The editor counts visits with [GoatCounter](https://www.goatcounter.com),
+Every page of the site counts visits (the editor, and the pages of ready
+layouts under `/layouts/`) with [GoatCounter](https://www.goatcounter.com),
 through a copy of its script that is kept in this repository
 (`app/public/count.js`). It sets no cookie and stores nothing in your browser.
 
@@ -138,7 +139,7 @@ through a copy of its script that is kept in this repository
 
 - the page's path, or just `/shared-link` or `/piece-preview` when the address
   holds a shared layout or a piece preview, whatever it holds;
-- the page's title, which is the same for everyone;
+- the page's title, which is the same for everyone who opens that page;
 - the address of the page you came from, when your browser gives one;
 - the width of your screen in pixels;
 - whether the browser looks automated;
