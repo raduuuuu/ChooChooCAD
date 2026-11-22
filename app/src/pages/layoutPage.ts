@@ -33,7 +33,8 @@ import { closesExactly, presetGraph } from '../presetVerdict.js';
 import { encodeLink } from '../shareLink.js';
 import { cmUp, trackExtent } from '../tableModel.js';
 import { draw, drawing, renderOf, resolve, type Colours } from './drawing.js';
-import { esc, explanation, shell, SITE } from './shell.js';
+import { esc, shell, SITE } from './shell.js';
+import { WHY_PATH } from './whyPage.js';
 
 export interface LayoutPage {
   /** The file name without its extension, and the last part of the address. */
@@ -142,7 +143,7 @@ ${rows}
 <p class="note">${esc(CATALOGUE_SIZES)}</p>
 <p><a class="open" href="/${fragment}">Open this layout in the planner</a></p>
 <h2>What checked it</h2>
-${explanation()}
+<p>ChooChooCAD checked this loop with exact arithmetic, not by eye. <a href="${WHY_PATH}">Why a loop closes, and why one will not</a>.</p>
 <p><a href="./">More layouts that close</a></p>`,
     breadcrumbs(label, slug),
     { path: previewPath(slug), alt: pictureAlt(label, count) },

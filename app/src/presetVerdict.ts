@@ -36,8 +36,8 @@ export function presetGraph(preset: Preset): Graph {
   return reduce(initialEditor(EMPTY_GRAPH, ports), presetAction(preset), ports).graph;
 }
 
-/** The verdict for a layout, classified exactly as the screen does. */
-export function verdictKind(graph: Graph): VerdictView['kind'] {
+/** The verdict for a layout, with the words the screen shows for it. */
+export function verdictOf(graph: Graph): VerdictView {
   const placement = placeAll(graph, ports);
   const render = renderGraph(graph, ports, resolve, placement);
   const slop = new Map(graph.pieces.map((p) => [p.pieceId, resolve(p.partId).slop.axialMm]));
@@ -51,8 +51,11 @@ export function verdictKind(graph: Graph): VerdictView['kind'] {
     render.segments,
     render.bodies,
   );
-  return viewOf(result).kind;
+  return viewOf(result);
 }
+
+/** The verdict for a layout, classified exactly as the screen does. */
+export const verdictKind = (graph: Graph): VerdictView['kind'] => verdictOf(graph).kind;
 
 /** Only this earns the words "closes exactly". */
 export const closesExactly = (graph: Graph): boolean => verdictKind(graph) === 'EXACT';

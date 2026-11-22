@@ -5,6 +5,7 @@
  * left out of any of them.
  *
  *   layoutPage.ts ─┐
+ *   whyPage.ts    ─┤
  *   listPage.ts   ─┼─▶ site(): pages, files  ─┬─▶ scripts/layoutPages.ts writes each `file`
  *   (the home     ─┘                        ├─▶ sitemap(pages)
  *    page, by address only)                 ├─▶ published.ts, compared both ways by the test
@@ -19,6 +20,7 @@ import { coloursOf } from './drawing.js';
 import { layoutPages, layoutPath, picturePath, type LayoutPage } from './layoutPage.js';
 import { listHtml } from './listPage.js';
 import { PAGES_CHANGED, SITE } from './shell.js';
+import { WHY_CHANGED, WHY_PATH, whyHtml } from './whyPage.js';
 
 export interface Page {
   /** The address, from the site's root. */
@@ -60,6 +62,7 @@ export async function site(tokensCss: string): Promise<Site> {
       changed: PAGES_CHANGED,
       picture: picturePath(l.slug),
     })),
+    { path: WHY_PATH, file: fileOf(WHY_PATH), html: whyHtml(), changed: WHY_CHANGED },
   ];
   const files = layouts.map((l) => ({ file: `public${picturePath(l.slug)}`, content: `${l.picture}\n` }));
   return { pages, layouts, files };

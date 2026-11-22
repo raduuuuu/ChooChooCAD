@@ -5,6 +5,20 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.5.0 (2026-11-22)
+
+A new page: [Why won't my wooden train track loop
+close?](https://woodentrain.world/why-a-loop-will-not-close/) It shows the
+same oval three times, with one straight changed each time: one that closes
+exactly, one that closes only by bending the joints, and one that asks more
+of the joints than anyone has tested. Each drawing and each verdict comes
+from the planner's own check, with what causes it and what to change. It
+also lists the usual causes, and says what is known about mixing track from
+different makes.
+
+The pages of ready layouts and their list no longer repeat three paragraphs
+about the app; each has one line and a link to the new page.
+
 ## 1.4.0 (2026-11-22)
 
 Each ready layout's page now has a picture of its own, and says more about

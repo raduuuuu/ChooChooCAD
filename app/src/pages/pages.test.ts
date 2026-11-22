@@ -11,7 +11,8 @@ import { listHtml } from './listPage.js';
 import { PUBLISHED } from './published.js';
 import { EXPLANATION, HOME_DATA, HOME_DESCRIPTION, HOME_TITLE, jsonLd, PAGES_CHANGED, SITE } from './shell.js';
 import { addressesIn, fileOf, picturesIn, picturesOf, site, sitemap } from './site.js';
-import { presetGraph } from '../presetVerdict.js';
+import { EXAMPLES, exampleGraph, WHY_PATH } from './whyPage.js';
+import { presetGraph, verdictOf } from '../presetVerdict.js';
 
 /*
  * THE PAGES A SEARCH ENGINE READS (plan 2026-11-14, E1; owner,
@@ -118,7 +119,8 @@ describe('layout pages', () => {
    */
   it('lists every page in the sitemap with the date its words changed, and robots.txt names the sitemap', () => {
     const map = sitemap(all.pages);
-    expect(all.pages.length).toBe(built.pages.length + 2);
+    // The home page, the list, each layout, and the why page.
+    expect(all.pages.length).toBe(built.pages.length + 3);
     for (const page of all.pages) {
       expect(page.changed).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(map).toContain(`<url><loc>${SITE}${page.path}</loc><lastmod>${page.changed}</lastmod>`);
@@ -343,6 +345,56 @@ describe('layout pages', () => {
     expect(drawings.length).toBe(built.pages.length);
     expect(drawings.flatMap((d) => d.match(/\d+\.\d{2,}/g) ?? [])).toEqual([]);
     expect(new TextEncoder().encode(list).length).toBeLessThan(150_000);
+  });
+
+  /*
+   * WHY A LOOP WILL NOT CLOSE: three loops, each filed under the verdict the
+   * solver gives it, each quoted in the verdict's own words (owner,
+   * 2026-11-22). Nothing on the page about them is written by hand that the
+   * engine can say.
+   * Fails when:
+   * - an example stops showing what it is filed under (the "bends" loop given
+   *   two long straights, so it closes): `expected 'EXACT' to be 'NEEDS_GIVE'`;
+   * - a verdict's sentence is typed into the page (`verdict.bend.line`
+   *   replaced by `'Tight.'`): `to contain 'The planner says: <strong>This works. Closes exa…'`;
+   * - a gap is typed in (`'{gap}'` replaced by `72` in an example's words):
+   *   `to contain 'Now one side is 162 mm shorter'`, the "beyond" loop's own figure.
+   */
+  it('shows three loops on the why page, each with the verdict the solver gives it, in its words', () => {
+    const page = htmls.find((p) => p.path === WHY_PATH)!.html;
+    expect(EXAMPLES.map((e) => e.kind)).toEqual(['EXACT', 'NEEDS_GIVE', 'EXCEEDS']);
+    for (const e of EXAMPLES) {
+      const verdict = verdictOf(exampleGraph(e));
+      expect(verdict.kind, e.id).toBe(e.kind);
+      expect(page).toContain(`The planner says: <strong>${verdict.bend!.line}</strong>`);
+      expect(page).toContain(`<h2>${e.heading}</h2>`);
+    }
+    // The solver's own gaps: a medium straight is 72 mm shorter than a long one, a mini one 162 mm.
+    expect(verdictOf(exampleGraph(EXAMPLES[1]!)).gapMm).toBe(72);
+    expect(page).toContain('One side is now 72 mm shorter');
+    expect(page).toContain('Now one side is 162 mm shorter');
+    expect(page).not.toContain('{gap}');
+    expect((page.match(/<svg /g) ?? []).length).toBe(3);
+    expect(JSON.parse(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(page)![1]!)['@type']).toBe('Article');
+    // Other systems are named by what sets them apart, never by a maker (the brand-word spec walks this page too).
+    expect(page).toContain('“Small-peg” and “Look-alike”');
+  });
+
+  /*
+   * THE EXPLANATION LIVES ON ONE PAGE. It was three paragraphs repeated on
+   * every layout page and the list, which a search engine reads as filler;
+   * each now carries one line and a link.
+   * Fails when: a layout page gets the paragraphs back (`EXPLANATION` mapped
+   * into pageHtml again): `expected '<!doctype html>…' not to contain 'A loop is checked with exact arithme…'`.
+   */
+  it('keeps the explanation off the layout pages and the list, which link to the why page', () => {
+    const others = htmls.filter((p) => p.path !== WHY_PATH);
+    expect(others.length).toBe(built.pages.length + 1);
+    for (const { path, html } of others) {
+      for (const paragraph of EXPLANATION) expect(html, path).not.toContain(paragraph);
+      expect(html, path).toContain(`<a href="${WHY_PATH}">`);
+    }
+    expect(readFileSync(join(appDir, 'index.html'), 'utf8')).toContain(`<a href="${WHY_PATH}">`);
   });
 
   /*
