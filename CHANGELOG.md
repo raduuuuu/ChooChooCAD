@@ -5,6 +5,14 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.3.1 (2026-11-22)
+
+Nothing changes in the app. A plan for the second pass at being found in
+search is written down: a picture, the floor size and the pieces by kind on
+each layout page, a page on why a loop will not close, a sizes page, about
+eight more layouts, and visits to those pages counted. A written section on
+the home page is in the backlog, to be decided after the first search numbers.
+
 ## 1.3.0 (2026-11-21)
 
 Two new pieces: the Gstaad station and the Lausanne station, each a long

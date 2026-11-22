@@ -156,6 +156,27 @@ Not stored across visits, so not part of the crash screen's list: the two
 fold states kept for a browser session (`generic.verdict.notes.open`,
 `generic.verdict.phone.open`). A crash report does not carry them.
 
+## P2 — A written section on the home page (deferred 2026-11-22)
+
+**What:** A short readable section about what the app does, in the home page
+itself, staying under the editor once the app has started.
+
+**Why:** The home page is the only page that matches a search for a wooden
+track planner, a search no free web tool ranks for (one reading, 2026-11-22),
+and today it carries sentences only for a reader with scripts off.
+
+**Pros:** The most-visited address says what the app answers.
+**Cons:** It changes the editor's screen, whose foot was repaired in 1.2.3,
+and needs a design pass.
+
+**Context:** Deferred by the owner in the search plan (D6,
+`docs/plan/2026-11-22-seo.md`). Decide it after the first reading of the
+search consoles, which shows what a search engine reads on that page. The
+links from the home page to the new pages ship regardless.
+
+**Effort:** human M / CC S. **Priority:** P2.
+**Depends on:** the console reading (the plan's task T3, then T9).
+
 ## P2 — Works offline, installs to the home screen (deferred 2026-11-16)
 
 **What:** A phone keeps a copy of the app, so it opens with no signal and
