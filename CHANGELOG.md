@@ -5,6 +5,21 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.4.0 (2026-11-22)
+
+Each ready layout's page now has a picture of its own, and says more about
+the layout. The picture is a file a search engine can list, and a link to a
+layout pasted into a chat shows that layout, with its name, piece count and
+size, where every page used to show the same picture.
+
+Each page also says how big the layout is on the floor in centimetres
+("66 × 45 cm") and counts its pieces by kind ("8 curves and 2 straight
+pieces"). The size comes from the same placement the checker uses, plank
+edges included, rounded up. To check it against your own table, open the
+layout in the planner.
+
+The list of layouts loads faster: it is less than half the size it was.
+
 ## 1.3.2 (2026-11-22)
 
 Nothing changes in the app. The site now carries the small file a search

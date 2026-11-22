@@ -163,7 +163,7 @@ export function tableFit(extent: Extent, table: NonNullable<Table>): TableFit {
 }
 
 /** A length in mm as whole centimetres, rounded up: a size never reads smaller than it is. */
-const cmUp = (mm: number): number => Math.ceil(mm / 10 - 1e-9);
+export const cmUp = (mm: number): number => Math.ceil(mm / 10 - 1e-9);
 /** A table side in mm as centimetres, as the user typed it (one decimal at most). */
 const cmAsEntered = (mm: number): string => String(mm / 10);
 
