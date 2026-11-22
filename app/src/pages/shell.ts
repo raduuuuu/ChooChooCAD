@@ -31,7 +31,11 @@ export const HOME_TITLE = 'ChooChooCAD: will your wooden train track layout clos
 export const HOME_DESCRIPTION =
   'A free planner for wooden toy-train track. Lay out the pieces and it says whether the loop closes, before you build it on the floor.';
 
-/** What the app is, in words a page can carry with no script. One copy, used by every page. */
+/**
+ * What the app is, in words a page can carry with no script. The home page's
+ * no-script text and the why page open with the first; no layout or list
+ * page repeats them (they link to the why page).
+ */
 export const EXPLANATION: readonly string[] = [
   'ChooChooCAD is a free planner for wooden toy-train track. You lay pieces out on a canvas, and on every change it says whether the layout will work: whether each loop closes, whether it closes only by using the play in the joints, and whether any track overlaps.',
   'A loop is checked with exact arithmetic, not by eye. "Closes exactly" means the two ends meet with nothing to force, in the piece sizes the check used. When a size has not been measured, the app says so.',
@@ -40,8 +44,6 @@ export const EXPLANATION: readonly string[] = [
 
 export const esc = (text: string) =>
   text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-export const explanation = () => EXPLANATION.map((p) => `<p>${esc(p)}</p>`).join('\n');
 
 /**
  * Structured data for a search engine (schema.org, as JSON-LD). Serialised,
