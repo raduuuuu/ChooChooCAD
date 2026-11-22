@@ -83,14 +83,25 @@ const STYLE = `
   a { color: var(--ink); }
   .num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
   .floor { background: var(--floor); border: 1px solid var(--rule); padding: 1rem; margin: 1rem 0; }
-  .floor svg { display: block; width: 100%; height: auto; max-height: 22rem; }
+  .floor svg, .floor img { display: block; width: 100%; height: auto; max-height: 22rem; }
+  .floor img { object-fit: contain; }
   .open { display: inline-block; min-height: 44px; padding: 0.6rem 1rem; border: 1px solid var(--ink); text-decoration: none; font-weight: 600; }
   .note { color: var(--ink-soft); }
   .list { list-style: none; padding: 0; display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); }
   .list a { display: block; }
 `;
 
-export function shell(title: string, description: string, path: string, body: string, data?: unknown): string {
+/** The picture a pasted link shows: 1200 by 630, as chats and social sites expect. */
+export interface Preview {
+  /** From the site's root. */
+  readonly path: string;
+  readonly alt: string;
+}
+
+/** The shared one, for a page with no picture of its own (`scripts/ogImage.ts` draws it). */
+export const SITE_PREVIEW: Preview = { path: '/og.png', alt: 'A stadium-shaped loop of wooden track next to the ChooChooCAD name.' };
+
+export function shell(title: string, description: string, path: string, body: string, data?: unknown, preview: Preview = SITE_PREVIEW): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -105,7 +116,11 @@ export function shell(title: string, description: string, path: string, body: st
 <meta property="og:site_name" content="ChooChooCAD">
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(description)}">
-<meta property="og:image" content="${SITE}/og.png">
+<meta property="og:image" content="${SITE}${preview.path}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="${esc(preview.alt)}">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="../src/tokens.css">
 <style>${STYLE}</style>
 ${data === undefined ? '' : `${jsonLd(data)}\n`}</head>

@@ -5,10 +5,13 @@ import { BUILT_IN, makeResolver } from '../../../engine/data/library.js';
 import { brandWords, TERMS } from '../../../engine/data/brandWords.js';
 import { PRESETS } from '../presets.js';
 import { decodeLink } from '../shareLink.js';
+import { coloursOf, draw, PAGE_COLOURS } from './drawing.js';
+import { floorCmOf, kindsOf, picturePath, previewPath } from './layoutPage.js';
 import { listHtml } from './listPage.js';
 import { PUBLISHED } from './published.js';
 import { EXPLANATION, HOME_DATA, HOME_DESCRIPTION, HOME_TITLE, jsonLd, PAGES_CHANGED, SITE } from './shell.js';
-import { addressesIn, fileOf, site, sitemap } from './site.js';
+import { addressesIn, fileOf, picturesIn, picturesOf, site, sitemap } from './site.js';
+import { presetGraph } from '../presetVerdict.js';
 
 /*
  * THE PAGES A SEARCH ENGINE READS (plan 2026-11-14, E1; owner,
@@ -17,12 +20,13 @@ import { addressesIn, fileOf, site, sitemap } from './site.js';
  */
 
 const resolve = makeResolver(BUILT_IN);
-const all = await site();
+const appDir = join(import.meta.dirname, '..', '..');
+const tokens = readFileSync(join(appDir, 'src', 'tokens.css'), 'utf8');
+const all = await site(tokens);
 /** The layout pages, with their pieces and links. */
 const built = { pages: all.layouts };
 /** Every page this module builds, as its HTML. */
 const htmls = all.pages.flatMap((p) => (p.html === null ? [] : [{ path: p.path, html: p.html }]));
-const appDir = join(import.meta.dirname, '..', '..');
 const slug = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
 /**
@@ -109,7 +113,7 @@ describe('layout pages', () => {
    * Fails when: a page is left out of the sitemap (drop a page from `site()`'s
    * list: the guard below fails first), the date is dropped from an entry
    * (`<lastmod>` removed in `sitemap`: `expected ... to contain
-   * '<lastmod>2026-11-22</lastmod></url>'`), or robots.txt stops naming it.
+   * '<url><loc>https://woodentrain.world/<…'`), or robots.txt stops naming it.
    * The dates are WRITTEN ones: the same sitemap comes out on any day.
    */
   it('lists every page in the sitemap with the date its words changed, and robots.txt names the sitemap', () => {
@@ -117,7 +121,7 @@ describe('layout pages', () => {
     expect(all.pages.length).toBe(built.pages.length + 2);
     for (const page of all.pages) {
       expect(page.changed).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-      expect(map).toContain(`<url><loc>${SITE}${page.path}</loc><lastmod>${page.changed}</lastmod></url>`);
+      expect(map).toContain(`<url><loc>${SITE}${page.path}</loc><lastmod>${page.changed}</lastmod>`);
     }
     expect(all.pages.every((p) => p.changed === PAGES_CHANGED)).toBe(true);
     const robots = readFileSync(join(appDir, 'public', 'robots.txt'), 'utf8');
@@ -232,6 +236,113 @@ describe('layout pages', () => {
     expect(fileOf('/layouts/bean.html')).toBe('layouts/bean.html');
     expect(addressesIn(sitemap(all.pages))).toEqual(all.pages.map((p) => p.path));
     expect(addressesIn('<loc>https://elsewhere.example/x</loc>')).toEqual([]);
+  });
+
+  /*
+   * A PICTURE FILE PER LAYOUT (owner, 2026-11-22: "Give every layout its own
+   * picture file"; "SVG files, hand-drawn previews"). A search engine lists
+   * picture files, not drawings inside a page, so the page shows a file, the
+   * build writes it where its address stays fixed, and the sitemap names it.
+   * Fails when:
+   * - the page goes back to a drawing inside it (`<div class="floor">${l.drawing}`
+   *   in place of the `<img>`): `to contain '<img src="/layouts/circle.svg"…'`;
+   * - the file is drawn with the page's colours (`PAGE_COLOURS` handed to
+   *   `draw` for the file): `expected '<svg xmlns=…' not to contain 'var('`;
+   * - the picture is left out of the sitemap (`picture` dropped from the
+   *   page in site.ts): `expected [] to deeply equal [ '/layouts/circle.svg', … ]`.
+   */
+  it('shows each layout as a picture file that stands alone and is in the sitemap', () => {
+    for (const page of built.pages) {
+      expect(all.files.map((f) => f.file)).toContain(`public${picturePath(page.slug)}`);
+      const file = all.files.find((f) => f.file === `public${picturePath(page.slug)}`);
+      expect(file!.content).toMatch(/^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="/);
+      expect(file!.content).not.toContain('var(');
+      expect(file!.content).toContain(`style="fill:${coloursOf(tokens).floor}"`);
+      expect(file!.content).toContain(`aria-label="${page.label}, a ${page.pieceCount}-piece loop of wooden train track`);
+      const [, w, h] = /viewBox="\S+ \S+ (\S+) (\S+)"/.exec(file!.content)!;
+      expect(page.html).toContain(
+        `<img src="${picturePath(page.slug)}" alt="${page.label}: a ${page.pieceCount}-piece loop of wooden train track, seen from overhead" width="${Math.round(Number(w))}" height="${Math.round(Number(h))}">`,
+      );
+      expect(page.html).not.toContain('<svg');
+    }
+    expect(all.files.length).toBe(built.pages.length);
+    expect(picturesIn(sitemap(all.pages))).toEqual(built.pages.map((p) => picturePath(p.slug)));
+    // The drawing inside a list still takes the page's colours, which follow the tokens the page links.
+    expect(draw(presetGraph(PRESETS[0]!), 'x', PAGE_COLOURS).svg).toContain('stroke:var(--track-edge)');
+  });
+
+  /*
+   * THE PICTURE A PASTED LINK SHOWS: one per layout page, 1200 by 630, drawn
+   * by hand (`bun scripts/ogImage.ts --all`) and committed. Its size is read
+   * from the file's own header.
+   * Fails when:
+   * - a layout page has no committed picture (app/public/layouts/bean.png
+   *   deleted, run): `ENOENT: no such file or directory`;
+   * - a layout page points at the shared picture again (the `preview` handed
+   *   to `shell` dropped): `to contain '<meta property="og:image" content="https://woodentrain.world/layouts/circle.png">'`.
+   * no_claim: that the picture still shows the layout as it is now; that is
+   * looked at when a layout or the look changes.
+   */
+  it('gives each layout page its own committed link preview, 1200 by 630', () => {
+    for (const page of built.pages) {
+      const png = readFileSync(join(appDir, 'public', previewPath(page.slug)));
+      expect([...png.subarray(1, 4)].map((b) => String.fromCharCode(b)).join('')).toBe('PNG');
+      expect([png.readUInt32BE(16), png.readUInt32BE(20)], page.slug).toEqual([1200, 630]);
+      expect(page.html).toContain(`<meta property="og:image" content="${SITE}${previewPath(page.slug)}">`);
+      expect(picturesOf(page.html)).toEqual([picturePath(page.slug), previewPath(page.slug)]);
+    }
+    const list = htmls.find((p) => p.path === '/layouts/')!.html;
+    expect(list).toContain(`<meta property="og:image" content="${SITE}/og.png">`);
+    expect(picturesOf(list)).toEqual(['/og.png']);
+  });
+
+  /*
+   * THE SIZE ON THE FLOOR AND THE PIECES BY KIND (owner, 2026-11-22). The
+   * two sizes below are a SECOND witness, worked by hand from the catalogue
+   * figures: the large curve's centreline radius is 202 mm and a plank is
+   * 40 mm wide, so the Circle is 2 × 202 + 40 = 444 mm across, 45 cm rounded
+   * up; the Stadium is that across and 444 + 216 = 660 mm long.
+   * Fails when:
+   * - the plank's own width is left out (`() => 0` as the half width in
+   *   floorCmOf): `expected [ 41, 41 ] to deeply equal [ 45, 45 ]`;
+   * - a size is rounded down (`Math.floor(mm / 10)` in place of cmUp):
+   *   `expected [ 44, 44 ] to deeply equal [ 45, 45 ]`;
+   * - the kinds lose their order (`.sort` cut from kindsOf): `expected [ [ 'straight
+   *   piece', 1 ], …(1) ] to deeply equal [ [ 'curves', 2 ], …(1) ]`.
+   */
+  it('says each layout’s size on the floor and its pieces by kind', () => {
+    const of = (label: string) => built.pages.find((p) => p.label === label)!;
+    expect(of('Circle').floorCm).toEqual([45, 45]);
+    expect(of('Stadium').floorCm).toEqual([66, 45]);
+    expect(of('Circle').html).toContain('On the floor it is <span class="num">45 × 45</span> cm: <span class="num">8</span> curves. Open it in the planner');
+    expect(of('Stadium').html).toContain('<span class="num">66 × 45</span> cm: <span class="num">8</span> curves and <span class="num">2</span> straight pieces.');
+    for (const page of built.pages) {
+      expect(page.floorCm[0]).toBeGreaterThanOrEqual(page.floorCm[1]);
+      expect(page.floorCm).toEqual(floorCmOf(presetGraph(PRESETS.find((p) => p.label === page.label)!)));
+      expect(page.kinds.reduce((n, [, k]) => n + k, 0)).toBe(page.pieceCount);
+      expect(page.kinds.map(([, k]) => k)).toEqual([...page.kinds.map(([, k]) => k)].sort((a, b) => b - a));
+    }
+    // Every ready layout uses its curves first and has more of them, so the order is shown on a made-up run of track.
+    const piece = (partId: string, i: number) => ({ pieceId: `p${i}`, partId, turn: 'left' as const });
+    expect(kindsOf({ pieces: ['D', 'E', 'E'].map(piece), welds: [], anchors: new Map() })).toEqual([
+      ['curves', 2],
+      ['straight piece', 1],
+    ]);
+  });
+
+  /*
+   * A LIST THAT STAYS SMALL. Every number in a drawing is written to a tenth
+   * of a millimetre and each layer is one path, so the list of layouts was
+   * 68 kB for seven and is under 30; it must stay loadable as layouts are added.
+   * Fails when: the numbers go back to the solver's digits (`tenths(` taken
+   * off the paths in `draw`): `expected [ '59.16443020031738', … ] to deeply equal []`.
+   */
+  it('writes a drawing’s numbers to a tenth of a millimetre, and keeps the list under 150 kB', () => {
+    const list = htmls.find((p) => p.path === '/layouts/')!.html;
+    const drawings = [...list.matchAll(/<svg[\s\S]*?<\/svg>/g)].map((m) => m[0]);
+    expect(drawings.length).toBe(built.pages.length);
+    expect(drawings.flatMap((d) => d.match(/\d+\.\d{2,}/g) ?? [])).toEqual([]);
+    expect(new TextEncoder().encode(list).length).toBeLessThan(150_000);
   });
 
   /*

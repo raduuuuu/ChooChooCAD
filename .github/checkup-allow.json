@@ -535,6 +535,34 @@
     {
       "file": "app/public/og.png",
       "why": "the link preview image"
+    },
+    {
+      "file": "app/public/layouts/circle.png",
+      "why": "the link preview picture of a layout page (scripts/ogImage.ts --all)"
+    },
+    {
+      "file": "app/public/layouts/stadium.png",
+      "why": "the link preview picture of a layout page (scripts/ogImage.ts --all)"
+    },
+    {
+      "file": "app/public/layouts/long-oval.png",
+      "why": "the link preview picture of a layout page (scripts/ogImage.ts --all)"
+    },
+    {
+      "file": "app/public/layouts/rounded-square.png",
+      "why": "the link preview picture of a layout page (scripts/ogImage.ts --all)"
+    },
+    {
+      "file": "app/public/layouts/bean.png",
+      "why": "the link preview picture of a layout page (scripts/ogImage.ts --all)"
+    },
+    {
+      "file": "app/public/layouts/peanut.png",
+      "why": "the link preview picture of a layout page (scripts/ogImage.ts --all)"
+    },
+    {
+      "file": "app/public/layouts/dog-bone.png",
+      "why": "the link preview picture of a layout page (scripts/ogImage.ts --all)"
     }
   ]
 }
