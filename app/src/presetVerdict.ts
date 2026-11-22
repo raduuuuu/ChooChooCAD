@@ -2,7 +2,7 @@
  * A READY LAYOUT, BUILT AND JUDGED THE WAY THE APP DOES IT (plan 2026-11-14, E2).
  *
  * One home for two questions that the preset pins (`presets.test.ts`) and the
- * search-engine pages (`layoutPages.ts`) both ask: what layout does this
+ * search-engine pages (`pages/layoutPage.ts`) both ask: what layout does this
  * preset build, and does the verdict say it closes exactly. Both go through
  * the code the user's click goes through: the reducer's `preset` step, then
  * `solveGraph` classified by `viewOf`. The old chain engine is not asked.
