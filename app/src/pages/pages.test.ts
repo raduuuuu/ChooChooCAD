@@ -2,6 +2,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../../../engine/data/library.js';
+import { isMeasured } from '../../../engine/data/measured.js';
+import { PART_ORIGINS } from '../../../engine/data/origins.js';
+import { SYSTEM_NAME, type Brand, type Part } from '../../../engine/src/parts/schema.js';
 import { brandWords, TERMS } from '../../../engine/data/brandWords.js';
 import { PRESETS } from '../presets.js';
 import { decodeLink } from '../shareLink.js';
@@ -10,6 +13,7 @@ import { floorCmOf, kindsOf, picturePath, previewPath } from './layoutPage.js';
 import { listHtml } from './listPage.js';
 import { PUBLISHED } from './published.js';
 import { EXPLANATION, HOME_DATA, HOME_DESCRIPTION, HOME_TITLE, jsonLd, PAGES_CHANGED, SITE } from './shell.js';
+import { markOf, rowHtml, sizeGroups, SIZES_PATH, sizesOf } from './sizesPage.js';
 import { addressesIn, fileOf, picturesIn, picturesOf, site, sitemap } from './site.js';
 import { EXAMPLES, exampleGraph, WHY_PATH } from './whyPage.js';
 import { presetGraph, verdictOf } from '../presetVerdict.js';
@@ -119,8 +123,8 @@ describe('layout pages', () => {
    */
   it('lists every page in the sitemap with the date its words changed, and robots.txt names the sitemap', () => {
     const map = sitemap(all.pages);
-    // The home page, the list, each layout, and the why page.
-    expect(all.pages.length).toBe(built.pages.length + 3);
+    // The home page, the list, each layout, the why page and the page of sizes.
+    expect(all.pages.length).toBe(built.pages.length + 4);
     for (const page of all.pages) {
       expect(page.changed).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(map).toContain(`<url><loc>${SITE}${page.path}</loc><lastmod>${page.changed}</lastmod>`);
@@ -389,12 +393,109 @@ describe('layout pages', () => {
    */
   it('keeps the explanation off the layout pages and the list, which link to the why page', () => {
     const others = htmls.filter((p) => p.path !== WHY_PATH);
-    expect(others.length).toBe(built.pages.length + 1);
+    // The list, each layout and the page of sizes.
+    expect(others.length).toBe(built.pages.length + 2);
     for (const { path, html } of others) {
       for (const paragraph of EXPLANATION) expect(html, path).not.toContain(paragraph);
       expect(html, path).toContain(`<a href="${WHY_PATH}">`);
     }
     expect(readFileSync(join(appDir, 'index.html'), 'utf8')).toContain(`<a href="${WHY_PATH}">`);
+  });
+
+  /*
+   * THE PAGE OF SIZES LISTS EVERY PIECE ONCE, IN THE LIBRARY'S OWN FIGURES
+   * (owner, 2026-11-22). The figures are worked out here a second way, from
+   * the part records, never from the page's own lines.
+   * Fails when:
+   * - a kind is left out of the groups (the 'Buffer stops' group deleted):
+   *   `expected [ 'A', 'A1', 'A2', 'A3', 'AT', …(66) ] to deeply equal [ 'A', 'A1', 'A2', 'A3', 'AT', …(68) ]`;
+   * - a curve's radius is written to the inner edge under the centre's name
+   *   (`centrelineRadiusMm(part)` to `part.innerRadiusMm` in `sizesOf`):
+   *   `E: expected 'radius 182 mm to the middle of the tr…' to contain '202 mm'`;
+   * - a road is dropped (`part.roads.slice(1)` in `sizesOf`):
+   *   `L: expected 'curved road, radius 202 mm, 45°' to contain '144 mm'`;
+   * - a row is built but not written (`g.rows.slice(1)` in `groupHtml`):
+   *   `expected 64 to be 73`.
+   */
+  it('lists every built-in piece once on the page of sizes, each figure the library’s', () => {
+    const page = htmls.find((p) => p.path === SIZES_PATH)!.html;
+    const rows = sizeGroups().flatMap((g) => g.rows);
+    expect(rows.map((r) => r.partId).sort()).toEqual(BUILT_IN.map((p) => p.id).sort());
+    expect(page.split('<tr><th scope="row">').length - 1).toBe(BUILT_IN.length);
+    const figuresOf = (p: Part): number[] => {
+      if (p.kind === 'straight' || p.kind === 'buffer') return [p.lengthMm];
+      if (p.kind === 'curve') return [p.innerRadiusMm + p.plankWidthMm / 2, p.innerRadiusMm];
+      if (p.kind === 'block') return [];
+      return p.roads.flatMap((r) =>
+        r.shape.kind === 'arc'
+          ? [r.shape.innerRadiusMm + p.plankWidthMm / 2, ...(r.shape.leadMm ? [r.shape.leadMm] : [])]
+          : r.shape.kind === 's-bend'
+            ? [r.shape.lengthMm, Math.abs(r.shape.offsetMm)]
+            : [r.shape.lengthMm],
+      );
+    };
+    const anglesOf = (p: Part): number[] =>
+      p.kind === 'curve' ? [p.arcSteps * 22.5] : p.kind === 'multi-road' ? p.roads.flatMap((r) => (r.shape.kind === 'arc' ? [r.shape.arcSteps * 22.5] : [])) : [];
+    for (const part of BUILT_IN) {
+      const row = rows.find((r) => r.partId === part.id)!;
+      expect(page, part.id).toContain(rowHtml(row));
+      const said = sizesOf(part).join(' | ');
+      for (const n of figuresOf(part)) expect(said, part.id).toContain(`${n} mm`);
+      for (const a of anglesOf(part)) expect(said, part.id).toContain(`${a}°`);
+      expect(row.name).toBe(part.name);
+    }
+    // An S-bend's shape between its exact ends is drawn, not measured, and the row says so.
+    const bends = BUILT_IN.filter((p) => p.kind === 'multi-road' && p.roads.some((r) => r.shape.kind === 's-bend'));
+    expect(bends.length).toBeGreaterThan(0);
+    for (const p of bends) expect(sizesOf(p).join(' | '), p.id).toContain('approximate');
+  });
+
+  /*
+   * EACH ROW CARRIES THE PALETTE'S MARK, AND THE CREDIT THE PALETTE SHOWS
+   * (AGENTS.md "Names and sources": only a piece taken from one printable
+   * design names where it came from).
+   * Fails when:
+   * - the two lesser marks are swapped (`'Unverified' : 'Published'` to
+   *   `'Published' : 'Unverified'` in `markOf`): `A2: expected 'Unverified' to be 'Published'`;
+   * - the measured tick is not read (`isMeasured(part) ?` taken out of
+   *   `markOf`): `A: expected 'Published' to be 'Measured'`;
+   * - the credit is left off the row (`r.origin ? credit(r.origin) : ''` to `''`
+   *   in `rowHtml`): `N: expected '<tr><th scope="row">Ramp <span class=…' to contain 'href="https://makerworld.com/en/model…'`;
+   * - a row prints the library's id in place of the card's code (`code:
+   *   part.id` in `rowOf`): the list of such codes is no longer empty (17
+   *   of them), and the brand-word pin fails with it.
+   */
+  it('marks each size measured, published or unverified, and credits only the printable designs', () => {
+    const rows = sizeGroups().flatMap((g) => g.rows);
+    const seen = new Set<string>();
+    for (const part of BUILT_IN) {
+      const row = rows.find((r) => r.partId === part.id)!;
+      const want = isMeasured(part) ? 'Measured' : part.dimensions.status === 'unverified' ? 'Unverified' : 'Published';
+      expect(markOf(part), part.id).toBe(want);
+      expect(rowHtml(row), part.id).toContain(`<td>${want}</td>`);
+      seen.add(want);
+      const origin = PART_ORIGINS[part.id];
+      if (origin) {
+        expect(rowHtml(row), part.id).toContain(`href="https://makerworld.com/en/models/${origin.modelId}"`);
+        expect(rowHtml(row), part.id).toContain(`Printable model by ${origin.creator} on ${origin.site}`);
+      } else expect(rowHtml(row), part.id).not.toContain('href=');
+    }
+    expect([...seen].sort()).toEqual(['Measured', 'Published', 'Unverified']);
+    // No row prints an id that spells its system: the code is the palette's.
+    const prefixes = (Object.keys(SYSTEM_NAME) as Brand[]).map((b) => `${b}-`);
+    expect(rows.map((r) => r.code).filter((c) => prefixes.some((x) => c.startsWith(x)))).toEqual([]);
+    expect(BUILT_IN.some((p) => prefixes.some((x) => p.id.startsWith(x)))).toBe(true);
+  });
+
+  /*
+   * THE PAGE OF SIZES CAN BE REACHED: the list, the why page and the home
+   * page's no-script text each link to it.
+   * Fails when: the link is taken off the list page (`<a href="${SIZES_PATH}">…</a>`
+   * cut from listHtml): `/layouts/: expected '<!doctype html>…' to contain '<a href="/sizes/">'`.
+   */
+  it('links to the page of sizes from the list, the why page and the home page', () => {
+    for (const path of ['/layouts/', WHY_PATH]) expect(htmls.find((p) => p.path === path)!.html, path).toContain(`<a href="${SIZES_PATH}">`);
+    expect(readFileSync(join(appDir, 'index.html'), 'utf8')).toContain(`<a href="${SIZES_PATH}">`);
   });
 
   /*

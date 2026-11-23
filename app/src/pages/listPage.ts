@@ -5,7 +5,7 @@
  */
 
 import { layoutPath, type LayoutPage } from './layoutPage.js';
-import { esc, shell, SITE } from './shell.js';
+import { esc, shell, SITE, SIZES_PATH } from './shell.js';
 import { WHY_PATH } from './whyPage.js';
 
 /** Fewest pieces first; layouts with the same count keep the order the app offers them in. */
@@ -25,7 +25,7 @@ export function listHtml(pages: readonly LayoutPage[]): string {
     'Wooden toy-train track layouts checked to close exactly, each with the pieces it takes. Open any of them in the planner and change it.',
     '/layouts/',
     `<h1>Wooden train track layouts that close</h1>
-<p>Each of these loops was checked by ChooChooCAD, a free planner for wooden toy-train track: its two ends meet with nothing to force. Open any of them in the planner and change it. <a href="${WHY_PATH}">Why a loop closes, and why one will not</a>.</p>
+<p>Each of these loops was checked by ChooChooCAD, a free planner for wooden toy-train track: its two ends meet with nothing to force. Open any of them in the planner and change it. <a href="${WHY_PATH}">Why a loop closes, and why one will not</a>. <a href="${SIZES_PATH}">The size of every piece</a>.</p>
 <p><a class="open" href="/">Plan your own layout</a></p>
 <h2>Ready layouts</h2>
 <ul class="list">

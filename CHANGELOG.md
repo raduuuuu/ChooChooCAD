@@ -5,6 +5,18 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.6.0 (2026-11-23)
+
+A new page: [Wooden train track
+dimensions](https://woodentrain.world/sizes/). It lists the size of every
+piece the planner knows, in millimetres: the length of each straight, the
+radius and angle of each curve, and each road through a switch or a crossing.
+Every figure is the one the check itself uses, and each says whether it was
+measured against a real piece, taken from a published reference, or is
+unverified. A piece drawn from a printable design links to that design, as
+its card in the planner does. The list of layouts, the page on why a loop
+will not close and the home page link to it.
+
 ## 1.5.0 (2026-11-22)
 
 A new page: [Why won't my wooden train track loop

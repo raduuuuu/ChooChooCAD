@@ -24,7 +24,10 @@ export const SITE = 'https://woodentrain.world';
  * that moves on every deploy tells a search engine nothing. Raise it in the
  * pull request that changes the words or the markup of every page.
  */
-export const PAGES_CHANGED = '2026-11-22';
+export const PAGES_CHANGED = '2026-11-23';
+
+/** The page of sizes, here because the other kinds of page link to it. */
+export const SIZES_PATH = '/sizes/';
 
 /** The home page's title and description (`app/index.html` carries the same words; the test compares them). */
 export const HOME_TITLE = 'ChooChooCAD: will your wooden train track layout close?';
@@ -91,6 +94,15 @@ const STYLE = `
   .note { color: var(--ink-soft); }
   .list { list-style: none; padding: 0; display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); }
   .list a { display: block; }
+  .sizes { width: 100%; border-collapse: collapse; margin: 0 0 1rem; }
+  .sizes th, .sizes td { text-align: left; vertical-align: top; padding: 0.45rem 0.75rem 0.45rem 0; border-bottom: 1px solid var(--rule); }
+  .sizes thead th { font-size: 0.85rem; font-weight: 600; color: var(--ink-soft); }
+  .sizes tbody th { font-weight: 600; width: 36%; }
+  .sizes td:last-child, .sizes th:last-child { width: 6.5rem; padding-right: 0; }
+  .sizes .size { font-variant-numeric: tabular-nums; }
+  .sizes .code { color: var(--ink-soft); font-weight: 400; }
+  .sizes .credit { display: block; font-size: 0.85rem; font-weight: 400; }
+  @media (max-width: 30rem) { .sizes { font-size: 0.875rem; } .sizes th, .sizes td { padding-right: 0.5rem; } .sizes tbody th { width: 34%; } .sizes td:last-child, .sizes th:last-child { width: 5.2rem; } }
 `;
 
 /** The picture a pasted link shows: 1200 by 630, as chats and social sites expect. */
