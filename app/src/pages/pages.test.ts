@@ -48,7 +48,7 @@ const slug = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
 /**
  * Which ready layouts close, from a SECOND witness: what each preset declares
- * (`expect`), which `presets.test.ts` holds to the solver. `layoutPages.ts`
+ * (`expect`), which `presets.test.ts` holds to the solver. `pages/layoutPage.ts`
  * never reads `expect`; it asks the verdict.
  */
 const closing = PRESETS.filter((p) => p.expect === 'exact');
@@ -363,8 +363,9 @@ describe('layout pages', () => {
 
   /*
    * A LIST THAT STAYS SMALL. Every number in a drawing is written to a tenth
-   * of a millimetre and each layer is one path, so the list of layouts was
-   * 68 kB for seven and is under 30; it must stay loadable as layouts are added.
+   * of a millimetre and each layer is one path, so the list of layouts went
+   * from 68 kB for seven to under 30, and is about 90 kB for fifteen now that
+   * stations and bridges are drawn; it must stay loadable as layouts are added.
    * Fails when: the numbers go back to the solver's digits (`tenths(` taken
    * off the paths in `draw`): `expected [ '59.16443020031738', … ] to deeply equal []`.
    */

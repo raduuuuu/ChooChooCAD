@@ -4,9 +4,11 @@
  *
  *   bun scripts/layoutPages.ts
  *
- * Writes every page `app/src/pages/site.ts` lists with a file (today
- * `app/layouts/index.html` and one page per ready layout that closes, which
- * vite.config.ts picks up as extra pages), each layout's picture file into
+ * Writes every page `app/src/pages/site.ts` lists with a file: the list of
+ * layouts and one page per layout that may have one (the app's ready layouts
+ * that close, and the layouts frozen as links), the page on why a loop will
+ * not close and the page of sizes. vite.config.ts picks each folder up as
+ * extra pages. It also writes each layout's picture file into
  * `app/public/layouts/` (in `public` so it keeps its address through the
  * build) and `app/public/sitemap.xml`. All of it is generated and
  * git-ignored; `app/src/pages/` is the source and

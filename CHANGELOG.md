@@ -5,6 +5,13 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.7.1 (2026-11-24)
+
+Nothing a person using the app will see. Three notes in the code still
+described the layout pages as they were a week ago (a file that has since
+moved, the size of the list of layouts, and what the page-writing script
+writes); the deep checkup found them and they now say what is true.
+
 ## 1.7.0 (2026-11-24)
 
 Eight more [layouts that close](https://woodentrain.world/layouts/), each
