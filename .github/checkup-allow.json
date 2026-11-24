@@ -563,6 +563,38 @@
     {
       "file": "app/public/layouts/dog-bone.png",
       "why": "the link preview picture of a layout page (scripts/ogImage.ts --all)"
+    },
+    {
+      "file": "app/public/layouts/double-circle.png",
+      "why": "the link preview picture of a layout page (scripts/ogImage.ts --all)"
+    },
+    {
+      "file": "app/public/layouts/two-stations.png",
+      "why": "the link preview picture of a layout page (scripts/ogImage.ts --all)"
+    },
+    {
+      "file": "app/public/layouts/oval-with-a-siding.png",
+      "why": "the link preview picture of a layout page (scripts/ogImage.ts --all)"
+    },
+    {
+      "file": "app/public/layouts/double-oval.png",
+      "why": "the link preview picture of a layout page (scripts/ogImage.ts --all)"
+    },
+    {
+      "file": "app/public/layouts/passing-loop.png",
+      "why": "the link preview picture of a layout page (scripts/ogImage.ts --all)"
+    },
+    {
+      "file": "app/public/layouts/figure-eight.png",
+      "why": "the link preview picture of a layout page (scripts/ogImage.ts --all)"
+    },
+    {
+      "file": "app/public/layouts/three-loops.png",
+      "why": "the link preview picture of a layout page (scripts/ogImage.ts --all)"
+    },
+    {
+      "file": "app/public/layouts/two-bridges.png",
+      "why": "the link preview picture of a layout page (scripts/ogImage.ts --all)"
     }
   ]
 }

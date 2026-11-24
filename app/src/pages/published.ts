@@ -21,4 +21,12 @@ export const PUBLISHED: readonly string[] = [
   '/layouts/dog-bone.html',
   '/why-a-loop-will-not-close/',
   '/sizes/',
+  '/layouts/double-circle.html',
+  '/layouts/two-stations.html',
+  '/layouts/oval-with-a-siding.html',
+  '/layouts/double-oval.html',
+  '/layouts/passing-loop.html',
+  '/layouts/figure-eight.html',
+  '/layouts/three-loops.html',
+  '/layouts/two-bridges.html',
 ];

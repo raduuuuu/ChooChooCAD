@@ -108,6 +108,8 @@ const STYLE = `
   .floor img { object-fit: contain; }
   .open, .open:visited { display: inline-block; min-height: 44px; padding: 0.6rem 1rem; border: 1px solid var(--ink); color: var(--ink); text-decoration: none; font-weight: 600; }
   .note { color: var(--ink-soft); }
+  /* The palette's sign for a size nobody has measured, with its words beside the list. */
+  .unmeasured { font-family: var(--font-data); }
   .list { list-style: none; padding: 0; display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); }
   .list a { display: block; }
   .jump { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; }

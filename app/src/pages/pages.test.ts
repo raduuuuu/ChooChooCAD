@@ -7,14 +7,17 @@ import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../../../engine/data/library.js';
 import { isMeasured } from '../../../engine/data/measured.js';
 import { PART_ORIGINS } from '../../../engine/data/origins.js';
+import type { Graph } from '../../../engine/src/graph/model.js';
 import { SYSTEM_NAME, type Brand, type Part } from '../../../engine/src/parts/schema.js';
 import { brandWords, TERMS } from '../../../engine/data/brandWords.js';
 import { AppName } from '../AppName.js';
 import { MeasuredTick } from '../PartPreview.js';
+import { FROZEN_LAYOUTS, NOT_FOR_PAGES } from '../frozenLayouts.js';
+import { sizesLine } from '../linkWords.js';
 import { PRESETS } from '../presets.js';
 import { decodeLink } from '../shareLink.js';
-import { coloursOf, draw, PAGE_COLOURS } from './drawing.js';
-import { floorCmOf, kindsOf, picturePath, previewPath } from './layoutPage.js';
+import { coloursOf, draw, PAGE_COLOURS, renderOf } from './drawing.js';
+import { floorCmOf, kindsOf, kindWord, pageOf, picturePath, previewPath, refusal } from './layoutPage.js';
 import { listHtml } from './listPage.js';
 import { PUBLISHED } from './published.js';
 import { EXPLANATION, HOME_DATA, HOME_DESCRIPTION, HOME_TITLE, jsonLd, MARK, PAGES_CHANGED, SITE, TICK } from './shell.js';
@@ -33,8 +36,12 @@ const resolve = makeResolver(BUILT_IN);
 const appDir = join(import.meta.dirname, '..', '..');
 const tokens = readFileSync(join(appDir, 'src', 'tokens.css'), 'utf8');
 const all = await site(tokens);
-/** The layout pages, with their pieces and links. */
-const built = { pages: all.layouts };
+/** Every layout page. */
+const every = all.layouts;
+/** The pages of the app's own ready layouts, with their pieces and links. */
+const built = { pages: every.filter((p) => p.source === 'preset') };
+/** The pages of the layouts frozen as links (frozenLayouts.ts). */
+const frozen = every.filter((p) => p.source === 'frozen');
 /** Every page this module builds, as its HTML. */
 const htmls = all.pages.flatMap((p) => (p.html === null ? [] : [{ path: p.path, html: p.html }]));
 const slug = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -48,9 +55,10 @@ const closing = PRESETS.filter((p) => p.expect === 'exact');
 
 describe('layout pages', () => {
   /*
-   * Fails when: the `if (!closesExactly(graph)) continue;` line in
-   * pages/layoutPage.ts is deleted. Near miss then gets a page saying it "closes
-   * exactly", and this reports one slug more than the layouts that close.
+   * Fails when: `refusal` in pages/layoutPage.ts stops asking the verdict (its
+   * `if (view.kind !== 'EXACT') return …` line deleted). Near miss then gets
+   * a page saying it "closes exactly": `expected [ 'circle', 'stadium', …(6) ]
+   * to deeply equal [ 'circle', 'stadium', …(5) ]`.
    */
   it('gives a page to every ready layout that closes, and to no other', () => {
     expect(closing.length).toBeGreaterThan(0);
@@ -129,14 +137,17 @@ describe('layout pages', () => {
   it('lists every page in the sitemap with the date its words changed, and robots.txt names the sitemap', () => {
     const map = sitemap(all.pages);
     // The home page, the list, each layout, the why page and the page of sizes.
-    expect(all.pages.length).toBe(built.pages.length + 4);
+    expect(all.pages.length).toBe(every.length + 4);
     for (const page of all.pages) {
       expect(page.changed).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(map).toContain(`<url><loc>${SITE}${page.path}</loc><lastmod>${page.changed}</lastmod>`);
     }
     // A page with a date of its own (the why page, the sizes) is never dated before the shell every page shares.
     expect(all.pages.every((p) => p.changed >= PAGES_CHANGED)).toBe(true);
-    expect(all.pages.filter((p) => p.path === '/' || p.path.startsWith('/layouts/')).every((p) => p.changed === PAGES_CHANGED)).toBe(true);
+    // The home page, the list and the app's own ready layouts carry the shell's date; a frozen layout carries its own when that is later.
+    const shellDated = ['/', '/layouts/', ...built.pages.map((p) => `/layouts/${p.slug}.html`)];
+    expect(all.pages.filter((p) => shellDated.includes(p.path)).every((p) => p.changed === PAGES_CHANGED)).toBe(true);
+    for (const f of FROZEN_LAYOUTS) expect(all.pages.find((p) => p.path === `/layouts/${f.slug}.html`)!.changed >= f.changed, f.slug).toBe(true);
     const robots = readFileSync(join(appDir, 'public', 'robots.txt'), 'utf8');
     expect(robots).toContain(`Sitemap: ${SITE}/sitemap.xml`);
   });
@@ -145,15 +156,19 @@ describe('layout pages', () => {
    * THE PIECE COUNT IN THE WORDS PEOPLE TYPE (owner, 2026-11-22).
    * Fails when: the count is taken out of the title (`a ${count}-piece` cut
    * from `title` in pageHtml): `expected '<!doctype html>…' to contain
-   * '<title>Circle: a 8-piece wooden train…'`.
+   * '<title>Circle: an 8-piece wooden train…'`. And when the article ignores
+   * the number (`aCount` always answering 'a'): the same message.
    */
   it('says the piece count in each layout page’s title, description and heading', () => {
     for (const page of built.pages) {
       const n = PRESETS.find((p) => p.label === page.label)!.pieces.length;
-      expect(page.html).toContain(`<title>${page.label}: a ${n}-piece wooden train track layout that closes | ChooChooCAD</title>`);
-      expect(page.html).toContain(`<meta name="description" content="${page.label}: a ${n}-piece `);
-      expect(page.html).toContain(`<h1>${page.label}: a ${n}-piece wooden train track loop that closes exactly</h1>`);
+      // "an 8-piece", "a 10-piece": the article is said as the number is.
+      const a = n === 8 || n === 11 || n === 18 ? 'an' : 'a';
+      expect(page.html).toContain(`<title>${page.label}: ${a} ${n}-piece wooden train track layout that closes | ChooChooCAD</title>`);
+      expect(page.html).toContain(`<meta name="description" content="${page.label}: ${a} ${n}-piece `);
+      expect(page.html).toContain(`<h1>${page.label}: ${a} ${n}-piece wooden train track loop that closes exactly</h1>`);
     }
+    expect(built.pages.find((p) => p.label === 'Circle')!.html).toContain('<title>Circle: an 8-piece wooden train track layout that closes | ChooChooCAD</title>');
   });
 
   /*
@@ -164,10 +179,10 @@ describe('layout pages', () => {
    * `expected [ 18, 16, 12, … ] to deeply equal [ 8, 10, 12, … ]`.
    */
   it('lists the layouts fewest pieces first, each count before its name', () => {
-    const html = listHtml([...built.pages].reverse());
+    const html = listHtml([...every].reverse());
     const counts = [...html.matchAll(/<span class="num">(\d+)<\/span> pieces: /g)].map((m) => Number(m[1]));
-    expect(counts).toEqual([...built.pages.map((p) => p.pieceCount)].sort((a, b) => a - b));
-    expect(counts.length).toBe(built.pages.length);
+    expect(counts).toEqual([...every.map((p) => p.pieceCount)].sort((a, b) => a - b));
+    expect(counts.length).toBe(every.length);
   });
 
   /*
@@ -187,9 +202,9 @@ describe('layout pages', () => {
     const list = dataOf(htmls.find((p) => p.path === '/layouts/')!.html);
     expect(list['@type']).toBe('ItemList');
     expect(list.itemListElement.map((i) => i.url)).toEqual(
-      [...built.pages].sort((a, b) => a.pieceCount - b.pieceCount).map((p) => `${SITE}/layouts/${p.slug}.html`),
+      [...every].sort((a, b) => a.pieceCount - b.pieceCount).map((p) => `${SITE}/layouts/${p.slug}.html`),
     );
-    for (const page of built.pages) {
+    for (const page of every) {
       const crumbs = dataOf(page.html);
       expect(crumbs['@type']).toBe('BreadcrumbList');
       expect(crumbs.itemListElement.map((i) => i.item)).toEqual([`${SITE}/`, `${SITE}/layouts/`, `${SITE}/layouts/${page.slug}.html`]);
@@ -265,22 +280,24 @@ describe('layout pages', () => {
    *   page in site.ts): `expected [] to deeply equal [ '/layouts/circle.svg', … ]`.
    */
   it('shows each layout as a picture file that stands alone and is in the sitemap', () => {
-    for (const page of built.pages) {
+    for (const page of every) {
+      const what = page.source === 'preset' ? 'loop' : 'layout';
+      const a = /^(8|11|18)/.test(String(page.pieceCount)) ? 'an' : 'a';
       expect(all.files.map((f) => f.file)).toContain(`public${picturePath(page.slug)}`);
       const file = all.files.find((f) => f.file === `public${picturePath(page.slug)}`);
       expect(file!.content).toMatch(/^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="/);
       expect(file!.content).not.toContain('var(');
       expect(file!.content).toContain(`style="fill:${coloursOf(tokens).floor}"`);
-      expect(file!.content).toContain(`aria-label="${page.label}, a ${page.pieceCount}-piece loop of wooden train track`);
+      expect(file!.content).toContain(`aria-label="${page.label}, ${a} ${page.pieceCount}-piece ${what} of wooden train track`);
       const [, w, h] = /viewBox="\S+ \S+ (\S+) (\S+)"/.exec(file!.content)!;
       expect(page.html).toContain(
-        `<img src="${picturePath(page.slug)}" alt="${page.label}: a ${page.pieceCount}-piece loop of wooden train track, seen from overhead" width="${Math.round(Number(w))}" height="${Math.round(Number(h))}">`,
+        `<img src="${picturePath(page.slug)}" alt="${page.label}: ${a} ${page.pieceCount}-piece ${what} of wooden train track, seen from overhead" width="${Math.round(Number(w))}" height="${Math.round(Number(h))}">`,
       );
       // No drawing in the page itself: the one `<svg>` is the identity line's mark.
       expect(page.html.replace(MARK, '')).not.toContain('<svg');
     }
-    expect(all.files.length).toBe(built.pages.length);
-    expect(picturesIn(sitemap(all.pages))).toEqual(built.pages.map((p) => picturePath(p.slug)));
+    expect(all.files.length).toBe(every.length);
+    expect(picturesIn(sitemap(all.pages))).toEqual(every.map((p) => picturePath(p.slug)));
     // The drawing inside a list still takes the page's colours, which follow the tokens the page links.
     expect(draw(presetGraph(PRESETS[0]!), 'x', PAGE_COLOURS).svg).toContain('stroke:var(--track-edge)');
   });
@@ -298,7 +315,7 @@ describe('layout pages', () => {
    * looked at when a layout or the look changes.
    */
   it('gives each layout page its own committed link preview, 1200 by 630', () => {
-    for (const page of built.pages) {
+    for (const page of every) {
       const png = readFileSync(join(appDir, 'public', previewPath(page.slug)));
       expect([...png.subarray(1, 4)].map((b) => String.fromCharCode(b)).join('')).toBe('PNG');
       expect([png.readUInt32BE(16), png.readUInt32BE(20)], page.slug).toEqual([1200, 630]);
@@ -355,7 +372,7 @@ describe('layout pages', () => {
     const list = htmls.find((p) => p.path === '/layouts/')!.html;
     // The drawings, without the identity line's mark.
     const drawings = [...list.replace(MARK, '').matchAll(/<svg[\s\S]*?<\/svg>/g)].map((m) => m[0]);
-    expect(drawings.length).toBe(built.pages.length);
+    expect(drawings.length).toBe(every.length);
     expect(drawings.flatMap((d) => d.match(/\d+\.\d{2,}/g) ?? [])).toEqual([]);
     expect(new TextEncoder().encode(list).length).toBeLessThan(150_000);
   });
@@ -404,12 +421,202 @@ describe('layout pages', () => {
   it('keeps the explanation off the layout pages and the list, which link to the why page', () => {
     const others = htmls.filter((p) => p.path !== WHY_PATH);
     // The list, each layout and the page of sizes.
-    expect(others.length).toBe(built.pages.length + 2);
+    expect(others.length).toBe(every.length + 2);
     for (const { path, html } of others) {
       for (const paragraph of EXPLANATION) expect(html, path).not.toContain(paragraph);
       expect(html, path).toContain(`<a href="${WHY_PATH}">`);
     }
     expect(readFileSync(join(appDir, 'index.html'), 'utf8')).toContain(`<a href="${WHY_PATH}">`);
+  });
+
+  /*
+   * EVERY FROZEN LAYOUT HAS A PAGE, AND EVERY PAGE HOLDS THE VERDICT (owner,
+   * 2026-11-22). A frozen layout is a link; its page opens that same link,
+   * character for character, so the page and the planner cannot show two
+   * layouts. The refusals are proved on layouts made wrong on purpose.
+   * Fails when:
+   * - a frozen layout is refused (the double curve added to `NOT_FOR_PAGES`):
+   *   its page is gone, `expected [ 'two-stations', …(5) ] to deeply equal [ 'double-circle', …(7) ]`
+   *   (the Double oval goes with it);
+   * - a free end is let through (the `ports.some((p) => p.free)` line cut
+   *   from `refusal`): `expected null to be 'an end is left free'`;
+   * - raised track is let through (the `view.raised` line cut): `expected
+   *   null to be 'raised track whose supports are not checked'`;
+   * - the short curve is let through (`NOT_FOR_PAGES` emptied): `expected
+   *   null to be 'it uses E1, which no page may rest on'`;
+   * - a page links to another layout (`fragment: src.fragment` to the
+   *   Stadium's in `pageOf`): `double-circle: expected '#v1.hcy5…' to be '#v1.pc45…'`.
+   */
+  it('gives a page to every frozen layout, opened by its own link, and refuses what a page may not say', async () => {
+    expect(FROZEN_LAYOUTS.length).toBeGreaterThanOrEqual(8);
+    expect(frozen.map((p) => p.slug)).toEqual(FROZEN_LAYOUTS.map((f) => f.slug));
+    for (const f of FROZEN_LAYOUTS) {
+      const page = frozen.find((p) => p.slug === f.slug)!;
+      const read = await decodeLink(f.fragment);
+      expect(read.ok, f.slug).toBe(true);
+      if (!read.ok) continue;
+      expect(verdictOf(read.graph).kind, f.slug).toBe('EXACT');
+      expect(refusal(read.graph), f.slug).toBeNull();
+      expect(page.fragment, f.slug).toBe(f.fragment);
+      expect(page.html, f.slug).toContain(`<a class="open" href="/${f.fragment}">Open this layout in the planner</a>`);
+      expect(page.pieceCount, f.slug).toBe(read.graph.pieces.length);
+      expect(read.graph.pieces.map((p) => p.partId).filter((id) => NOT_FOR_PAGES.includes(id)), f.slug).toEqual([]);
+      expect(page.label).toBe(f.name);
+      expect(f.changed).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    }
+    // The addresses: no two layouts share one, whichever list they come from.
+    expect(new Set(every.map((p) => p.slug)).size).toBe(every.length);
+    // What `refusal` turns away, each on a layout made wrong on purpose.
+    const E4 = ['E', 'E', 'E', 'E'];
+    const chain = (pieces: string[]) => presetGraph({ label: 'x', pieces, note: '', expect: 'exact' });
+    expect(refusal(chain([...E4, 'D', ...E4, 'D']))).toBeNull();
+    expect(refusal(chain([...E4, 'D', ...E4, 'A']))).toBe('the verdict is NEEDS_GIVE');
+    expect(refusal(chain(Array<string>(8).fill('E1')))).toBe('it uses E1, which no page may rest on');
+    expect(refusal(chain([...E4, 'BW', ...E4, 'BW']))).toBe('raised track whose supports are not checked');
+    // The siding without its buffer: the oval still closes exactly, and the spur's end goes nowhere.
+    const siding = await decodeLink(FROZEN_LAYOUTS.find((f) => f.slug === 'oval-with-a-siding')!.fragment);
+    if (!siding.ok) throw new Error('the siding no longer opens');
+    const buffer = siding.graph.pieces.find((p) => resolve(p.partId).kind === 'buffer')!.pieceId;
+    const noBuffer: Graph = {
+      pieces: siding.graph.pieces.filter((p) => p.pieceId !== buffer),
+      welds: siding.graph.welds.filter((w) => w.a.pieceId !== buffer && w.b.pieceId !== buffer),
+    };
+    expect(verdictOf(noBuffer).kind).toBe('EXACT');
+    expect(refusal(noBuffer)).toBe('an end is left free');
+  });
+
+  /*
+   * WHAT A PAGE SAYS WHEN A SIZE WAS NEVER MEASURED (owner, 2026-11-22): the
+   * app's own sentence for what the check rested on, a mark on each such
+   * piece, and "closes" without "exactly" in the heading. Counted here from
+   * the part records, not from the page's own figure.
+   * Fails when:
+   * - the mark is left off an unmeasured piece (`isUnverified(part) ? … : ''`
+   *   to `''` in pageHtml): `double-circle EE: expected '<!doctype html>…' to contain 'Large double curve (<span class="num"…'`;
+   * - every page says catalogue sizes (`sizesLine(0, …)`): `double-circle:
+   *   expected '<!doctype html>…' to contain '<p class="note">Checked with estimate…'`;
+   * - a page with an unmeasured piece keeps "exactly" in its heading
+   *   (`const closes = 'closes exactly'`): `double-circle: expected '<!doctype html>…' to contain 'layout that closes</h1>'`.
+   */
+  it('marks each piece nobody has measured, and says what the check rested on in the app’s words', () => {
+    const lines = new Set<string>();
+    for (const page of every) {
+      const ids = [...page.pieces].flatMap(([id, n]) => Array<string>(n).fill(id));
+      const unmeasured = ids.filter((id) => resolve(id).dimensions.status === 'unverified').length;
+      expect(page.unmeasured, page.slug).toBe(unmeasured);
+      expect(page.html, page.slug).toContain(`<p class="note">${sizesLine(unmeasured, ids.length)}</p>`);
+      lines.add(sizesLine(unmeasured, ids.length));
+      for (const [id] of page.pieces) {
+        const part = resolve(id);
+        const code = id.includes('-') ? id.slice(id.indexOf('-') + 1) : id;
+        const row = `${part.name} (<span class="num">${code}</span>)`;
+        if (part.dimensions.status === 'unverified') expect(page.html, `${page.slug} ${id}`).toContain(`${row} <span class="unmeasured">*</span></li>`);
+        else expect(page.html, `${page.slug} ${id}`).toContain(`${row}</li>`);
+      }
+      const what = page.source === 'preset' ? 'loop' : 'layout';
+      expect(page.html, page.slug).toContain(unmeasured === 0 ? `${what} that closes exactly</h1>` : `${what} that closes</h1>`);
+      expect(page.html.includes('A size nobody has measured.'), page.slug).toBe(unmeasured > 0);
+    }
+    // All three of the app's sentences are on some page, so each branch above was taken.
+    expect([...lines].sort()).toEqual([sizesLine(0, 1), sizesLine(1, 1), sizesLine(1, 2)].sort());
+  });
+
+  /*
+   * THE COUNT IS TRACK; AN ADAPTER IS SAID BESIDE IT (owner, 2026-11-22). No
+   * frozen layout needs one today, so the page is made here for a loop that
+   * does: a medium straight with two sockets leaves one joint socket to socket.
+   * Fails when: the adapter is left out of the page (`page.adapters > 0 ?`
+   * branches cut from pageHtml): `expected '<!doctype html>…' to contain
+   * 'takes <span class="num">10</span> pieces of wooden toy-train track, plus <span class="num">1</span> male-male adapter.'`.
+   */
+  it('counts track only, and says the adapters a layout needs beside the count and in the list', () => {
+    const graph = presetGraph({ label: 'x', pieces: ['E', 'E', 'E', 'E', 'C', 'E', 'E', 'E', 'E', 'A'], note: '', expect: 'exact' });
+    expect(verdictOf(graph).adapterCount).toBe(1);
+    expect(refusal(graph)).toBeNull();
+    const page = pageOf({ label: 'Made up', slug: 'made-up', source: 'frozen', changed: PAGES_CHANGED, graph, fragment: '#v1.x' }, coloursOf(tokens));
+    expect(page.pieceCount).toBe(10);
+    expect(page.adapters).toBe(1);
+    expect(page.html).toContain('takes <span class="num">10</span> pieces of wooden toy-train track, plus <span class="num">1</span> male-male adapter.');
+    expect(page.html).toContain('<li><span class="num">1</span> male-male adapter, where two sockets meet</li>');
+    for (const p of every) expect(p.adapters, p.slug).toBe(0);
+    for (const p of every) expect(p.html, p.slug).not.toContain('adapter');
+  });
+
+  /*
+   * NO TWO LAYOUTS ARE ONE SHAPE TURNED OR MIRRORED (owner, 2026-11-22). A
+   * layout's shape is every distance between two of its ends, which turning,
+   * mirroring and moving all leave alone, with the pieces it is made of.
+   * Fails when: a layout is listed twice under two names (the Figure eight's
+   * entry copied in frozenLayouts.ts with the slug `copy`): `expected 15 to be 16`.
+   * The control: the Stadium built bending the other way has the Stadium's shape.
+   */
+  it('holds no two layouts of one shape, turned or mirrored', async () => {
+    const shapeOf = (graph: Graph) => {
+      const ends = renderOf(graph).ports.map((p) => [p.x, p.y] as const);
+      const gaps: number[] = [];
+      for (let i = 0; i < ends.length; i++) for (let j = i + 1; j < ends.length; j++) gaps.push(Math.round(Math.hypot(ends[i]![0] - ends[j]![0], ends[i]![1] - ends[j]![1]) * 10));
+      return `${graph.pieces.map((p) => p.partId).sort().join(',')}|${gaps.sort((a, b) => a - b).join(',')}`;
+    };
+    const shapes: string[] = [];
+    for (const page of every) {
+      const read = await decodeLink(page.fragment);
+      if (!read.ok) throw new Error(`${page.slug} no longer opens`);
+      shapes.push(shapeOf(read.graph));
+    }
+    expect(new Set(shapes).size).toBe(every.length);
+    const stadium = PRESETS.find((p) => p.label === 'Stadium')!;
+    const mirrored = presetGraph({ ...stadium, turns: stadium.pieces.map(() => 'right' as const) });
+    expect(shapeOf(mirrored)).toBe(shapeOf(presetGraph(stadium)));
+    expect(shapeOf(mirrored)).not.toBe(shapeOf(presetGraph(PRESETS.find((p) => p.label === 'Circle')!)));
+  });
+
+  /*
+   * A BRIDGE IS NOT A FLAT CROSSING, A STATION IS NOT A BARE STRAIGHT, AND A
+   * BUFFER IS NOT A SHORT ONE (owner, 2026-11-22; DESIGN.md rule 11): the
+   * picture draws raised wood with its shadow and the gap it cuts in the
+   * track under it, wood that is not track as a slab, and a buffer's beam.
+   * And a piece is called what it is.
+   * Fails when:
+   * - the gap is left out (`gap` cut from the layers in `draw`): `two-bridges: expected '<svg xmlns=…' to contain '<mask id="g'`;
+   * - raised wood casts no shadow (`shadowOf` returning ''): `two-bridges: expected '<svg xmlns=…' to contain 'stroke:#8f826c'`;
+   * - wood on the floor that is not track is not drawn (`bodies.filter(isUnder).map(slab)`
+   *   cut): `two-bridges: expected '<svg xmlns=…' to contain 'fill:#bdb19b'`, the bridges' piers;
+   * - a buffer has no beam (`beams` cut): `oval-with-a-siding: expected '<svg xmlns=…' to contain 'stroke:#2a2724" stroke-width="6"'`;
+   * - a switch is called a crossing (the heel test cut from `kindWord`):
+   *   `expected 'double curve' to be 'switch'`.
+   * no_claim: wood that is not track on the RAISED level, and a roof's hatch.
+   * No layout that may have a page holds either today; they are drawn as the
+   * planner's canvas draws them and were looked at, not pinned.
+   */
+  it('draws raised wood, buildings and buffers as what they are, and calls each piece by its kind', () => {
+    const c = coloursOf(tokens);
+    const picture = (slug: string) => every.find((p) => p.slug === slug)!.picture;
+    expect(picture('two-bridges'), 'two-bridges').toContain('<mask id="g');
+    expect(picture('two-bridges'), 'two-bridges').toContain(`stroke:${c.shadow}`);
+    expect(picture('two-bridges'), 'two-bridges').toContain(`fill:${c.slab}`);
+    expect(picture('two-stations'), 'two-stations').toContain(`fill:${c.slab}`);
+    expect(picture('oval-with-a-siding'), 'oval-with-a-siding').toContain(`stroke:${c.ink}" stroke-width="6"`);
+    // A flat loop of plain track has none of them.
+    const flat = picture('stadium');
+    for (const mark of ['<mask', c.shadow, c.slab, `stroke:${c.ink}"`]) expect(flat, mark).not.toContain(mark);
+    // Several drawings share the list page, so each one's mask has a name of its own.
+    const list = htmls.find((p) => p.path === '/layouts/')!.html;
+    const masks = [...list.matchAll(/<mask id="([^"]+)"/g)].map((m) => m[1]!);
+    expect(masks.length).toBeGreaterThan(0);
+    expect(new Set(masks).size).toBe(masks.length);
+    expect(kindWord(resolve('L'))).toBe('switch');
+    expect(kindWord(resolve('H1'))).toBe('crossing');
+    expect(kindWord(resolve('EE'))).toBe('double curve');
+    expect(kindWord(resolve('SA'))).toBe('bridge');
+    expect(kindWord(resolve('GS'))).toBe('station');
+    expect(kindWord(resolve('S'))).toBe('buffer');
+    expect(kindWord(resolve('TT'))).toBe('straight piece');
+    const kinds = (slug: string) => every.find((p) => p.slug === slug)!.kinds;
+    expect(kinds('double-circle')).toEqual([['double curves', 8]]);
+    expect(kinds('oval-with-a-siding')).toEqual([['curves', 8], ['straight pieces', 2], ['switch', 1], ['buffer', 1]]);
+    expect(kinds('two-bridges')).toContainEqual(['bridges', 2]);
+    expect(kinds('two-stations')).toContainEqual(['stations', 2]);
+    expect(kinds('passing-loop')).toContainEqual(['switches', 2]);
   });
 
   /*
