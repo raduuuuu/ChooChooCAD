@@ -51,6 +51,9 @@ export interface Site {
   readonly files: readonly SiteFile[];
 }
 
+/** A page with a date of its own still changes when the shell every page shares does: the later of the two. */
+const later = (own: string) => (own > PAGES_CHANGED ? own : PAGES_CHANGED);
+
 /** `tokensCss` is `app/src/tokens.css` as text: a picture file carries its colours as values. */
 export async function site(tokensCss: string): Promise<Site> {
   const layouts = await layoutPages(coloursOf(tokensCss));
@@ -64,8 +67,8 @@ export async function site(tokensCss: string): Promise<Site> {
       changed: PAGES_CHANGED,
       picture: picturePath(l.slug),
     })),
-    { path: WHY_PATH, file: fileOf(WHY_PATH), html: whyHtml(), changed: WHY_CHANGED },
-    { path: SIZES_PATH, file: fileOf(SIZES_PATH), html: sizesHtml(), changed: SIZES_CHANGED },
+    { path: WHY_PATH, file: fileOf(WHY_PATH), html: whyHtml(), changed: later(WHY_CHANGED) },
+    { path: SIZES_PATH, file: fileOf(SIZES_PATH), html: sizesHtml(), changed: later(SIZES_CHANGED) },
   ];
   const files = layouts.map((l) => ({ file: `public${picturePath(l.slug)}`, content: `${l.picture}\n` }));
   return { pages, layouts, files };

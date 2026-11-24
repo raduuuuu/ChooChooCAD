@@ -1,19 +1,24 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN, makeResolver } from '../../../engine/data/library.js';
 import { isMeasured } from '../../../engine/data/measured.js';
 import { PART_ORIGINS } from '../../../engine/data/origins.js';
 import { SYSTEM_NAME, type Brand, type Part } from '../../../engine/src/parts/schema.js';
 import { brandWords, TERMS } from '../../../engine/data/brandWords.js';
+import { AppName } from '../AppName.js';
+import { MeasuredTick } from '../PartPreview.js';
 import { PRESETS } from '../presets.js';
 import { decodeLink } from '../shareLink.js';
 import { coloursOf, draw, PAGE_COLOURS } from './drawing.js';
 import { floorCmOf, kindsOf, picturePath, previewPath } from './layoutPage.js';
 import { listHtml } from './listPage.js';
 import { PUBLISHED } from './published.js';
-import { EXPLANATION, HOME_DATA, HOME_DESCRIPTION, HOME_TITLE, jsonLd, PAGES_CHANGED, SITE } from './shell.js';
-import { markOf, rowHtml, sizeGroups, SIZES_PATH, sizesOf } from './sizesPage.js';
+import { EXPLANATION, HOME_DATA, HOME_DESCRIPTION, HOME_TITLE, jsonLd, MARK, PAGES_CHANGED, SITE, TICK } from './shell.js';
+import { markOf, MODELS_ID, modelsHtml, rowHtml, rowsForDigest, sizeGroups, SIZES_CHANGED, SIZES_DIGEST, SIZES_PATH, sizesOf, textOf } from './sizesPage.js';
 import { addressesIn, fileOf, picturesIn, picturesOf, site, sitemap } from './site.js';
 import { EXAMPLES, exampleGraph, WHY_PATH } from './whyPage.js';
 import { presetGraph, verdictOf } from '../presetVerdict.js';
@@ -129,7 +134,9 @@ describe('layout pages', () => {
       expect(page.changed).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(map).toContain(`<url><loc>${SITE}${page.path}</loc><lastmod>${page.changed}</lastmod>`);
     }
-    expect(all.pages.every((p) => p.changed === PAGES_CHANGED)).toBe(true);
+    // A page with a date of its own (the why page, the sizes) is never dated before the shell every page shares.
+    expect(all.pages.every((p) => p.changed >= PAGES_CHANGED)).toBe(true);
+    expect(all.pages.filter((p) => p.path === '/' || p.path.startsWith('/layouts/')).every((p) => p.changed === PAGES_CHANGED)).toBe(true);
     const robots = readFileSync(join(appDir, 'public', 'robots.txt'), 'utf8');
     expect(robots).toContain(`Sitemap: ${SITE}/sitemap.xml`);
   });
@@ -269,7 +276,8 @@ describe('layout pages', () => {
       expect(page.html).toContain(
         `<img src="${picturePath(page.slug)}" alt="${page.label}: a ${page.pieceCount}-piece loop of wooden train track, seen from overhead" width="${Math.round(Number(w))}" height="${Math.round(Number(h))}">`,
       );
-      expect(page.html).not.toContain('<svg');
+      // No drawing in the page itself: the one `<svg>` is the identity line's mark.
+      expect(page.html.replace(MARK, '')).not.toContain('<svg');
     }
     expect(all.files.length).toBe(built.pages.length);
     expect(picturesIn(sitemap(all.pages))).toEqual(built.pages.map((p) => picturePath(p.slug)));
@@ -345,7 +353,8 @@ describe('layout pages', () => {
    */
   it('writes a drawing’s numbers to a tenth of a millimetre, and keeps the list under 150 kB', () => {
     const list = htmls.find((p) => p.path === '/layouts/')!.html;
-    const drawings = [...list.matchAll(/<svg[\s\S]*?<\/svg>/g)].map((m) => m[0]);
+    // The drawings, without the identity line's mark.
+    const drawings = [...list.replace(MARK, '').matchAll(/<svg[\s\S]*?<\/svg>/g)].map((m) => m[0]);
     expect(drawings.length).toBe(built.pages.length);
     expect(drawings.flatMap((d) => d.match(/\d+\.\d{2,}/g) ?? [])).toEqual([]);
     expect(new TextEncoder().encode(list).length).toBeLessThan(150_000);
@@ -378,7 +387,8 @@ describe('layout pages', () => {
     expect(page).toContain('One side is now 72 mm shorter');
     expect(page).toContain('Now one side is 162 mm shorter');
     expect(page).not.toContain('{gap}');
-    expect((page.match(/<svg /g) ?? []).length).toBe(3);
+    // Three drawings, and the identity line's mark.
+    expect((page.replace(MARK, '').match(/<svg /g) ?? []).length).toBe(3);
     expect(JSON.parse(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(page)![1]!)['@type']).toBe('Article');
     // Other systems are named by what sets them apart, never by a maker (the brand-word spec walks this page too).
     expect(page).toContain('“Small-peg” and “Look-alike”');
@@ -411,21 +421,25 @@ describe('layout pages', () => {
    *   `expected [ 'A', 'A1', 'A2', 'A3', 'AT', …(66) ] to deeply equal [ 'A', 'A1', 'A2', 'A3', 'AT', …(68) ]`;
    * - a curve's radius is written to the inner edge under the centre's name
    *   (`centrelineRadiusMm(part)` to `part.innerRadiusMm` in `sizesOf`):
-   *   `E: expected 'radius 182 mm to the middle of the tr…' to contain '202 mm'`;
+   *   `E: expected '182 mm radius, 45°' to contain '202 mm'`;
    * - a road is dropped (`part.roads.slice(1)` in `sizesOf`):
-   *   `L: expected 'curved road, radius 202 mm, 45°' to contain '144 mm'`;
+   *   `L: expected '202 mm radius, 45° curved road' to contain '144 mm'`;
    * - a row is built but not written (`g.rows.slice(1)` in `groupHtml`):
-   *   `expected 64 to be 73`.
+   *   `expected 64 to be 73`;
+   * - the note that an S-bend's curve is approximate is dropped from its
+   *   section (`...(bends ? […] : [])` to `[]`): `expected 'Each line is one
+   *   road through the pie…' to contain 'approximate'`.
    */
   it('lists every built-in piece once on the page of sizes, each figure the library’s', () => {
     const page = htmls.find((p) => p.path === SIZES_PATH)!.html;
-    const rows = sizeGroups().flatMap((g) => g.rows);
+    const groups = sizeGroups();
+    const rows = groups.flatMap((g) => g.rows);
     expect(rows.map((r) => r.partId).sort()).toEqual(BUILT_IN.map((p) => p.id).sort());
-    expect(page.split('<tr><th scope="row">').length - 1).toBe(BUILT_IN.length);
+    expect(page.split('<tr role="row"><th role="rowheader"').length - 1).toBe(BUILT_IN.length);
     const figuresOf = (p: Part): number[] => {
       if (p.kind === 'straight' || p.kind === 'buffer') return [p.lengthMm];
-      if (p.kind === 'curve') return [p.innerRadiusMm + p.plankWidthMm / 2, p.innerRadiusMm];
-      if (p.kind === 'block') return [];
+      if (p.kind === 'curve') return [p.innerRadiusMm + p.plankWidthMm / 2];
+      if (p.kind === 'block') return [p.body[0]!.lengthMm, p.body[0]!.widthMm];
       return p.roads.flatMap((r) =>
         r.shape.kind === 'arc'
           ? [r.shape.innerRadiusMm + p.plankWidthMm / 2, ...(r.shape.leadMm ? [r.shape.leadMm] : [])]
@@ -439,52 +453,198 @@ describe('layout pages', () => {
     for (const part of BUILT_IN) {
       const row = rows.find((r) => r.partId === part.id)!;
       expect(page, part.id).toContain(rowHtml(row));
-      const said = sizesOf(part).join(' | ');
+      const said = sizesOf(part).map(textOf).join(' | ');
       for (const n of figuresOf(part)) expect(said, part.id).toContain(`${n} mm`);
       for (const a of anglesOf(part)) expect(said, part.id).toContain(`${a}°`);
       expect(row.name).toBe(part.name);
     }
-    // An S-bend's shape between its exact ends is drawn, not measured, and the row says so.
-    const bends = BUILT_IN.filter((p) => p.kind === 'multi-road' && p.roads.some((r) => r.shape.kind === 's-bend'));
-    expect(bends.length).toBeGreaterThan(0);
-    for (const p of bends) expect(sizesOf(p).join(' | '), p.id).toContain('approximate');
+    // An S-bend's shape between its exact ends is drawn, not measured: said once, in its section's note.
+    const bends = groups.filter((g) => g.rows.some((r) => r.sizes.some((l) => textOf(l).includes('S-bend'))));
+    expect(bends.map((g) => g.heading)).toEqual(['Switches and crossings']);
+    for (const g of bends) expect(textOf(g.note ?? [])).toContain('approximate');
   });
 
   /*
-   * EACH ROW CARRIES THE PALETTE'S MARK, AND THE CREDIT THE PALETTE SHOWS
-   * (AGENTS.md "Names and sources": only a piece taken from one printable
-   * design names where it came from).
+   * EACH ROW CARRIES THE PALETTE'S MARK, AND A PIECE TAKEN FROM A PRINTABLE
+   * DESIGN KEEPS ITS CREDIT (AGENTS.md "Names and sources"; design review
+   * D16, D18): the credit and link once under "Printable models", a marker in
+   * the row, and no link anywhere else in a row.
    * Fails when:
    * - the two lesser marks are swapped (`'Unverified' : 'Published'` to
    *   `'Published' : 'Unverified'` in `markOf`): `A2: expected 'Unverified' to be 'Published'`;
    * - the measured tick is not read (`isMeasured(part) ?` taken out of
    *   `markOf`): `A: expected 'Published' to be 'Measured'`;
-   * - the credit is left off the row (`r.origin ? credit(r.origin) : ''` to `''`
-   *   in `rowHtml`): `N: expected '<tr><th scope="row">Ramp <span class=…' to contain 'href="https://makerworld.com/en/model…'`;
+   * - the tick is left off a measured row (`${TICK} ` cut from `markHtml`):
+   *   `A: expected '<tr role="row"><th role="rowheader" s…' to contain 'class="mark is-measured"><svg class="…'`;
+   * - a model's pieces lose their entry (`held.pieces.push(r)` removed from
+   *   `modelsHtml`): `N: expected '<li><a href="https://makerworld.com/e…' to contain 'Ramp <span class="code num">N</span>'`;
+   * - the row's marker is dropped (`if (r.origin) lines.push(…)` removed):
+   *   `N: expected '<tr role="row"><th role="rowheader" s…' to contain 'href="#printable-models"'`;
    * - a row prints the library's id in place of the card's code (`code:
    *   part.id` in `rowOf`): the list of such codes is no longer empty (17
    *   of them), and the brand-word pin fails with it.
    */
-  it('marks each size measured, published or unverified, and credits only the printable designs', () => {
+  it('marks each size measured, published or unverified, and credits the printable designs once', () => {
     const rows = sizeGroups().flatMap((g) => g.rows);
+    const models = modelsHtml(rows).split('\n').filter((l) => l.startsWith('<li>'));
     const seen = new Set<string>();
     for (const part of BUILT_IN) {
       const row = rows.find((r) => r.partId === part.id)!;
       const want = isMeasured(part) ? 'Measured' : part.dimensions.status === 'unverified' ? 'Unverified' : 'Published';
       expect(markOf(part), part.id).toBe(want);
-      expect(rowHtml(row), part.id).toContain(`<td>${want}</td>`);
+      expect(rowHtml(row), part.id).toContain(`class="mark is-${want.toLowerCase()}">${want === 'Measured' ? `${TICK} ` : ''}${want}</td>`);
       seen.add(want);
       const origin = PART_ORIGINS[part.id];
       if (origin) {
-        expect(rowHtml(row), part.id).toContain(`href="https://makerworld.com/en/models/${origin.modelId}"`);
-        expect(rowHtml(row), part.id).toContain(`Printable model by ${origin.creator} on ${origin.site}`);
+        expect(rowHtml(row), part.id).toContain(`href="#${MODELS_ID}"`);
+        const entry = models.find((l) => l.includes(`href="https://makerworld.com/en/models/${origin.modelId}"`)) ?? '';
+        expect(entry, part.id).toContain(`Model by ${origin.creator} on ${origin.site}</a>`);
+        expect(entry, part.id).toContain(`${part.name} <span class="code num">${row.code}</span>`);
       } else expect(rowHtml(row), part.id).not.toContain('href=');
+      // A row itself never links off the site.
+      expect(rowHtml(row), part.id).not.toContain('https://');
     }
     expect([...seen].sort()).toEqual(['Measured', 'Published', 'Unverified']);
     // No row prints an id that spells its system: the code is the palette's.
     const prefixes = (Object.keys(SYSTEM_NAME) as Brand[]).map((b) => `${b}-`);
     expect(rows.map((r) => r.code).filter((c) => prefixes.some((x) => c.startsWith(x)))).toEqual([]);
     expect(BUILT_IN.some((p) => prefixes.some((x) => p.id.startsWith(x)))).toBe(true);
+  });
+
+  /*
+   * THE READER CAME FOR ONE NUMBER (design review 2026-11-24, D3, D4, D5, D8,
+   * D9): the tables come before the explanation, every section can be jumped
+   * to, a kind runs shortest first, and a length says what it is measured
+   * between.
+   * Fails when:
+   * - the tables go back after the explanation (`groups.map(groupHtml)` moved
+   *   to follow the "About these sizes" block): `expected 14328 to be less
+   *   than 13369`, the first table now starting after the key to the marks;
+   * - a section loses its address (`id="${g.id}"` cut from the `<h2>`):
+   *   `straights: expected '<!doctype html>…' to contain '<h2 id="straights">'`;
+   * - the rows keep the library's order (`bySize(parts)` to `[...parts]` in
+   *   `group`): `Straights: expected [ 54, 108, 144, 216, 72, 54, 54, …(4) ] to deeply equal [ 54, 54, 54, 72, 108, 108, 108, …(4) ]`;
+   * - the note on what a length is measured between is dropped
+   *   (`[LENGTH_NOTE]` cut from the Straights group): `expected '' to contain 'A peg is not counted'`.
+   */
+  it('puts the figures first on the page of sizes, each section a jump away and shortest first', () => {
+    const page = htmls.find((p) => p.path === SIZES_PATH)!.html;
+    const groups = sizeGroups();
+    expect(page.indexOf('<table')).toBeGreaterThan(0);
+    expect(page.indexOf('<table')).toBeLessThan(page.indexOf('<strong>Measured</strong>'));
+    expect(page.indexOf('<nav')).toBeLessThan(page.indexOf('<table'));
+    for (const id of [...groups.map((g) => g.id), MODELS_ID, 'about-these-sizes']) {
+      expect(page, id).toContain(`<li><a href="#${id}">`);
+      expect(page, id).toContain(`<h2 id="${id}">`);
+    }
+    for (const g of groups) expect(page, g.id).toContain(`<table role="table" class="sizes" aria-labelledby="${g.id}">`);
+    expect(new Set(groups.map((g) => g.id)).size).toBe(groups.length);
+    // Shortest first within a kind: a straight by its length, a curve by its radius and then its angle.
+    for (const g of groups) {
+      const parts = g.rows.map((r) => resolve(r.partId));
+      const lengths = parts.flatMap((p) => (p.kind === 'straight' ? [p.lengthMm] : []));
+      expect(lengths, g.heading).toEqual([...lengths].sort((a, b) => a - b));
+      const curves = parts.flatMap((p) => (p.kind === 'curve' ? [p.innerRadiusMm * 1000 + p.arcSteps] : []));
+      expect(curves, g.heading).toEqual([...curves].sort((a, b) => a - b));
+    }
+    expect(groups.find((g) => g.heading === 'Straights')!.rows.length).toBeGreaterThan(5);
+    expect(textOf(groups.find((g) => g.heading === 'Straights')!.note ?? [])).toContain('A peg is not counted');
+    // The plank's half width, as the Curves note says it, and the count of curves in a circle.
+    expect(textOf(groups.find((g) => g.heading === 'Curves')!.note ?? [])).toContain(`${resolve('E').plankWidthMm / 2} mm less. 8 curves of 45° make a full circle.`);
+    // Where "Unverified" is explained, a reader with the piece is shown how to photograph it; the guide is a page of the site.
+    expect(page).toContain('<a href="/photo-guide.html">');
+    expect(readFileSync(join(appDir, 'photo-guide.html'), 'utf8')).toContain('<h1>');
+  });
+
+  /*
+   * EVERY FIGURE IS SET AS A MEASUREMENT, UNIT AND ALL (DESIGN.md rule 4;
+   * design review D12, D13), and a piece's angle is written as its name
+   * writes it.
+   * Fails when:
+   * - a figure is written as plain words (`lineHtml` returning `esc(b.num)`
+   *   for a figure): `expected [ '54 mm', '54 mm', '54 mm', …(127) ] to deeply equal []`;
+   * - an angle is given a decimal it does not have (`${steps * 22.5}°` to
+   *   `${(steps * 22.5).toFixed(1)}°`): `expected '<main class="page">…' to contain '<span class="num">45°</span>'`,
+   *   and the first pin's `E: expected '202 mm radius, 45.0°' to contain '45°'`.
+   */
+  it('sets every figure on the page of sizes in the measurement face, with its unit', () => {
+    const page = htmls.find((p) => p.path === SIZES_PATH)!.html;
+    const body = page.slice(page.indexOf('<main'), page.indexOf('</main>'));
+    // A piece's name is a name, not a measurement, wherever it appears ("Small-peg curve, 22.5°").
+    const names = BUILT_IN.map((p) => p.name).sort((a, b) => b.length - a.length);
+    const unnamed = names.reduce((text, name) => text.split(name).join(''), body);
+    const loose = unnamed.replace(/<span class="num">[^<]*<\/span>/g, '').match(/\d[\d.]*\s?(mm|°)/g) ?? [];
+    expect(loose).toEqual([]);
+    expect(body).toContain('<span class="num">144 mm</span>');
+    expect(body).toContain('<span class="num">45°</span>');
+    expect(page).not.toContain('45.0°');
+  });
+
+  /*
+   * THE DATE A READER SEES IS NEVER OLDER THAN THE FIGURES (design review
+   * D10). `SIZES_DIGEST` is the rows as they stood on `SIZES_CHANGED`.
+   *
+   * WHEN THIS FAILS because a piece was added or a size corrected: set
+   * `SIZES_CHANGED` in pages/sizesPage.ts to today, and `SIZES_DIGEST` to
+   * the "received" value this prints.
+   * Fails when: any row changes without the date (the long straight given
+   * 217mm in engine/data/generic.ts): `expected '…' to be '…'`, two digests.
+   */
+  it('shows the date the sizes last changed, and holds it to the rows', () => {
+    const page = htmls.find((p) => p.path === SIZES_PATH)!.html;
+    expect(createHash('sha256').update(rowsForDigest()).digest('hex').slice(0, 16)).toBe(SIZES_DIGEST);
+    expect(SIZES_CHANGED).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    const [y, m, d] = SIZES_CHANGED.split('-').map(Number);
+    const words = new Date(Date.UTC(y!, m! - 1, d!)).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+    expect(page).toContain(`Sizes last changed <time datetime="${SIZES_CHANGED}">${words}</time>.`);
+    expect(page).toContain(`"dateModified":"${SIZES_CHANGED}"`);
+  });
+
+  /*
+   * WHAT EVERY STATIC PAGE WEARS (DESIGN.md rules 9, 10 and 15; design review
+   * D6, D7, D14, D15, D17): the planner's mark, drawn as the planner draws
+   * it; a visited link in the soft ink; a 44px tap area on a touch screen;
+   * and a table of sizes that stacks on a phone without shrinking its type.
+   * The stylesheet is read as text (CLAUDE.md): it proves the rule, not the pixel.
+   * Fails when:
+   * - the page's mark drifts from the planner's (a figure changed in `MARK`
+   *   in shell.ts): `expected '<svg class="app-name-mark" width="18"…' to be '<svg class="app-name-mark" width="18"…'`;
+   * - the mark is left off the identity line (`${MARK}` cut from `shell`):
+   *   `/layouts/: expected +0 to be 1`;
+   * - a visited link keeps the full ink (`a:visited` rule removed): `expected null not to be null`;
+   * - the touch floor is dropped (`min-height: 44px` cut from the coarse
+   *   pointer block): `expected '…' to match /min-height:\s*44px/`;
+   * - the phone table shrinks its type again (`font-size: 0.875rem` put in
+   *   the 30rem block): `expected '…' not to match /font-size/`;
+   * - the jump list wraps on a phone again (its `flex-wrap: nowrap` rule cut
+   *   from the 30rem block), pushing the first figure off the first screen:
+   *   `expected '@media (max-width: 30rem) {…' to match /\.jump\s*\{\s*flex-wrap:\s*nowrap;\s*overflow-x:\s*auto/`.
+   */
+  it('gives every static page the planner’s mark, a visited ink, a touch floor and a table that stacks', () => {
+    const drawn = /<svg[\s\S]*?<\/svg>/.exec(renderToStaticMarkup(createElement(AppName)))![0];
+    expect(MARK).toBe(drawn);
+    expect(TICK).toBe(renderToStaticMarkup(createElement(MeasuredTick)));
+    for (const { path, html } of htmls) expect(html.split(`<div class="identity">${MARK}<a href="/">ChooChooCAD</a>`).length - 1, path).toBe(1);
+    const page = htmls.find((p) => p.path === SIZES_PATH)!.html;
+    const style = /<style>([\s\S]*?)<\/style>/.exec(page)![1]!.replace(/\/\*[\s\S]*?\*\//g, '');
+    /** The body of an `@media` block, to its closing brace at the start of a line. */
+    const block = (query: string) => {
+      const from = style.indexOf(`@media ${query} {`);
+      expect(from, query).toBeGreaterThan(-1);
+      return style.slice(from, style.indexOf('\n  }', from));
+    };
+    expect(/\n\s*a:visited\s*\{\s*color:\s*var\(--ink-soft\);\s*\}/.exec(style)).not.toBeNull();
+    const touch = block('(pointer: coarse)');
+    expect(touch).toMatch(/\n\s*a\s*\{\s*padding-block:\s*0\.85rem;\s*\}/);
+    expect(touch).toMatch(/min-height:\s*44px/);
+    const phone = block('(max-width: 30rem)');
+    expect(phone).toMatch(/\.sizes tbody tr\s*\{\s*display:\s*grid/);
+    expect(phone).not.toMatch(/font-size/);
+    // The jump list is one line on a phone, so the first figure is on the first screen.
+    expect(phone).toMatch(/\.jump\s*\{\s*flex-wrap:\s*nowrap;\s*overflow-x:\s*auto/);
+    const print = block('print');
+    expect(print).toMatch(/\.jump, \.also, \.open\s*\{\s*display:\s*none/);
+    expect(print).toMatch(/\.sizes tr\s*\{\s*break-inside:\s*avoid/);
   });
 
   /*

@@ -29,7 +29,7 @@ import { esc, EXPLANATION, shell, SITE, SIZES_PATH } from './shell.js';
 
 export const WHY_PATH = '/why-a-loop-will-not-close/';
 /** When this page's words last changed, for the sitemap. Raise it when they do. */
-export const WHY_CHANGED = '2026-11-23';
+export const WHY_CHANGED = '2026-11-24';
 export const WHY_TITLE = 'Why won’t my wooden train track loop close? | ChooChooCAD';
 const DESCRIPTION =
   'Why the two ends of a wooden toy-train track loop do not meet: three loops drawn and checked, what causes each, and what to change so it closes.';
