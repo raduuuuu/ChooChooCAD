@@ -5,6 +5,26 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.7.0 (2026-11-24)
+
+Eight more [layouts that close](https://woodentrain.world/layouts/), each
+with its own page, picture and list of pieces: a figure eight, three loops
+in a row, a passing loop, an oval with a siding, two stations, a double
+circle, a double oval, and two bridges with a second loop running under
+them. Each opens in the planner from its page.
+
+- These use switches, crossings, bridges and stations, whose sizes nobody
+  has measured yet. Each page says so, in the planner's own words, and marks
+  every such piece in its list.
+- The pictures now show what the planner shows: a bridge casts a shadow and
+  cuts a gap in the track under it, a station is drawn as a building, and a
+  buffer stop has its beam.
+- A layout gets a page only if it closes exactly with nothing left loose:
+  no free end, no open run, and no raised track whose supports were not
+  checked.
+- Pieces are counted by what they are (curves, switches, crossings, bridges,
+  stations), and the Circle's page now reads "an 8-piece", not "a 8-piece".
+
 ## 1.6.0 (2026-11-24)
 
 A new page: [Wooden train track

@@ -25,7 +25,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { coloursOf, draw, tokenOf } from '../app/src/pages/drawing.js';
-import { layoutPages, previewPath, type LayoutPage } from '../app/src/pages/layoutPage.js';
+import { aCount, layoutPages, previewPath, type LayoutPage } from '../app/src/pages/layoutPage.js';
 import { decodeLink } from '../app/src/shareLink.js';
 
 /** The frozen Stadium link (app/src/shareLink.frozen.test.ts). */
@@ -80,7 +80,7 @@ async function layoutHtml(l: LayoutPage): Promise<string> {
   const svg = draw(await graphOf(l.fragment), l.label, colours, { padMm: 80, widthPx: 540 }).svg;
   return page(
     `<div class="name">${l.label}</div>
-    <div class="line">A ${l.pieceCount}-piece wooden train track layout that closes. ${l.floorCm[0]} × ${l.floorCm[1]} cm on the floor.</div>
+    <div class="line">${aCount(l.pieceCount).replace(/^a/, 'A')} wooden train track layout that closes. ${l.floorCm[0]} × ${l.floorCm[1]} cm on the floor.</div>
     <div class="mark">${logo}ChooChooCAD</div>`,
     svg,
   );

@@ -64,7 +64,7 @@ export async function site(tokensCss: string): Promise<Site> {
       path: layoutPath(l.slug),
       file: `layouts/${l.slug}.html`,
       html: l.html,
-      changed: PAGES_CHANGED,
+      changed: l.changed,
       picture: picturePath(l.slug),
     })),
     { path: WHY_PATH, file: fileOf(WHY_PATH), html: whyHtml(), changed: later(WHY_CHANGED) },

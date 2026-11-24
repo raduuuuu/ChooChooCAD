@@ -22,10 +22,10 @@ export function listHtml(pages: readonly LayoutPage[]): string {
     .join('\n');
   return shell(
     'Wooden train track layouts that close | ChooChooCAD',
-    'Wooden toy-train track layouts checked to close exactly, each with the pieces it takes. Open any of them in the planner and change it.',
+    'Wooden toy-train track layouts checked to close, from a plain circle to a figure eight and a bridge, each with the pieces it takes. Open any of them in the planner and change it.',
     '/layouts/',
     `<h1>Wooden train track layouts that close</h1>
-<p>Each of these loops was checked by ChooChooCAD, a free planner for wooden toy-train track: its two ends meet with nothing to force. Open any of them in the planner and change it. <a href="${WHY_PATH}">Why a loop closes, and why one will not</a>. <a href="${SIZES_PATH}">The size of every piece</a>.</p>
+<p>Each of these layouts was checked by ChooChooCAD, a free planner for wooden toy-train track: every loop in it closes with nothing to force. Where a layout uses a piece nobody has measured, its page says so. Open any of them in the planner and change it. <a href="${WHY_PATH}">Why a loop closes, and why one will not</a>. <a href="${SIZES_PATH}">The size of every piece</a>.</p>
 <p><a class="open" href="/">Plan your own layout</a></p>
 <h2>Ready layouts</h2>
 <ul class="list">
