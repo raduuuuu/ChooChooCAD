@@ -20,4 +20,5 @@ export const PUBLISHED: readonly string[] = [
   '/layouts/peanut.html',
   '/layouts/dog-bone.html',
   '/why-a-loop-will-not-close/',
+  '/sizes/',
 ];

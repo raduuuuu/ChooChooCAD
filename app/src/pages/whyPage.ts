@@ -25,11 +25,11 @@ import type { Graph } from '../../../engine/src/graph/model.js';
 import { presetGraph, verdictOf } from '../presetVerdict.js';
 import type { VerdictKind } from '../verdictView.js';
 import { draw } from './drawing.js';
-import { esc, EXPLANATION, shell, SITE } from './shell.js';
+import { esc, EXPLANATION, shell, SITE, SIZES_PATH } from './shell.js';
 
 export const WHY_PATH = '/why-a-loop-will-not-close/';
 /** When this page's words last changed, for the sitemap. Raise it when they do. */
-export const WHY_CHANGED = '2026-11-22';
+export const WHY_CHANGED = '2026-11-24';
 export const WHY_TITLE = 'Why won’t my wooden train track loop close? | ChooChooCAD';
 const DESCRIPTION =
   'Why the two ends of a wooden toy-train track loop do not meet: three loops drawn and checked, what causes each, and what to change so it closes.';
@@ -107,7 +107,7 @@ ${EXAMPLES.map(section).join('\n')}
 <li><strong>Two sides of different length.</strong> Whatever goes out along one side has to come back along the other. Count the straights on each side: the lengths must add up to the same.</li>
 <li><strong>Curves that do not add up to a full circle.</strong> Eight large curves make a circle. A curve that bends the other way takes away what one curve added, so a loop with an S in it needs extra curves to get round.</li>
 <li><strong>Two ends of the same kind.</strong> A peg needs a socket. Two pegs can never join. Two sockets can, with a small adapter that has a peg at both ends.</li>
-<li><strong>Sizes that are not what the box says.</strong> A piece a few millimetres off its stated length is enough to open a gap. The planner marks every size nobody has measured.</li>
+<li><strong>Sizes that are not what the box says.</strong> A piece a few millimetres off its stated length is enough to open a gap. The planner marks every size nobody has measured, and <a href="${SIZES_PATH}">the size of every piece</a> is listed with its mark.</li>
 </ul>
 <h2>Mixing track from different makes</h2>
 <p>There is no shared standard for wooden track. Makers work to roughly the same sizes, and each differs a little, so a loop that closes with one make can come out a few millimetres off with pieces from another. One system has a smaller peg and socket, and its pieces may not join the usual kind without forcing.</p>

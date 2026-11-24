@@ -75,6 +75,11 @@ bend reached the verdict):
 - degrees, to one decimal, for bend and turn;
 - percent, as a whole number, for a joint's bend against its own limit.
 
+A piece's own angle is not a reading: it is an exact count of 22.5-degree
+steps, and it is written as the piece's name writes it, `45°` and `22.5°`,
+never `45.0°` (design review 2026-11-24, D13). One decimal is for bend and
+turn, which are worked out.
+
 The unit sits inside `.num` with its figure, as `mm` always has. A figure is
 rounded the way that never understates it: a leftover of 0.51mm reads 0.6,
 not 0.5. Verdicts come from the unrounded value, never from what is shown.
@@ -349,6 +354,41 @@ things sit differs.
   nowhere else; a refusal is a sentence, never a colour.
 - **On a touch screen no sentence names a key or a click** (design DD8):
   "Tap another free end", "Place", "Cancel".
+
+## 15. A static page answers first, and wears the planner's rules
+
+The pages a search engine reads (`app/src/pages/`) are built without the
+app, so none of the rules here reach them unless the shared page style says
+so (design review 2026-11-24, of the page of sizes). What that review
+settled, for every such page:
+
+- **The answer comes before the explanation.** A reader arrives with one
+  question. On a reference page the first screen of a phone holds a figure:
+  one sentence, the list of sections, then the tables. What the marks mean
+  and how the figures were arrived at come after (D3). On a phone the list
+  of sections is one line that slides, a name cut at the edge showing there
+  is more, so it never pushes the first figure off the first screen. Anything true of a
+  whole section is said once in that section's note, never in every row (D11).
+- **A line leads with its figure,** set as rule 4 sets it, unit inside (D12).
+- **A table never shrinks its type to fit a phone.** Under 30rem a row
+  stacks: its name, code and mark on one line, its sizes across the full
+  width on the next, at the page's own size. The table's roles are written
+  into the markup so a screen reader still hears rows and columns (D15).
+- **How far a figure can be trusted is a word, always** (D18): Measured with
+  the planner's tick and a heavier weight, Published plain, Unverified in
+  `--ink-soft`. Never a hue (rule 1), never the tick or the shade alone.
+- **A visited link takes `--ink-soft`** (D6). It is ink receding, not a
+  colour. The identity line and the one solid button keep the full ink.
+- **Every link meets rule 10's floor on a coarse pointer** (D17). A link in
+  a sentence grows its tap area with padding, which moves no line; a link
+  that is a line of its own grows the line to 44px.
+- **The identity line carries the mark** (rule 9; D14), drawn exactly as the
+  planner draws it; a test holds the two together.
+- **On paper a page is its content** (D7): no jump list, no buttons, and a
+  row is never split across two sheets.
+- **A credit is not a source** (D16). A piece taken from a printable design
+  is credited once, in a section of its own that says the link is where to
+  print one. The row carries a marker to that section and nothing else.
 
 ## What is NOT settled
 
