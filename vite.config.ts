@@ -27,13 +27,13 @@ function buildVersion(): string {
 /*
  * The layout pages (plan 2026-11-14, E1): `scripts/layoutPages.ts` writes them
  * into app/layouts/ before every build, one per ready layout that closes, plus
- * their list, the page on why a loop will not close and the page of sizes. Each is built as its
+ * their list, the page on why a loop will not close, the page of sizes and the page on which makes fit. Each is built as its
  * own page, like the photo guide. Read from the folders, not listed here, so a
  * new ready layout needs no edit to this file.
  */
 function layoutInputs(): Record<string, string> {
   // Each folder the script writes pages into; a page's name in the build is its folder and file.
-  const dirs = ['layouts', 'why-a-loop-will-not-close', 'sizes'];
+  const dirs = ['layouts', 'why-a-loop-will-not-close', 'sizes', 'which-track-fits'];
   return Object.fromEntries(
     dirs.flatMap((name) => {
       const dir = `app/${name}`;

@@ -29,4 +29,5 @@ export const PUBLISHED: readonly string[] = [
   '/layouts/figure-eight.html',
   '/layouts/three-loops.html',
   '/layouts/two-bridges.html',
+  '/which-track-fits/',
 ];

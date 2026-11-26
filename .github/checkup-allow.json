@@ -525,6 +525,61 @@
       "file": "engine/test/view3dMesh.test.ts",
       "token": "'IKEA-150'",
       "why": "saved-layout id: AGENTS.md lets internal ids keep old spellings where renaming would break saved layouts"
+    },
+    {
+      "file": "app/src/pages/fitsPage.ts",
+      "token": "BRIO",
+      "why": "The one page that names a maker (AGENTS.md, Names and sources, exception of 2026-11-26)"
+    },
+    {
+      "file": "app/src/pages/fitsPage.ts",
+      "token": "IKEA",
+      "why": "The one page that names a maker (AGENTS.md, Names and sources, exception of 2026-11-26)"
+    },
+    {
+      "file": "app/src/pages/fitsPage.ts",
+      "token": "Lillabo",
+      "why": "The one page that names a maker (AGENTS.md, Names and sources, exception of 2026-11-26)"
+    },
+    {
+      "file": "app/src/pages/fitsPage.ts",
+      "token": "Playtive",
+      "why": "The one page that names a maker (AGENTS.md, Names and sources, exception of 2026-11-26)"
+    },
+    {
+      "file": "app/src/pages/fitsPage.ts",
+      "token": "PLAYTIVE",
+      "why": "The one page that names a maker (AGENTS.md, Names and sources, exception of 2026-11-26)"
+    },
+    {
+      "file": "app/src/pages/fitsPage.ts",
+      "token": "Lidl",
+      "why": "The one page that names a maker (AGENTS.md, Names and sources, exception of 2026-11-26)"
+    },
+    {
+      "file": "app/src/pages/fitsPage.ts",
+      "token": "brio",
+      "why": "The one page that names a maker (AGENTS.md, Names and sources, exception of 2026-11-26)"
+    },
+    {
+      "file": "app/src/pages/fitsPage.ts",
+      "token": "ikea",
+      "why": "The one page that names a maker (AGENTS.md, Names and sources, exception of 2026-11-26)"
+    },
+    {
+      "file": "app/src/pages/fitsPage.ts",
+      "token": "lillabo",
+      "why": "The one page that names a maker (AGENTS.md, Names and sources, exception of 2026-11-26)"
+    },
+    {
+      "file": "app/src/pages/fitsPage.ts",
+      "token": "playtive",
+      "why": "The one page that names a maker (AGENTS.md, Names and sources, exception of 2026-11-26)"
+    },
+    {
+      "file": "app/src/pages/fitsPage.ts",
+      "token": "lidl",
+      "why": "The one page that names a maker (AGENTS.md, Names and sources, exception of 2026-11-26)"
     }
   ],
   "images": [

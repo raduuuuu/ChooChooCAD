@@ -5,6 +5,27 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.8.0 (2026-11-26)
+
+A new page: [Which makes of wooden train track fit
+together?](https://woodentrain.world/which-track-fits/) People ask this by
+a maker's name, so this one page names the three makes the planner holds
+pieces for, and says for each pair what is known about joining them and
+what that rests on. Nothing on it was tested here by joining real pieces,
+and the page says so before anything else.
+
+- For each make it shows how many of the planner's pieces are measured,
+  published or unverified, counted from the planner's own list, and where
+  those sizes came from.
+- It is the only place a maker is named. Everywhere else the planner still
+  calls track by what sets it apart ("Small-peg", "Look-alike"), and the
+  rule that says so now records this one exception.
+- The page on why a loop will not close and the home page link to it.
+- The planner now says the same as the page about the small-peg system:
+  it and the usual track "are reported not to join", in the verdict's note
+  and on the shelf of pieces. It used to say flatly that they do not, which
+  nobody here has tried.
+
 ## 1.7.3 (2026-11-26)
 
 Nothing a person using the app will see. The guide for people who want to

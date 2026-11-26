@@ -52,7 +52,7 @@ describe('the screen names no maker', () => {
     );
     for (const d of document.querySelectorAll('details')) d.open = true;
     expect(screen.getAllByText('Small-peg track').length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Generic and Small-peg track do not physically join/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Generic and Small-peg track are reported not to join/).length).toBeGreaterThan(0);
     await user.click(screen.getAllByRole('button', { name: 'Add a part' })[0]!);
     expect(screen.getByRole('option', { name: 'Look-alike' })).toBeTruthy();
     const hits = everythingShown().flatMap((s) => s.match(new RegExp(MAKER.source, 'gi')) ?? []);

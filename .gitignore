@@ -21,6 +21,7 @@ photos/
 app/layouts/
 app/why-a-loop-will-not-close/
 app/sizes/
+app/which-track-fits/
 app/public/sitemap.xml
 # Each layout's picture file, drawn by the same script. The PNGs beside them are committed.
 app/public/layouts/*.svg

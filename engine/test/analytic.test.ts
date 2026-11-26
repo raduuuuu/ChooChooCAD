@@ -364,11 +364,11 @@ describe('the trust register: what the verdict is worth', () => {
     expect(issue.detail).toMatch(/exact about an estimate/);
   });
 
-  it('brands that do not physically join are disclosed, naming why', () => {
+  it('brands reported not to join are disclosed, naming why', () => {
     const issue = layoutTrust(layoutOf(['A', 'IKEA-150']), r, brandFit)
       .find((t) => t.kind === 'brands-do-not-join');
     expect(issue).toBeDefined();
-    expect(issue!.detail).toContain('Generic and Small-peg track do not physically join.');
+    expect(issue!.detail).toContain('Generic and Small-peg track are reported not to join.');
     // The reason travels with the claim, not just the claim.
     expect(issue!.detail.length).toBeGreaterThan(60);
   });

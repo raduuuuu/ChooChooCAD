@@ -14,8 +14,9 @@
  * the page changes with it, and the test holds each example to the verdict
  * it is filed under.
  *
- * WHICH MAKES FIT TOGETHER is answered by trait only, never by a maker's
- * name (AGENTS.md), and only as far as the library's own notes go: no
+ * WHICH MAKES FIT TOGETHER is answered here by trait only, never by a
+ * maker's name (AGENTS.md); the one page that names makers is fitsPage.ts,
+ * and this page links to it. Here, only as far as the library's own notes go: no
  * shared standard, small differences between makers, one system with a
  * smaller peg. Every figure for those systems is unmeasured, and the page
  * says so.
@@ -25,11 +26,11 @@ import type { Graph } from '../../../engine/src/graph/model.js';
 import { presetGraph, verdictOf } from '../presetVerdict.js';
 import type { VerdictKind } from '../verdictView.js';
 import { draw } from './drawing.js';
-import { esc, EXPLANATION, shell, SITE, SIZES_PATH } from './shell.js';
+import { esc, EXPLANATION, FITS_PATH, shell, SITE, SIZES_PATH } from './shell.js';
 
 export const WHY_PATH = '/why-a-loop-will-not-close/';
 /** When this page's words last changed, for the sitemap. Raise it when they do. */
-export const WHY_CHANGED = '2026-11-24';
+export const WHY_CHANGED = '2026-11-26';
 export const WHY_TITLE = 'Why won’t my wooden train track loop close? | ChooChooCAD';
 const DESCRIPTION =
   'Why the two ends of a wooden toy-train track loop do not meet: three loops drawn and checked, what causes each, and what to change so it closes.';
@@ -111,7 +112,7 @@ ${EXAMPLES.map(section).join('\n')}
 </ul>
 <h2>Mixing track from different makes</h2>
 <p>There is no shared standard for wooden track. Makers work to roughly the same sizes, and each differs a little, so a loop that closes with one make can come out a few millimetres off with pieces from another. One system has a smaller peg and socket, and its pieces may not join the usual kind without forcing.</p>
-<p>The planner keeps such systems apart and names them by what sets them apart, “Small-peg” and “Look-alike”, and it treats every size it holds for them as an estimate: nobody publishes those sizes.</p>
+<p>The planner keeps such systems apart and names them by what sets them apart, “Small-peg” and “Look-alike”, and it treats every size it holds for them as an estimate: nobody publishes those sizes. <a href="${FITS_PATH}">Which makes these are, and what is known about joining them</a>.</p>
 <h2>Check your own layout</h2>
 <p>${esc(EXPLANATION[0]!)}</p>
 <p><a class="open" href="/">Plan your own layout</a></p>

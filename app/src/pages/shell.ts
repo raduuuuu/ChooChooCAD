@@ -29,6 +29,9 @@ export const PAGES_CHANGED = '2026-11-24';
 /** The page of sizes, here because the other kinds of page link to it. */
 export const SIZES_PATH = '/sizes/';
 
+/** The page on which makes fit together, here for the same reason. The one page that names a maker (fitsPage.ts). */
+export const FITS_PATH = '/which-track-fits/';
+
 /** The home page's title and description (`app/index.html` carries the same words; the test compares them). */
 export const HOME_TITLE = 'ChooChooCAD: will your wooden train track layout close?';
 export const HOME_DESCRIPTION =
@@ -121,6 +124,8 @@ const STYLE = `
   .sizes th, .sizes td { text-align: left; vertical-align: top; padding: 0.45rem 0.75rem 0.45rem 0; border-bottom: 1px solid var(--rule); }
   .sizes thead th { font-size: 0.85rem; font-weight: 600; color: var(--ink-soft); }
   .sizes tbody th { font-weight: 600; width: 36%; }
+  /* A table whose first column is a short label, not a piece's name: the answer gets the room (design review 2026-11-26). */
+  .sizes.pairs tbody th { width: 13rem; }
   .sizes .mark, .sizes thead th:last-child { width: 7rem; padding-right: 0; }
   .sizes .code { color: var(--ink-soft); font-weight: 400; }
   /* How far a figure can be trusted: the word always, weight and the tick for the best, soft ink for the least. No hue (DESIGN.md rule 1). */

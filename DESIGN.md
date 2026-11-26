@@ -377,6 +377,12 @@ settled, for every such page:
 - **How far a figure can be trusted is a word, always** (D18): Measured with
   the planner's tick and a heavier weight, Published plain, Unverified in
   `--ink-soft`. Never a hue (rule 1), never the tick or the shade alone.
+- **What is only reported is called Reported** (design review 2026-11-26, of
+  the page on which makes fit). Where a line rests on a published guide and
+  owners' word and not on a figure a reference states, its word is Reported,
+  in the full ink and defined beside the table. Published keeps its strict
+  meaning. A table whose first column is a short label gives the room to
+  the answer.
 - **A visited link takes `--ink-soft`** (D6). It is ink receding, not a
   colour. The identity line and the one solid button keep the full ink.
 - **Every link meets rule 10's floor on a coarse pointer** (D17). A link in
