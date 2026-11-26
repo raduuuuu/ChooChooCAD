@@ -113,6 +113,19 @@ address, location data or anything private):
    Support to remove it (github.com/contact, "remove sensitive data from an
    issue attachment"), giving the attachment URL.
 
+## Design a piece to print
+
+Some pieces in the app were drawn to be printed at home, the two printed
+stations among them. If you design a track piece or a building to print,
+[FDM print-ready models](https://github.com/raduuuuu/fdm-print-ready-models)
+is a separate, free project that helps: a skill that gives an AI agent the
+rules for a model that prints without supports, and a command that checks an
+exported part against them. Those rules came from designing and printing the
+stations.
+
+A printed piece reaches the app the same way as any other:
+[send it](#send-a-piece), built and photographed.
+
 ## Code changes
 
 Pull requests are welcome. Run `bun run test`, `bun run typecheck` and
