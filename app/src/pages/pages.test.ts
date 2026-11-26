@@ -470,6 +470,13 @@ describe('layout pages', () => {
     }
     // Every piece the planner holds belongs to one of the three systems the page covers.
     expect(SYSTEMS.reduce((n, s) => n + BUILT_IN.filter((part) => part.brand === s).length, 0)).toBe(BUILT_IN.length);
+    // The app says the same of that pair as the page does (owner, 2026-11-26): reported, not seen. Read as text,
+    // since the verdict's note is built in the engine and the shelf's in the palette, neither from this module.
+    // Fails when: either goes back to stating it flat (`are reported not to join` written `do not physically join`
+    // in trust.ts): `../engine/src/joints/trust.ts: expected '/**\n * What a layout\'s verdict cann…' to contain 'reported not to join'` (run).
+    const said = FIT_WORDS['does-not-join'].toLowerCase();
+    expect(said).toBe('reported not to join');
+    for (const file of ['../engine/src/joints/trust.ts', 'src/Palette.tsx']) expect(readFileSync(join(appDir, file), 'utf8'), file).toContain(said);
     expect(page).toContain('trademarks of their owners');
     expect(page).toContain('not affiliated with, endorsed by or sponsored by any of them');
     expect(JSON.parse(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(page)![1]!)['@type']).toBe('Article');

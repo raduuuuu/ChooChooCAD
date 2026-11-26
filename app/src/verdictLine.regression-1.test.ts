@@ -59,13 +59,13 @@ function verdictHtml(graph: Graph): string {
 describe('a layout that is not a loop yet', () => {
   /*
    * MUTATION PROOF, run (the pre-fix failure branch, `notesFor([], ...)`):
-   * `expected '<div class="verdict verdict-unknown" …' to match /do not
-   * physically join/`.
+   * `expected '<div class="verdict verdict-unknown" …' to match /are
+   * reported not to join/`.
    */
-  it('a Generic straight with a small-peg straight: says they do not join, and the size is unmeasured', () => {
+  it('a Generic straight with a small-peg straight: says they are reported not to join, and the size is unmeasured', () => {
     const html = verdictHtml(pair('A', 'IKEA-150'));
     expect(html).toMatch(/Not a loop yet/);
-    expect(html).toMatch(/do not physically join/);
+    expect(html).toMatch(/are reported not to join/);
     expect(html).toMatch(/nobody has measured/);
   });
 
@@ -79,7 +79,7 @@ describe('a layout that is not a loop yet', () => {
   it('the QA layout (curved switch L + small-peg straight) shows its part notes', () => {
     const html = verdictHtml(pair('L', 'IKEA-150'));
     const [before] = html.split('<div id="verdict-folded"');
-    expect(before).toMatch(/do not physically join/);
+    expect(before).toMatch(/are reported not to join/);
     expect(before).toMatch(/<span class="num">2<\/span> pieces have sizes nobody has measured\./);
     expect(html).toMatch(/nobody has measured, so this answer is exact about an estimate/);
   });

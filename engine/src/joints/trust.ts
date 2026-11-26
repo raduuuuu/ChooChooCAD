@@ -112,7 +112,7 @@ export function layoutTrust(
       if (fit === 'does-not-join') {
         issues.push({
           kind: 'brands-do-not-join',
-          detail: `${SYSTEM_NAME[brands[i]!]} and ${SYSTEM_NAME[brands[j]!]} track do not physically join. ${why}`,
+          detail: `${SYSTEM_NAME[brands[i]!]} and ${SYSTEM_NAME[brands[j]!]} track are reported not to join. ${why}`,
         });
       }
     }

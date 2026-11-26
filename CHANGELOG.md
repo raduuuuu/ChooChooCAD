@@ -21,6 +21,10 @@ and the page says so before anything else.
   calls track by what sets it apart ("Small-peg", "Look-alike"), and the
   rule that says so now records this one exception.
 - The page on why a loop will not close and the home page link to it.
+- The planner now says the same as the page about the small-peg system:
+  it and the usual track "are reported not to join", in the verdict's note
+  and on the shelf of pieces. It used to say flatly that they do not, which
+  nobody here has tried.
 
 ## 1.7.3 (2026-11-26)
 

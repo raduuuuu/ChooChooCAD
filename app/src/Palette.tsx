@@ -281,7 +281,7 @@ export function PieceShelves({ library, resolve, inventory, counts, overLimit, p
               */}
             <p className="brand-detail">
               {brandFit('GENERIC', brand).fit === 'does-not-join'
-                ? 'These do not physically join Generic track.'
+                ? 'These are reported not to join Generic track.'
                 : 'Whether these join Generic track is undocumented.'}{' '}
               Nobody publishes dimensions for them; the figures come from 3D-print
               reproductions. Place one and the verdict says what that means for your

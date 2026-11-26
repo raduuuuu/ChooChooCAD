@@ -317,7 +317,7 @@ describe('the limits note does not depend on the trust list', () => {
     expect(trust.map((t) => t.kind)).toEqual(['unverified-size', 'modelled-switch', 'brands-do-not-join']);
     const html = render(exceeds, trust);
     const [before, folded = ''] = html.split('<div id="verdict-folded"');
-    expect(before).toMatch(/do not physically join/);
+    expect(before).toMatch(/are reported not to join/);
     expect(liCount(folded)).toBe(2);
     expect(overflow(html)).toBeNull();
     expect(html).toContain(LIMITS);
