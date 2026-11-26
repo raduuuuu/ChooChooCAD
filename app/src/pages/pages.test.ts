@@ -10,6 +10,7 @@ import { PART_ORIGINS } from '../../../engine/data/origins.js';
 import type { Graph } from '../../../engine/src/graph/model.js';
 import { SYSTEM_NAME, type Brand, type Part } from '../../../engine/src/parts/schema.js';
 import { brandWords, TERMS } from '../../../engine/data/brandWords.js';
+import { brandFit } from '../../../engine/data/thirdParty.js';
 import { AppName } from '../AppName.js';
 import { MeasuredTick } from '../PartPreview.js';
 import { FROZEN_LAYOUTS, NOT_FOR_PAGES } from '../frozenLayouts.js';
@@ -17,6 +18,7 @@ import { sizesLine } from '../linkWords.js';
 import { PRESETS } from '../presets.js';
 import { decodeLink } from '../shareLink.js';
 import { coloursOf, draw, PAGE_COLOURS, renderOf } from './drawing.js';
+import { basisOf, FIT_WORDS, FITS_PATH, MAKE, marksOf, NAMED_WORDS, PAIRS, SYSTEMS } from './fitsPage.js';
 import { floorCmOf, kindsOf, kindWord, pageOf, picturePath, previewPath, refusal } from './layoutPage.js';
 import { listHtml } from './listPage.js';
 import { PUBLISHED } from './published.js';
@@ -104,13 +106,30 @@ describe('layout pages', () => {
    * Fails when: a maker's name is written into EXPLANATION or a page (AGENTS.md,
    * "Never name a track brand"). The second expectation is the control: the same
    * check does catch a term when one is there.
+   * ONE PAGE IS THE EXCEPTION (owner, 2026-11-26; fitsPage.ts), and only for
+   * the makes of the three systems the planner holds pieces for. Fails when:
+   * - the why page names a maker (`“Small-peg”` written as the maker's name
+   *   in whyHtml): `expected [ … ] to deeply equal []`, the list holding
+   *   that name (run);
+   * - the page of makes names a fourth one (TERMS[4] added to its closing
+   *   note): the same message, holding the fourth name (run).
    */
-  it('names no track brand anywhere a page shows', () => {
+  it('names no track brand anywhere a page shows, but for three makes on the one page about them', () => {
     // Every page the site lists, not only the layouts: a new kind of page is checked the day it is listed.
     expect(htmls.length).toBe(all.pages.length - 1);
-    const text = [...htmls.map((p) => p.html), ...EXPLANATION, HOME_TITLE, HOME_DESCRIPTION].join('\n');
+    const others = htmls.filter((p) => p.path !== FITS_PATH);
+    expect(others.length).toBe(htmls.length - 1);
+    const text = [...others.map((p) => p.html), ...EXPLANATION, HOME_TITLE, HOME_DESCRIPTION].join('\n');
     expect(brandWords(text)).toEqual([]);
     expect(brandWords(`${text}\n${TERMS[0]}`)).toHaveLength(1);
+    // The words that page may say are five of the list's, written here by position so this file names none.
+    expect([...NAMED_WORDS].sort()).toEqual([TERMS[0], TERMS[1], TERMS[2], TERMS[3], TERMS[7]].sort());
+    const fits = htmls.find((p) => p.path === FITS_PATH)!.html;
+    const said = [...new Set(brandWords(fits).map((w) => w.toLowerCase()))];
+    expect(said.filter((w) => !NAMED_WORDS.includes(w))).toEqual([]);
+    expect(said.sort()).toEqual([...NAMED_WORDS].sort());
+    // The home page links to it without a maker's name.
+    expect(brandWords(readFileSync(join(appDir, 'index.html'), 'utf8'))).toEqual([]);
   });
 
   /*
@@ -136,8 +155,8 @@ describe('layout pages', () => {
    */
   it('lists every page in the sitemap with the date its words changed, and robots.txt names the sitemap', () => {
     const map = sitemap(all.pages);
-    // The home page, the list, each layout, the why page and the page of sizes.
-    expect(all.pages.length).toBe(every.length + 4);
+    // The home page, the list, each layout, the why page, the page of sizes and the page of makes.
+    expect(all.pages.length).toBe(every.length + 5);
     for (const page of all.pages) {
       expect(page.changed).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(map).toContain(`<url><loc>${SITE}${page.path}</loc><lastmod>${page.changed}</lastmod>`);
@@ -413,6 +432,53 @@ describe('layout pages', () => {
   });
 
   /*
+   * WHICH MAKES FIT, SAID ONLY AS FAR AS ANYONE CHECKED (owner, 2026-11-26).
+   * A row's verdict is `brandFit`'s and its last cell says what that rests
+   * on; a make's counts are the library's. The three verdicts are also
+   * written out here, so a change to the table in thirdParty.ts is seen.
+   * Fails when:
+   * - a row states a verdict of its own (`FIT_WORDS[fit]` replaced by
+   *   `FIT_WORDS.joins` in pairRow): `expected '<!doctype html>…' to contain
+   *   '<th role="rowheader" scope="row">…'`, the first pair's row (run);
+   * - a make's counts are written by hand (`marks.Unverified` replaced by
+   *   `0` in makeSection): `GENERIC: expected '<!doctype html>…' to contain
+   *   'called “Generic”. It holds <span clas…'` (run);
+   * - the closing note is cut: `expected '<!doctype html>…' to contain
+   *   'trademarks of their owners'` (run).
+   */
+  it('says which makes join by what is documented, each with what it rests on and the planner’s own counts', () => {
+    const page = htmls.find((p) => p.path === FITS_PATH)!.html;
+    // Every pair of two different systems, once.
+    const want = SYSTEMS.flatMap((a, i) => SYSTEMS.slice(i + 1).map((b) => `${a}+${b}`));
+    expect(PAIRS.map((p) => `${p.a}+${p.b}`)).toEqual(want);
+    expect(PAIRS.map((p) => FIT_WORDS[brandFit(p.a, p.b).fit])).toEqual(['Reported not to join', 'Not known', 'Not known']);
+    for (const p of PAIRS) {
+      const { fit } = brandFit(p.a, p.b);
+      const basis = basisOf(fit);
+      expect(page).toContain(`<th role="rowheader" scope="row">${MAKE[p.a].name} with ${MAKE[p.b].name}</th><td role="cell" class="size"><strong>${FIT_WORDS[fit]}.</strong>`);
+      expect(page).toContain(`${p.why}</td><td role="cell" class="mark is-${basis.toLowerCase()}">${basis}</td>`);
+    }
+    // Nothing on the page is called Measured as a fit: nobody here joined two makes.
+    expect(PAIRS.map((p) => basisOf(brandFit(p.a, p.b).fit))).toEqual(['Published', 'Unverified', 'Unverified']);
+    expect(page).toContain('Nothing in this table was tested here by joining real pieces');
+    for (const system of SYSTEMS) {
+      const marks = marksOf(system);
+      const pieces = BUILT_IN.filter((part) => part.brand === system);
+      expect(marks.Measured + marks.Published + marks.Unverified, system).toBe(pieces.length);
+      for (const m of ['Measured', 'Published', 'Unverified'] as const) expect(marks[m], `${system} ${m}`).toBe(pieces.filter((part) => markOf(part) === m).length);
+      expect(page, system).toContain(`called “${SYSTEM_NAME[system]}”. It holds <span class="num">${pieces.length}</span> pieces for it: <span class="num">${marks.Measured}</span> Measured, <span class="num">${marks.Published}</span> Published and <span class="num">${marks.Unverified}</span> Unverified.`);
+    }
+    // Every piece the planner holds belongs to one of the three systems the page covers.
+    expect(SYSTEMS.reduce((n, s) => n + BUILT_IN.filter((part) => part.brand === s).length, 0)).toBe(BUILT_IN.length);
+    expect(page).toContain('trademarks of their owners');
+    expect(page).toContain('not affiliated with, endorsed by or sponsored by any of them');
+    expect(JSON.parse(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(page)![1]!)['@type']).toBe('Article');
+    // It can be reached: from the why page and the home page's no-script text.
+    expect(htmls.find((p) => p.path === WHY_PATH)!.html).toContain(`<a href="${FITS_PATH}">`);
+    expect(readFileSync(join(appDir, 'index.html'), 'utf8')).toContain(`<a href="${FITS_PATH}">`);
+  });
+
+  /*
    * THE EXPLANATION LIVES ON ONE PAGE. It was three paragraphs repeated on
    * every layout page and the list, which a search engine reads as filler;
    * each now carries one line and a link.
@@ -421,8 +487,8 @@ describe('layout pages', () => {
    */
   it('keeps the explanation off the layout pages and the list, which link to the why page', () => {
     const others = htmls.filter((p) => p.path !== WHY_PATH);
-    // The list, each layout and the page of sizes.
-    expect(others.length).toBe(every.length + 2);
+    // The list, each layout, the page of sizes and the page of makes.
+    expect(others.length).toBe(every.length + 3);
     for (const { path, html } of others) {
       for (const paragraph of EXPLANATION) expect(html, path).not.toContain(paragraph);
       expect(html, path).toContain(`<a href="${WHY_PATH}">`);

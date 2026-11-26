@@ -26,6 +26,15 @@ the design rules are in [DESIGN.md](DESIGN.md); how people contribute is in
   text or what the app shows. The main system is "Generic"; other systems are
   named by a physical trait ("Small-peg", "Look-alike"). Internal ids may keep
   old spellings only where renaming would break saved layouts.
+  **Exception (owner, 2026-11-26):** one page of the site,
+  `/which-track-fits/` (`app/src/pages/fitsPage.ts`), names the makers of the
+  three systems the planner holds pieces for, because people ask which track
+  fits which by a maker's name. It says only what is documented about each
+  pair and what that rests on, carries a note that the names are their
+  owners' trademarks, and is the only file that may name a maker: no other
+  page, the app, the library, a test, the changelog or a pull request does.
+  A fourth maker, or a second page, is a new decision by the owner. Never
+  put a maker's name where a search engine reads it and a person does not.
 - Never cite where a figure came from by URL, site name, model id or creator
   name; keep only a generic origin ("published", "a printed reproduction",
   "measured"). **Exception:** a part taken from a printable design may name the

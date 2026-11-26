@@ -29,6 +29,9 @@ export const PAGES_CHANGED = '2026-11-24';
 /** The page of sizes, here because the other kinds of page link to it. */
 export const SIZES_PATH = '/sizes/';
 
+/** The page on which makes fit together, here for the same reason. The one page that names a maker (fitsPage.ts). */
+export const FITS_PATH = '/which-track-fits/';
+
 /** The home page's title and description (`app/index.html` carries the same words; the test compares them). */
 export const HOME_TITLE = 'ChooChooCAD: will your wooden train track layout close?';
 export const HOME_DESCRIPTION =
