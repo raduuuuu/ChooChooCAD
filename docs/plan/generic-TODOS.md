@@ -21,13 +21,20 @@ A heading's P1, P2 or P3 is its priority inside its part.
 They outrank everything an agent can build: until they are done, the verdicts
 rest on unmeasured sizes and every priority below is a guess.
 
-## P1 — Read the usage dashboard
+## P1 — Read the usage dashboard (first reading 2026-11-26; next 2026-12-22)
+
+**First reading taken on 2026-11-26** by the agent, from the counter's own
+export. The figures are kept outside the repository (owner, 2026-11-26).
+What it settled, in words: visits do arrive, people do build a layout of
+their own until it says "This works", and most visitors are on phones. What
+it left open: whether the owner's own visits are counted, and whether the
+pages a search engine reads are being counted at all.
 
 **What:** Open the counter's dashboard. Do visits arrive? Does anyone reach
 "This works" (the `action/works` event)? What share of visits is phones?
-**Why:** The counter has been live since 2026-11-05 and has never been read.
-Offline use, kid mode and the swap suggestion were all deferred on
-2026-11-16 to wait for this.
+**Why:** The counter has been live since 2026-11-05 and had never been read
+before 2026-11-26. Offline use, kid mode and the swap suggestion were all
+deferred on 2026-11-16 to wait for this.
 **Context:** Built and kept as it is (decision D9, 2026-11-14): ten fixed
 action names in `app/src/linkFragment.ts`, never the layout. The script also
 sends the page title, the referrer, the screen width and the query string
@@ -55,8 +62,10 @@ with each visit (`app/public/count.js:25-30`); README has said so since
   (the elevated station and its arch), M1 (the metro tunnel; T4 decides the
   fit), M2, B1, K1 and D1. Each stays unverified until read.
 
-**Why:** 57 of 71 built-in pieces are unverified and 9 calibration figures
-are still `null` [measured 2026-11-16]. This is the only work that makes a
+**Why:** 59 of 73 built-in pieces are unverified [counted 2026-11-26], and
+`measurements.ts` has nine `null` fields: one is void, one is an angle that
+is never asked for, two are one reading; F2 and the structures' heights have
+no field there yet. This is the only work that makes a
 verdict physically true, and no agent can do it.
 **Context:** `bun run calibration` reads every answer against
 `CALIBRATION.md`. Every reading asked for has a drawing on the sheet
@@ -84,6 +93,15 @@ one hand: Escape and focus in the Pieces and More sheets, the keyboard over a
 panel's field, a screen reader, a second phone browser, "Next end" at a real
 scale, the verdict's "Show less", and the train (also wagons on a ramp or a
 bridge, and a three-way switch).
+**2026-11-26 (owner):** "I opened the site on my phone several times and it
+looks good." So it has been seen on a real phone and nothing looked wrong.
+Asked about the listed checks, the owner answered the same day: "I checked
+on the phone and all looks good." Taken as the pass done, on the owner's
+word; no check was reported as failing, and the checks were not itemised
+one by one. Not stated: a second phone browser, a screen reader. This entry
+can move to the archive with the next backlog cleanup. It unblocks the
+decisions that waited on it: kid mode, and (with the dashboard reading)
+offline use.
 **Why:** The phone editor, the train and the version line have only ever been
 looked at in a headless browser.
 **Effort:** owner, about an hour. **Depends on:** nothing.
@@ -110,6 +128,29 @@ Decided in `docs/plan/2026-11-16-whats-next.md`. Each is its own pull request,
 none stacked. The version numbers assume this order and nothing merged in
 between; if `main` has moved, the part that goes up stays and the number
 follows (AGENTS.md).
+
+## Accepted on 2026-11-26, not yet built
+
+Decided by the owner in a review of 2026-11-26 whose plan is kept outside
+the repository. Each is its own pull request, none stacked, in this order;
+all are patches, 1.7.3 to 1.7.6, and the numbers follow `main` if it moves.
+
+1. **The short curve's centreline is inferred: say so** in the app's notes
+   and on its row of the sizes page (`app/src/pages/sizesPage.ts:118`), from
+   one wording. The full entry is in part 3 ("E1's centreline is derived
+   from an unpublished outer radius").
+2. **`bun run calibration` lists each unmeasured piece with the figures it
+   needs,** most used in the published layouts first, and the calibration
+   questions apart by the check each turns on. From data
+   (`engine/data/measured.ts`), nothing hand-kept; the sheet and its
+   drawings unchanged. A piece counts as measured only by a reading of its
+   own figures, and a reading changes the product only when a pull request
+   applies it to the seed (the ramp is recorded at 225 and built at 216).
+3. **`/design-review` on the live My layouts panel** (the entry below). A fix
+   that adds something a person can see takes its own pull request and a
+   minor version.
+4. **The library review and the palette regroup** (part 3), after its own
+   plan, a design review of that plan and the owner's word on the groups.
 
 ## P2 — After My layouts shipped (1.2.0)
 
@@ -148,6 +189,9 @@ the verdict's fold and the 3D view's how-to line.
   typecheck and tests alone). Decide whether one earns its place.
 - **The remote branch `photo-guide-2x`** is merged and can go
   (`repo-org-review` is kept on purpose).
+- **142 of the owner's 144 local branches are merged** [counted
+  2026-11-26]. `git branch --merged main` lists them; deleting them is the
+  owner's.
 
 **Effort:** human ~3 h / CC ~30 min for the first; the other two are
 decisions. **Depends on:** nothing.
@@ -155,6 +199,17 @@ decisions. **Depends on:** nothing.
 Not stored across visits, so not part of the crash screen's list: the two
 fold states kept for a browser session (`generic.verdict.notes.open`,
 `generic.verdict.phone.open`). A crash report does not carry them.
+
+## P2 — The reading of 2026-12-22 (owner, about 20 minutes)
+
+**What:** Four weeks after the layout pages of 1.7.0: read the search
+console (what is indexed, which searches show the site) and the counter
+again, and compare with the first reading of 2026-11-26 above.
+**Decides:** the home-page text (next entry), the second round of layouts,
+and whether layouts from your box is reopened.
+**Check first:** that the pages a search engine reads are being counted at
+all. The first reading left that open.
+**Depends on:** the date.
 
 ## P2 — A written section on the home page (deferred 2026-11-22)
 
@@ -176,6 +231,33 @@ the explanation.
 
 **Effort:** human M / CC S. **Priority:** P2.
 **Depends on:** the site registered with the search consoles, and one reading.
+
+## P2 — Layouts from your box (deferred 2026-11-26)
+
+**What:** Take the counts of the pieces a person owns and make layouts that
+close exactly, beyond the fixed ready layouts the box list filters today.
+**Why:** A search on 2026-11-26 suggests other tools now answer "what can I
+build with my box"; this app answers only "is this layout true". The exact
+lattice makes the search enumerable.
+**Pros:** The one use the other tools appear to be built around, done with
+an exact verdict.
+**Cons:** The largest open item: its own design and engineering plan, a
+search to bound on a phone, and a decision on unmeasured pieces.
+**Context:** Deferred by the owner on 2026-11-26 until two readings are in: the
+counter's dashboard and a first-hand look at the other tools. The base is
+there: `app/src/presets.ts` and `engine/src/graph/fill.ts`.
+**Both readings are in (2026-11-26):** a free tool already returns 30
+layouts from a piece count in seconds, and a second planner checks closure
+with a stated 3 mm of play; here, the first reading showed Your box is
+hardly opened.
+The comparison is in that day's review, kept outside the repository.
+**Decided 2026-11-26 (owner): stays deferred.** Other tools already answer
+it, and the reading points at the phone pass and measured sizes first. What
+was missing to justify building it: any sign that visitors here want layouts
+made for them. Reopen if Your box starts being used, or if the 2026-12-22
+reading shows searches for layouts by piece count landing here.
+**Effort:** human L / CC M. **Priority:** P2.
+**Depends on:** one of those two signs.
 
 ## P2 — Works offline, installs to the home screen (deferred 2026-11-16)
 
@@ -259,7 +341,8 @@ brief is built.
 
 **What:** The owner's request of 2026-11-08: "I want a complete review of the
 library and categorization of parts" (community-pieces plan, row AD1; its
-tasks T11, the audit, and T12, the palette regroup). 71 built-in pieces today.
+tasks T11, the audit, and T12, the palette regroup). 73 built-in pieces today [counted 2026-11-26]. Accepted for this round on
+2026-11-26 (see part 2), after its own plan.
 **Why:** Asked for outright and never built [measured 2026-11-14: no audit or
 regroup commit after the plan's pull requests #189 and #191].
 **Context:** It concerns the pieces already built in and how the palette

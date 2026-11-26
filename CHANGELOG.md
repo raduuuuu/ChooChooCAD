@@ -5,6 +5,18 @@ What changed in each version of ChooChooCAD, newest first. Every merge to
 its own version; the app shows the one it is running. Which part of the
 number goes up is in [AGENTS.md](AGENTS.md).
 
+## 1.7.2 (2026-11-26)
+
+Nothing a person using the app will see. The list of open work says what
+is true today, and what comes next:
+
+- The visit counter was read for the first time.
+- Other track tools were tried first hand. One already makes layouts from a
+  count of pieces, so that idea stays on the list of things not built yet.
+- The app was checked on a real phone by its owner.
+- The counts of unmeasured pieces in the list of open work were out of
+  date and are corrected: 59 of 73.
+
 ## 1.7.1 (2026-11-24)
 
 Nothing a person using the app will see. Three notes in the code still
