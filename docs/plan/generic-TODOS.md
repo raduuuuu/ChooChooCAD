@@ -259,6 +259,21 @@ reading shows searches for layouts by piece count landing here.
 **Effort:** human L / CC M. **Priority:** P2.
 **Depends on:** one of those two signs.
 
+## P3 — A drawing of the two joints on the page of makes (2026-11-26)
+
+**What:** On `/which-track-fits/`, the usual peg and socket and the small-peg
+ones drawn side by side, to scale.
+**Why:** It is the only page a search engine reads that has no picture, and
+the two joints seen together say "will not go in without force" at a glance.
+**Pros:** The page gets what every other static page has.
+**Cons:** A to-scale drawing looks certain. Today the small-peg joint's
+sizes come from one source that uses a different convention from the usual
+track's (`engine/data/thirdParty.ts`, `SMALL_PEG_CONNECTOR`).
+**Context:** Found by the design review of the page (2026-11-26) and put
+here by the owner rather than drawn from unverified sizes.
+**Effort:** human ~1 day / CC ~1 h. **Priority:** P3.
+**Depends on:** someone measuring both joints.
+
 ## P2 — Works offline, installs to the home screen (deferred 2026-11-16)
 
 **What:** A phone keeps a copy of the app, so it opens with no signal and

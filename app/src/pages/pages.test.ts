@@ -18,7 +18,7 @@ import { sizesLine } from '../linkWords.js';
 import { PRESETS } from '../presets.js';
 import { decodeLink } from '../shareLink.js';
 import { coloursOf, draw, PAGE_COLOURS, renderOf } from './drawing.js';
-import { basisOf, FIT_WORDS, FITS_PATH, MAKE, marksOf, NAMED_WORDS, PAIRS, SYSTEMS } from './fitsPage.js';
+import { answer, basisOf, countsLine, FIT_WORDS, FITS_PATH, marksOf, NAMED_WORDS, PAIRS, rowName, SYSTEMS } from './fitsPage.js';
 import { floorCmOf, kindsOf, kindWord, pageOf, picturePath, previewPath, refusal } from './layoutPage.js';
 import { listHtml } from './listPage.js';
 import { PUBLISHED } from './published.js';
@@ -444,7 +444,16 @@ describe('layout pages', () => {
    *   `0` in makeSection): `GENERIC: expected '<!doctype html>…' to contain
    *   'called “Generic”. It holds <span clas…'` (run);
    * - the closing note is cut: `expected '<!doctype html>…' to contain
-   *   'trademarks of their owners'` (run).
+   *   'trademarks of their owners'` (run);
+   * - the first sentence is written by hand and the table changes under it
+   *   (`answer()` replaced by a fixed sentence saying every pair joins):
+   *   `expected '<!doctype html>…' to contain '</h1>\n<p>… track are rep…'` (run);
+   * - a make with one kind of mark tallies its zeros again (`has.length ===
+   *   1` made never true in countsLine): `expected 'It holds 12 pieces for
+   *   it: 12 Unverif…' to be 'It holds 12 pieces for it, all Unveri…'`,
+   *   under the small-peg system's name (run);
+   * - the table loses its own column width (`.sizes.pairs` cut from the
+   *   shell's style): `expected '…' to match /\.sizes\.pairs tbody th…/` (run).
    */
   it('says which makes join by what is documented, each with what it rests on and the planner’s own counts', () => {
     const page = htmls.find((p) => p.path === FITS_PATH)!.html;
@@ -455,19 +464,37 @@ describe('layout pages', () => {
     for (const p of PAIRS) {
       const { fit } = brandFit(p.a, p.b);
       const basis = basisOf(fit);
-      expect(page).toContain(`<th role="rowheader" scope="row">${MAKE[p.a].name} with ${MAKE[p.b].name}</th><td role="cell" class="size"><strong>${FIT_WORDS[fit]}.</strong>`);
+      expect(page).toContain(`<th role="rowheader" scope="row">${rowName(p.a)} with ${rowName(p.b)}</th><td role="cell" class="size"><strong>${FIT_WORDS[fit]}.</strong>`);
       expect(page).toContain(`${p.why}</td><td role="cell" class="mark is-${basis.toLowerCase()}">${basis}</td>`);
     }
     // Nothing on the page is called Measured as a fit: nobody here joined two makes.
-    expect(PAIRS.map((p) => basisOf(brandFit(p.a, p.b).fit))).toEqual(['Published', 'Unverified', 'Unverified']);
-    expect(page).toContain('Nothing in this table was tested here by joining real pieces');
+    expect(PAIRS.map((p) => basisOf(brandFit(p.a, p.b).fit))).toEqual(['Reported', 'Unverified', 'Unverified']);
+    // What is only reported is never called Published, the page of sizes' word for a figure a reference states.
+    expect(page).not.toContain('is-published');
+    expect(page).toContain('<li><strong>Reported</strong>: a published guide and owners say so. Nobody here has tried it.</li>');
+    // The answer is the first sentence, made from the same pairs as the table, with the caveat beside it (DESIGN.md rule 15).
+    const lead = answer();
+    expect(lead.split(' track are reported not to join.').length - 1).toBe(1);
+    expect(lead).toMatch(/ track are reported not to join\. Whether .+ track or .+ track join is not known\.$/);
+    expect(page).toContain(`</h1>\n<p>${lead} Nothing here was tested by joining real pieces; the table says what each line rests on.</p>`);
+    // The table of pairs gives its first column a label's width, not a piece name's.
+    expect(page).toContain('<table role="table" class="sizes pairs"');
+    expect(/<style>([\s\S]*?)<\/style>/.exec(page)![1]!).toMatch(/\.sizes\.pairs tbody th\s*\{\s*width:\s*13rem;\s*\}/);
     for (const system of SYSTEMS) {
       const marks = marksOf(system);
       const pieces = BUILT_IN.filter((part) => part.brand === system);
       expect(marks.Measured + marks.Published + marks.Unverified, system).toBe(pieces.length);
       for (const m of ['Measured', 'Published', 'Unverified'] as const) expect(marks[m], `${system} ${m}`).toBe(pieces.filter((part) => markOf(part) === m).length);
-      expect(page, system).toContain(`called “${SYSTEM_NAME[system]}”. It holds <span class="num">${pieces.length}</span> pieces for it: <span class="num">${marks.Measured}</span> Measured, <span class="num">${marks.Published}</span> Published and <span class="num">${marks.Unverified}</span> Unverified.`);
+      expect(page, system).toContain(`called “${SYSTEM_NAME[system]}”. ${countsLine(marks)}`);
+      // Only the marks a make has are said, and "all" when it has one: no tally of zeros.
+      const line = countsLine(marks).replace(/<[^>]+>/g, '');
+      expect(line, system).not.toMatch(/\b0 (Measured|Published|Unverified)/);
+      const kinds = (['Measured', 'Published', 'Unverified'] as const).filter((m) => marks[m] > 0);
+      if (kinds.length === 1) expect(line, system).toBe(`It holds ${pieces.length} pieces for it, all ${kinds[0]}.`);
+      else for (const m of kinds) expect(line, system).toContain(`${marks[m]} ${m}`);
     }
+    // The main system has all three marks and the two others one each, so both shapes of the line are on the page.
+    expect(SYSTEMS.map((sy) => (['Measured', 'Published', 'Unverified'] as const).filter((m) => marksOf(sy)[m] > 0).length)).toEqual([3, 1, 1]);
     // Every piece the planner holds belongs to one of the three systems the page covers.
     expect(SYSTEMS.reduce((n, s) => n + BUILT_IN.filter((part) => part.brand === s).length, 0)).toBe(BUILT_IN.length);
     // The app says the same of that pair as the page does (owner, 2026-11-26): reported, not seen. Read as text,
